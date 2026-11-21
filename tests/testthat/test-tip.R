@@ -74,7 +74,7 @@ describe("tip_on()", {
   it("checks its arguments with errors of its own class, and takes nothing else", {
     expect_error(tip_on(button(), 1), "text", class = "hovercraft_error_argument")
     expect_error(tip_on(button(), template = 1), "template", class = "hovercraft_error_argument")
-    expect_error(tip_on(button(), "x", extra = 1), "must be empty")
+    expect_error(tip_on(button(), "x", extra = 1), "must be empty", class = "hovercraft_error_argument")
   })
 
   it("warns, once, about a tag that cannot take focus: keyboard users would never reach its tip", {

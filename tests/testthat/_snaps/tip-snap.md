@@ -77,8 +77,8 @@
     Condition
       Error in `tip_on()`:
       ! `...` must be empty.
-      x Problematic argument:
-      * tmplate = "a"
+      x Not an argument: "tmplate".
+      i The arguments are `tag`, `text`, `template`, and `record`.
 
 # the tip_on() errors / say what a record lacks, and what it holds
 

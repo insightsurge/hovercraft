@@ -13,6 +13,24 @@ tip_arg <- function(result, arg, fix, call = rlang::caller_env()) {
   invisible()
 }
 
+# Stops when `...` holds anything: it is there so a misspelt argument is an error, and `args` names the real ones.
+tip_check_dots <- function(..., args, class = "hovercraft_error_argument", call = rlang::caller_env()) {
+  if (...length()) {
+    given <- ...names()
+    given <- if (is.null(given)) rep("(unnamed)", ...length()) else ifelse(given == "", "(unnamed)", given)
+    tip_abort(
+      c(
+        "{.arg ...} must be empty.",
+        x = "Not an argument: {.val {given}}.",
+        i = "The arguments are {.arg {args}}."
+      ),
+      class = class,
+      call = call
+    )
+  }
+  invisible()
+}
+
 tip_arg_string <- function(x, arg, min_chars = 1L, null_ok = FALSE, na_ok = FALSE, call = rlang::caller_env()) {
   fix <- paste0(
     "Give one ",

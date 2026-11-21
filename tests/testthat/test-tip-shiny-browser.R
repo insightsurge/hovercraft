@@ -2,6 +2,8 @@ skip_on_cran()
 skip_if_not_installed("chromote")
 skip_if_not_installed("shiny")
 skip_if_not_installed("callr")
+skip_if_not_installed("httpuv")
+skip_if_not_installed("pkgload")
 skip_if_not_installed("withr")
 skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 

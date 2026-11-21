@@ -174,7 +174,7 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
   if (!inherits(tag, "shiny.tag")) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
-  rlang::check_dots_empty()
+  tip_check_dots(..., args = c("tag", "text", "template", "record"))
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
   tip_arg_string(template, "template", null_ok = TRUE)
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
