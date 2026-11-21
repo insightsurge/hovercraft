@@ -17,6 +17,7 @@ dev/
 # Local maintainer files (the copy script is kept: its checks are versioned)
 tools/*
 !tools/copy-engine.R
+!tools/check-release.R
 
 # Local tool settings stay out of git
 .claude/settings.local.json

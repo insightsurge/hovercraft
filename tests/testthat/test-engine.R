@@ -70,10 +70,3 @@ describe("tip_reset()", {
     expect_identical(tip_known(), list())
   })
 })
-
-describe("a release", {
-  it("is copied from the engine's main branch", {
-    skip_if_not(identical(Sys.getenv("HOVERCRAFT_RELEASE"), "true"), "a release test")
-    expect_identical(tip_engine()$branch, "main")
-  })
-})
