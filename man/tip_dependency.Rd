@@ -4,19 +4,36 @@
 \alias{tip_dependency}
 \title{The tip engine as an HTML dependency}
 \usage{
-tip_dependency()
+tip_dependency(theme = NULL)
+}
+\arguments{
+\item{theme}{How the tips look, or \code{NULL} (the default) to take the page's own bslib variables, so a page with a
+\code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
+\itemize{
+\item a \code{\link[=tip_theme]{tip_theme()}};
+\item a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its variables (bslib 0.6.0 or later). The tip is the page inverted: its fill is
+the theme's text colour and its words the theme's background, with the border colour, corner and font;
+\item a named list whose names are roles (\code{list(bg = "#1b3a6b", ink = "#ffffff")}), the same as
+\code{tip_theme(light = )}, so one set for both modes;
+\item a named list whose names all start with \verb{--}, CSS variables set as they are for both modes, such as
+\code{list("--hovercraft-tip-bg" = "#1b3a6b")}: the engine's own variables, or any variable the page's CSS reads.
+}}
 }
 \value{
-An \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}}.
+An \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}}; with a \code{theme}, a list of two: the engine and \code{hovercraft-theme}, which
+holds only the theme's CSS. Put it once in the page's UI, for example
+\code{bslib::page_fluid(tip_dependency(theme = my_theme), ...)}.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 The engine's script and CSS, ready to add to a page. \code{\link[=tip_on]{tip_on()}} and \code{\link[=tip_define]{tip_define()}} attach it for you; use this when
-you build the page's head yourself. The dependency is versioned with the engine, not with this package. The engine
-reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
+you build the page's head yourself, or to give the page a theme. The dependency is versioned with the engine, not
+with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
 }
 \examples{
 tip_dependency()
+tip_dependency(theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
+tip_dependency(theme = list("--hovercraft-tip-radius" = "8px"))
 }
 \seealso{
 Other tooltips:
@@ -24,6 +41,7 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_rows]{tip_rows()}},
-\code{\link[=tip_template]{tip_template()}}
+\code{\link[=tip_template]{tip_template()}},
+\code{\link[=tip_theme]{tip_theme()}}
 }
 \concept{tooltips}

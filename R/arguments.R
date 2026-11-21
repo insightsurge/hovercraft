@@ -32,10 +32,11 @@ tip_arg_list <- function(
   x,
   arg,
   min.len = 0L,
+  null_ok = FALSE,
   fix = "Give a list with a different name for each value.",
   call = rlang::caller_env()
 ) {
-  tip_arg(checkmate::check_list(x, names = "unique", min.len = min.len), arg, fix, call)
+  tip_arg(checkmate::check_list(x, names = "unique", min.len = min.len, null.ok = null_ok), arg, fix, call)
 }
 
 tip_arg_chars <- function(x, arg, null_ok = FALSE, call = rlang::caller_env()) {
