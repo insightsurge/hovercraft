@@ -47,7 +47,11 @@ page_file <- function(dir) {
     tip_on(htmltools::tags$button(id = "plain", "Run"), "Runs the **check**"),
     htmltools::tags$table(
       lapply(records, function(record) {
-        tip_on(htmltools::tags$tr(htmltools::tags$td(record$label, class = "cell")), template = "diff", record = record)
+        tip_on(
+          htmltools::tags$tr(htmltools::tags$td(record$label, class = "cell"), tabindex = "0"),
+          template = "diff",
+          record = record
+        )
       })
     ),
     bslib::tooltip(

@@ -10,14 +10,17 @@ tip_on(tag, text = NULL, ..., template = NULL, record = NULL)
 \item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}.}
 
 \item{text}{One string of markdown (strong, emphasis, code, links, short lists), or \code{NULL}. It is shown as written:
-build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none.}
+build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back as it was.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
 \item{template}{The name of a template defined with \code{\link[=tip_define]{tip_define()}}, or \code{NULL}.}
 
 \item{record}{A named list, or a data frame of one row: the values the template's placeholders read, one value each.
-\code{NA} and \code{NULL} show a dash. See \code{\link[=tip_rows]{tip_rows()}} to get one record per row of a data frame.}
+\code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as \code{YYYY-MM-DDTHH:MM:SSZ} and
+factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen the template, only the columns it names are kept, so nothing
+else in a row is written into the page; for a template not seen here, every column goes, so choose them with
+\code{tip_rows(data, columns = )}. See \code{\link[=tip_rows]{tip_rows()}} to get one record per row of a data frame.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added.
@@ -31,6 +34,11 @@ in a plain Shiny page and in output made later with \code{renderUI()}. A tag ins
 \code{\link[bslib:popover]{bslib::popover()}}, or with \code{data-bs-toggle}, keeps the tip that bslib draws and this one is left off.
 }
 \details{
+A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a \code{div}) gives a
+keyboard user no way to the tip. \code{tip_on()} warns once about such a tag and never adds a \code{tabindex} itself, because a
+table of 3,000 rows would become 3,000 Tab stops: give the tags worth a stop \code{tabindex = "0"}, or put the tip on a
+button or a link.
+
 If both \code{text} and \code{template} are given, the text is shown for this tag. A template whose name has been defined in
 this session is checked against the record here: a field it names that the record does not hold is an error. A
 name that has not been defined is left to the page, which says so once in the browser's console.
@@ -45,7 +53,11 @@ tip_define(diff = tip_template(
 rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
 records <- tip_rows(rows)
 lapply(records, function(record) {
-  tip_on(htmltools::tags$tr(htmltools::tags$td(record$label)), template = "diff", record = record)
+  tip_on(
+    htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+    template = "diff",
+    record = record
+  )
 })
 }
 \seealso{

@@ -45,7 +45,7 @@ ui <- bslib::page_fluid(
   htmltools::tags$table(
     lapply(tip_rows(rows), function(record) {
       tip_on(
-        htmltools::tags$tr(htmltools::tags$td(record$label)),
+        htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
         template = "diff",
         record = record
       )
@@ -60,5 +60,10 @@ the template is made, not later in the browser.
 
 The tags work in a bslib page, in a plain Shiny page and in output made later with `renderUI()`. A tag inside
 `bslib::tooltip()` keeps the tip that bslib draws.
+
+A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a `div`) gives a
+keyboard user no way to its tip. `tip_on()` says so once. It never adds a tab stop itself, because a table of 3,000 rows
+would become 3,000 Tab stops; give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a
+link.
 
 Set up with [launchR](https://launch-r.web.app).

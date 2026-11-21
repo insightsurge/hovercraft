@@ -4,7 +4,8 @@
       tip_title(1)
     Condition
       Error in `tip_title()`:
-      ! Assertion on 'text' failed: Must be of type 'string', not 'double'.
+      ! `text` is not right: Must be of type 'string', not 'double'
+      i Give one non-empty string.
 
 ---
 
@@ -12,7 +13,8 @@
       tip_fields(A = 1)
     Condition
       Error in `tip_fields()`:
-      ! Assertion on 'A' failed: Must be of type 'string', not 'double'.
+      ! `A` is not right: Must be of type 'string', not 'double'
+      i Give one non-empty string.
 
 # the block errors / say where a bad placeholder is
 

@@ -43,7 +43,7 @@ NULL
 #' @rdname tip_blocks
 #' @export
 tip_title <- function(text) {
-  checkmate::assert_string(text, min.chars = 1L)
+  tip_arg_string(text, "text")
   tip_check_text(text, "The text of `tip_title()`")
   tip_block("title", text = text)
 }
@@ -51,7 +51,7 @@ tip_title <- function(text) {
 #' @rdname tip_blocks
 #' @export
 tip_text <- function(text) {
-  checkmate::assert_string(text, min.chars = 1L)
+  tip_arg_string(text, "text")
   tip_check_text(text, "The text of `tip_text()`")
   tip_block("text", text = text)
 }
@@ -59,8 +59,8 @@ tip_text <- function(text) {
 #' @rdname tip_blocks
 #' @export
 tip_badge <- function(text, tone = NULL) {
-  checkmate::assert_string(text, min.chars = 1L)
-  checkmate::assert_string(tone, min.chars = 1L, null.ok = TRUE)
+  tip_arg_string(text, "text")
+  tip_arg_string(tone, "tone", null.ok = TRUE)
   tip_check_text(text, "The text of `tip_badge()`")
   tip_block("badge", text = text, tone = tone)
 }
@@ -69,9 +69,14 @@ tip_badge <- function(text, tone = NULL) {
 #' @export
 tip_fields <- function(...) {
   pairs <- list(...)
-  checkmate::assert_list(pairs, names = "unique", min.len = 1L, .var.name = "...")
+  tip_arg_list(
+    pairs,
+    "...",
+    min.len = 1L,
+    fix = "Give each value a label: {.code tip_fields(Label = \"{{{{ field }}}}\")}."
+  )
   for (label in names(pairs)) {
-    checkmate::assert_string(pairs[[label]], min.chars = 1L, .var.name = label)
+    tip_arg_string(pairs[[label]], label)
     tip_check_text(pairs[[label]], sprintf("The value of \"%s\" in `tip_fields()`", label))
     if (grepl(tip_rules()$placeholder$open, label, fixed = TRUE)) {
       tip_warn(
@@ -92,9 +97,9 @@ tip_fields <- function(...) {
 #' @rdname tip_blocks
 #' @export
 tip_code <- function(field, language = NULL, copy = FALSE) {
-  checkmate::assert_string(field, min.chars = 1L)
-  checkmate::assert_string(language, min.chars = 1L, null.ok = TRUE)
-  checkmate::assert_flag(copy)
+  tip_arg_string(field, "field")
+  tip_arg_string(language, "language", null.ok = TRUE)
+  tip_arg_flag(copy, "copy")
   if (copy) {
     tip_abort(
       c(

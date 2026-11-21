@@ -18,16 +18,16 @@ describe("the block functions", {
     expect_length(unclass(two)$fields, 2L)
   })
 
-  it("check each argument", {
-    expect_error(tip_title(1), "text")
-    expect_error(tip_title(""), "text")
-    expect_error(tip_badge("a", tone = 1), "tone")
-    expect_error(tip_fields(), "...")
-    expect_error(tip_fields("a"), "\\.\\.\\.")
-    expect_error(tip_fields(A = 1), "A")
-    expect_error(tip_code(1), "field")
-    expect_error(tip_code("a", language = 1), "language")
-    expect_error(tip_code("a", copy = "yes"), "copy")
+  it("check each argument, with an error of the package's class that says the fix", {
+    expect_error(tip_title(1), "text", class = "hovercraft_error_argument")
+    expect_error(tip_title(""), "text", class = "hovercraft_error_argument")
+    expect_error(tip_badge("a", tone = 1), "tone", class = "hovercraft_error_argument")
+    expect_error(tip_fields(), "\\.\\.\\.", class = "hovercraft_error_argument")
+    expect_error(tip_fields("a"), "\\.\\.\\.", class = "hovercraft_error_argument")
+    expect_error(tip_fields(A = 1), "A", class = "hovercraft_error_argument")
+    expect_error(tip_code(1), "field", class = "hovercraft_error_argument")
+    expect_error(tip_code("a", language = 1), "language", class = "hovercraft_error_argument")
+    expect_error(tip_code("a", copy = "yes"), "copy", class = "hovercraft_error_argument")
   })
 
   it("check the placeholders in every text", {

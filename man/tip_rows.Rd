@@ -4,10 +4,13 @@
 \alias{tip_rows}
 \title{A data frame as one record per row}
 \usage{
-tip_rows(data)
+tip_rows(data, columns = NULL)
 }
 \arguments{
 \item{data}{A data frame.}
+
+\item{columns}{The names of the columns to keep, or \code{NULL} for all of them. Name the columns a template uses, so
+nothing else in the data is written into the page.}
 }
 \value{
 An unnamed list with one named list per row.

@@ -17,8 +17,8 @@
 #' tip_rows(rows)[[1]]
 #' @export
 tip_rows <- function(data, columns = NULL) {
-  checkmate::assert_data_frame(data)
-  checkmate::assert_character(columns, any.missing = FALSE, min.len = 1L, null.ok = TRUE)
+  tip_arg_data(data, "data")
+  tip_arg_chars(columns, "columns", null.ok = TRUE)
   if (!is.null(columns)) {
     unknown <- setdiff(columns, names(data))
     if (length(unknown)) {

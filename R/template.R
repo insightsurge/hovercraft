@@ -113,7 +113,8 @@ print.hovercraft_template <- function(x, ...) {
 #' `r lifecycle::badge("experimental")`
 #' Puts named templates on the page, so a tag can use one with `tip_on(tag, template = "name")`. Put the result in the
 #' page's UI, once. A name is lower-case letters, digits and `_`, starting with a letter. Defining a name again replaces
-#' the earlier template under it.
+#' the earlier template under it, with a warning when the blocks differ. Templates belong to the whole page, so a Shiny
+#' module should put its id in the names it defines, such as `paste0(id, "_row")`.
 #'
 #' @param ... Templates, each with a name: `tip_define(diff = tip_template(...))`. A template may also be a list of
 #'   blocks.
@@ -130,7 +131,12 @@ print.hovercraft_template <- function(x, ...) {
 #' @export
 tip_define <- function(...) {
   templates <- list(...)
-  checkmate::assert_list(templates, names = "unique", min.len = 1L, .var.name = "...")
+  tip_arg_list(
+    templates,
+    "...",
+    min.len = 1L,
+    fix = "Give each template a name: {.code tip_define(name = tip_template(...))}."
+  )
   rules <- tip_engine()$rules$names
   js <- character()
   for (name in names(templates)) {
@@ -151,8 +157,19 @@ tip_define <- function(...) {
         do.call(tip_template, unname(template))
       }
     }
-    tip_state$templates[[name]] <- list(fields = tip_template_fields(template))
-    js <- c(js, sprintf("%s.define(%s, %s);", tip_names()$global, tip_json(name), tip_json(lapply(template, unclass))))
+    body <- tip_json(lapply(template, unclass))
+    before <- tip_state$templates[[name]]
+    if (!is.null(before) && !identical(before$body, body)) {
+      tip_warn(
+        c(
+          "The template {.val {name}} was already defined with different blocks; this one replaces it.",
+          i = "Templates are shared by the whole page. Put a module's id in the names it defines, such as {.val {paste0(\"<id>_\", name)}}."
+        ),
+        class = "hovercraft_warning_template"
+      )
+    }
+    tip_state$templates[[name]] <- list(fields = tip_template_fields(template), body = body)
+    js <- c(js, sprintf("%s.define(%s, %s);", tip_names()$global, tip_json(name), body))
   }
   htmltools::attachDependencies(
     htmltools::tagList(htmltools::tags$script(htmltools::HTML(paste(js, collapse = "\n")))),

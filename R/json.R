@@ -78,7 +78,7 @@ tip_record <- function(record, keep = NULL, call = rlang::caller_env()) {
     tip_check_columns(record, call)
     record <- lapply(record, function(column) column[[1L]])
   }
-  checkmate::assert_list(record, names = "unique", .var.name = "record")
+  tip_arg_list(record, "record", fix = "Give a named list, or a data frame of one row.")
   if (!is.null(keep)) {
     record <- record[names(record) %in% keep]
   }

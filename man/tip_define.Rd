@@ -17,7 +17,8 @@ Tags to put in the page's UI.
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the
 page's UI, once. A name is lower-case letters, digits and \verb{_}, starting with a letter. Defining a name again replaces
-the earlier template under it.
+the earlier template under it, with a warning when the blocks differ. Templates belong to the whole page, so a Shiny
+module should put its id in the names it defines, such as \code{paste0(id, "_row")}.
 }
 \examples{
 tip_define(

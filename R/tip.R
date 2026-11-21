@@ -4,6 +4,42 @@ tip_attributes <- function() {
   c(text = base, template = paste0(base, "-template"), record = paste0(base, "-record"))
 }
 
+# A tip shows when the pointer rests on a tag or keyboard focus arrives on it, so a tag that cannot take focus gives a
+# keyboard user no way to the tip. This only says so, once; it never adds a tabindex (a table of 3,000 rows would become
+# 3,000 Tab stops), because the choice of which tags are worth a Tab stop is the page's.
+tip_can_focus <- function(tag) {
+  type <- htmltools::tagGetAttribute(tag, "type")
+  switch(
+    tag$name,
+    button = ,
+    select = ,
+    textarea = ,
+    summary = TRUE,
+    a = ,
+    area = !is.null(htmltools::tagGetAttribute(tag, "href")),
+    input = !identical(tolower(as.character(type)), "hidden"),
+    !is.null(htmltools::tagGetAttribute(tag, "tabindex"))
+  ) ||
+    !is.null(htmltools::tagGetAttribute(tag, "tabindex"))
+}
+
+tip_check_focus <- function(tag, call) {
+  if (!tip_can_focus(tag)) {
+    tip_warn(
+      c(
+        "A {.code <{tag$name}>} tag cannot take keyboard focus, so a keyboard user will not reach its tip.",
+        i = "Add {.code tabindex = \"0\"} to the tag, or put the tip on a button or a link.",
+        i = "{.fn tip_on} never adds a tab stop itself."
+      ),
+      class = "hovercraft_warning_focus",
+      call = call,
+      .frequency = "once",
+      .frequency_id = "hovercraft-focus"
+    )
+  }
+  invisible()
+}
+
 # What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
 # the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can be
 # checked; any other name is the page's to report (a UI is often written before the templates it uses). This page has no
@@ -86,13 +122,18 @@ tip_check_use <- function(template, held, id, call) {
 #' in a plain Shiny page and in output made later with `renderUI()`. A tag inside [bslib::tooltip()] or
 #' [bslib::popover()], or with `data-bs-toggle`, keeps the tip that bslib draws and this one is left off.
 #'
+#' A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a `div`) gives a
+#' keyboard user no way to the tip. `tip_on()` warns once about such a tag and never adds a `tabindex` itself, because a
+#' table of 3,000 rows would become 3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, or put the tip on a
+#' button or a link.
+#'
 #' If both `text` and `template` are given, the text is shown for this tag. A template whose name has been defined in
 #' this session is checked against the record here: a field it names that the record does not hold is an error. A
 #' name that has not been defined is left to the page, which says so once in the browser's console.
 #'
 #' @param tag One HTML tag, such as `htmltools::tags$tr()` or `shiny::actionButton()`.
 #' @param text One string of markdown (strong, emphasis, code, links, short lists), or `NULL`. It is shown as written:
-#'   build it with [paste0()] or [sprintf()]. `NA` and `""` count as none.
+#'   build it with [paste0()] or [sprintf()]. `NA` and `""` count as none: the tag comes back as it was.
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param template The name of a template defined with [tip_define()], or `NULL`.
 #' @param record A named list, or a data frame of one row: the values the template's placeholders read, one value each.
@@ -113,7 +154,11 @@ tip_check_use <- function(template, held, id, call) {
 #' rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
 #' records <- tip_rows(rows)
 #' lapply(records, function(record) {
-#'   tip_on(htmltools::tags$tr(htmltools::tags$td(record$label)), template = "diff", record = record)
+#'   tip_on(
+#'     htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+#'     template = "diff",
+#'     record = record
+#'   )
 #' })
 #' @export
 tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
@@ -127,15 +172,16 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
   rlang::check_dots_empty()
-  checkmate::assert_string(text, na.ok = TRUE, null.ok = TRUE)
-  checkmate::assert_string(template, min.chars = 1L, null.ok = TRUE)
+  tip_arg_string(text, "text", min.chars = 0L, null.ok = TRUE, na.ok = TRUE)
+  tip_arg_string(template, "template", null.ok = TRUE)
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
   if (!has_text && is.null(template)) {
-    tip_abort(
-      "Give {.arg text} or {.arg template}; there is nothing to show.",
-      class = "hovercraft_error_tip"
-    )
+    if (is.null(text)) {
+      tip_abort("Give {.arg text} or {.arg template}; there is nothing to show.", class = "hovercraft_error_tip")
+    }
+    return(tag) # a missing or empty text is no tip, so a table row with no note stays as it was
   }
+  tip_check_focus(tag, rlang::current_env())
   held <- names(record)
   keep <- tip_known()[[template %||% ""]]$fields
   if (!is.null(record)) {

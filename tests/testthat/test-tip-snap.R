@@ -5,6 +5,19 @@ describe("the tip_on() errors", {
   withr::defer(tip_reset())
   tip_reset()
 
+  it("say a tag with no focus gives keyboard users no way to the tip", {
+    rlang::reset_warning_verbosity("hovercraft-focus")
+    expect_snapshot(invisible(tip_on(htmltools::tags$tr("x"), "Row")))
+  })
+  it("say a template name is already taken", {
+    tip_define(demo = tip_template(tip_text("one")))
+    expect_snapshot(invisible(tip_define(demo = tip_template(tip_text("two")))))
+  })
+  it("say what a bad argument was", {
+    expect_snapshot(tip_on(button(), 1), error = TRUE)
+    expect_snapshot(tip_define(tip_template(tip_text("a"))), error = TRUE)
+    expect_snapshot(tip_rows(list(a = 1)), error = TRUE)
+  })
   it("say a tag list is not a tag", {
     expect_snapshot(tip_on(htmltools::tagList(button(), button()), "x"), error = TRUE)
     expect_snapshot(tip_on("x", "x"), error = TRUE)

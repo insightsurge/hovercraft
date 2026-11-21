@@ -1,3 +1,50 @@
+# the tip_on() errors / say a tag with no focus gives keyboard users no way to the tip
+
+    Code
+      invisible(tip_on(htmltools::tags$tr("x"), "Row"))
+    Condition
+      Warning in `tip_on()`:
+      A `<tr>` tag cannot take keyboard focus, so a keyboard user will not reach its tip.
+      i Add `tabindex = "0"` to the tag, or put the tip on a button or a link.
+      i `tip_on()` never adds a tab stop itself.
+      This warning is displayed once per session.
+
+# the tip_on() errors / say a template name is already taken
+
+    Code
+      invisible(tip_define(demo = tip_template(tip_text("two"))))
+    Condition
+      Warning in `tip_define()`:
+      The template "demo" was already defined with different blocks; this one replaces it.
+      i Templates are shared by the whole page. Put a module's id in the names it defines, such as "<id>_demo".
+
+# the tip_on() errors / say what a bad argument was
+
+    Code
+      tip_on(button(), 1)
+    Condition
+      Error in `tip_on()`:
+      ! `text` is not right: Must be of type 'string' (or 'NULL'), not 'double'
+      i Give one string, or `NULL`.
+
+---
+
+    Code
+      tip_define(tip_template(tip_text("a")))
+    Condition
+      Error in `tip_define()`:
+      ! `...` is not right: Must have names
+      i Give each template a name: `tip_define(name = tip_template(...))`.
+
+---
+
+    Code
+      tip_rows(list(a = 1))
+    Condition
+      Error in `tip_rows()`:
+      ! `data` is not right: Must be of type 'data.frame', not 'list'
+      i Give a data frame.
+
 # the tip_on() errors / say a tag list is not a tag
 
     Code
@@ -60,7 +107,7 @@
     Condition
       Warning in `tip_on()`:
       No template "dif" has been defined with `tip_define()`.
-      i Did you mean "diff"?
+      i Did you mean "demo" or "diff"?
       i If it is defined later in the page, ignore this.
       This warning is displayed once per session.
 
