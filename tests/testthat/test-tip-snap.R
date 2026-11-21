@@ -1,0 +1,30 @@
+skip_if_not_installed("withr")
+button <- function() htmltools::tags$button("Run")
+
+describe("the tip_on() errors", {
+  withr::defer(tip_reset())
+  tip_reset()
+
+  it("say a tag list is not a tag", {
+    expect_snapshot(tip_on(htmltools::tagList(button(), button()), "x"), error = TRUE)
+    expect_snapshot(tip_on("x", "x"), error = TRUE)
+  })
+  it("say there is nothing to show", {
+    expect_snapshot(tip_on(button()), error = TRUE)
+  })
+  it("say a misspelt argument is not taken", {
+    expect_snapshot(tip_on(button(), "x", tmplate = "a"), error = TRUE)
+  })
+  it("say what a record lacks, and what it holds", {
+    tip_define(diff = tip_template(tip_title("{{ label }}"), tip_text("{{ n }} {{ m }}")))
+    expect_snapshot(tip_on(button(), template = "diff", record = list(label = "x")), error = TRUE)
+    expect_snapshot(tip_on(button(), template = "diff"), error = TRUE)
+  })
+  it("warn about a name not defined, and an engine name", {
+    rlang::reset_warning_verbosity("hovercraft-template-dif")
+    expect_snapshot(invisible(tip_on(button(), template = "dif", record = list(label = "x"))))
+    tip_define(withid = tip_template(tip_text("{{ tip_id }} {{ label }}")))
+    expect_snapshot(invisible(tip_on(button(), template = "withid", record = list(label = "x", tip_id = "u"))))
+    expect_snapshot(invisible(tip_on(button(), "x", record = list(a = 1))))
+  })
+})

@@ -15,3 +15,16 @@ navbar:
   structure:
     left: [reference, news, articles]
     right: [search, github, lightswitch]
+
+reference:
+  - title: Put a tip on a tag
+    contents:
+      - tip_on
+      - tip_rows
+  - title: Templates
+    contents:
+      - tip_define
+      - tip_template
+      - tip_blocks
+  - title: The engine
+    contents: tip_dependency
