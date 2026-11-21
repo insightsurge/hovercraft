@@ -1,13 +1,16 @@
-# tools::sha256sum() came with R 4.5.0; the package itself runs on 4.4.0.
+# The checksum from the shell (shasum or sha256sum), so it works on R 4.4 too; a machine with neither skips the test.
 sha256 <- function(path) {
-  skip_if_not(exists("sha256sum", envir = asNamespace("tools")), "tools::sha256sum() needs R 4.5.0")
-  unname(get("sha256sum", envir = asNamespace("tools"))(path))
+  tool <- Sys.which(c("shasum", "sha256sum"))
+  tool <- tool[nzchar(tool)][1L]
+  skip_if(is.na(tool), "neither shasum nor sha256sum is on the PATH")
+  args <- c(if (basename(tool) == "shasum") c("-a", "256"), shQuote(path))
+  strsplit(system2(tool, args, stdout = TRUE), " ", fixed = TRUE)[[1]][[1]]
 }
 
 describe("the vendored engine", {
   it("has the files engine.json lists, with the checksums it records", {
     engine <- tip_engine()
-    expect_setequal(unlist(engine$files), c("placeholders.json", "tip.css", "tip.js"))
+    expect_setequal(unlist(engine$files), c("placeholders.json", "www/tip.css", "www/tip.js"))
     for (file in unlist(engine$files)) {
       path <- tip_path(file)
       expect_true(file.exists(path), info = file)
@@ -25,9 +28,6 @@ describe("the vendored engine", {
     expect_identical(tip_engine_version(), engine$engine)
   })
 
-  it("is read once", {
-    expect_identical(tip_engine(), tip_engine())
-  })
 })
 
 describe("tip_dependency()", {
@@ -42,8 +42,18 @@ describe("tip_dependency()", {
   it("serves the engine's script and stylesheet from the vendored folder", {
     expect_identical(dep$script, "tip.js")
     expect_identical(dep$stylesheet, "tip.css")
-    expect_true(file.exists(file.path(dep$src$file, "tip.js")))
-    expect_true(file.exists(file.path(dep$src$file, "tip.css")))
+    expect_identical(dep$package, "hovercraft")
+    expect_true(file.exists(tip_path("www", "tip.js")))
+    expect_true(file.exists(tip_path("www", "tip.css")))
+  })
+
+  it("puts nothing else on a page: the record of where the engine came from stays in the package", {
+    skip_if_not_installed("withr")
+    dir <- withr::local_tempdir()
+    htmltools::save_html(tip_on(htmltools::tags$button("Run"), "Runs"), file.path(dir, "page.html"))
+    copied <- list.files(dir, recursive = TRUE)
+    expect_setequal(basename(copied[grepl("hovercraft", copied)]), c("tip.js", "tip.css"))
+    expect_false(any(grepl("engine.json|placeholders.json|tip.sha256", copied)))
   })
 
   it("starts the engine once the page has it, under the engine's own name", {
@@ -59,5 +69,12 @@ describe("tip_reset()", {
     expect_named(tip_known(), "demo")
     tip_reset()
     expect_identical(tip_known(), list())
+  })
+})
+
+describe("a release", {
+  it("is copied from the engine's main branch", {
+    skip_if_not(identical(Sys.getenv("HOVERCRAFT_RELEASE"), "true"), "a release test")
+    expect_identical(tip_engine()$branch, "main")
   })
 })

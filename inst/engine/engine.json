@@ -4,13 +4,13 @@
   "branch": "main-interim",
   "files": [
     "placeholders.json",
-    "tip.css",
-    "tip.js"
+    "www/tip.css",
+    "www/tip.js"
   ],
   "sha256": {
     "placeholders.json": "635d22fe2c0ecf1935d9dba3d1f811d75c5cfbcf1d99a6157bf9de990e3f88d2",
-    "tip.css": "6260236d2a59624e0b52b2c3258fe47ee6d939c60ec156667acf0ca7e43cae2a",
-    "tip.js": "73b024726a78a9e368b1b32c9e43299bc77955eca33af32ec724494982299895"
+    "www/tip.css": "6260236d2a59624e0b52b2c3258fe47ee6d939c60ec156667acf0ca7e43cae2a",
+    "www/tip.js": "73b024726a78a9e368b1b32c9e43299bc77955eca33af32ec724494982299895"
   },
   "names": {
     "attribute": "data-atlas-tip",

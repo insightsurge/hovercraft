@@ -14,8 +14,9 @@
 # Local working notes, not shared
 dev/
 
-# Local maintainer scripts
-tools/
+# Local maintainer files (the copy script is kept: its checks are versioned)
+tools/*
+!tools/copy-engine.R
 
 # Local tool settings stay out of git
 .claude/settings.local.json
