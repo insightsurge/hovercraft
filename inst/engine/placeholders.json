@@ -1,0 +1,773 @@
+{
+  "description": "Shared cases for tooltip placeholders (issue 437). text is a template text; fields are the fields its placeholders name, in order (a placeholder with a bad filter still names its field; an empty or nested one names none); problems are the kinds of mistake in order (unclosed, empty, nested, chained, later, unknown, arg; the sentences are each door's own); record is one item's row; shown is the text a reader sees for it: values go in as plain text and are never read again, a missing, null or blank value and an object or a list show the dash, text shows as typed whatever the filter, and a placeholder with a problem shows as written. Numbers follow AtlasKit.util.format_number (rounding ties to the even digit on the exact value, as R's sprintf; percent rounds the proportion to digits + 2 places and then moves the point). Python (tools/tree.py tip_render), the kit's engine test and atlasR read this file. A JSON file cannot hold Inf or NaN, so those cases are not here: they show the dash.",
+  "dash": "–",
+  "cases": [
+    {
+      "name": "plain text field",
+      "text": "{{ label }}",
+      "fields": [
+        "label"
+      ],
+      "problems": [],
+      "record": {
+        "label": "ADAE"
+      },
+      "shown": "ADAE"
+    },
+    {
+      "name": "no placeholder",
+      "text": "Just words",
+      "fields": [],
+      "problems": [],
+      "record": {},
+      "shown": "Just words"
+    },
+    {
+      "name": "spaces around the field are trimmed",
+      "text": "{{label}} and {{   label   }}",
+      "fields": [
+        "label",
+        "label"
+      ],
+      "problems": [],
+      "record": {
+        "label": "A"
+      },
+      "shown": "A and A"
+    },
+    {
+      "name": "two fields among words",
+      "text": "{{ a }} of {{ b }} records",
+      "fields": [
+        "a",
+        "b"
+      ],
+      "problems": [],
+      "record": {
+        "a": 3,
+        "b": 5304
+      },
+      "shown": "3 of 5304 records"
+    },
+    {
+      "name": "a whole number as it is",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3
+      },
+      "shown": "3"
+    },
+    {
+      "name": "a decimal as it is",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3.14159
+      },
+      "shown": "3.14159"
+    },
+    {
+      "name": "a small decimal as it is",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.153
+      },
+      "shown": "0.153"
+    },
+    {
+      "name": "float noise is cut at 15 digits",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.30000000000000004
+      },
+      "shown": "0.3"
+    },
+    {
+      "name": "number rounds",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3.14159
+      },
+      "shown": "3.14"
+    },
+    {
+      "name": "number rounds a small value",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.153
+      },
+      "shown": "0.15"
+    },
+    {
+      "name": "number ties go to the even digit on the exact value (2.675 is a hair under)",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 2.675
+      },
+      "shown": "2.67"
+    },
+    {
+      "name": "number: 0.125 is an exact tie, to even",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.125
+      },
+      "shown": "0.12"
+    },
+    {
+      "name": "number: 0.625 is an exact tie, to even",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.625
+      },
+      "shown": "0.62"
+    },
+    {
+      "name": "number: 1.015 is a hair under",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 1.015
+      },
+      "shown": "1.01"
+    },
+    {
+      "name": "number: 1.005 is a hair under",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 1.005
+      },
+      "shown": "1.00"
+    },
+    {
+      "name": "number: 0.5 with no digits is a tie, to even",
+      "text": "{{ x | number:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.5
+      },
+      "shown": "0"
+    },
+    {
+      "name": "number: 1.5 with no digits",
+      "text": "{{ x | number:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 1.5
+      },
+      "shown": "2"
+    },
+    {
+      "name": "number: 2.5 with no digits",
+      "text": "{{ x | number:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 2.5
+      },
+      "shown": "2"
+    },
+    {
+      "name": "number pads with zeros",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3
+      },
+      "shown": "3.00"
+    },
+    {
+      "name": "number: a value that rounds to zero has no minus sign",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": -0.001
+      },
+      "shown": "0.00"
+    },
+    {
+      "name": "number: a negative value",
+      "text": "{{ x | number:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": -2.25
+      },
+      "shown": "-2.2"
+    },
+    {
+      "name": "number: a very large value is written in full",
+      "text": "{{ x | number:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 1e+21
+      },
+      "shown": "1000000000000000000000"
+    },
+    {
+      "name": "number with no argument is the number as it is",
+      "text": "{{ x | number }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3.14159
+      },
+      "shown": "3.14159"
+    },
+    {
+      "name": "spaces around the filter marks are ignored",
+      "text": "{{ x | number : 2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3.14159
+      },
+      "shown": "3.14"
+    },
+    {
+      "name": "percent scales and rounds",
+      "text": "{{ x | percent:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 3.14159
+      },
+      "shown": "314.2%"
+    },
+    {
+      "name": "percent of a proportion",
+      "text": "{{ x | percent:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.153
+      },
+      "shown": "15.3%"
+    },
+    {
+      "name": "percent rounds the proportion first, ties to even",
+      "text": "{{ x | percent:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.5625
+      },
+      "shown": "56.2%"
+    },
+    {
+      "name": "percent with no digits",
+      "text": "{{ x | percent:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.065
+      },
+      "shown": "7%"
+    },
+    {
+      "name": "percent with no argument keeps 15 digits",
+      "text": "{{ x | percent }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": 0.29
+      },
+      "shown": "29%"
+    },
+    {
+      "name": "text shown as typed",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "abc"
+      },
+      "shown": "abc"
+    },
+    {
+      "name": "a filter on text is skipped",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "abc"
+      },
+      "shown": "abc"
+    },
+    {
+      "name": "a number held as text is text",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "12.3456"
+      },
+      "shown": "12.3456"
+    },
+    {
+      "name": "percent on text is skipped",
+      "text": "{{ x | percent:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "abc"
+      },
+      "shown": "abc"
+    },
+    {
+      "name": "null shows a dash",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": null
+      },
+      "shown": "–"
+    },
+    {
+      "name": "blank shows a dash",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": ""
+      },
+      "shown": "–"
+    },
+    {
+      "name": "absent shows a dash",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {},
+      "shown": "–"
+    },
+    {
+      "name": "a filter on null shows a dash",
+      "text": "{{ x | number:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": null
+      },
+      "shown": "–"
+    },
+    {
+      "name": "an object shows a dash",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": {
+          "a": 1
+        }
+      },
+      "shown": "–"
+    },
+    {
+      "name": "a list shows a dash",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": [
+          1,
+          2
+        ]
+      },
+      "shown": "–"
+    },
+    {
+      "name": "the word NA is text",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "NA"
+      },
+      "shown": "NA"
+    },
+    {
+      "name": "markdown in a value is not read",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": "*x* and **y**"
+      },
+      "shown": "*x* and **y**"
+    },
+    {
+      "name": "a placeholder in a value is not expanded",
+      "text": "{{ x }} {{ y }}",
+      "fields": [
+        "x",
+        "y"
+      ],
+      "problems": [],
+      "record": {
+        "x": "{{ y }}",
+        "y": "B"
+      },
+      "shown": "{{ y }} B"
+    },
+    {
+      "name": "a field with a dot is matched whole",
+      "text": "{{ a.b }}",
+      "fields": [
+        "a.b"
+      ],
+      "problems": [],
+      "record": {
+        "a.b": 5
+      },
+      "shown": "5"
+    },
+    {
+      "name": "a field with a space is matched whole",
+      "text": "{{ my col }}",
+      "fields": [
+        "my col"
+      ],
+      "problems": [],
+      "record": {
+        "my col": "z"
+      },
+      "shown": "z"
+    },
+    {
+      "name": "a field is matched exactly, with its case",
+      "text": "{{ Label }}",
+      "fields": [
+        "Label"
+      ],
+      "problems": [],
+      "record": {
+        "label": "A"
+      },
+      "shown": "–"
+    },
+    {
+      "name": "the engine fields are in the record",
+      "text": "{{ tip_index }} of {{ tip_id }}",
+      "fields": [
+        "tip_index",
+        "tip_id"
+      ],
+      "problems": [],
+      "record": {
+        "tip_index": 2,
+        "tip_id": "adsl"
+      },
+      "shown": "2 of adsl"
+    },
+    {
+      "name": "a row column of an engine name wins (it is the record's own)",
+      "text": "{{ tip_id }}",
+      "fields": [
+        "tip_id"
+      ],
+      "problems": [],
+      "record": {
+        "tip_id": "mine"
+      },
+      "shown": "mine"
+    },
+    {
+      "name": "a boolean",
+      "text": "{{ x }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [],
+      "record": {
+        "x": true
+      },
+      "shown": "true"
+    },
+    {
+      "name": "an unclosed placeholder shows as written",
+      "text": "{{ label",
+      "fields": [],
+      "problems": [
+        "unclosed"
+      ],
+      "record": {
+        "label": "A"
+      },
+      "shown": "{{ label"
+    },
+    {
+      "name": "an unclosed one after a good one",
+      "text": "{{ a }} then {{ b",
+      "fields": [
+        "a"
+      ],
+      "problems": [
+        "unclosed"
+      ],
+      "record": {
+        "a": "A",
+        "b": "B"
+      },
+      "shown": "A then {{ b"
+    },
+    {
+      "name": "an empty placeholder",
+      "text": "{{ }}",
+      "fields": [],
+      "problems": [
+        "empty"
+      ],
+      "record": {},
+      "shown": "{{ }}"
+    },
+    {
+      "name": "an empty field before a filter",
+      "text": "{{ | number:2 }}",
+      "fields": [],
+      "problems": [
+        "empty"
+      ],
+      "record": {},
+      "shown": "{{ | number:2 }}"
+    },
+    {
+      "name": "a placeholder inside a placeholder",
+      "text": "{{ a {{ b }}",
+      "fields": [],
+      "problems": [
+        "nested"
+      ],
+      "record": {
+        "b": 1
+      },
+      "shown": "{{ a {{ b }}"
+    },
+    {
+      "name": "a later filter",
+      "text": "{{ x | date:ymd }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "later"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | date:ymd }}"
+    },
+    {
+      "name": "a default filter is later too",
+      "text": "{{ x | default:0 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "later"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | default:0 }}"
+    },
+    {
+      "name": "an unknown filter",
+      "text": "{{ x | numbr:2 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "unknown"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | numbr:2 }}"
+    },
+    {
+      "name": "a chain of filters",
+      "text": "{{ x | number:2 | percent:1 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "chained"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | number:2 | percent:1 }}"
+    },
+    {
+      "name": "an argument that is not a whole number",
+      "text": "{{ x | number:two }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "arg"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | number:two }}"
+    },
+    {
+      "name": "an argument with quotes",
+      "text": "{{ x | number:\"2\" }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "arg"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | number:\"2\" }}"
+    },
+    {
+      "name": "an argument that is too big",
+      "text": "{{ x | number:101 }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "arg"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | number:101 }}"
+    },
+    {
+      "name": "an argument that is empty",
+      "text": "{{ x | number: }}",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "arg"
+      ],
+      "record": {
+        "x": 1
+      },
+      "shown": "{{ x | number: }}"
+    },
+    {
+      "name": "several problems in one text",
+      "text": "{{ }} {{ x | date:d }} {{ y",
+      "fields": [
+        "x"
+      ],
+      "problems": [
+        "empty",
+        "later",
+        "unclosed"
+      ],
+      "record": {},
+      "shown": "{{ }} {{ x | date:d }} {{ y"
+    }
+  ]
+}
