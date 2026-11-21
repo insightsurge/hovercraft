@@ -23,6 +23,9 @@ tip_assumed <- list(
   dark = c(bg = "#dee2e6", ink = "#212529")
 )
 
+# The page colour of each mode that a translucent fill is measured over: Bootstrap's.
+tip_page <- list(light = "#ffffff", dark = "#212529")
+
 tip_theme_abort <- function(message, ..., call, .envir = parent.frame()) {
   tip_abort(message, class = "hovercraft_error_theme", ..., call = call, .envir = .envir)
 }
@@ -105,7 +108,9 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 #' `hovercraft_contrast`; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 #' gives (a `#212529` fill with `#ffffff` words in light mode, `#dee2e6` with `#212529` in dark mode). CSS variables
-#' cannot be measured and are skipped. Set `options(hovercraft.contrast_warnings = FALSE)` to turn the warnings off, or
+#' cannot be measured and are skipped. A translucent `bg` is measured over the page's colour (white, or `#212529` in
+#' dark mode), and a translucent `code_bg` over the `bg`. Set `options(hovercraft.contrast_warnings = FALSE)` to turn
+#' the warnings off, or
 #' silence only them:
 #' ```r
 #' withCallingHandlers(
@@ -138,7 +143,7 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' @export
 tip_theme <- function(..., light = NULL, dark = NULL, mode = "auto") {
   call <- rlang::current_env()
-  rlang::check_dots_empty()
+  tip_check_dots(..., args = c("light", "dark", "mode"), class = "hovercraft_error_theme")
   tip_arg_list(light, "light", null_ok = TRUE, fix = "Give a named list of roles, or {.code NULL}.")
   tip_arg_list(dark, "dark", null_ok = TRUE, fix = "Give a named list of roles, or {.code NULL}.")
   tip_arg_string(mode, "mode")
@@ -165,7 +170,15 @@ tip_theme_roles <- function(theme, mode) {
 # Warns when the words of a tip, in a mode the theme uses, are below 4.5:1 on their fill (or on a code background). One
 # warning for each pair of colours, naming every mode it holds in.
 tip_theme_contrast <- function(theme, call) {
-  if (isFALSE(getOption("hovercraft.contrast_warnings", TRUE))) {
+  option <- getOption("hovercraft.contrast_warnings", TRUE)
+  if (!isTRUE(option) && !isFALSE(option)) {
+    tip_warn(
+      "{.code options(hovercraft.contrast_warnings)} must be {.code TRUE} or {.code FALSE}; using {.code TRUE}.",
+      class = "hovercraft_warning_option",
+      .frequency = "once",
+      .frequency_id = "hovercraft-contrast-option"
+    )
+  } else if (isFALSE(option)) {
     return(invisible())
   }
   found <- list()
@@ -175,8 +188,16 @@ tip_theme_contrast <- function(theme, call) {
       next
     }
     ink <- roles$ink %||% tip_assumed[[mode]][["ink"]]
+    # A translucent fill shows over the page of its mode, and a translucent code background over the fill.
+    bg <- roles$bg %||% tip_assumed[[mode]][["bg"]]
+    if (!tip_is_var(bg)) {
+      bg <- tip_composite(bg, tip_page[[mode]])
+    }
     for (back in c("bg", "code_bg")) {
-      fill <- if (back == "bg") roles$bg %||% tip_assumed[[mode]][["bg"]] else roles$code_bg
+      fill <- if (back == "bg") bg else roles$code_bg
+      if (!is.null(fill) && back == "code_bg" && !tip_is_var(fill) && !tip_is_var(bg)) {
+        fill <- tip_composite(fill, bg)
+      }
       if (is.null(fill) || tip_is_var(fill) || tip_is_var(ink)) {
         next
       }
@@ -240,6 +261,15 @@ tip_theme_css <- function(theme) {
   if (nzchar(body)) paste0("<style>\n", body, "</style>") else ""
 }
 
+# A font that is a bslib variable (a Bootswatch theme's `var(--bs-font-sans-serif)`) gets a fallback: a page with no
+# bslib does not define the variable, and the browser would draw its default serif font.
+tip_font_fallback <- function(x) {
+  if (is.null(x) || !tip_is_var(x)) {
+    return(x)
+  }
+  sub("[[:space:]]*\\)$", ", system-ui, sans-serif)", tip_var(x))
+}
+
 # Whether bslib is installed and new enough to read a theme's variables.
 tip_has_bslib <- function() {
   requireNamespace("bslib", quietly = TRUE) && utils::packageVersion("bslib") >= "0.6.0"
@@ -257,12 +287,15 @@ tip_theme_from_bslib <- function(x, call) {
   names <- c(
     "body-bg",
     "body-color",
+    "body-emphasis-color",
     "emphasis-color",
     "border-color",
     "border-radius",
     "font-family-base",
     "body-bg-dark",
     "body-color-dark",
+    "body-emphasis-color-dark",
+    "emphasis-color-dark",
     "border-color-dark"
   )
   vars <- as.list(bslib::bs_get_variables(x, names))
@@ -289,14 +322,17 @@ tip_theme_from_bslib <- function(x, call) {
   }
   keep <- function(roles) roles[!vapply(roles, is.null, NA)]
   light <- keep(list(
-    bg = read("bg", vars[["emphasis-color"]] %||% vars[["body-color"]]),
+    bg = read("bg", vars[["body-emphasis-color"]] %||% vars[["emphasis-color"]] %||% vars[["body-color"]]),
     ink = read("ink", vars[["body-bg"]]),
     line = read("line", vars[["border-color"]]),
     radius = read("radius", vars[["border-radius"]]),
-    font = if (!is.null(vars[["font-family-base"]])) tip_css_text(vars[["font-family-base"]])
+    font = read("font", tip_font_fallback(vars[["font-family-base"]]))
   ))
   dark <- keep(list(
-    bg = read("bg", vars[["body-color-dark"]]),
+    bg = read(
+      "bg",
+      vars[["body-emphasis-color-dark"]] %||% vars[["emphasis-color-dark"]] %||% vars[["body-color-dark"]]
+    ),
     ink = read("ink", vars[["body-bg-dark"]]),
     line = read("line", vars[["border-color-dark"]])
   ))
@@ -353,7 +389,7 @@ tip_theme_tokens <- function(x, call) {
   }
   values <- lapply(names(x), function(name) {
     value <- x[[name]]
-    got <- if (tip_is_var(value)) tip_var(value) else tip_colour(value) %||% tip_css_text(value)
+    got <- if (tip_is_var(value)) tip_var(value) else tip_colour(value) %||% tip_length(value) %||% tip_css_text(value)
     if (is.null(got)) {
       tip_theme_abort(
         c(

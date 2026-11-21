@@ -20,7 +20,7 @@ Imports:
     jsonlite,
     rlang
 Suggests: 
-    bslib,
+    bslib (>= 0.6.0),
     callr,
     chromote,
     httpuv,

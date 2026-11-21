@@ -19,6 +19,8 @@ describe("tip_channels()", {
     expect_null(tip_channels("rgba(1, 2, 3, 2)"))
     expect_null(tip_channels("rgb(a, 2, 3)"))
     expect_null(tip_channels("rgb(1, 2, 3"))
+    expect_null(tip_channels("rgb(1, 2, 3,)"))
+    expect_null(tip_channels("rgba(1, 2, 3, 0.5,)"))
     expect_null(tip_channels(NA_character_))
     expect_null(tip_channels(list()))
   })
@@ -102,6 +104,25 @@ describe("tip_length()", {
   it("refuses the rest", {
     for (bad in list(-1, "1;", "px", "1 2", NA_real_, c(1, 2), "calc(1px)")) {
       expect_null(tip_length(bad), info = format(bad))
+    }
+  })
+})
+
+describe("tip_composite()", {
+  it("lays a translucent colour over a colour, and leaves an opaque one as it is", {
+    expect_identical(tip_composite("rgba(0, 0, 0, 0.5)", "#ffffff"), "#808080")
+    expect_identical(tip_composite("#102030", "#ffffff"), "#102030")
+    expect_identical(tip_composite("rgba(255, 255, 255, 0)", "#1b3a6b"), "#1b3a6b")
+  })
+})
+
+describe("tip_css_text() and quotes", {
+  it("keeps balanced quotes, an apostrophe inside double quotes, and refuses an unclosed quote", {
+    expect_identical(tip_css_text("\"Open Sans\", 'Segoe UI', sans-serif"), "\"Open Sans\", 'Segoe UI', sans-serif")
+    expect_identical(tip_css_text("\"it's\", serif"), "\"it's\", serif")
+    expect_identical(tip_css_text("'a\"b'"), "'a\"b'")
+    for (bad in c("Arial\"", "Arial'", "\"a", "'a\"", "\"a' b")) {
+      expect_null(tip_css_text(bad), info = bad)
     }
   })
 })

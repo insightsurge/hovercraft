@@ -45,7 +45,9 @@ The words of a tip must be readable on its fill. For each mode, the \code{ink} o
 give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 \code{hovercraft_contrast}; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 gives (a \verb{#212529} fill with \verb{#ffffff} words in light mode, \verb{#dee2e6} with \verb{#212529} in dark mode). CSS variables
-cannot be measured and are skipped. Set \code{options(hovercraft.contrast_warnings = FALSE)} to turn the warnings off, or
+cannot be measured and are skipped. A translucent \code{bg} is measured over the page's colour (white, or \verb{#212529} in
+dark mode), and a translucent \code{code_bg} over the \code{bg}. Set \code{options(hovercraft.contrast_warnings = FALSE)} to turn
+the warnings off, or
 silence only them:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{withCallingHandlers(

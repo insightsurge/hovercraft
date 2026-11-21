@@ -28,6 +28,9 @@ tip_channels <- function(x) {
     if (!length(match)) {
       return(NULL)
     }
+    if (grepl(",[[:space:]]*\\)$", x)) {
+      return(NULL)
+    }
     parts <- trimws(strsplit(match[[3]], ",", fixed = TRUE)[[1]])
     count <- if (tolower(match[[2]]) == "rgb") 3L else 4L
     number <- "^(?:[0-9]+(?:\\.[0-9]+)?|\\.[0-9]+)$"
@@ -66,6 +69,15 @@ tip_colour <- function(x) {
   paste0("rgba(", paste(numbers, collapse = ", "), ")")
 }
 
+# `x` laid over the opaque colour `over`, as #rrggbb: what shows when a translucent colour is drawn on it.
+tip_composite <- function(x, over) {
+  front <- tip_channels(x)
+  back <- tip_channels(over)[1:3]
+  mixed <- front[1:3] * front[[4]] + back * (1 - front[[4]])
+  mixed <- floor(mixed + 0.5)
+  tolower(grDevices::rgb(mixed[[1]], mixed[[2]], mixed[[3]], maxColorValue = 255))
+}
+
 # The contrast ratio of `fg` on `bg` (both colours R can read), the foreground's alpha laid over the background.
 tip_contrast <- function(fg, bg) {
   front <- tip_channels(fg)
@@ -85,7 +97,21 @@ tip_css_text <- function(x) {
     return(NULL)
   }
   bad <- grepl("[^A-Za-z0-9 ,.'\"()#%_+*-]", x) || grepl("url\\(|expression\\(|@import", x, ignore.case = TRUE)
-  if (bad) NULL else trimws(x)
+  if (bad || !tip_quotes_balanced(x)) NULL else trimws(x)
+}
+
+# Whether every quote that opens in `x` closes: an unclosed one would swallow the rest of the stylesheet. A quote of the
+# other kind inside a string is text, as in "it's".
+tip_quotes_balanced <- function(x) {
+  open <- ""
+  for (char in strsplit(x, "")[[1]]) {
+    if (nzchar(open)) {
+      if (char == open) open <- ""
+    } else if (char %in% c("'", "\"")) {
+      open <- char
+    }
+  }
+  !nzchar(open)
 }
 
 # A corner: a number of pixels, a CSS length or a variable.

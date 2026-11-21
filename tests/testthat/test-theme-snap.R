@@ -7,6 +7,9 @@ describe("the theme errors and warnings", {
     expect_snapshot(tip_theme(dark = list(radius = "1;}")), error = TRUE)
     expect_snapshot(tip_theme(dark = list(font = "a; b")), error = TRUE)
   })
+  it("say ... must be empty, and what the arguments are", {
+    expect_snapshot(tip_theme(bg = "red"), error = TRUE)
+  })
   it("say a mode is not one", {
     expect_snapshot(tip_theme(mode = "x"), error = TRUE)
   })

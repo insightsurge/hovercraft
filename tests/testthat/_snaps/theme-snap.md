@@ -34,6 +34,16 @@
       ! The font role in `dark` is not valid: "a; b".
       i It takes CSS `font-family` text (letters, digits, spaces and , . ' " ( ) # % _ + * - only), or a CSS variable.
 
+# the theme errors and warnings / say ... must be empty, and what the arguments are
+
+    Code
+      tip_theme(bg = "red")
+    Condition
+      Error in `tip_theme()`:
+      ! `...` must be empty.
+      x Not an argument: "bg".
+      i The arguments are `light`, `dark`, and `mode`.
+
 # the theme errors and warnings / say a mode is not one
 
     Code

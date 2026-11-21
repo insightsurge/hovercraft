@@ -24,7 +24,9 @@ describe("tip_theme()", {
   })
 
   it("takes nothing in ... and names the choices for a misspelt role", {
-    expect_error(tip_theme(bg = "red"), "must be empty")
+    expect_error(tip_theme(bg = "red"), "must be empty", class = "hovercraft_error_theme")
+    expect_error(tip_theme(bg = "red"), class = "hovercraft_error")
+    expect_error(tip_theme("red"), "unnamed", class = "hovercraft_error_theme")
     expect_error(tip_theme(light = list(bgg = "red")), "Did you mean", class = "hovercraft_error_theme")
     expect_error(tip_theme(dark = list(zzz = 1)), "not a role", class = "hovercraft_error_theme")
   })
@@ -88,6 +90,37 @@ describe("the contrast check", {
       mode = "dark",
       dark = list(ink = "#000000")
     ))
+  })
+
+  it("lays a translucent code background over the tip's fill before it measures", {
+    expect_no_warning(
+      tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "rgba(255, 255, 255, 0.12)"))
+    )
+    expect_warning(
+      tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "rgba(255, 255, 255, 0.9)")),
+      "code_bg",
+      class = "hovercraft_contrast"
+    )
+  })
+
+  it("lays a translucent fill over the page of its mode before it measures", {
+    expect_warning(
+      tip_theme(light = list(bg = "rgba(0, 0, 0, 0.05)", ink = "#ffffff"), mode = "light"),
+      class = "hovercraft_contrast"
+    )
+    expect_no_warning(tip_theme(light = list(bg = "rgba(0, 0, 0, 0.9)", ink = "#ffffff"), mode = "light"))
+  })
+
+  it("warns once if the option is not TRUE or FALSE, and goes on warning about contrast", {
+    withr::local_options(hovercraft.contrast_warnings = "no")
+    rlang::reset_warning_verbosity("hovercraft-contrast-option")
+    expect_warning(
+      expect_warning(
+        tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")),
+        class = "hovercraft_warning_option"
+      ),
+      class = "hovercraft_contrast"
+    )
   })
 
   it("skips a CSS variable, which only the browser can read", {
@@ -192,6 +225,7 @@ describe("tip_as_theme()", {
     prefix <- tip_names()$prefix
     got <- tip_as_theme(list("--hovercraft-tip-bg" = "#123456", "--x" = "0 1px 2px rgba(0, 0, 0, 0.2)", "--y" = "--z"))
     expect_identical(unname(unlist(got$tokens)), c("#123456", "0 1px 2px rgba(0, 0, 0, 0.2)", "var(--z)"))
+    expect_identical(tip_as_theme(list("--r" = 8))$tokens, list("--r" = "8px"))
     css <- css_of(got)
     expect_match(css, "--hovercraft-tip-bg: #123456;", fixed = TRUE)
     expect_match(css, "--x: 0 1px 2px rgba(0, 0, 0, 0.2);", fixed = TRUE)
@@ -231,6 +265,64 @@ describe("a bslib theme", {
         "border-radius"
       )[[1]])
     )
+  })
+
+  it("takes the page's emphasis colours, which is what the engine's own default uses", {
+    local_mocked_bindings(
+      bs_get_variables = function(theme, varnames) {
+        stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
+          replace_in(c(
+            "body-emphasis-color" = "#000",
+            "body-color" = "#1D1F21",
+            "body-bg" = "#fff",
+            "body-emphasis-color-dark" = "#ffffff",
+            "body-color-dark" = "#dee2e6",
+            "body-bg-dark" = "#212529"
+          ))
+      },
+      .package = "bslib"
+    )
+    got <- tip_as_theme(bslib::bs_theme(version = 5))
+    expect_identical(got$light$bg, "#000000")
+    expect_identical(got$dark$bg, "#ffffff")
+  })
+
+  it("falls back to the body colour when there is no emphasis colour", {
+    local_mocked_bindings(
+      bs_get_variables = function(theme, varnames) {
+        stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
+          replace_in(c("body-color" = "#1D1F21", "body-color-dark" = "#dee2e6"))
+      },
+      .package = "bslib"
+    )
+    withr::local_options(hovercraft.contrast_warnings = FALSE)
+    got <- tip_as_theme(bslib::bs_theme(version = 5))
+    expect_identical(got$light$bg, "#1d1f21")
+    expect_identical(got$dark$bg, "#dee2e6")
+  })
+
+  it("writes a font that is a bslib variable with a fallback, for a page that does not define it", {
+    local_mocked_bindings(
+      bs_get_variables = function(theme, varnames) {
+        stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
+          replace_in(c("font-family-base" = "var(--bs-font-sans-serif)"))
+      },
+      .package = "bslib"
+    )
+    got <- tip_as_theme(bslib::bs_theme(version = 5))
+    expect_identical(got$light$font, "var(--bs-font-sans-serif, system-ui, sans-serif)")
+    expect_match(css_of(got), "font-body: var(--bs-font-sans-serif, system-ui, sans-serif);", fixed = TRUE)
+  })
+
+  it("warns about a font it cannot read, like every other role", {
+    local_mocked_bindings(
+      bs_get_variables = function(theme, varnames) {
+        stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
+          replace_in(c("font-family-base" = "a; b"))
+      },
+      .package = "bslib"
+    )
+    expect_warning(tip_as_theme(bslib::bs_theme(version = 5)), "font", class = "hovercraft_warning_theme")
   })
 
   it("takes the font and the corner", {
@@ -325,5 +417,12 @@ describe("printing a theme", {
       format(tip_as_theme(list("--a" = "1px", "--b" = "red"))),
       "<tip theme, CSS variables: --a = 1px, --b = #ff0000>"
     )
+  })
+})
+
+describe("the package's description", {
+  it("asks for the bslib version a theme needs", {
+    desc <- read.dcf(system.file("DESCRIPTION", package = "hovercraft"), fields = "Suggests")[[1]]
+    expect_match(desc, "bslib \\(>= 0.6.0\\)")
   })
 })
