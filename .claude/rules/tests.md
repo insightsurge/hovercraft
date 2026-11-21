@@ -1,3 +1,8 @@
+---
+paths:
+  - "tests/**"
+---
+
 # Tests
 
 - Tests use testthat, in `tests/testthat/`, one file per R file: `R/clean.R` is tested in `test-clean.R`. Test kinds
@@ -13,3 +18,8 @@
 - **Snapshots:** commit the files in `tests/testthat/_snaps/`. Accept a changed snapshot only when the change is on
   purpose, and say so in the pull request.
 - Coverage has a lower limit, set in `DESCRIPTION` (`Config/quality-gate/coverage`). Don't lower it.
+
+- **Browser tests** drive headless Chrome through chromote, with Chrome's profile in `tempdir()`. They skip on CRAN
+  and where Chrome is missing. A Shiny app under test runs in a background R process (callr).
+- **The engine's shared cases** (`inst/engine/placeholders.json`) are run through the R parser; a new placeholder rule
+  needs a case there first, in the engine's source, not here.
