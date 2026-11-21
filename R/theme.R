@@ -160,38 +160,43 @@ tip_theme_roles <- function(theme, mode) {
   out
 }
 
-# Warns when the words of a tip, in a mode the theme uses, are below 4.5:1 on their fill (or on a code background).
+# Warns when the words of a tip, in a mode the theme uses, are below 4.5:1 on their fill (or on a code background). One
+# warning for each pair of colours, naming every mode it holds in.
 tip_theme_contrast <- function(theme, call) {
-  option <- getOption("hovercraft.contrast_warnings", TRUE)
-  if (isFALSE(option)) {
+  if (isFALSE(getOption("hovercraft.contrast_warnings", TRUE))) {
     return(invisible())
   }
-  modes <- if (theme$mode == "auto") c("light", "dark") else theme$mode
-  for (mode in modes) {
+  found <- list()
+  for (mode in if (theme$mode == "auto") c("light", "dark") else theme$mode) {
     roles <- tip_theme_roles(theme, mode)
-    asked <- intersect(names(roles), c("bg", "ink", "code_bg"))
-    if (!length(asked)) {
+    if (!length(intersect(names(roles), c("bg", "ink", "code_bg")))) {
       next
     }
-    bg <- roles$bg %||% tip_assumed[[mode]][["bg"]]
     ink <- roles$ink %||% tip_assumed[[mode]][["ink"]]
     for (back in c("bg", "code_bg")) {
-      fill <- if (back == "bg") bg else roles$code_bg
-      measurable <- !is.null(fill) && !tip_is_var(fill) && !tip_is_var(ink)
-      if (!measurable || !(back %in% asked || "ink" %in% asked)) {
+      fill <- if (back == "bg") roles$bg %||% tip_assumed[[mode]][["bg"]] else roles$code_bg
+      if (is.null(fill) || tip_is_var(fill) || tip_is_var(ink)) {
         next
       }
-      ratio <- tip_contrast(ink, fill)
-      if (ratio < 4.5) {
-        tip_warn(
-          c(
-            "In {mode} mode the tip's {.field ink} {.val {ink}} on its {.field {back}} {.val {fill}} has contrast {format(round(ratio, 2), nsmall = 2)}:1.",
-            i = "Text needs 4.5:1. The colours are kept; change one of them."
-          ),
-          class = "hovercraft_contrast",
-          call = call
-        )
-      }
+      key <- paste(back, ink, fill)
+      found[[key]] <- list(back = back, ink = ink, fill = fill, modes = c(found[[key]]$modes, mode))
+    }
+  }
+  for (pair in found) {
+    ratio <- tip_contrast(pair$ink, pair$fill)
+    if (ratio < 4.5) {
+      modes <- paste(pair$modes, collapse = " and ")
+      ink <- pair$ink
+      fill <- pair$fill
+      back <- pair$back
+      tip_warn(
+        c(
+          "In {modes} mode the tip's {.field ink} {.val {ink}} on its {.field {back}} {.val {fill}} has contrast {format(round(ratio, 2), nsmall = 2)}:1.",
+          i = "Text needs 4.5:1. The colours are kept; change one of them."
+        ),
+        class = "hovercraft_contrast",
+        call = call
+      )
     }
   }
   invisible()

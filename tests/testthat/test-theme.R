@@ -54,6 +54,14 @@ describe("the contrast check", {
     expect_identical(got$light$ink, "#dddddd")
   })
 
+  it("names both modes when one pair of colours is used in both", {
+    expect_warning(
+      tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")),
+      "light and dark mode",
+      class = "hovercraft_contrast"
+    )
+  })
+
   it("is quiet at 4.5:1 and above, and measures the code background too", {
     expect_no_warning(tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
     expect_warning(
@@ -242,6 +250,7 @@ describe("a bslib theme", {
   })
 
   it("warns about a value it cannot read and keeps the role at the page's own", {
+    withr::local_options(hovercraft.contrast_warnings = FALSE)
     local_mocked_bindings(
       bs_get_variables = function(theme, varnames) {
         stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
