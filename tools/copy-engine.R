@@ -4,16 +4,20 @@
 #   ENGINE_BRANCH=main-interim Rscript tools/copy-engine.R <path>    (default branch: main)
 #
 # It refuses to run when the checkout has uncommitted changes, when its commit is not on origin/<ENGINE_BRANCH>, when
-# the engine's own build check (tools/build_tip.py --check) fails, or when a file does not match tip.sha256. It copies
-# tip.js and tip.css into inst/engine/www/ (the only folder a page is ever given), and tip.sha256 and the shared
-# placeholder cases into inst/engine/, then writes inst/engine/engine.json: version, commit, branch, files, sha256, the
-# names the engine uses (read from its NAMES block) and its tooltip rules (read from the schema). engine.json stays
+# the engine's own build check (tools/build_tip.py --check) fails, or when a file does not match tip.sha256. It then
+# builds the engine under this package's own names (tools/build_tip.py --names), refuses a build that still holds a
+# trace of the names it was built from, and copies tip.js and tip.css into inst/engine/www/ (the only folder a page is
+# ever given), and tip.sha256 and the shared placeholder cases into inst/engine/. It writes inst/engine/engine.json:
+# version, commit, branch, files, sha256, the names the built engine uses and its tooltip rules (read from the schema). engine.json stays
 # outside www/, so a rendered page never holds where the engine came from. Files under inst/engine/ are never edited by
 # hand: run this again instead. A release is copied from main; the release test fails when engine.json says otherwise.
 
 args <- commandArgs(trailingOnly = TRUE)
 source_dir <- if (length(args) >= 1L) args[[1]] else Sys.getenv("ENGINE_DIR", unset = "")
 branch <- Sys.getenv("ENGINE_BRANCH", unset = "main")
+# The names the engine is built under: the prefix of its attribute and CSS variables, its CSS class prefix, its
+# JavaScript global and its product name.
+engine_names <- list(prefix = "hovercraft", css = "hc", who = "Hovercraft", product = "hovercraft")
 stop_if <- function(bad, ...) if (bad) stop(paste0(...), call. = FALSE)
 stop_if(!nzchar(source_dir), "Give the path to the engine's checkout as the first argument, or set ENGINE_DIR.")
 source_dir <- normalizePath(source_dir, mustWork = FALSE)
@@ -67,18 +71,63 @@ for (name in c("tip.js", "tip.css")) {
   stop_if(!identical(sha256(at("kit/tip", name)), listed[[name]]), name, " does not match tip.sha256.")
 }
 
-js <- readLines(at("kit/tip/tip.js"), warn = FALSE)
-grab <- function(pattern, lines = js) {
+# The names the checkout's own build carries: what must not be left in a renamed one.
+grab <- function(pattern, lines) {
   hit <- regmatches(lines, regexec(pattern, lines))
   hit <- hit[lengths(hit) > 0L]
   stop_if(length(hit) == 0L, "tip.js has no line like ", pattern)
   hit[[1]][-1L]
 }
-version <- grab("const VERSION = '([^']+)';")
-names_line <- grab("const TIP_NAMES = Object\\.freeze\\(\\{ attr: '([^']+)', css: '([^']+)', who: '([^']+)'")
+names_pattern <- "const TIP_NAMES = Object\\.freeze\\(\\{ attr: '([^']+)', css: '([^']+)', who: '([^']+)'"
+was <- grab(names_pattern, readLines(at("kit/tip/tip.js"), warn = FALSE))
+old_prefix <- sub("^data-(.+)-tip$", "\\1", was[[1]])
+old_css <- paste0(sub("-tip$", "", was[[2]]), "-")
+
+build <- tempfile("engine-build-")
+status <- system2(
+  "python3",
+  c(
+    shQuote(at("tools/build_tip.py")),
+    "--root",
+    shQuote(source_dir),
+    "--names",
+    shQuote(as.character(jsonlite::toJSON(engine_names, auto_unbox = TRUE))),
+    "--out",
+    shQuote(build)
+  ),
+  stdout = TRUE,
+  stderr = TRUE
+)
+stop_if(!is.null(attr(status, "status")), "The engine's build with our names failed: ", paste(status, collapse = " "))
+built_sums <- strsplit(readLines(file.path(build, "tip.sha256"), warn = FALSE), "  ", fixed = TRUE)
+built_sums <- stats::setNames(vapply(built_sums, `[[`, "", 1L), vapply(built_sums, `[[`, "", 2L))
+for (name in c("tip.js", "tip.css")) {
+  stop_if(
+    !identical(sha256(file.path(build, name)), built_sums[[name]]),
+    "The built ",
+    name,
+    " does not match its tip.sha256."
+  )
+  text <- readLines(file.path(build, name), warn = FALSE)
+  for (old in c(old_prefix, old_css)) {
+    stop_if(
+      any(grepl(tolower(old), tolower(text), fixed = TRUE)),
+      "The built ",
+      name,
+      " still holds the old name \"",
+      old,
+      "\"."
+    )
+  }
+}
+
+js <- readLines(file.path(build, "tip.js"), warn = FALSE)
+version <- grab("const VERSION = '([^']+)';", js)
+names_line <- grab(names_pattern, js)
 # The prefix of the engine's CSS variables and attributes: the attribute is data-<prefix>-tip.
 stop_if(!grepl("^data-.+-tip$", names_line[[1]]), "The attribute name ", names_line[[1]], " is not data-<prefix>-tip.")
 prefix <- sub("^data-(.+)-tip$", "\\1", names_line[[1]])
+stop_if(!identical(prefix, engine_names$prefix), "The built prefix ", prefix, " is not the one asked for.")
 schema <- jsonlite::read_json(at("library/page-tree.schema.json"))
 # Only the data goes into engine.json, not the prose that explains it.
 strip_prose <- function(x) {
@@ -94,9 +143,9 @@ unlink(dest, recursive = TRUE)
 dir.create(file.path(dest, "www"), recursive = TRUE, showWarnings = FALSE)
 files <- c(
   "placeholders.json" = at("tools/tests/fixtures/tooltip/placeholders.json"),
-  "tip.sha256" = at("kit/tip/tip.sha256"),
-  "www/tip.css" = at("kit/tip/tip.css"),
-  "www/tip.js" = at("kit/tip/tip.js")
+  "tip.sha256" = file.path(build, "tip.sha256"),
+  "www/tip.css" = file.path(build, "tip.css"),
+  "www/tip.js" = file.path(build, "tip.js")
 )
 for (name in names(files)) {
   stop_if(!file.copy(files[[name]], file.path(dest, name), overwrite = TRUE), "Could not copy ", name)
@@ -112,7 +161,8 @@ record <- list(
     attribute = names_line[[1]],
     css = names_line[[2]],
     global = names_line[[3]],
-    prefix = prefix
+    prefix = prefix,
+    product = engine_names$product
   ),
   rules = list(
     tooltip = strip_prose(schema$rules$tooltip),

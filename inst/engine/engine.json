@@ -1,6 +1,6 @@
 {
   "engine": "0.38.0",
-  "commit": "e6a508f6f94121c3a8aa4e7a842f566b15a98a7a",
+  "commit": "302c6c3a17f006e765a9b204311a2cc232c35622",
   "branch": "main-interim",
   "files": [
     "placeholders.json",
@@ -9,14 +9,15 @@
   ],
   "sha256": {
     "placeholders.json": "635d22fe2c0ecf1935d9dba3d1f811d75c5cfbcf1d99a6157bf9de990e3f88d2",
-    "www/tip.css": "6260236d2a59624e0b52b2c3258fe47ee6d939c60ec156667acf0ca7e43cae2a",
-    "www/tip.js": "73b024726a78a9e368b1b32c9e43299bc77955eca33af32ec724494982299895"
+    "www/tip.css": "056098789e6a9d4cfb1174fa62b6dcc372308769120fa6a02c72378c769b271b",
+    "www/tip.js": "3409fa54f0468f9ffbad11b97436ea594d298660a7f9301f9f25b4f49b2e7ccd"
   },
   "names": {
-    "attribute": "data-atlas-tip",
-    "css": "kit-tip",
-    "global": "AtlasTip",
-    "prefix": "atlas"
+    "attribute": "data-hovercraft-tip",
+    "css": "hc-tip",
+    "global": "Hovercraft",
+    "prefix": "hovercraft",
+    "product": "hovercraft"
   },
   "rules": {
     "tooltip": {

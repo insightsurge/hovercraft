@@ -23,7 +23,7 @@ describe("the vendored engine", {
     engine <- tip_engine()
     expect_match(engine$engine, "^[0-9]+\\.[0-9]+\\.[0-9]+$")
     expect_match(engine$commit, "^[0-9a-f]{40}$")
-    expect_named(engine$names, c("attribute", "css", "global", "prefix"), ignore.order = TRUE)
+    expect_named(engine$names, c("attribute", "css", "global", "prefix", "product"), ignore.order = TRUE)
     expect_true(all(c("placeholder", "filters", "blocks", "blocks_later", "engine_fields") %in% names(tip_rules())))
     expect_identical(tip_engine_version(), engine$engine)
   })
