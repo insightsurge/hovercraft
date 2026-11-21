@@ -24,20 +24,33 @@ stop_if(!requireNamespace("jsonlite", quietly = TRUE), "The jsonlite package is 
 
 at <- function(...) file.path(source_dir, ...)
 git <- function(...) system2("git", c("-C", shQuote(source_dir), ...), stdout = TRUE, stderr = FALSE)
-for (needed in c("kit/tip/tip.js", "kit/tip/tip.css", "kit/tip/tip.sha256", "tools/build_tip.py",
-                 "tools/tests/fixtures/tooltip/placeholders.json", "library/page-tree.schema.json")) {
+for (needed in c(
+  "kit/tip/tip.js",
+  "kit/tip/tip.css",
+  "kit/tip/tip.sha256",
+  "tools/build_tip.py",
+  "tools/tests/fixtures/tooltip/placeholders.json",
+  "library/page-tree.schema.json"
+)) {
   stop_if(!file.exists(at(needed)), "The checkout has no ", needed, ".")
 }
 stop_if(length(git("status", "--porcelain")) > 0L, "The checkout has uncommitted changes; commit or stash them first.")
 commit <- git("rev-parse", "HEAD")
 on_branch <- system2(
-  "git", c("-C", shQuote(source_dir), "merge-base", "--is-ancestor", "HEAD", shQuote(paste0("origin/", branch))),
-  stdout = FALSE, stderr = FALSE
-) == 0L
+  "git",
+  c("-C", shQuote(source_dir), "merge-base", "--is-ancestor", "HEAD", shQuote(paste0("origin/", branch))),
+  stdout = FALSE,
+  stderr = FALSE
+) ==
+  0L
 stop_if(!on_branch, "Commit ", substr(commit, 1, 8), " is not on origin/", branch, " (fetch it, or set ENGINE_BRANCH).")
 
-built <- system2("python3", c(shQuote(at("tools/build_tip.py")), "--root", shQuote(source_dir), "--check"),
-                 stdout = TRUE, stderr = TRUE)
+built <- system2(
+  "python3",
+  c(shQuote(at("tools/build_tip.py")), "--root", shQuote(source_dir), "--check"),
+  stdout = TRUE,
+  stderr = TRUE
+)
 stop_if(!is.null(attr(built, "status")), "The engine's own check failed: ", paste(built, collapse = " "))
 
 sha256 <- function(path) {
@@ -82,7 +95,9 @@ files <- c(
   "www/tip.css" = at("kit/tip/tip.css"),
   "www/tip.js" = at("kit/tip/tip.js")
 )
-for (name in names(files)) stop_if(!file.copy(files[[name]], file.path(dest, name), overwrite = TRUE), "Could not copy ", name)
+for (name in names(files)) {
+  stop_if(!file.copy(files[[name]], file.path(dest, name), overwrite = TRUE), "Could not copy ", name)
+}
 recorded <- c("placeholders.json", "www/tip.css", "www/tip.js")
 record <- list(
   engine = version,
@@ -97,4 +112,13 @@ record <- list(
   )
 )
 jsonlite::write_json(record, file.path(dest, "engine.json"), auto_unbox = TRUE, pretty = TRUE, digits = NA)
-cat("Copied the engine ", version, " from ", substr(commit, 1, 8), " (origin/", branch, ") into inst/engine/.\n", sep = "")
+cat(
+  "Copied the engine ",
+  version,
+  " from ",
+  substr(commit, 1, 8),
+  " (origin/",
+  branch,
+  ") into inst/engine/.\n",
+  sep = ""
+)

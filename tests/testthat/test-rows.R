@@ -10,6 +10,22 @@ describe("tip_rows()", {
     expect_identical(got[[2]]$f, factor("b", levels = c("a", "b"))[1L])
   })
 
+  it("keeps only the columns asked for", {
+    data <- data.frame(label = c("a", "b"), n = 1:2, secret = c("x", "y"))
+    got <- tip_rows(data, columns = c("label", "n"))
+    expect_named(got[[1]], c("label", "n"))
+    expect_identical(got[[2]]$n, 2L)
+    expect_named(tip_rows(data)[[1]], c("label", "n", "secret"))
+  })
+
+  it("refuses a column the data does not have, and a data-frame or matrix column", {
+    data <- data.frame(label = c("a", "b"))
+    expect_error(tip_rows(data, columns = "nope"), class = "hovercraft_error_record")
+    data$m <- matrix(1:4, nrow = 2)
+    expect_error(tip_rows(data), class = "hovercraft_error_record")
+    expect_no_error(tip_rows(data, columns = "label"))
+  })
+
   it("keeps a list-column cell whole", {
     data <- data.frame(id = 1:2)
     data$cell <- list(1:3, "x")

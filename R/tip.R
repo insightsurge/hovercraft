@@ -5,9 +5,10 @@ tip_attributes <- function() {
 }
 
 # What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
-# the fields it names against the record. Only a template tip_define() has seen can be checked; any other name is the
-# page's to report (a UI is often written before the templates it uses).
-tip_check_use <- function(template, record, call) {
+# the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can be
+# checked; any other name is the page's to report (a UI is often written before the templates it uses). This page has no
+# list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
+tip_check_use <- function(template, held, id, call) {
   known <- tip_known()
   if (!length(known)) {
     return(invisible())
@@ -29,9 +30,29 @@ tip_check_use <- function(template, record, call) {
   }
   fields <- known[[template]]$fields
   engine <- unlist(tip_rules()$engine_fields)
-  missing <- setdiff(fields, c(names(record), engine))
+  if ("tip_index" %in% fields && !"tip_index" %in% held) {
+    tip_abort(
+      c(
+        "The template {.val {template}} names {.code tip_index}, which has nothing to count here.",
+        i = "It comes with a later version, with tips that belong to a list. Give the record a value of that name for now."
+      ),
+      class = "hovercraft_error_field",
+      call = call
+    )
+  }
+  if ("tip_id" %in% fields && !"tip_id" %in% held && is.null(id)) {
+    tip_abort(
+      c(
+        "The template {.val {template}} names {.code tip_id}, which is the tag's own id, and the tag has none.",
+        i = "Give the tag an {.arg id}, or put a value named {.code tip_id} in the record."
+      ),
+      class = "hovercraft_error_field",
+      call = call
+    )
+  }
+  missing <- setdiff(fields, c(held, engine))
   if (length(missing)) {
-    holds <- if (length(record)) "The record holds {.val {names(record)}}." else "No record was given."
+    holds <- if (length(held)) "The record holds {.val {held}}." else "No record was given."
     tip_abort(
       c(
         "The template {.val {template}} names fields the record does not hold.",
@@ -42,7 +63,7 @@ tip_check_use <- function(template, record, call) {
       call = call
     )
   }
-  clash <- intersect(intersect(fields, engine), names(record))
+  clash <- intersect(intersect(fields, engine), held)
   if (length(clash)) {
     tip_warn(
       c(
@@ -75,7 +96,10 @@ tip_check_use <- function(template, record, call) {
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param template The name of a template defined with [tip_define()], or `NULL`.
 #' @param record A named list, or a data frame of one row: the values the template's placeholders read, one value each.
-#'   `NA` and `NULL` show a dash. See [tip_rows()] to get one record per row of a data frame.
+#'   `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as `YYYY-MM-DDTHH:MM:SSZ` and
+#'   factors as their labels. Once [tip_define()] has seen the template, only the columns it names are kept, so nothing
+#'   else in a row is written into the page; for a template not seen here, every column goes, so choose them with
+#'   `tip_rows(data, columns = )`. See [tip_rows()] to get one record per row of a data frame.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added.
 #' @family tooltips
@@ -112,11 +136,13 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
       class = "hovercraft_error_tip"
     )
   }
+  held <- names(record)
+  keep <- tip_known()[[template %||% ""]]$fields
   if (!is.null(record)) {
-    record <- tip_record(record)
+    record <- tip_record(record, keep)
   }
   if (!is.null(template)) {
-    tip_check_use(template, record, rlang::current_env())
+    tip_check_use(template, held, htmltools::tagGetAttribute(tag, "id"), rlang::current_env())
   } else if (!is.null(record)) {
     tip_warn(
       c("{.arg record} is ignored without a {.arg template}.", i = "A plain text tip has no placeholders to fill in."),

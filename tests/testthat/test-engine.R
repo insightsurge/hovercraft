@@ -27,7 +27,6 @@ describe("the vendored engine", {
     expect_true(all(c("placeholder", "filters", "blocks", "blocks_later", "engine_fields") %in% names(tip_rules())))
     expect_identical(tip_engine_version(), engine$engine)
   })
-
 })
 
 describe("tip_dependency()", {

@@ -79,7 +79,7 @@ describe("tip_on()", {
 describe("tip_on() against the templates defined in this session", {
   withr::defer(tip_reset())
   tip_reset()
-  tip_define(diff = tip_template(tip_title("{{ label }}"), tip_text("{{ n }} of {{ tip_index }}")))
+  tip_define(diff = tip_template(tip_title("{{ label }}"), tip_text("{{ n }} of {{ tip_id }}")))
 
   it("stops when the record lacks a field the template names", {
     expect_error(
@@ -89,14 +89,47 @@ describe("tip_on() against the templates defined in this session", {
     expect_error(tip_on(button(), template = "diff"), class = "hovercraft_error_field")
   })
 
-  it("knows the engine's own fields", {
-    expect_no_error(tip_on(button(), template = "diff", record = list(label = "x", n = 1)))
+  it("knows tip_id when the tag has an id, and says to give it one when not", {
+    with_id <- htmltools::tags$button("Run", id = "go")
+    expect_no_error(tip_on(with_id, template = "diff", record = list(label = "x", n = 1)))
+    expect_error(
+      tip_on(button(), template = "diff", record = list(label = "x", n = 1)),
+      "id",
+      class = "hovercraft_error_field"
+    )
+    expect_no_error(tip_on(button(), template = "diff", record = list(label = "x", n = 1, tip_id = "mine")))
+  })
+
+  it("refuses tip_index: there is no list here to count in", {
+    tip_define(counted = tip_template(tip_text("{{ tip_index }}")))
+    expect_error(tip_on(button(), template = "counted", record = list()), "later", class = "hovercraft_error_field")
+    expect_no_error(tip_on(button(), template = "counted", record = list(tip_index = 3)))
   })
 
   it("warns when a column is named like an engine field", {
     expect_warning(
-      tip_on(button(), template = "diff", record = list(label = "x", n = 1, tip_index = 9)),
+      tip_on(button(), template = "diff", record = list(label = "x", n = 1, tip_id = "9")),
       class = "hovercraft_warning_engine_name"
+    )
+  })
+
+  it("keeps only the columns the template names, and ignores a bad value in another", {
+    got <- tip_on(
+      htmltools::tags$button("Run", id = "go"),
+      template = "diff",
+      record = list(label = "x", n = 1, secret = "hidden", other = list(1, 2))
+    )
+    record <- jsonlite::fromJSON(attrs(got)[[paste0(tip_names()$attribute, "-record")]])
+    expect_named(record, c("label", "n"))
+    expect_no_match(as.character(got), "hidden")
+  })
+
+  it("keeps every column for a template it has not seen, and refuses a bad value in any of them", {
+    got <- tip_on(button(), template = "elsewhere", record = list(a = 1, secret = "kept"))
+    expect_match(as.character(got), "secret", fixed = TRUE)
+    expect_error(
+      tip_on(button(), template = "elsewhere", record = list(a = list(1))),
+      class = "hovercraft_error_record"
     )
   })
 

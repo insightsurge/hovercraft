@@ -7,11 +7,14 @@ tip_json <- function(x) {
   gsub("<", "\\u003c", as.character(json), fixed = TRUE)
 }
 
-# One value of a record: list(value) for a value the engine can show, list(skip = TRUE) for NULL (the name is left
-# out), list(problem) for one it cannot.
+# One value of a record: list(value) for a value the engine can show (NULL is written as missing, which the engine
+# shows as a dash, as it does NA), list(problem) for one it cannot.
 tip_value <- function(x) {
   if (is.null(x)) {
-    return(list(skip = TRUE))
+    return(list(value = NA))
+  }
+  if (inherits(x, "POSIXlt")) {
+    x <- as.POSIXct(x)
   }
   if (inherits(x, "AsIs")) {
     return(list(problem = "is wrapped in `I()`; a record holds single values, so drop `I()`"))
@@ -39,8 +42,25 @@ tip_value <- function(x) {
   list(value = x)
 }
 
-# A record (a named list, or a data frame of one row) as a named list of single values, ready for JSON.
-tip_record <- function(record, call = rlang::caller_env()) {
+# Stops when a data frame has a column that is itself a data frame or a matrix: a tip takes one value per column.
+tip_check_columns <- function(data, call = rlang::caller_env()) {
+  bad <- names(data)[vapply(data, function(column) is.data.frame(column) || is.matrix(column), NA)]
+  if (length(bad)) {
+    tip_abort(
+      c(
+        "Columns that hold a data frame or a matrix: {.val {bad}}. A tip takes one value per column.",
+        i = "Spread them into plain columns first, one column for each value."
+      ),
+      class = "hovercraft_error_record",
+      call = call
+    )
+  }
+  invisible(data)
+}
+
+# A record (a named list, or a data frame of one row) as a named list of single values, ready for JSON. `keep` names the
+# columns to keep (the ones a template names), or NULL for all of them; the others are dropped before any value is read.
+tip_record <- function(record, keep = NULL, call = rlang::caller_env()) {
   if (is.data.frame(record)) {
     if (nrow(record) != 1L) {
       tip_abort(
@@ -52,16 +72,23 @@ tip_record <- function(record, call = rlang::caller_env()) {
         call = call
       )
     }
+    if (!is.null(keep)) {
+      record <- record[names(record) %in% keep]
+    }
+    tip_check_columns(record, call)
     record <- lapply(record, function(column) column[[1L]])
   }
   checkmate::assert_list(record, names = "unique", .var.name = "record")
+  if (!is.null(keep)) {
+    record <- record[names(record) %in% keep]
+  }
   out <- list()
   problems <- character()
   for (name in names(record)) {
     got <- tip_value(record[[name]])
     if (!is.null(got$problem)) {
       problems <- c(problems, paste0("{.code record$", tip_escape(name), "} ", got$problem, "."))
-    } else if (is.null(got$skip)) {
+    } else {
       out[[name]] <- got$value
     }
   }
@@ -73,6 +100,21 @@ tip_record <- function(record, call = rlang::caller_env()) {
         i = "Keep only the columns the template names."
       ),
       class = "hovercraft_error_record",
+      call = call
+    )
+  }
+  big <- names(out)[vapply(
+    out,
+    function(v) is.numeric(v) && !is.na(v) && abs(v) > 2^53 && abs(v) < 1e21 && v == trunc(v),
+    NA
+  )]
+  if (length(big)) {
+    tip_warn(
+      c(
+        "{.val {big}} {?is a/are} whole number{?s} above 2^53, which cannot be kept exactly.",
+        i = "Ids belong in text: use {.code as.character()}."
+      ),
+      class = "hovercraft_warning_number",
       call = call
     )
   }
