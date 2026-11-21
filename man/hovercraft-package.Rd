@@ -12,26 +12,12 @@ row of a table. Start with \code{\link[=tip_on]{tip_on()}}; name templates with 
 them with \code{\link[=tip_template]{tip_template()}} and the block functions (\code{\link[=tip_title]{tip_title()}} and friends). The tips are drawn by one small
 JavaScript file that ships with the package, so nothing needs installing in the browser.
 }
-\seealso{
-Useful links:
-\itemize{
-  \item \url{https://insightsurge.github.io/hovercraft/}
-  \item \url{https://github.com/insightsurge/hovercraft}
-  \item Report bugs at \url{https://github.com/insightsurge/hovercraft/issues}
-}
-
-}
 \author{
-\strong{Maintainer}: Harsh Verma \email{125121920+insightsurge@users.noreply.github.com} [copyright holder]
+\strong{Maintainer}: Harsh Verma \email{analyticswithharsh@gmail.com} (Copyright holder of the package and of the bundled tip engine) [copyright holder]
 
 Authors:
 \itemize{
-  \item Harsh Verma \email{125121920+insightsurge@users.noreply.github.com} [copyright holder]
-}
-
-Other contributors:
-\itemize{
-  \item TODO(founder) (Copyright holder of the bundled tip engine) [contributor, copyright holder]
+  \item Harsh Verma \email{analyticswithharsh@gmail.com} (Copyright holder of the package and of the bundled tip engine) [copyright holder]
 }
 
 }

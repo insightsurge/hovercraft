@@ -15,7 +15,8 @@
 
 ## Before submission
 
-* TODO(founder): the maintainer address in `DESCRIPTION` is a GitHub `noreply` address, which cannot receive CRAN's
-  confirmation mail. Use an address that can.
-* TODO(founder): `URL` and `BugReports` point at a repository and a site that return 404 until they are public. Make them
-  public, or remove the links.
+* The repository is private for now, so `DESCRIPTION` has no `URL` or `BugReports`, and `_pkgdown.yml` has no `url` (they
+  would return 404 under `--as-cran`, and pkgdown wants the two to agree). Once the repository and the site are public, add back:
+  <!-- URL: https://insightsurge.github.io/hovercraft/, https://github.com/insightsurge/hovercraft -->
+  <!-- BugReports: https://github.com/insightsurge/hovercraft/issues -->
+  and the `url:` line in `_pkgdown.yml`. `tools/check-release.R` fails until both are there.
