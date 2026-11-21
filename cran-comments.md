@@ -15,8 +15,6 @@
 
 ## Before submission
 
-* The repository is private for now, so `DESCRIPTION` has no `URL` or `BugReports`, and `_pkgdown.yml` has no `url` (they
-  would return 404 under `--as-cran`, and pkgdown wants the two to agree). Once the repository and the site are public, add back:
-  <!-- URL: https://insightsurge.github.io/hovercraft/, https://github.com/insightsurge/hovercraft -->
-  <!-- BugReports: https://github.com/insightsurge/hovercraft/issues -->
-  and the `url:` line in `_pkgdown.yml`. `tools/check-release.R` fails until both are there.
+* `URL` and `BugReports` in `DESCRIPTION`, and `url` in `_pkgdown.yml`, name the repository and the site. While the
+  repository is private they return 404, which `--as-cran` reports. `tools/check-release.R` fetches them and fails until
+  they load, so make the repository and the site public before submitting.

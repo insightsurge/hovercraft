@@ -6,7 +6,8 @@
 #   - the package's public text names the engine's project: README.md, DESCRIPTION, NEWS.md, _pkgdown.yml, R/, man/,
 #     and the files a page is given (inst/engine/www/ and inst/engine/engine.json), or
 #   - the maintainer address in DESCRIPTION is a noreply address, or
-#   - DESCRIPTION has no URL or no BugReports, or _pkgdown.yml no url (the repository must be public before a CRAN release), or
+#   - DESCRIPTION has no URL or BugReports, _pkgdown.yml has no url, or one of those links does not load (the
+#     repository must be public before a CRAN release), or
 #   - a file still has a TODO(founder) (DESCRIPTION, inst/COPYRIGHTS, the licence files, the vignettes, cran-comments.md).
 # It is not part of the test suite, so the normal tests never skip and a work-in-progress copy (the engine's
 # integration branch, an engine that still carries its project's name) passes them; it is the release gate's check.
@@ -65,16 +66,36 @@ if (any(grepl("noreply", readLines("DESCRIPTION", warn = FALSE), fixed = TRUE)))
   problems <- c(problems, "DESCRIPTION has a noreply maintainer address; CRAN needs one that can receive mail.")
 }
 
-# A private repository has no public links, so DESCRIPTION leaves them out; CRAN wants them, and they must not 404.
+# CRAN wants public links, and --as-cran fetches them: while the repository is private they 404. Each link in URL and
+# BugReports, and the site's url in _pkgdown.yml, is fetched here and must load.
 description <- read.dcf("DESCRIPTION", fields = c("URL", "BugReports"))
+links <- character()
 for (field in colnames(description)) {
   if (is.na(description[1, field]) || !nzchar(trimws(description[1, field]))) {
-    problems <- c(problems, sprintf("DESCRIPTION has no %s; make the repository public and add it.", field))
+    problems <- c(problems, sprintf("DESCRIPTION has no %s.", field))
+  } else {
+    links <- c(links, trimws(strsplit(description[1, field], "[,[:space:]]+")[[1]]))
   }
 }
-
-if (!any(grepl("^url:", readLines("_pkgdown.yml", warn = FALSE)))) {
-  problems <- c(problems, "_pkgdown.yml has no url; add it with DESCRIPTION's URL once the site is public.")
+site <- sub("^url:[[:space:]]*", "", grep("^url:", readLines("_pkgdown.yml", warn = FALSE), value = TRUE))
+if (!length(site)) {
+  problems <- c(problems, "_pkgdown.yml has no url.")
+}
+for (link in unique(c(links[nzchar(links)], trimws(site)))) {
+  status <- tryCatch(
+    attr(curlGetHeaders(link, redirect = TRUE, timeout = 20L), "status"),
+    error = function(e) NA_integer_
+  )
+  if (!identical(as.integer(status), 200L)) {
+    problems <- c(
+      problems,
+      sprintf(
+        "%s does not load (%s); make the repository and the site public.",
+        link,
+        if (is.na(status)) "no answer" else status
+      )
+    )
+  }
 }
 
 # A placeholder for a decision the founder has yet to make must be gone before a release.
