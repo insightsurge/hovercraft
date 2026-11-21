@@ -78,7 +78,10 @@ describe("a bslib page", {
 
   it("shows a plain text tip after the pointer rests, as markdown", {
     expect_identical(page$hover("#plain"), "Runs the check")
-    expect_identical(page$evaluate("document.querySelector('.kit-tip strong').textContent"), "check")
+    expect_identical(
+      page$evaluate(sprintf("document.querySelector('.%s strong').textContent", tip_names()$css)),
+      "check"
+    )
   })
 
   it("shows a template tip filled from the row's record", {

@@ -41,9 +41,9 @@ tip_check_focus <- function(tag, call) {
 }
 
 # What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
-# the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can be
-# checked; any other name is the page's to report (a UI is often written before the templates it uses). This page has no
-# list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
+# the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can
+# be checked; any other name is the page's to report (a UI is often written before the templates it uses). This page
+# has no list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
 tip_check_use <- function(template, held, id, call) {
   known <- tip_known()
   if (!length(known)) {
@@ -70,7 +70,10 @@ tip_check_use <- function(template, held, id, call) {
     tip_abort(
       c(
         "The template {.val {template}} names {.code tip_index}, which has nothing to count here.",
-        i = "It comes with a later version, with tips that belong to a list. Give the record a value of that name for now."
+        i = paste0(
+          "It comes with a later version, with tips that belong to a list. ",
+          "Give the record a value of that name for now."
+        )
       ),
       class = "hovercraft_error_field",
       call = call
@@ -172,8 +175,8 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
   rlang::check_dots_empty()
-  tip_arg_string(text, "text", min.chars = 0L, null.ok = TRUE, na.ok = TRUE)
-  tip_arg_string(template, "template", null.ok = TRUE)
+  tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
+  tip_arg_string(template, "template", null_ok = TRUE)
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
   if (!has_text && is.null(template)) {
     if (is.null(text)) {

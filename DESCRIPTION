@@ -17,8 +17,11 @@ Imports:
     rlang
 Suggests: 
     bslib,
+    callr,
     chromote,
+    httpuv,
     lifecycle,
+    pkgload,
     shiny,
     testthat (>= 3.1.7),
     withr

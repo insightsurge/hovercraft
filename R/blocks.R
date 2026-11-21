@@ -60,7 +60,7 @@ tip_text <- function(text) {
 #' @export
 tip_badge <- function(text, tone = NULL) {
   tip_arg_string(text, "text")
-  tip_arg_string(tone, "tone", null.ok = TRUE)
+  tip_arg_string(tone, "tone", null_ok = TRUE)
   tip_check_text(text, "The text of `tip_badge()`")
   tip_block("badge", text = text, tone = tone)
 }
@@ -98,7 +98,7 @@ tip_fields <- function(...) {
 #' @export
 tip_code <- function(field, language = NULL, copy = FALSE) {
   tip_arg_string(field, "field")
-  tip_arg_string(language, "language", null.ok = TRUE)
+  tip_arg_string(language, "language", null_ok = TRUE)
   tip_arg_flag(copy, "copy")
   if (copy) {
     tip_abort(

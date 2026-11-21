@@ -1,5 +1,5 @@
 # A headless Chrome whose profile is in tempdir(), so R removes it with the session (chromote's own keeps its profile
-# in the user's Application Support folder). Returns a function that opens an HTML file and gives a small set of helpers.
+# in the user's Application Support folder). Opens an HTML file or a URL and gives a small set of helpers.
 local_page <- function(html_file, env = parent.frame()) {
   old <- options(chromote.timeout = 60)
   withr::defer(options(old), envir = env)
@@ -11,6 +11,8 @@ local_page <- function(html_file, env = parent.frame()) {
   withr::defer(chrome$close(), envir = env)
   session <- chromote::ChromoteSession$new(parent = chrome, width = 900, height = 700)
   withr::defer(session$close(), envir = env)
+  # Leave the page first, so a page with a live connection (Shiny) is not cut off while Chrome is closing.
+  withr::defer(session$Page$navigate("about:blank", wait_ = TRUE), envir = env)
 
   problems <- character()
   session$Runtime$enable()
@@ -25,7 +27,7 @@ local_page <- function(html_file, env = parent.frame()) {
   session$Runtime$exceptionThrown(callback = function(event) {
     problems <<- c(problems, event$exceptionDetails$text)
   })
-  session$Page$navigate(paste0("file://", normalizePath(html_file)))
+  session$Page$navigate(if (grepl("^https?://", html_file)) html_file else paste0("file://", normalizePath(html_file)))
 
   evaluate <- function(js) session$Runtime$evaluate(js, returnByValue = TRUE)$result$value
   wait_until <- function(js, seconds = 10) {

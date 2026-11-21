@@ -18,7 +18,7 @@
 #' @export
 tip_rows <- function(data, columns = NULL) {
   tip_arg_data(data, "data")
-  tip_arg_chars(columns, "columns", null.ok = TRUE)
+  tip_arg_chars(columns, "columns", null_ok = TRUE)
   if (!is.null(columns)) {
     unknown <- setdiff(columns, names(data))
     if (length(unknown)) {

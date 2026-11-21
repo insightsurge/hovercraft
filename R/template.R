@@ -163,7 +163,10 @@ tip_define <- function(...) {
       tip_warn(
         c(
           "The template {.val {name}} was already defined with different blocks; this one replaces it.",
-          i = "Templates are shared by the whole page. Put a module's id in the names it defines, such as {.val {paste0(\"<id>_\", name)}}."
+          i = paste0(
+            "Templates are shared by the whole page. Put a module's id in the names it defines, ",
+            "such as {.val {paste0(\"<id>_\", name)}}."
+          )
         ),
         class = "hovercraft_warning_template"
       )

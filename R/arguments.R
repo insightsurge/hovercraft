@@ -13,15 +13,15 @@ tip_arg <- function(result, arg, fix, call = rlang::caller_env()) {
   invisible()
 }
 
-tip_arg_string <- function(x, arg, min.chars = 1L, null.ok = FALSE, na.ok = FALSE, call = rlang::caller_env()) {
+tip_arg_string <- function(x, arg, min_chars = 1L, null_ok = FALSE, na_ok = FALSE, call = rlang::caller_env()) {
   fix <- paste0(
     "Give one ",
-    if (min.chars > 0L) "non-empty ",
+    if (min_chars > 0L) "non-empty ",
     "string",
-    if (null.ok) ", or {.code NULL}",
+    if (null_ok) ", or {.code NULL}",
     "."
   )
-  tip_arg(checkmate::check_string(x, min.chars = min.chars, null.ok = null.ok, na.ok = na.ok), arg, fix, call)
+  tip_arg(checkmate::check_string(x, min.chars = min_chars, null.ok = null_ok, na.ok = na_ok), arg, fix, call)
 }
 
 tip_arg_flag <- function(x, arg, call = rlang::caller_env()) {
@@ -38,11 +38,11 @@ tip_arg_list <- function(
   tip_arg(checkmate::check_list(x, names = "unique", min.len = min.len), arg, fix, call)
 }
 
-tip_arg_chars <- function(x, arg, null.ok = FALSE, call = rlang::caller_env()) {
+tip_arg_chars <- function(x, arg, null_ok = FALSE, call = rlang::caller_env()) {
   tip_arg(
-    checkmate::check_character(x, any.missing = FALSE, min.len = 1L, null.ok = null.ok),
+    checkmate::check_character(x, any.missing = FALSE, min.len = 1L, null.ok = null_ok),
     arg,
-    paste0("Give the names as a character vector", if (null.ok) ", or {.code NULL}", "."),
+    paste0("Give the names as a character vector", if (null_ok) ", or {.code NULL}", "."),
     call
   )
 }

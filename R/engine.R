@@ -1,6 +1,7 @@
 # The tip engine is a JavaScript file and a stylesheet copied into inst/engine/www/ by tools/copy-engine.R, with
 # engine.json beside it (not inside www/, so no page ever holds it), which records what was copied: the engine's
-# version, commit and branch, each file's sha256, the names the engine uses on the page and the rules it follows. Nothing in here is typed twice: R reads the names and the rules.
+# version, commit and branch, each file's sha256, the names the engine uses on the page and the rules it follows.
+# Nothing in here is typed twice: R reads the names and the rules.
 
 tip_state <- new.env(parent = emptyenv())
 
