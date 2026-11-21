@@ -4,9 +4,13 @@
 \name{hovercraft-package}
 \alias{hovercraft}
 \alias{hovercraft-package}
-\title{hovercraft: Tooltips for Shiny and bslib Pages}
+\title{hovercraft: tips for Shiny and bslib pages}
 \description{
-Hover tips for Shiny apps and bslib pages. A tip shows plain text or a named template filled from the item's own data, after the pointer rests or keyboard focus arrives. Tips are drawn by one small JavaScript file shipped with the package.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+Put a tip on any HTML tag. The tip is plain text, or a named template filled from the values of one item, such as a
+row of a table. Start with \code{\link[=tip_on]{tip_on()}}; name templates with \code{\link[=tip_define]{tip_define()}} and build
+them with \code{\link[=tip_template]{tip_template()}} and the block functions (\code{\link[=tip_title]{tip_title()}} and friends). The tips are drawn by one small
+JavaScript file that ships with the package, so nothing needs installing in the browser.
 }
 \seealso{
 Useful links:
