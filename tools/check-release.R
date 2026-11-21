@@ -4,7 +4,8 @@
 #   - inst/engine/engine.json says the engine was not copied from its main branch,
 #   - a vendored file does not match the sha256 engine.json recorded for it, or
 #   - the package's public text names the engine's project: README.md, DESCRIPTION, NEWS.md, _pkgdown.yml, R/, man/,
-#     and the files a page is given (inst/engine/www/ and inst/engine/engine.json).
+#     and the files a page is given (inst/engine/www/ and inst/engine/engine.json), or
+#   - a file still has a TODO(founder) (DESCRIPTION, inst/COPYRIGHTS, the licence files, the vignettes, cran-comments.md).
 # It is not part of the test suite, so the normal tests never skip and a work-in-progress copy (the engine's
 # integration branch, an engine that still carries its project's name) passes them; it is the release gate's check.
 
@@ -54,6 +55,21 @@ for (path in public[file.exists(public)]) {
   hits <- grep(project, readLines(path, warn = FALSE, encoding = "UTF-8"), ignore.case = TRUE)
   if (length(hits)) {
     problems <- c(problems, sprintf("%s names the engine's project on %d line(s).", path, length(hits)))
+  }
+}
+
+# A placeholder for a decision the founder has yet to make must be gone before a release.
+open_items <- c(
+  public,
+  "cran-comments.md",
+  "inst/COPYRIGHTS",
+  "LICENSE",
+  "LICENSE.md",
+  list.files("vignettes", pattern = "[.](Rmd|R|md)$", recursive = TRUE, full.names = TRUE)
+)
+for (path in open_items[file.exists(open_items)]) {
+  if (any(grepl("TODO(founder)", readLines(path, warn = FALSE, encoding = "UTF-8"), fixed = TRUE))) {
+    problems <- c(problems, sprintf("%s still has a TODO(founder).", path))
   }
 }
 

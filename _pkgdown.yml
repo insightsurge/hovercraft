@@ -26,5 +26,8 @@ reference:
       - tip_define
       - tip_template
       - tip_blocks
+  - title: Themes
+    contents:
+      - tip_theme
   - title: The engine
     contents: tip_dependency

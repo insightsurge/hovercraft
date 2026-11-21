@@ -1,0 +1,116 @@
+---
+title: "Themes"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Themes}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+has_bslib <- requireNamespace("bslib", quietly = TRUE)
+```
+
+```{r}
+library(hovercraft) # nolint: undesirable_function_linter
+```
+
+## Nothing to do on a bslib page
+
+The tips read Bootstrap's variables where the page has them, so a page built with `bslib::page_fluid()` and a
+`bslib::bs_theme()` already has tips in the theme's colours, corner and font, and they turn dark with
+`bslib::input_dark_mode()` on their own. The tip is the page inverted: its fill is the page's text colour and its words the
+page's background.
+
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button with a tip below it, dark on a light page and light on a dark page.", fig.show = "hold"}
+knitr::include_graphics(c("figures/default-light.png", "figures/default-dark.png"))
+```
+
+Use a theme when the tips must look different from the page, when the brand is not in a `bs_theme()`, or when the page
+has no bslib.
+
+## Your own roles
+
+`tip_theme()` takes named roles, in a list for light and one for dark. A role you leave out keeps what the page gives.
+
+| Role | What it sets | Takes |
+|---|---|---|
+| `bg` | the tip's fill | a colour |
+| `ink` | its words | a colour |
+| `line` | its border, seen in forced-colours mode and in a tip that stays open | a colour |
+| `code_bg` | behind code | a colour |
+| `radius` | the corner | pixels, or a length such as `"0.5rem"` |
+| `shadow` | the shadow | CSS `box-shadow` text, or `"none"` |
+| `font` | the typeface | CSS `font-family` text |
+
+```{r}
+brand <- tip_theme(
+  light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 10, shadow = "0 6px 18px rgba(27, 58, 107, 0.35)"),
+  dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+)
+brand
+```
+
+A role set in `light` and not in `dark` is used in dark mode too, so a brand colour set once holds in both modes.
+Colours may be names, hex, `rgb()` text or three numbers from 0 to 255. Give the theme to `tip_dependency()` once, in the
+page's UI:
+
+```{r, eval = FALSE}
+ui <- bslib::page_fluid(
+  tip_dependency(theme = brand),
+  tip_on(actionButton("go", "Run"), "Runs the **check**")
+)
+```
+
+```{r, echo = FALSE, out.width = "48%", fig.alt = "The same button with a navy tip, rounded and shadowed, on a light page, and a pale blue tip on a dark page.", fig.show = "hold"}
+knitr::include_graphics(c("figures/theme-light.png", "figures/theme-dark.png"))
+```
+
+### Light and dark
+
+`mode = "auto"` (the default) follows the page: the `data-bs-theme` attribute that `bslib::input_dark_mode()` sets on the
+page, and, when the page names none, the visitor's own setting. `"light"` and `"dark"` use that mode whatever the page says.
+A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not reach it.
+
+## A bslib theme
+
+A `bslib::bs_theme()` is read through its variables (bslib 0.6.0 or later): the tip's fill is the theme's text colour, its words
+the theme's background, with the border colour, corner and font. This is for a page that is not built with the theme; a page
+that is needs no theme at all.
+
+```{r, eval = has_bslib}
+warm <- bslib::bs_theme(version = 5, bg = "#fdf6e3", fg = "#073642", "border-radius" = "0.6rem")
+tip_dependency(theme = warm)[[2]]$name
+```
+
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button with a tip below it in a warm cream and dark teal, with rounded corners, then the same in dark mode.", fig.show = "hold"}
+knitr::include_graphics(c("figures/bs-theme-light.png", "figures/bs-theme-dark.png"))
+```
+
+## CSS variables
+
+A named list whose names all start with `--` sets CSS variables as they are, for both modes: the engine's own variables, or
+any variable the page's CSS defines.
+
+```{r}
+tip_dependency(theme = list("--hovercraft-tip-radius" = "4px"))[[2]]$name
+```
+
+A role can also read a variable: `tip_theme(light = list(bg = "--team-blue"))` reads `--team-blue` where the page defines
+it. R cannot check the value of a variable; the browser works it out.
+
+## Contrast
+
+The words of a tip must be readable on its fill. For each mode `tip_theme()` measures the `ink` on the `bg` (and on the
+`code_bg`, if you give one). Below 4.5:1, the usual level for text, it warns and keeps the colours. A role you leave out is taken
+to be what Bootstrap's default gives.
+
+```{r}
+tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")) |>
+  suppressWarnings() |>
+  invisible()
+```
+
+The warning has the class `hovercraft_contrast`. Turn the warnings off with `options(hovercraft.contrast_warnings = FALSE)`, or
+silence only them with `withCallingHandlers(..., hovercraft_contrast = function(w) invokeRestart("muffleWarning"))`.

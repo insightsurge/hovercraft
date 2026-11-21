@@ -1,0 +1,12 @@
+Who holds the copyright in what this package ships.
+
+The package's own code (R/, tests/, vignettes/, man/, the README and NEWS):
+  Copyright (c) 2026 Harsh Verma. MIT licence: see LICENSE.
+
+The tip engine, inst/engine/www/tip.js and inst/engine/www/tip.css, and the shared placeholder cases the tests read,
+inst/engine/placeholders.json:
+  Copyright holder: TODO(founder)
+  Licence: TODO(founder)
+  The engine is one JavaScript file and one stylesheet, written for this purpose. It holds its own small markdown reader and
+  number formatting, and no third-party code. inst/engine/engine.json records the version and checksums of the copy;
+  inst/engine/tip.sha256 holds the same checksums in the form `shasum -c` reads.

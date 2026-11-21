@@ -1,0 +1,137 @@
+---
+title: "Get started with hovercraft"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Get started with hovercraft}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
+```
+
+hovercraft puts a tip on any HTML tag in a Shiny app or a bslib page. The tip shows when the pointer rests on the tag or
+keyboard focus arrives on it, and hides when either leaves. It is plain text, or drawn from a template and filled in from
+the values of one item, such as a row of a table.
+
+```{r}
+library(hovercraft) # nolint: undesirable_function_linter
+```
+
+## A tip with text
+
+`tip_on()` takes a tag and the text. The text is markdown (strong, emphasis, code, links and short lists), shown as
+written: build it with `paste0()` or `sprintf()` when it holds values.
+
+```{r}
+run <- tip_on(htmltools::tags$button("Run"), "Runs the **check**")
+run
+```
+
+The tag comes back with the tip's attributes and the engine's script and CSS attached, so it works wherever you put it:
+in a bslib page, in a plain Shiny page and in output made later with `renderUI()`.
+
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled Run, with a dark tip below it that reads: Runs the check.", fig.show = "hold"}
+knitr::include_graphics(c("figures/default-light.png", "figures/default-dark.png"))
+```
+
+The tip follows the page. On a page with a `bslib::bs_theme()` it uses the theme's colours and turns dark with
+`bslib::input_dark_mode()`. See `vignette("themes")` to set its look yourself.
+
+## A tip from a template
+
+When many tags show the same kind of tip, write the tip once as a template and give each tag its values.
+
+```{r}
+tip_define(
+  diff = tip_template(
+    tip_title("{{ label }}"),
+    tip_badge("{{ status }}"),
+    tip_fields(Records = "{{ records | number:0 }}", Differences = "{{ differences | number:0 }}"),
+    tip_text("{{ share | percent:1 }} of the records differ.")
+  )
+)
+```
+
+`tip_define()` returns tags: put it once in the page's UI. A template is a list of blocks, shown in order:
+
+| Block | Shows |
+|---|---|
+| `tip_title()` | the first line |
+| `tip_text()` | a paragraph of markdown |
+| `tip_badge()` | a short label |
+| `tip_fields()` | label and value pairs |
+| `tip_code()` | code, as text |
+
+A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | percent:1 }}` to round. It names one field of the
+record, exactly, and a value that is missing or blank shows a dash. A mistake in a placeholder, such as one that never
+closes, stops with an error when the template is made, not later in the browser.
+
+Then name the template and give the tag a record, a named list of single values or a data frame of one row:
+
+```{r}
+row <- list(label = "ADAE", status = "Check", records = 5304, differences = 3, share = 0.0006)
+tip_on(htmltools::tags$button("ADAE"), template = "diff", record = row)
+```
+
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled ADAE, with a tip below it holding a title, a badge, two label and value pairs and a sentence.", fig.show = "hold"}
+knitr::include_graphics(c("figures/template-light.png", "figures/template-dark.png"))
+```
+
+## A tip on every row of a table
+
+`tip_rows()` turns a data frame into one record per row. Name the columns the template uses, so nothing else in the data is
+written into the page:
+
+```{r}
+files <- data.frame(
+  label = c("ADAE", "ADSL"),
+  status = c("Check", "Same"),
+  records = c(5304, 306),
+  differences = c(3, 0),
+  share = c(0.0006, 0),
+  reviewer = c("A. Reviewer", "B. Reviewer")
+)
+records <- tip_rows(files, columns = c("label", "status", "records", "differences", "share"))
+rows <- lapply(records, function(record) {
+  tip_on(
+    htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+    template = "diff",
+    record = record
+  )
+})
+length(rows)
+```
+
+Once `tip_define()` has seen a template, `tip_on()` keeps only the columns it names, so a record that holds more is not
+written out in full. A record that holds a value a tip cannot show, such as a list or a data frame, is an error that says which.
+
+## Keyboard users
+
+A tip shows on keyboard focus, so a tag that cannot take focus, such as a table row or a `div`, gives a keyboard user no
+way to its tip. `tip_on()` says so once. It never adds a tab stop itself, because a table of 3,000 rows would become
+3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a link.
+
+## In a Shiny app
+
+```r
+library(shiny)
+library(hovercraft)
+
+ui <- bslib::page_fluid(
+  tip_define(hint = tip_template(tip_title("{{ label }}"), tip_text("{{ n }} files"))),
+  uiOutput("buttons")
+)
+
+server <- function(input, output, session) {
+  output$buttons <- renderUI({
+    tip_on(actionButton("go", "Go"), template = "hint", record = list(label = "Go", n = 3))
+  })
+}
+
+shinyApp(ui, server)
+```
+
+A template belongs to the whole page. A Shiny module should put its id in the names it defines, such as
+`paste0(id, "_row")`, so two modules do not replace each other's templates.

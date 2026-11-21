@@ -37,3 +37,5 @@
 ^\.gitleaksignore$
 ^\.gitleaks\.toml$
 ^README\.Rmd$
+^doc$
+^Meta$

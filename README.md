@@ -66,4 +66,20 @@ keyboard user no way to its tip. `tip_on()` says so once. It never adds a tab st
 would become 3,000 Tab stops; give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a
 link.
 
+## Themes
+
+The tip follows the page: on a bslib page it uses the theme's colours and turns dark with `input_dark_mode()`. To set its look
+yourself, give `tip_dependency()` a `tip_theme()` once, in the page's UI:
+
+```r
+brand <- tip_theme(
+  light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 10),
+  dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+)
+bslib::page_fluid(tip_dependency(theme = brand), ...)
+```
+
+A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See
+`vignette("themes")`, and `vignette("hovercraft")` to get started.
+
 Set up with [launchR](https://launch-r.web.app).

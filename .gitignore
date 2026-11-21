@@ -18,6 +18,7 @@ dev/
 tools/*
 !tools/copy-engine.R
 !tools/check-release.R
+!tools/make-figures.R
 
 # Local tool settings stay out of git
 .claude/settings.local.json
@@ -36,3 +37,5 @@ hovercraft_*.tar.gz
 # Generated site and temporary files
 site/
 .*.md.hold
+/doc/
+/Meta/
