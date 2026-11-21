@@ -1,0 +1,26 @@
+name: New feature
+description: Propose something hovercraft can't do yet.
+labels: [feature]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Keep it short: the outcome you want is enough to start.
+        Use made-up data, and leave out private data, credentials and machine paths.
+  - type: textarea
+    id: goal
+    attributes:
+      label: What should a user be able to do, and why?
+      description: One short use case. Describe the outcome; a technical design is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when (optional)
+      description: How someone could tell it works, for example "a user can ...".
+  - type: textarea
+    id: context
+    attributes:
+      label: Example (optional)
+      description: A small example, a workaround you use now, or a related issue.

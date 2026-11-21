@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Contributor guide
+    url: https://github.com/insightsurge/hovercraft/blob/HEAD/.github/CONTRIBUTING.md
+    about: How to open an issue, work on it and send a pull request.

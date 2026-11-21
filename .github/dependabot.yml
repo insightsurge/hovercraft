@@ -1,0 +1,15 @@
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "ci"
+    groups:
+      launchr:
+        patterns: ["insightsurge/launchR*"]
+    ignore:
+      # launchR patch releases arrive with the next minor release.
+      - dependency-name: "insightsurge/launchR*"
+        update-types: ["version-update:semver-patch"]

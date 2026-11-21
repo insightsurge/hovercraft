@@ -1,0 +1,17 @@
+url: https://insightsurge.github.io/hovercraft/
+destination: site
+
+template:
+  bootstrap: 5
+  light-switch: true
+  bslib:
+    bg: "#F5FAFC"
+    fg: "#172E36"
+    primary: "#145C68"
+    link-color: "#145C68"
+    link-color-dark: "#8CE1E4"
+
+navbar:
+  structure:
+    left: [reference, news, articles]
+    right: [search, github, lightswitch]

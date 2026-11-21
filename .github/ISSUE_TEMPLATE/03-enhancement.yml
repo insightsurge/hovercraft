@@ -1,0 +1,26 @@
+name: Improve existing behaviour
+description: Make something hovercraft already does better.
+labels: [enhancement]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. If something is broken, use Bug report instead.
+        Use made-up data, and leave out private data, credentials and machine paths.
+  - type: textarea
+    id: change
+    attributes:
+      label: What happens now, and what would help?
+      description: Name the function or behaviour, and give a short use case for the improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: done
+    attributes:
+      label: Done when (optional)
+      description: How someone could tell it's better, for example "a user can ...".
+  - type: textarea
+    id: compatibility
+    attributes:
+      label: Existing code to consider (optional)
+      description: Could this change a default or break code that uses hovercraft today? Link an example if you have one.

@@ -1,0 +1,44 @@
+name: Bug report
+description: Something is broken or behaves differently from the documentation.
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Search existing issues first. Use made-up or bundled data, and remove private data, credentials and machine paths from examples, output and screenshots.
+        This form also covers problems in the docs, the website and CI. A short example is enough; you don't need to find the cause.
+  - type: textarea
+    id: behaviour
+    attributes:
+      label: What happened, and what did you expect?
+      description: One or two sentences. Include the error message, if there is one. A screenshot is optional.
+    validations:
+      required: true
+  - type: textarea
+    id: reprex
+    attributes:
+      label: Minimal reproducible example (reprex)
+      description: |
+        Paste the smallest runnable R example that shows the problem. reprex::reprex() helps but isn't required.
+        For a problem in the docs, the website or CI, give the page or file and the exact steps. Use fenced code blocks for code.
+      render: r
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: 'hovercraft version'
+      description: 'Use packageVersion("hovercraft"). Add the commit if you installed from GitHub. For a docs, website or CI problem without the package installed, write "Not installed".'
+    validations:
+      required: true
+  - type: textarea
+    id: session
+    attributes:
+      label: Environment details (optional)
+      description: 'Paste sessionInfo() or sessioninfo::session_info() if you can. For a problem in a browser, add the browser and its version. Remove private details and paths first; a short summary is fine.'
+      render: text
+  - type: textarea
+    id: done
+    attributes:
+      label: Fixed when (optional)
+      description: What would show it's fixed, for example "the example above returns the expected result".

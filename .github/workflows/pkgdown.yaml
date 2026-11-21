@@ -1,0 +1,24 @@
+# Builds the website and publishes it to GitHub Pages. In the repository's settings, set Pages to "GitHub Actions".
+name: pkgdown
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A new push to a pull request stops this check's older run for it, to save minutes; pushes and weekly runs always
+# finish. To let every pull request run finish too, set cancel-in-progress to false.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  site:
+    uses: insightsurge/launchR/.github/workflows/pkgdown.yaml@v0.0.19
+    permissions:
+      contents: read
+      pages: write
+      id-token: write

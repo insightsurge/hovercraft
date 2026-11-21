@@ -1,0 +1,22 @@
+Package: hovercraft
+Title: Tooltips for Shiny and bslib Pages
+Version: 0.1.0
+Authors@R: 
+    person("Harsh", "Verma", email = "125121920+insightsurge@users.noreply.github.com", role = c("aut", "cre", "cph"))
+Description: Hover tips for Shiny apps and bslib pages. A tip shows plain text or a named template filled from the item's own data, after the pointer rests or keyboard focus arrives. Tips are drawn by one small JavaScript file shipped with the package.
+License: MIT + file LICENSE
+URL: https://insightsurge.github.io/hovercraft/, https://github.com/insightsurge/hovercraft
+BugReports: https://github.com/insightsurge/hovercraft/issues
+Depends: 
+    R (>= 4.1.0)
+Suggests: 
+    chromote,
+    testthat (>= 3.1.7)
+Config/quality-gate/coverage: 70
+Config/launchR/version: 0.0.19
+Config/testthat/edition: 3
+Config/testthat/parallel: true
+Encoding: UTF-8
+Language: en-GB
+Roxygen: list(markdown = TRUE)
+Config/roxygen2/version: 8.1.0
