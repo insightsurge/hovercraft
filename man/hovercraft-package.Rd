@@ -22,16 +22,11 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Harsh Verma \email{125121920+insightsurge@users.noreply.github.com} [copyright holder]
+\strong{Maintainer}: Harsh Verma \email{analyticswithharsh@gmail.com} (Copyright holder of the package and of the bundled tip engine) [copyright holder]
 
 Authors:
 \itemize{
-  \item Harsh Verma \email{125121920+insightsurge@users.noreply.github.com} [copyright holder]
-}
-
-Other contributors:
-\itemize{
-  \item TODO(founder) (Copyright holder of the bundled tip engine) [contributor, copyright holder]
+  \item Harsh Verma \email{analyticswithharsh@gmail.com} (Copyright holder of the package and of the bundled tip engine) [copyright holder]
 }
 
 }

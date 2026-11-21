@@ -15,7 +15,6 @@
 
 ## Before submission
 
-* TODO(founder): the maintainer address in `DESCRIPTION` is a GitHub `noreply` address, which cannot receive CRAN's
-  confirmation mail. Use an address that can.
-* TODO(founder): `URL` and `BugReports` point at a repository and a site that return 404 until they are public. Make them
-  public, or remove the links.
+* `URL` and `BugReports` in `DESCRIPTION`, and `url` in `_pkgdown.yml`, name the repository and the site. While the
+  repository is private they return 404, which `--as-cran` reports. `tools/check-release.R` fetches them and fails until
+  they load, so make the repository and the site public before submitting.

@@ -73,12 +73,14 @@ for (name in c("tip.js", "tip.css")) {
 
 # The names the checkout's own build carries: what must not be left in a renamed one.
 grab <- function(pattern, lines) {
+  lines <- paste(lines, collapse = " ")
   hit <- regmatches(lines, regexec(pattern, lines))
   hit <- hit[lengths(hit) > 0L]
   stop_if(length(hit) == 0L, "tip.js has no line like ", pattern)
   hit[[1]][-1L]
 }
-names_pattern <- "const TIP_NAMES = Object\\.freeze\\(\\{ attr: '([^']+)', css: '([^']+)', who: '([^']+)'"
+# The engine writes this object on one line or one key a line, so the lines are joined before the match.
+names_pattern <- "const TIP_NAMES = Object\\.freeze\\(\\{ *attr: '([^']+)', *css: '([^']+)', *who: '([^']+)'"
 was <- grab(names_pattern, readLines(at("kit/tip/tip.js"), warn = FALSE))
 old_prefix <- sub("^data-(.+)-tip$", "\\1", was[[1]])
 old_css <- paste0(sub("-tip$", "", was[[2]]), "-")
@@ -111,7 +113,8 @@ for (name in c("tip.js", "tip.css")) {
   text <- readLines(file.path(build, name), warn = FALSE)
   for (old in c(old_prefix, old_css)) {
     stop_if(
-      any(grepl(tolower(old), tolower(text), fixed = TRUE)),
+      # a name counts as left behind only where it starts a word ("-webkit-" holds "kit-" but is not the old name)
+      any(grepl(paste0("(^|[^a-z0-9])", tolower(old)), tolower(text))),
       "The built ",
       name,
       " still holds the old name \"",
