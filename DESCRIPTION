@@ -8,10 +8,20 @@ License: MIT + file LICENSE
 URL: https://insightsurge.github.io/hovercraft/, https://github.com/insightsurge/hovercraft
 BugReports: https://github.com/insightsurge/hovercraft/issues
 Depends: 
-    R (>= 4.1.0)
+    R (>= 4.4.0)
+Imports: 
+    checkmate,
+    cli,
+    htmltools,
+    jsonlite,
+    rlang
 Suggests: 
+    bslib,
     chromote,
-    testthat (>= 3.1.7)
+    lifecycle,
+    shiny,
+    testthat (>= 3.1.7),
+    withr
 Config/quality-gate/coverage: 70
 Config/launchR/version: 0.0.19
 Config/testthat/edition: 3
@@ -19,4 +29,4 @@ Config/testthat/parallel: true
 Encoding: UTF-8
 Language: en-GB
 Roxygen: list(markdown = TRUE)
-Config/roxygen2/version: 8.1.0
+Config/roxygen2/version: 8.1.1
