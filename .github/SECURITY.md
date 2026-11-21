@@ -9,7 +9,7 @@ does.
 
 Please don't open a public issue. Use GitHub's private reporting instead: on the
 [Security tab](https://github.com/insightsurge/hovercraft/security), choose **Report a vulnerability**. If you can't,
-email 125121920+insightsurge@users.noreply.github.com with "hovercraft security" in the subject.
+email analyticswithharsh@gmail.com with "hovercraft security" in the subject.
 
 Include your hovercraft version (`packageVersion("hovercraft")`) and a small example with synthetic data.
 
