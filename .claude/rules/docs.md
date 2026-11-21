@@ -1,3 +1,13 @@
+---
+paths:
+  - "man/**"
+  - "README.md"
+  - "NEWS.md"
+  - "vignettes/**"
+  - "_pkgdown.yml"
+  - "R/**/*.R"
+---
+
 # Docs
 
 - **Help pages come from roxygen2 comments** in `R/`. Run `devtools::document()` and commit the changed `man/` files

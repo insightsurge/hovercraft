@@ -1,3 +1,9 @@
+---
+paths:
+  - ".github/**"
+  - "NEWS.md"
+---
+
 # Branches, commits and pull requests
 
 - **Start with an issue,** opened with one of the issue forms: the goal and a "done when" checklist. One issue per
@@ -10,3 +16,8 @@
 - Don't commit build output (`*.Rcheck/`, `*.tar.gz`, `docs/`) or local settings (`.Renviron`, `.Rhistory`).
 - Never force-push, rewrite history that is already pushed, or use `--no-verify`.
 - The maintainer merges, once CI is green.
+
+- **Every issue sits under an epic;** only the root issue has no parent. Link a new issue as a sub-issue of the epic it
+  belongs to. It gets one type label and one `area:` label.
+- **One pull request per issue.** Its body starts with "In brief", says "Closes #n" and lists the checks run, with
+  their results. Squash merging makes the title the commit on `main`.

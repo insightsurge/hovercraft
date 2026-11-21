@@ -1,25 +1,32 @@
 # Working on this package
 
-Rules for everyone who works here, person or AI. This file loads in every AI session, so it stays short. The detailed
-rules are in `.agents/rules/`: read the file that fits before you start.
+hovercraft puts a tip on any HTML tag in a Shiny app or a bslib page: plain text, or a named template filled in from
+one record, such as a table row. R builds the tags and writes data attributes; a small JavaScript engine, vendored
+under `inst/engine/`, does the showing. The package is young and private, and its files may still move.
 
-| Before you change | Read |
+Rules for everyone who works here, person or AI. Claude loads the matching rule file in `.claude/rules/` by itself; any
+other AI reads the file for its area in full before starting, and before creating a file in `R/`, `tests/`, `inst/`
+or `.github/`.
+
+| Area | Rule file |
 | --- | --- |
-| R code in `R/` | `.agents/rules/r-code.md` |
-| Tests in `tests/` | `.agents/rules/tests.md` |
-| Help pages, README, NEWS or articles | `.agents/rules/docs.md` |
-| `DESCRIPTION`, CI, or before a pull request | `.agents/rules/checks.md` |
-| JavaScript or CSS in `inst/` | `.agents/rules/js-css.md` |
-| Branches, commits and pull requests | `.agents/rules/git.md` |
+| `R/`, `tools/*.R` | `.claude/rules/r-code.md` |
+| `tests/` | `.claude/rules/tests.md` |
+| Help pages, README, NEWS, vignettes | `.claude/rules/docs.md` |
+| `DESCRIPTION`, the gate, releases | `.claude/rules/checks.md` |
+| `inst/`, the vendored engine | `.claude/rules/js-css.md` |
+| Issues, branches and pull requests | `.claude/rules/git.md` |
 
-How launchR's checks, CI report and upgrades work: <https://launch-r.web.app/SKILL.md>.
+How to contribute is in `.github/CONTRIBUTING.md`; launchR's checks: <https://launch-r.web.app/SKILL.md>.
 
 ## Always
 
-- Change only what the task needs. Ask before adding a dependency, changing a check or deleting a file.
+- Never edit the vendored engine in `inst/engine/`; `tools/copy-engine.R` writes it.
+- Every export starts with `tip_`. Names are snake_case.
+- Public text never names the project the engine is built from; call it "the tip engine".
+- Check arguments with checkmate, send messages through cli, call other packages as `pkg::fn()`.
 - `man/` and `NAMESPACE` come from `devtools::document()`, never from hand edits.
-- Add a test for every change, and a `NEWS.md` bullet for anything users notice.
-- Never push to the default branch (`main` or `master`), force-push or skip a check. When a check fails, fix the
-  cause; don't loosen the check.
+- Every change starts from an issue and lands by pull request; never push to `main`, force-push or skip a check.
+- Change only what the task needs. Ask before adding a dependency, changing a check or deleting a file.
 - Keep secrets, private data and machine paths out of code, tests, examples and commits.
 - Report what you ran and what it printed, failures and skipped steps included.

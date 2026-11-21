@@ -13,18 +13,19 @@ To change something yourself, read the workflow below and open a pull request.
 - **Google Chrome or Chromium**, for the browser tests.
 - If you use renv, set up your own library; the repository does not ship one.
 
-CI runs on every pull request, so you do not need anything else installed. How CI works is in
-[`.github/workflows/README.md`](workflows/README.md).
+The checks you run on your computer are described under "Before you open a pull request" below.
 
 ## Workflow
 
 1. **Start with an issue**, using an issue form. State the goal and a "done when" checklist. One issue per piece of
-   work; ask first if the change is large. Keep its description current when scope or decisions change. Tick the
-   items a pull request delivers, and say what stays open.
+   work; ask first if the change is large. **Every issue sits under an epic** (a sub-issue of it); only the root issue
+   has no parent, and if no epic fits, ask which to use. Keep the description current when scope or decisions change.
+   Tick the items a pull request delivers, and say what stays open.
 2. **Make a branch** from `main` for that issue.
 3. **Commit with Conventional Commits**, short: `feat:`, `fix:`, `docs:`, `chore:`, `test:`, `ci:`, `refactor:`.
-4. **Open a pull request** using the template. Keep the sections that apply, put repeatable checks in its table and
-   one-off observations in Notes.
+4. **Open one pull request for the issue**, using the template. Its body starts with "In brief": one plain sentence on
+   what changes and why, then a few bullets for a reader with no context, and "Closes #n". Keep the sections that
+   apply, put repeatable checks in its table and one-off observations in Notes.
 5. **Suggest a label** in the pull request: one of `feature`, `enhancement`, `bug`, `documentation` or `chore`. The maintainer
    applies it; the release notes are built from it.
 6. **The maintainer merges** once CI is green. Pull requests are squash-merged, so the pull request title becomes the
@@ -61,12 +62,16 @@ air format .           # R code style
   `inst/WORDLIST`.
 - The spelling check reads `Language: en-GB` in `DESCRIPTION`, so it expects British spelling. For American spelling
   (color, license), change it to `en-US`.
-- To run the same checks CI runs, including style, docs in sync and spelling, use the quality gate: see "Run the
-  checks on your computer" in `.github/workflows/README.md`.
+- To run the same checks CI runs, including style, docs in sync and spelling, use launchR's quality gate
+  (<https://launch-r.web.app/SKILL.md>), from the package root: mode `lint` before a commit, `fast` before a push,
+  `tests` when you touched `R/` or `tests/`, and `full` before the pull request. Send its output to a file and read the
+  PASS, FAIL and SKIP lines.
 - A failing check on a pull request is read from its log in the Checks tab. Fix the first failure and push again.
 
 ## Code in short
 
+- **Style:** the tidyverse style guide, formatted by Air (`air.toml`) and linted by lintr (`.lintr`). Names are
+  snake_case, lines at most 120 characters.
 - Write help and offline examples with roxygen2. Every exported function documents its return value.
 - Call other packages as `pkg::fn()` and add them to `DESCRIPTION` first.
 - Check arguments at the top of exported functions, and give messages that say what to do next.
@@ -76,13 +81,13 @@ air format .           # R code style
 
 ## Tests
 
-Tests use testthat, one test file per R file. Add a test for every new behaviour and every fixed bug, and keep example
+Tests use testthat 3rd edition, one test file per R file. Add a test for every new behaviour and every fixed bug, and keep example
 data made up.
 Browser and snapshot tests that CRAN skips live in their own files and run in CI.
 
 ## NEWS.md
 
-Add one bullet for each user-facing change, in the same pull request. Write it for users, in the present tense, start
+Add one bullet for each user-facing change (a new or changed function, argument or message), in the same pull request. Write it for users, in the present tense, start
 with the function or feature, and end with the issue number:
 
 ```md

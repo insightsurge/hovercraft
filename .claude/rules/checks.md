@@ -1,3 +1,15 @@
+---
+paths:
+  - "DESCRIPTION"
+  - ".Rbuildignore"
+  - ".lintr"
+  - "air.toml"
+  - "biome.json"
+  - "cran-comments.md"
+  - "tools/check-release.R"
+  - ".github/**"
+---
+
 # Checks
 
 - **The pass mark is CRAN's:** R CMD check with 0 errors, 0 warnings and 0 notes. On top of that: style (Air, lintr,
@@ -26,3 +38,24 @@
 - **Code, examples and vignettes work without the `Suggests` packages;** a job checks this. A test that needs one
   starts with `skip_if_not_installed()`: testthat skips it on CRAN anyway, but the skip line says why.
 - **Secrets:** a found secret is removed and its key rotated. `gitleaks:allow` is only for a false alarm.
+
+## The quality gate
+
+Use launchR's quality gate (<https://launch-r.web.app/SKILL.md>), never `devtools::check()` on its own. Send its output
+to a log file outside the repository and read the summary lines.
+
+| When | Run |
+| --- | --- |
+| After editing roxygen, or `DESCRIPTION`'s Title or Description | `devtools::document()`, then commit `man/` and `NAMESPACE` |
+| Before every commit | gate `lint` |
+| Before every push | gate `fast` |
+| Before a push that touches `R/` or `tests/` | gate `tests` |
+| Before a pull request, and when asked whether it is ready for CRAN | gate `full` |
+
+## The release gate
+
+`tools/check-release.R` runs by hand before any release (`Rscript tools/check-release.R`). It is not a test, so the
+normal tests never skip. It fails while the engine was not copied from its `main` branch, a vendored file does not match
+`engine.json`, public text names the engine's project, the maintainer address is a `noreply` address, a placeholder
+for an open decision is left, or `URL`, `BugReports` or the pkgdown `url` is missing or does not load. While the
+repository is private it is expected to fail on the links.
