@@ -7,12 +7,12 @@
 tip_dependency(theme = NULL)
 }
 \arguments{
-\item{theme}{How the tips look, or \code{NULL} (the default) to take the page's own bslib variables, so a page with a
-\code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
+\item{theme}{How the tips look, or \code{NULL} (the default) to take the page's own bslib variables, so a page with
+a \code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
 \itemize{
 \item a \code{\link[=tip_theme]{tip_theme()}};
-\item a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its variables (bslib 0.6.0 or later). The tip is the page inverted: its fill is
-the theme's text colour and its words the theme's background, with the border colour, corner and font;
+\item a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its variables (bslib 0.6.0 or later). The tip is the page inverted: its fill
+is the theme's text colour and its words the theme's background, with the border colour, corner and font;
 \item a named list whose names are roles (\code{list(bg = "#1b3a6b", ink = "#ffffff")}), the same as
 \code{tip_theme(light = )}, so one set for both modes;
 \item a named list whose names all start with \verb{--}, CSS variables set as they are for both modes, such as

@@ -93,16 +93,16 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' result to [tip_dependency()] once, in the page's UI.
 #'
 #' The roles are `bg` (the tip's fill), `ink` (its words), `line` (its border, seen in forced-colours mode and in a tip
-#' that stays open), `code_bg` (behind code), `radius` (the corner), `shadow` and `font`. Colours may be names, hex, [grDevices::rgb()]
-#' output, `"rgba(0, 0, 0, 0.8)"` text or three numbers from 0 to 255. A value that is a CSS variable, `"--team-blue"` or
-#' `"var(--team-blue)"`, is read by the browser where the page defines it; R cannot check it. A theme can also be a
-#' [bslib::bs_theme()] or a plain list, see [tip_dependency()].
+#' that stays open), `code_bg` (behind code), `radius` (the corner), `shadow` and `font`. Colours may be names, hex,
+#' [grDevices::rgb()] output, `"rgba(0, 0, 0, 0.8)"` text or three numbers from 0 to 255. A value that is a CSS
+#' variable, `"--team-blue"` or `"var(--team-blue)"`, is read by the browser where the page defines it; R cannot check
+#' it. A theme can also be a [bslib::bs_theme()] or a plain list, see [tip_dependency()].
 #'
 #' A role set in `light` and not in `dark` is used in dark mode too, so a brand colour set once holds in both modes.
 #'
 #' @section Contrast warnings:
 #' The words of a tip must be readable on its fill. For each mode, the `ink` on the `bg` (and on the `code_bg`, if you
-#' give one) is measured, and a ratio below 4.5:1, WCAG's level for text, gives a warning of class
+#' give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 #' `hovercraft_contrast`; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 #' gives (a `#212529` fill with `#ffffff` words in light mode, `#dee2e6` with `#212529` in dark mode). CSS variables
 #' cannot be measured and are skipped. Set `options(hovercraft.contrast_warnings = FALSE)` to turn the warnings off, or
@@ -117,10 +117,12 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param light,dark Named lists of roles, or `NULL`. Roles: `bg`, `ink`, `line`, `code_bg`, `radius`, `shadow`,
 #'   `font`. `radius` is a number of pixels or a length such as `"0.5rem"`; `shadow` is CSS `box-shadow` text or
-#'   `"none"`; `font` is CSS `font-family` text. Values may only hold letters, digits, spaces and `, . ' " ( ) # % _ + * -`.
-#' @param mode `"auto"` (the default) follows the page: the `data-bs-theme` attribute that bslib's `input_dark_mode()`
-#'   sets on the page, and with none, the visitor's own setting. `"light"` and `"dark"` use that mode whatever the page
-#'   says. A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not reach it.
+#'   `"none"`; `font` is CSS `font-family` text. Values may only hold letters, digits, spaces and
+#'   `, . ' " ( ) # % _ + * -`.
+#' @param mode `"auto"` (the default) follows the page: the `data-bs-theme` attribute that `input_dark_mode()` in
+#'   bslib sets on the page, and with none, the visitor's own setting. `"light"` and `"dark"` use that mode whatever
+#'   the page says. A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not
+#'   reach it.
 #'
 #' @returns A `hovercraft_theme` object, to give to [tip_dependency()]. Its fields are internal; pass the object on.
 #' @family tooltips
@@ -185,15 +187,16 @@ tip_theme_contrast <- function(theme, call) {
   for (pair in found) {
     ratio <- tip_contrast(pair$ink, pair$fill)
     if (ratio < 4.5) {
-      modes <- paste(pair$modes, collapse = " and ")
-      ink <- pair$ink
-      fill <- pair$fill
-      back <- pair$back
+      said <- sprintf(
+        "In %s mode the tip's {.field ink} {.code %s} on its {.field %s} {.code %s} has contrast %s:1.",
+        paste(pair$modes, collapse = " and "),
+        pair$ink,
+        pair$back,
+        pair$fill,
+        format(round(ratio, 2), nsmall = 2)
+      )
       tip_warn(
-        c(
-          "In {modes} mode the tip's {.field ink} {.val {ink}} on its {.field {back}} {.val {fill}} has contrast {format(round(ratio, 2), nsmall = 2)}:1.",
-          i = "Text needs 4.5:1. The colours are kept; change one of them."
-        ),
+        c(said, i = "Text needs 4.5:1. The colours are kept; change one of them."),
         class = "hovercraft_contrast",
         call = call
       )
@@ -242,8 +245,8 @@ tip_has_bslib <- function() {
   requireNamespace("bslib", quietly = TRUE) && utils::packageVersion("bslib") >= "0.6.0"
 }
 
-# bslib's colours, corner and font as roles. The tip is the page inverted, as the engine's default is: its fill is the
-# page's text colour and its words the page's background.
+# The colours, corner and font of a bslib theme, as roles. The tip is the page inverted, as the engine's default is:
+# its fill is the page's text colour and its words the page's background.
 tip_theme_from_bslib <- function(x, call) {
   if (!tip_has_bslib()) {
     tip_theme_abort(
@@ -355,7 +358,10 @@ tip_theme_tokens <- function(x, call) {
       tip_theme_abort(
         c(
           "The value of {.val {name}} is not valid: {.val {paste(format(value), collapse = ' ')}}.",
-          i = "Give a colour, a length or other short CSS text (letters, digits, spaces and , . ' \" ( ) # % _ + * - only)."
+          i = paste0(
+            "Give a colour, a length or other short CSS text ",
+            "(letters, digits, spaces and , . ' \" ( ) # % _ + * - only)."
+          )
         ),
         call = call
       )

@@ -11,11 +11,13 @@ tip_theme(..., light = NULL, dark = NULL, mode = "auto")
 
 \item{light, dark}{Named lists of roles, or \code{NULL}. Roles: \code{bg}, \code{ink}, \code{line}, \code{code_bg}, \code{radius}, \code{shadow},
 \code{font}. \code{radius} is a number of pixels or a length such as \code{"0.5rem"}; \code{shadow} is CSS \code{box-shadow} text or
-\code{"none"}; \code{font} is CSS \code{font-family} text. Values may only hold letters, digits, spaces and \verb{, . ' " ( ) # \% _ + * -}.}
+\code{"none"}; \code{font} is CSS \code{font-family} text. Values may only hold letters, digits, spaces and
+\verb{, . ' " ( ) # \% _ + * -}.}
 
-\item{mode}{\code{"auto"} (the default) follows the page: the \code{data-bs-theme} attribute that bslib's \code{input_dark_mode()}
-sets on the page, and with none, the visitor's own setting. \code{"light"} and \code{"dark"} use that mode whatever the page
-says. A tip is drawn at the page level, so a \code{data-bs-theme} on a smaller part of the page does not reach it.}
+\item{mode}{\code{"auto"} (the default) follows the page: the \code{data-bs-theme} attribute that \code{input_dark_mode()} in
+bslib sets on the page, and with none, the visitor's own setting. \code{"light"} and \code{"dark"} use that mode whatever
+the page says. A tip is drawn at the page level, so a \code{data-bs-theme} on a smaller part of the page does not
+reach it.}
 }
 \value{
 A \code{hovercraft_theme} object, to give to \code{\link[=tip_dependency]{tip_dependency()}}. Its fields are internal; pass the object on.
@@ -30,17 +32,17 @@ result to \code{\link[=tip_dependency]{tip_dependency()}} once, in the page's UI
 }
 \details{
 The roles are \code{bg} (the tip's fill), \code{ink} (its words), \code{line} (its border, seen in forced-colours mode and in a tip
-that stays open), \code{code_bg} (behind code), \code{radius} (the corner), \code{shadow} and \code{font}. Colours may be names, hex, \code{\link[grDevices:rgb]{grDevices::rgb()}}
-output, \code{"rgba(0, 0, 0, 0.8)"} text or three numbers from 0 to 255. A value that is a CSS variable, \code{"--team-blue"} or
-\code{"var(--team-blue)"}, is read by the browser where the page defines it; R cannot check it. A theme can also be a
-\code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_dependency]{tip_dependency()}}.
+that stays open), \code{code_bg} (behind code), \code{radius} (the corner), \code{shadow} and \code{font}. Colours may be names, hex,
+\code{\link[grDevices:rgb]{grDevices::rgb()}} output, \code{"rgba(0, 0, 0, 0.8)"} text or three numbers from 0 to 255. A value that is a CSS
+variable, \code{"--team-blue"} or \code{"var(--team-blue)"}, is read by the browser where the page defines it; R cannot check
+it. A theme can also be a \code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_dependency]{tip_dependency()}}.
 
 A role set in \code{light} and not in \code{dark} is used in dark mode too, so a brand colour set once holds in both modes.
 }
 \section{Contrast warnings}{
 
 The words of a tip must be readable on its fill. For each mode, the \code{ink} on the \code{bg} (and on the \code{code_bg}, if you
-give one) is measured, and a ratio below 4.5:1, WCAG's level for text, gives a warning of class
+give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 \code{hovercraft_contrast}; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 gives (a \verb{#212529} fill with \verb{#ffffff} words in light mode, \verb{#dee2e6} with \verb{#212529} in dark mode). CSS variables
 cannot be measured and are skipped. Set \code{options(hovercraft.contrast_warnings = FALSE)} to turn the warnings off, or

@@ -66,7 +66,7 @@ tip_colour <- function(x) {
   paste0("rgba(", paste(numbers, collapse = ", "), ")")
 }
 
-# WCAG contrast ratio of `fg` on `bg` (both colours R can read), the foreground's alpha laid over the background.
+# The contrast ratio of `fg` on `bg` (both colours R can read), the foreground's alpha laid over the background.
 tip_contrast <- function(fg, bg) {
   front <- tip_channels(fg)
   back <- tip_channels(bg)[1:3] / 255

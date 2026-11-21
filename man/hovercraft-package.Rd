@@ -29,5 +29,10 @@ Authors:
   \item Harsh Verma \email{125121920+insightsurge@users.noreply.github.com} [copyright holder]
 }
 
+Other contributors:
+\itemize{
+  \item TODO(founder) (Copyright holder of the bundled tip engine) [contributor, copyright holder]
+}
+
 }
 \keyword{internal}

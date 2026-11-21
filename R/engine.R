@@ -40,11 +40,11 @@ tip_reset <- function() {
 #' you build the page's head yourself, or to give the page a theme. The dependency is versioned with the engine, not
 #' with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
 #'
-#' @param theme How the tips look, or `NULL` (the default) to take the page's own bslib variables, so a page with a
-#'   `bslib::bs_theme()` follows it, light and dark, with nothing more. One of:
+#' @param theme How the tips look, or `NULL` (the default) to take the page's own bslib variables, so a page with
+#'   a `bslib::bs_theme()` follows it, light and dark, with nothing more. One of:
 #'   * a [tip_theme()];
-#'   * a [bslib::bs_theme()], read through its variables (bslib 0.6.0 or later). The tip is the page inverted: its fill is
-#'     the theme's text colour and its words the theme's background, with the border colour, corner and font;
+#'   * a [bslib::bs_theme()], read through its variables (bslib 0.6.0 or later). The tip is the page inverted: its fill
+#'     is the theme's text colour and its words the theme's background, with the border colour, corner and font;
 #'   * a named list whose names are roles (`list(bg = "#1b3a6b", ink = "#ffffff")`), the same as
 #'     `tip_theme(light = )`, so one set for both modes;
 #'   * a named list whose names all start with `--`, CSS variables set as they are for both modes, such as

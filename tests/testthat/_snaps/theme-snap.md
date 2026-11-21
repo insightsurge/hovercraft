@@ -67,7 +67,7 @@
       invisible(tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")))
     Condition
       Warning in `tip_theme()`:
-      In light and dark mode the tip's ink "#dddddd" on its bg "#ffffff" has contrast 1.36:1.
+      In light and dark mode the tip's ink `#dddddd` on its bg `#ffffff` has contrast 1.36:1.
       i Text needs 4.5:1. The colours are kept; change one of them.
 
 ---
@@ -76,7 +76,7 @@
       invisible(tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "#7a9cc6")))
     Condition
       Warning in `tip_theme()`:
-      In light and dark mode the tip's ink "#ffffff" on its code_bg "#7a9cc6" has contrast 2.84:1.
+      In light and dark mode the tip's ink `#ffffff` on its code_bg `#7a9cc6` has contrast 2.84:1.
       i Text needs 4.5:1. The colours are kept; change one of them.
 
 # the theme errors and warnings / print a theme
