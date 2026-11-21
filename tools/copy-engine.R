@@ -76,6 +76,9 @@ grab <- function(pattern, lines = js) {
 }
 version <- grab("const VERSION = '([^']+)';")
 names_line <- grab("const TIP_NAMES = Object\\.freeze\\(\\{ attr: '([^']+)', css: '([^']+)', who: '([^']+)'")
+# The prefix of the engine's CSS variables and attributes: the attribute is data-<prefix>-tip.
+stop_if(!grepl("^data-.+-tip$", names_line[[1]]), "The attribute name ", names_line[[1]], " is not data-<prefix>-tip.")
+prefix <- sub("^data-(.+)-tip$", "\\1", names_line[[1]])
 schema <- jsonlite::read_json(at("library/page-tree.schema.json"))
 # Only the data goes into engine.json, not the prose that explains it.
 strip_prose <- function(x) {
@@ -105,7 +108,12 @@ record <- list(
   branch = branch,
   files = as.list(recorded),
   sha256 = stats::setNames(lapply(recorded, function(name) sha256(file.path(dest, name))), recorded),
-  names = list(attribute = names_line[[1]], css = names_line[[2]], global = names_line[[3]]),
+  names = list(
+    attribute = names_line[[1]],
+    css = names_line[[2]],
+    global = names_line[[3]],
+    prefix = prefix
+  ),
   rules = list(
     tooltip = strip_prose(schema$rules$tooltip),
     names = list(pattern = schema$names$pattern, r_reserved = schema$names$r_reserved)

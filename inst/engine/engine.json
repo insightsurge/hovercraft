@@ -15,7 +15,8 @@
   "names": {
     "attribute": "data-atlas-tip",
     "css": "kit-tip",
-    "global": "AtlasTip"
+    "global": "AtlasTip",
+    "prefix": "atlas"
   },
   "rules": {
     "tooltip": {
