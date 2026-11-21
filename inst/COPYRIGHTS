@@ -7,6 +7,8 @@ The tip engine, inst/engine/www/tip.js and inst/engine/www/tip.css, and the shar
 inst/engine/placeholders.json:
   Copyright holder: TODO(founder)
   Licence: TODO(founder)
+  Source: TODO(founder), the address of the engine's source files, which the shipped files are built from by
+  concatenation (no minifying).
   The engine is one JavaScript file and one stylesheet, written for this purpose. It holds its own small markdown reader and
   number formatting, and no third-party code. inst/engine/engine.json records the version and checksums of the copy;
   inst/engine/tip.sha256 holds the same checksums in the form `shasum -c` reads.

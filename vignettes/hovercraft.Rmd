@@ -16,7 +16,7 @@ keyboard focus arrives on it, and hides when either leaves. It is plain text, or
 the values of one item, such as a row of a table.
 
 ```{r}
-library(hovercraft) # nolint: undesirable_function_linter
+library(hovercraft)
 ```
 
 ## A tip with text

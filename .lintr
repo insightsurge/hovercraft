@@ -26,6 +26,8 @@ exclusions: list(
     "dev",
     "renv",
     # Tests may print, set seeds and load packages; helpers live in helper files object_usage_linter can't follow.
-    "tests" = list(object_usage_linter = Inf, undesirable_function_linter = Inf)
+    "tests" = list(object_usage_linter = Inf, undesirable_function_linter = Inf),
+    # A vignette opens with library(), as a reader's own code does; the rule is for code in R/.
+    "vignettes" = list(undesirable_function_linter = Inf)
   )
 encoding: "UTF-8"

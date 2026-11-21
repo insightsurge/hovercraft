@@ -9,11 +9,11 @@ vignette: >
 
 ```{r, include = FALSE}
 knitr::opts_chunk$set(collapse = TRUE, comment = "#>")
-has_bslib <- requireNamespace("bslib", quietly = TRUE)
+has_bslib <- requireNamespace("bslib", quietly = TRUE) && utils::packageVersion("bslib") >= "0.6.0"
 ```
 
 ```{r}
-library(hovercraft) # nolint: undesirable_function_linter
+library(hovercraft)
 ```
 
 ## Nothing to do on a bslib page

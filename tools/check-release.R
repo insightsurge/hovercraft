@@ -5,6 +5,7 @@
 #   - a vendored file does not match the sha256 engine.json recorded for it, or
 #   - the package's public text names the engine's project: README.md, DESCRIPTION, NEWS.md, _pkgdown.yml, R/, man/,
 #     and the files a page is given (inst/engine/www/ and inst/engine/engine.json), or
+#   - the maintainer address in DESCRIPTION is a noreply address, or
 #   - a file still has a TODO(founder) (DESCRIPTION, inst/COPYRIGHTS, the licence files, the vignettes, cran-comments.md).
 # It is not part of the test suite, so the normal tests never skip and a work-in-progress copy (the engine's
 # integration branch, an engine that still carries its project's name) passes them; it is the release gate's check.
@@ -56,6 +57,11 @@ for (path in public[file.exists(public)]) {
   if (length(hits)) {
     problems <- c(problems, sprintf("%s names the engine's project on %d line(s).", path, length(hits)))
   }
+}
+
+# CRAN mails the maintainer address, and GitHub's noreply addresses cannot receive mail.
+if (any(grepl("noreply", readLines("DESCRIPTION", warn = FALSE), fixed = TRUE))) {
+  problems <- c(problems, "DESCRIPTION has a noreply maintainer address; CRAN needs one that can receive mail.")
 }
 
 # A placeholder for a decision the founder has yet to make must be gone before a release.
