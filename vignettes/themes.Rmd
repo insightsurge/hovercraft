@@ -80,7 +80,14 @@ the theme's text colour, with the border colour, corner and font. This is for a 
 that is needs no theme at all.
 
 ```{r, eval = has_bslib}
-warm <- bslib::bs_theme(version = 5, bg = "#fdf6e3", fg = "#073642", "border-radius" = "0.6rem")
+warm <- bslib::bs_theme(
+  version = 5,
+  bg = "#fdf6e3",
+  fg = "#073642",
+  "border-radius" = "0.6rem",
+  "body-bg-dark" = "#002b36",
+  "body-color-dark" = "#eee8d5"
+)
 tip_dependency(theme = warm)[[2]]$name
 ```
 

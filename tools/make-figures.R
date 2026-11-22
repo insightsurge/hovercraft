@@ -72,7 +72,15 @@ for (mode in c("light", "dark")) {
 }
 
 # 3. A bslib theme, read through its variables.
-warm <- bslib::bs_theme(version = 5, bg = "#fdf6e3", fg = "#073642", primary = "#268bd2", "border-radius" = "0.6rem")
+warm <- bslib::bs_theme(
+  version = 5,
+  bg = "#fdf6e3",
+  fg = "#073642",
+  primary = "#268bd2",
+  "border-radius" = "0.6rem",
+  "body-bg-dark" = "#002b36",
+  "body-color-dark" = "#eee8d5"
+)
 for (mode in c("light", "dark")) {
   shoot(page(button(), theme = warm), paste0("bs-theme-", mode), mode)
 }
