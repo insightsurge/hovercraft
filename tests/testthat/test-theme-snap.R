@@ -22,7 +22,10 @@ describe("the theme errors and warnings", {
     expect_snapshot(invisible(tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "#7a9cc6"))))
   })
   it("print a theme", {
-    expect_snapshot(tip_theme(light = list(bg = "navy", radius = 8), dark = list(bg = "#9ec5fe")))
+    expect_snapshot(tip_theme(
+      light = list(bg = "navy", ink = "white", radius = 8),
+      dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+    ))
     expect_snapshot(tip_theme())
   })
 })

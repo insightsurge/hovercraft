@@ -92,9 +92,10 @@
 # the theme errors and warnings / print a theme
 
     Code
-      tip_theme(light = list(bg = "navy", radius = 8), dark = list(bg = "#9ec5fe"))
+      tip_theme(light = list(bg = "navy", ink = "white", radius = 8), dark = list(bg = "#9ec5fe",
+        ink = "#0b1f3a"))
     Output
-      tip_theme(light = list(bg = "#000080", radius = "8px"), dark = list(bg = "#9ec5fe"))
+      tip_theme(light = list(bg = "#000080", ink = "#ffffff", radius = "8px"), dark = list(bg = "#9ec5fe", ink = "#0b1f3a"))
 
 ---
 
