@@ -16,15 +16,19 @@ tip_roles <- c(
 )
 tip_colour_roles <- c("bg", "ink", "line", "code_bg")
 
-# What the engine draws by default on Bootstrap, for a role the theme leaves out when a pair is measured: the page
-# inverted, so the tip is dark on a light page and light on a dark one.
+# What the engine draws by default on a bslib page, for a role the theme leaves out when a pair is measured: a shade of
+# the page, Bootstrap's tertiary background with the page's own text colour, in the page's mode (a little darker than a
+# light page, a little lighter than a dark one). The values are those of bslib's default Bootstrap 5 theme, read from
+# the CSS that `bslib::bs_theme(version = 5)` compiles (bslib 0.12.0): `--bs-tertiary-bg` and `--bs-body-color`, in
+# light and under `[data-bs-theme="dark"]`. A page without bslib gets the engine's own fallbacks, a little different but
+# as readable.
 tip_assumed <- list(
-  light = c(bg = "#212529", ink = "#ffffff"),
-  dark = c(bg = "#dee2e6", ink = "#212529")
+  light = c(bg = "#f8f8f8", ink = "#1d1f21"),
+  dark = c(bg = "#292d34", ink = "#dee2e6")
 )
 
-# The page colour of each mode that a translucent fill is measured over: Bootstrap's.
-tip_page <- list(light = "#ffffff", dark = "#212529")
+# The page colour of each mode that a translucent fill is measured over: bslib's default `--bs-body-bg`.
+tip_page <- list(light = "#ffffff", dark = "#1d1f21")
 
 tip_theme_abort <- function(message, ..., call, .envir = parent.frame()) {
   tip_abort(message, class = "hovercraft_error_theme", ..., call = call, .envir = .envir)
@@ -107,8 +111,9 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' The words of a tip must be readable on its fill. For each mode, the `ink` on the `bg` (and on the `code_bg`, if you
 #' give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 #' `hovercraft_contrast`; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
-#' gives (a `#212529` fill with `#ffffff` words in light mode, `#dee2e6` with `#212529` in dark mode). CSS variables
-#' cannot be measured and are skipped. A translucent `bg` is measured over the page's colour (white, or `#212529` in
+#' gives, a shade of the page: Bootstrap's tertiary background with the page's text colour (a `#f8f8f8` fill with
+#' `#1d1f21` words in light mode, `#292d34` with `#dee2e6` in dark mode). CSS variables
+#' cannot be measured and are skipped. A translucent `bg` is measured over the page's colour (white, or `#1d1f21` in
 #' dark mode), and a translucent `code_bg` over the `bg`. Set `options(hovercraft.contrast_warnings = FALSE)` to turn
 #' the warnings off, or
 #' silence only them:
@@ -275,8 +280,20 @@ tip_has_bslib <- function() {
   requireNamespace("bslib", quietly = TRUE) && utils::packageVersion("bslib") >= "0.6.0"
 }
 
-# The colours, corner and font of a bslib theme, as roles. The tip is the page inverted, as the engine's default is:
-# its fill is the page's text colour and its words the page's background.
+# `share` of the colour `ink` laid over the colour `page`, as #rrggbb, or NULL when either is not a colour R can read
+# (a CSS variable, say). The engine's own fallback for a page with no tertiary background is the same: 8% ink on the
+# page.
+tip_page_shade <- function(ink, page, share = 0.08) {
+  if (is.null(ink) || is.null(page) || tip_is_var(ink) || tip_is_var(page)) {
+    return(NULL)
+  }
+  front <- tip_channels(ink)[1:3]
+  tip_composite(paste0("rgba(", paste(front, collapse = ", "), ", ", share, ")"), page)
+}
+
+# The colours, corner and font of a bslib theme, as roles. The tip is a shade of the page, as the engine's default is:
+# its fill is the theme's tertiary background (`body-tertiary-bg`; a mix of 8% of the text colour over the page's
+# background when the theme has none) and its words the theme's text colour, in each mode.
 tip_theme_from_bslib <- function(x, call) {
   if (!tip_has_bslib()) {
     tip_theme_abort(
@@ -287,15 +304,13 @@ tip_theme_from_bslib <- function(x, call) {
   names <- c(
     "body-bg",
     "body-color",
-    "body-emphasis-color",
-    "emphasis-color",
+    "body-tertiary-bg",
     "border-color",
     "border-radius",
     "font-family-base",
     "body-bg-dark",
     "body-color-dark",
-    "body-emphasis-color-dark",
-    "emphasis-color-dark",
+    "body-tertiary-bg-dark",
     "border-color-dark"
   )
   vars <- as.list(bslib::bs_get_variables(x, names))
@@ -321,19 +336,22 @@ tip_theme_from_bslib <- function(x, call) {
     got
   }
   keep <- function(roles) roles[!vapply(roles, is.null, NA)]
+  # The fill: the tertiary background, else a shade of the page made from the words and the page's background.
+  shade <- function(fill, ink, page) {
+    read("bg", vars[[fill]]) %||% tip_page_shade(ink, read("bg", vars[[page]]))
+  }
+  light_ink <- read("ink", vars[["body-color"]])
+  dark_ink <- read("ink", vars[["body-color-dark"]])
   light <- keep(list(
-    bg = read("bg", vars[["body-emphasis-color"]] %||% vars[["emphasis-color"]] %||% vars[["body-color"]]),
-    ink = read("ink", vars[["body-bg"]]),
+    bg = shade("body-tertiary-bg", light_ink, "body-bg"),
+    ink = light_ink,
     line = read("line", vars[["border-color"]]),
     radius = read("radius", vars[["border-radius"]]),
     font = read("font", tip_font_fallback(vars[["font-family-base"]]))
   ))
   dark <- keep(list(
-    bg = read(
-      "bg",
-      vars[["body-emphasis-color-dark"]] %||% vars[["emphasis-color-dark"]] %||% vars[["body-color-dark"]]
-    ),
-    ink = read("ink", vars[["body-bg-dark"]]),
+    bg = shade("body-tertiary-bg-dark", dark_ink, "body-bg-dark"),
+    ink = dark_ink,
     line = read("line", vars[["border-color-dark"]])
   ))
   theme <- new_tip_theme(light, dark, "auto")

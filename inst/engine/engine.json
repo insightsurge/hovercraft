@@ -1,16 +1,18 @@
 {
-  "engine": "0.38.0",
-  "commit": "302c6c3a17f006e765a9b204311a2cc232c35622",
-  "branch": "main-interim",
+  "engine": "0.42.0",
+  "commit": "2d6c09635a42688f85426bac14c2b897951fa711",
+  "branch": "tooltips-interim",
   "files": [
     "placeholders.json",
+    "tip.json",
     "www/tip.css",
     "www/tip.js"
   ],
   "sha256": {
     "placeholders.json": "635d22fe2c0ecf1935d9dba3d1f811d75c5cfbcf1d99a6157bf9de990e3f88d2",
-    "www/tip.css": "056098789e6a9d4cfb1174fa62b6dcc372308769120fa6a02c72378c769b271b",
-    "www/tip.js": "3409fa54f0468f9ffbad11b97436ea594d298660a7f9301f9f25b4f49b2e7ccd"
+    "tip.json": "f4b0d4acb0a05059f6bf02c411d7c3c9ceca0effb4c60caa42dea81f9f083e02",
+    "www/tip.css": "8348f7bf6c9d8353001620804663f591e2d45be5f722e92476d53503a1280aca",
+    "www/tip.js": "67d8b885ee82c21233432c61dabb158b553278dc0f4e1c9f0e7fa4e37d25afe3"
   },
   "names": {
     "attribute": "data-hovercraft-tip",
@@ -26,7 +28,18 @@
         "template_option": "tooltip_template",
         "pin_option": "tooltip_pin",
         "switch_option": "tooltip",
-        "templates_option": "tooltip_templates"
+        "templates_option": "tooltip_templates",
+        "placement_option": "tooltip_placement"
+      },
+      "placement": {
+        "values": [
+          "auto",
+          "top",
+          "bottom",
+          "left",
+          "right"
+        ],
+        "default": "auto"
       },
       "switch": {
         "rule": "nearest"
@@ -180,6 +193,112 @@
           "column_option": "tooltip_field",
           "column_default": "tooltip",
           "needs_picking": true
+        }
+      },
+      "pin": {
+        "attributes": {
+          "tip": "",
+          "template": "-template",
+          "record": "-record",
+          "reason": "-reason",
+          "pin": "-pin",
+          "id": "-id",
+          "kind": "-kind",
+          "placement": "-placement"
+        },
+        "kind_default": "element",
+        "kind_pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+        "refused": [
+          "a[href]",
+          "button[type=\"submit\"]",
+          "button[type=\"reset\"]",
+          "input",
+          "select",
+          "textarea",
+          "summary",
+          "label",
+          "[contenteditable]:not([contenteditable=\"false\"])"
+        ],
+        "events": {
+          "tip": {
+            "state": {
+              "type": "enum",
+              "values": [
+                "pinned",
+                "closed"
+              ]
+            },
+            "id": {
+              "type": "id"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "ids": {
+              "type": "json"
+            },
+            "reason": {
+              "type": "enum",
+              "values": [
+                "select",
+                "escape",
+                "button",
+                "outside",
+                "replaced",
+                "gone"
+              ]
+            },
+            "text": {
+              "type": "string"
+            },
+            "by": {
+              "type": "enum",
+              "values": [
+                "reader",
+                "data"
+              ]
+            },
+            "from": {
+              "type": "id"
+            },
+            "via": {
+              "type": "enum",
+              "values": [
+                "click",
+                "key"
+              ]
+            }
+          },
+          "copy": {
+            "id": {
+              "type": "id"
+            },
+            "kind": {
+              "type": "string"
+            },
+            "field": {
+              "type": "string"
+            },
+            "block": {
+              "type": "integer"
+            },
+            "ok": {
+              "type": "boolean"
+            },
+            "by": {
+              "type": "enum",
+              "values": [
+                "reader"
+              ]
+            },
+            "via": {
+              "type": "enum",
+              "values": [
+                "click",
+                "key"
+              ]
+            }
+          }
         }
       }
     },

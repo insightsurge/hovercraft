@@ -1,0 +1,145 @@
+{
+  "product": "hovercraft",
+  "version": "0.42.0",
+  "global": "Hovercraft",
+  "prefix": "hovercraft",
+  "css": "hc",
+  "attributes": {
+    "tip": "data-hovercraft-tip",
+    "template": "data-hovercraft-tip-template",
+    "record": "data-hovercraft-tip-record",
+    "reason": "data-hovercraft-tip-reason",
+    "pin": "data-hovercraft-tip-pin",
+    "id": "data-hovercraft-tip-id",
+    "kind": "data-hovercraft-tip-kind",
+    "placement": "data-hovercraft-tip-placement"
+  },
+  "kind": {
+    "default": "element",
+    "pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$"
+  },
+  "placement": {
+    "default": "auto",
+    "values": [
+      "auto",
+      "top",
+      "bottom",
+      "left",
+      "right"
+    ]
+  },
+  "refused": [
+    "a[href]",
+    "button[type=\"submit\"]",
+    "button[type=\"reset\"]",
+    "input",
+    "select",
+    "textarea",
+    "summary",
+    "label",
+    "[contenteditable]:not([contenteditable=\"false\"])"
+  ],
+  "events": {
+    "tip": {
+      "name": "hovercraft:tip",
+      "fields": {
+        "state": {
+          "type": "enum",
+          "values": [
+            "pinned",
+            "closed"
+          ],
+          "about": "What happened to the element's tip."
+        },
+        "id": {
+          "type": "id",
+          "about": "The element's data-<prefix>-tip-id, else its id, as text."
+        },
+        "kind": {
+          "type": "string",
+          "about": "The element's data-<prefix>-tip-kind, else the default kind."
+        },
+        "ids": {
+          "type": "json",
+          "about": "The ids pinned after this event: [id] after a pin, [] after a close."
+        },
+        "reason": {
+          "type": "enum",
+          "values": [
+            "select",
+            "escape",
+            "button",
+            "outside",
+            "replaced",
+            "gone"
+          ],
+          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin, or the element left the page; null on a pin."
+        },
+        "text": {
+          "type": "string",
+          "about": "The tip's plain words, cut at 200 characters with an ellipsis added."
+        },
+        "by": {
+          "type": "enum",
+          "values": [
+            "reader",
+            "data"
+          ],
+          "about": "Who caused it: \"reader\", or \"data\" for a \"gone\" close."
+        },
+        "from": {
+          "type": "id",
+          "about": "The id pinned before this step, or null."
+        },
+        "via": {
+          "type": "enum",
+          "values": [
+            "click",
+            "key"
+          ],
+          "about": "How the reader did it, or null when by is \"data\"."
+        }
+      }
+    },
+    "copy": {
+      "name": "hovercraft:copy",
+      "fields": {
+        "id": {
+          "type": "id",
+          "about": "The element whose tip holds the code."
+        },
+        "kind": {
+          "type": "string",
+          "about": "As in the tip event."
+        },
+        "field": {
+          "type": "string",
+          "about": "The record field the code came from."
+        },
+        "block": {
+          "type": "integer",
+          "about": "The code block's place among the tip's code blocks, from 0."
+        },
+        "ok": {
+          "type": "boolean",
+          "about": "true when the browser let the copy happen."
+        },
+        "by": {
+          "type": "enum",
+          "values": [
+            "reader"
+          ],
+          "about": "Always \"reader\"."
+        },
+        "via": {
+          "type": "enum",
+          "values": [
+            "click",
+            "key"
+          ],
+          "about": "How Copy was pressed."
+        }
+      }
+    }
+  }
+}

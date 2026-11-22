@@ -8,4 +8,5 @@
 * `tip_theme()` and `tip_dependency(theme = )` set how the tips look: roles for light and dark (fill, words, border, code
   background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables. The tip follows `data-bs-theme`, so it turns
   dark with `bslib::input_dark_mode()`. Words below 4.5:1 on their fill give a `hovercraft_contrast` warning.
+* The tip is now a shade of its page (Bootstrap's tertiary background with the page's text colour, in light and in dark), no longer the page inverted. A `bslib::bs_theme()` given to `tip_dependency()` is read the same way, and the contrast check measures a role you leave out against that default. The bundled engine is 0.42.0 and ships `tip.json`.
 * Two vignettes, "Get started with hovercraft" and "Themes".
