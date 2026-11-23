@@ -13,13 +13,6 @@ describe("the badge status stylesheet", {
     expect_equal(lengths(regmatches(css, gregexpr("[data-tone=", css, fixed = TRUE))), 2L * length(tip_statuses))
   })
 
-  it("styles only what the vendored engine still has: the badge's class and its data-tone", {
-    engine_css <- paste(readLines(tip_path("www", "tip.css"), warn = FALSE), collapse = "\n")
-    engine_js <- paste(readLines(tip_path("www", "tip.js"), warn = FALSE), collapse = "\n")
-    expect_match(engine_css, paste0(badge, " {"), fixed = TRUE)
-    expect_match(engine_js, "dataset.tone", fixed = TRUE)
-  })
-
   it("comes with the engine's dependency, on every page that has a tip", {
     expect_match(tip_dependency()$head, css, fixed = TRUE)
     expect_match(tip_dependency()$head, paste0(tip_names()$global, ".attach(document)"), fixed = TRUE)

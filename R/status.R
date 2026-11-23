@@ -21,7 +21,7 @@ tip_check_status <- function(status, call = rlang::caller_env()) {
 # Bootstrap colours (5.3 and later; bslib pages have them, dark mode included). Where a page has no Bootstrap the
 # colours after the commas are used, a light set, and a dark set under `data-bs-theme="dark"`. It only names the
 # engine's own public door, the badge's class and its `data-tone` attribute, and the class prefix comes from the
-# engine's names; test-status.R checks that the vendored engine still has both.
+# engine's names; the after-copy check in test-engine.R fails when a copy of the engine lacks either.
 tip_status_css <- function() {
   badge <- paste0(".", tip_names()$css, "-badge")
   light <- list(
