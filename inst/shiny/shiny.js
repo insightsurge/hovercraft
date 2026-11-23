@@ -1,7 +1,7 @@
 // hovercraft's own layer for Shiny, on top of the tip engine; it never changes the engine. It answers the server calls
 // tip_show(), tip_hide() and tip_update() (one custom message each), and sends the hint input for the tags that asked
-// for it with `events =`. It uses only the engine's public doors, `Hovercraft.show()` and `Hovercraft.hide()`, its
-// public attributes and its hint event. R passes the names in `start()`, so none is typed here twice.
+// for it with `events =`. It uses only the engine's public doors, `show()` and `hide()`, its public attributes and its
+// hint event. R passes the names in `start()`, so none is typed here twice.
 (() => {
   if (window.HovercraftShiny) return;
 
@@ -26,13 +26,14 @@
     show: ({ id }) => {
       const el = find(id);
       if (!el) return note(`show|${id}`, `tip_show(): no tag with the tip id "${id}" is on the page.`);
-      window.Hovercraft.show(el);
+      window[names.global].show(el);
     },
-    // The engine hides whichever hint is open, so only hide when this tag's tip is the one open (the engine marks it).
+    // The engine hides whichever hint is open, so only hide when this tag's own hint is the one open: the engine marks
+    // an open tag with the kind of tip it shows, and a pinned tag carries the mark too (its pin is not closed here).
     hide: ({ id }) => {
       const el = find(id);
       if (!el) return note(`hide|${id}`, `tip_hide(): no tag with the tip id "${id}" is on the page.`);
-      if (el.hasAttribute(names.attributes.open)) window.Hovercraft.hide();
+      if (el.getAttribute(names.attributes.open) === names.states.hint) window[names.global].hide();
     },
     update: ({ id, set, remove }) => {
       const el = find(id);
@@ -42,14 +43,23 @@
     },
   };
 
+  // The ids whose hint is open and was asked for: a tag that renderUI() replaces is gone when the engine says its hint
+  // closed (by "data"), and the event is then sent at the page, so the tag can no longer say it asked.
+  const asked = new Set();
+
   // The hint event is sent at the tag and bubbles, so one listener on the page serves every tag. A tag sends the
   // input only when its list names it, and only for its own tip: an outer tag with a list does not send for an inner one.
   const sendHint = (event) => {
     const detail = event.detail;
+    if (!detail?.id || !window.Shiny?.setInputValue) return;
     const el = event.target?.closest?.(`[${names.attributes.events}]`);
-    if (!el || !detail?.id || !window.Shiny?.setInputValue) return;
-    if (!el.getAttribute(names.attributes.events).split(/\s+/).includes('hint')) return;
-    if ((el.getAttribute(names.attributes.id) ?? el.id) !== detail.id) return;
+    const wants =
+      el &&
+      el.getAttribute(names.attributes.events).split(/\s+/).includes('hint') &&
+      (el.getAttribute(names.attributes.id) ?? el.id) === detail.id;
+    if (!wants && !(detail.state === 'hidden' && asked.has(detail.id))) return;
+    if (detail.state === 'shown') asked.add(detail.id);
+    else asked.delete(detail.id);
     // "event" priority: the same state twice in a row (a hint opened, closed, opened) must still reach the server.
     window.Shiny.setInputValue(
       `${detail.id}_hint`,

@@ -86,6 +86,43 @@ describe("tip_update()", {
     )
   })
 
+  it("refuses a record without its template, so no whole row goes to the page", {
+    session <- fake_session()
+    expect_error(
+      tip_update("run_tip", record = list(label = "ADAE", private = "x"), session = session),
+      class = "hovercraft_error_record"
+    )
+    expect_error(tip_update("run_tip", record = list(label = "ADAE"), session = session), "template")
+    expect_length(session$sent(), 0L)
+  })
+
+  it("takes a template alone, for a tag that already holds its record", {
+    tip_define(diff = tip_template(tip_title("{{ label }}")))
+    session <- fake_session()
+    expect_no_error(tip_update("run_tip", template = "diff", session = session))
+    expect_identical(session$sent()[[1]]$message$set, stats::setNames(list("diff"), tip_attributes()[["template"]]))
+  })
+
+  it("warns about a template name that was not defined, and still sends it", {
+    tip_define(diff = tip_template(tip_title("{{ label }}")))
+    session <- fake_session()
+    expect_warning(
+      tip_update("run_tip", template = "dif_unseen", session = session),
+      class = "hovercraft_warning_template"
+    )
+    expect_length(session$sent(), 1L)
+  })
+
+  it("reads an empty text or NA as no text, as tip_on() does, and takes the text attribute away", {
+    for (none in list("", NA_character_, NULL)) {
+      session <- fake_session()
+      tip_update("run_tip", text = none, session = session)
+      got <- session$sent()[[1]]$message
+      expect_identical(unlist(got$remove), tip_attributes()[["text"]])
+      expect_length(got$set, 0L)
+    }
+  })
+
   it("stops for nothing to change, an unnamed or unknown value, and a wrong value", {
     session <- fake_session()
     expect_error(tip_update("run_tip", session = session), class = "hovercraft_error_argument")
@@ -147,5 +184,7 @@ describe("tip_on(events = )", {
     expect_identical(config$attributes$open, tip_contract()$attributes$open)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)
     expect_identical(config$messages$show, tip_message("show"))
+    expect_identical(config$global, tip_names()$global)
+    expect_identical(config$states$hint, "hint")
   })
 })

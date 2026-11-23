@@ -24,6 +24,9 @@ tip_shiny_head <- function() {
         open = tip_contract()$attributes$open,
         events = tip_shiny_attribute()
       ),
+      global = tip_names()$global,
+      # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
+      states = list(hint = tip_rules()$open$values[[1]]),
       events = list(hint = tip_contract()$events$hint$name),
       messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
     )
@@ -89,16 +92,18 @@ tip_check_session <- function(session, fn, call = rlang::caller_env()) {
 #' `<id>/row/<n>`, `<id>/cell/<n>/<column>` and `<id>/header/<column>`, where `<n>` is the data row.
 #'
 #' A tip opened by `tip_show()` stays open until `tip_hide()` closes it, or until the reader opens another tip, presses
-#' Escape or clicks away. `tip_hide()` closes the tip of this id only: when another tip is open, or this one is not, it
-#' does nothing. A tip that was pinned by the reader is not closed by it.
+#' Escape or clicks away. `tip_hide()` closes a hint, the tip that shows on hover or focus, and never a pin: when the
+#' tip of this id is not the hint that is open (another tip's hint is, or this one is pinned or closed), it does
+#' nothing.
 #'
-#' `tip_update()` rewrites the tag's tip attributes and the engine draws the tip again; a tip that is open changes where
-#' it stands. It takes the same values as [tip_on()] and changes only what is named: `text`, `template`, `record` or
-#' `placement`. `NULL` takes that value away. It leaves a `style` or `marker`
-#' alone, and it leaves the tag's `aria-label` as it is, so a button named from its tip keeps the old name; give such a
-#' button its own `aria-label`. A `record`
-#' given without a `template` in the same call sends every column, because the page's own template is not known here.
-#' The new tip lasts until the tag is drawn again, for example by `renderUI()`.
+#' `tip_update()` rewrites the tag's tip attributes. It takes the same values as [tip_on()] and changes only what is
+#' named: `text`, `template`, `record` or `placement`. `NULL` takes that value away, and so do `""` and `NA` for `text`,
+#' as in [tip_on()]. An open tip draws its new words, template or record at once; a new `placement` is used the next
+#' time the tip opens. A `record` needs the `template` in the same call, so that only the columns the template names
+#' are sent to the page; to change the template alone, leave `record` out and the tag keeps the record it has.
+#' `tip_update()` leaves a `style` or `marker` alone, and it leaves the tag's `aria-label` as it is, so a button named
+#' from its tip keeps the old name; give such a button its own `aria-label`. The new tip lasts until the tag is drawn
+#' again, for example by `renderUI()`.
 #'
 #' Inside a module, give the id as the module's own (`"save"`); the call adds the module's namespace, as the `update*()`
 #' functions of Shiny do. In the module's UI, give [tip_on()] the id as `ns("save")`.
@@ -164,9 +169,23 @@ tip_update <- function(id, ..., session = shiny::getDefaultReactiveDomain()) {
       class = "hovercraft_error_argument"
     )
   }
-  tip_arg_string(values$text, "text", null_ok = TRUE)
+  # As tip_on() reads them: "" and NA are no text, so the tag takes no text from this call either.
+  tip_arg_string(values$text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
+  if ("text" %in% names_given && (is.null(values$text) || is.na(values$text) || !nzchar(values$text))) {
+    values["text"] <- list(NULL)
+  }
   tip_arg_string(values$template, "template", null_ok = TRUE)
   tip_check_placement(values$placement)
+  if (!is.null(values$record) && is.null(values$template)) {
+    tip_abort(
+      c(
+        "{.arg record} needs {.arg template} in the same call.",
+        i = "Give the template's name too, so only the columns it names are sent to the page.",
+        i = "To change the words only, give {.arg text}."
+      ),
+      class = "hovercraft_error_record"
+    )
+  }
   session <- tip_check_session(session, "tip_update")
   attrs <- tip_attributes()
   ask <- c(text = attrs[["text"]], template = attrs[["template"]], record = attrs[["record"]])
@@ -178,14 +197,18 @@ tip_update <- function(id, ..., session = shiny::getDefaultReactiveDomain()) {
     if (is.null(value)) {
       remove <- c(remove, ask[[name]])
     } else if (identical(name, "record")) {
-      keep <- tip_known()[[values$template %||% ""]]$fields
-      set[[ask[[name]]]] <- tip_json(tip_record(value, keep))
+      set[[ask[[name]]]] <- tip_json(tip_record(value, tip_known()[[values$template]]$fields))
     } else {
       set[[ask[[name]]]] <- value
     }
   }
+  # A template given without a record is checked for its name only: the tag may already hold the record it reads.
   if (!is.null(values$template)) {
-    tip_check_use(values$template, names(values$record), id, rlang::current_env())
+    if (is.null(values$record)) {
+      tip_template_seen(values$template, rlang::current_env())
+    } else {
+      tip_check_use(values$template, names(values$record), id, rlang::current_env())
+    }
   }
   session$sendCustomMessage(
     tip_message("update"),

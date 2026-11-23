@@ -86,14 +86,13 @@ tip_plain_text <- function(text) {
   trimws(gsub("\\s+", " ", text))
 }
 
-# What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
-# the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can
-# be checked; any other name is the page's to report (a UI is often written before the templates it uses). This page
-# has no list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
-tip_check_use <- function(template, held, id, call) {
+# Whether tip_define() has seen this template in this session. A name it has not seen is the page's to report (a UI is
+# often written before the templates it uses), so it warns once and says FALSE; with no template defined at all there is
+# nothing to compare with and the answer is FALSE without a word.
+tip_template_seen <- function(template, call) {
   known <- tip_known()
   if (!length(known)) {
-    return(invisible())
+    return(FALSE)
   }
   if (!template %in% names(known)) {
     near <- tip_near(template, names(known))
@@ -108,8 +107,20 @@ tip_check_use <- function(template, held, id, call) {
       .frequency = "once",
       .frequency_id = paste0("hovercraft-template-", template)
     )
+    return(FALSE)
+  }
+  TRUE
+}
+
+# What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
+# the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can
+# be checked; any other name is the page's to report (a UI is often written before the templates it uses). This page
+# has no list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
+tip_check_use <- function(template, held, id, call) {
+  if (!tip_template_seen(template, call)) {
     return(invisible())
   }
+  known <- tip_known()
   fields <- known[[template]]$fields
   engine <- unlist(tip_rules()$engine_fields)
   if ("tip_index" %in% fields && !"tip_index" %in% held) {

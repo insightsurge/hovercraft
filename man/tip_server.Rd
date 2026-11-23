@@ -34,16 +34,18 @@ own \code{id}. The ids of the rows, cells and header cells of a \code{\link[=tip
 }
 \details{
 A tip opened by \code{tip_show()} stays open until \code{tip_hide()} closes it, or until the reader opens another tip, presses
-Escape or clicks away. \code{tip_hide()} closes the tip of this id only: when another tip is open, or this one is not, it
-does nothing. A tip that was pinned by the reader is not closed by it.
+Escape or clicks away. \code{tip_hide()} closes a hint, the tip that shows on hover or focus, and never a pin: when the
+tip of this id is not the hint that is open (another tip's hint is, or this one is pinned or closed), it does
+nothing.
 
-\code{tip_update()} rewrites the tag's tip attributes and the engine draws the tip again; a tip that is open changes where
-it stands. It takes the same values as \code{\link[=tip_on]{tip_on()}} and changes only what is named: \code{text}, \code{template}, \code{record} or
-\code{placement}. \code{NULL} takes that value away. It leaves a \code{style} or \code{marker}
-alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the old name; give such a
-button its own \code{aria-label}. A \code{record}
-given without a \code{template} in the same call sends every column, because the page's own template is not known here.
-The new tip lasts until the tag is drawn again, for example by \code{renderUI()}.
+\code{tip_update()} rewrites the tag's tip attributes. It takes the same values as \code{\link[=tip_on]{tip_on()}} and changes only what is
+named: \code{text}, \code{template}, \code{record} or \code{placement}. \code{NULL} takes that value away, and so do \code{""} and \code{NA} for \code{text},
+as in \code{\link[=tip_on]{tip_on()}}. An open tip draws its new words, template or record at once; a new \code{placement} is used the next
+time the tip opens. A \code{record} needs the \code{template} in the same call, so that only the columns the template names
+are sent to the page; to change the template alone, leave \code{record} out and the tag keeps the record it has.
+\code{tip_update()} leaves a \code{style} or \code{marker} alone, and it leaves the tag's \code{aria-label} as it is, so a button named
+from its tip keeps the old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn
+again, for example by \code{renderUI()}.
 
 Inside a module, give the id as the module's own (\code{"save"}); the call adds the module's namespace, as the \verb{update*()}
 functions of Shiny do. In the module's UI, give \code{\link[=tip_on]{tip_on()}} the id as \code{ns("save")}.
