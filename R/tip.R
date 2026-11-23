@@ -217,7 +217,18 @@ tip_check_use <- function(template, held, id, call) {
 #'
 #' @param id `r lifecycle::badge("experimental")` A Shiny id for this tip, or `NULL` (the default) for none: one
 #'   non-empty string with no whitespace, so `ns("baseline_tip")` works in a module. Give it a different id from every
-#'   other tip source on the page. In this version it only names the tip; Shiny inputs that use it come in a later one.
+#'   other tip source on the page. [tip_show()], [tip_hide()] and [tip_update()] find the tip by it, and `events` names
+#'   the inputs after it.
+#'
+#' @param events `r lifecycle::badge("experimental")` Which Shiny inputs this tag's tip sends, or `NULL` (the default)
+#'   for none. Only `"hint"` is taken in this version: it sends `input$<id>_hint` each time the tip opens or closes,
+#'   a list of `state` (`"shown"` or `"hidden"`), `text` (the tip's plain words, cut at 200 characters), `by`
+#'   (`"reader"`, `"host"` for [tip_show()] and [tip_hide()], or `"data"` when the tag left the page), `via`
+#'   (`"pointer"`, `"focus"`, `"tap"`, `"key"`, `"command"`, or `NULL`) and `reason` (why it
+#'   closed, `NULL` on `"shown"`). It is off unless asked for, because it sends a message to the server every time any
+#'   reader hovers the tag. It needs an `id`, or a tag with
+#'   an `id` of its own; in a module the input is read as `input$<id>_hint`, without the namespace. `"pin"` and
+#'   `"copy"` are named but stop with an error until the pin inputs arrive.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 #'   and the marker's own dependency.
@@ -265,7 +276,8 @@ tip_on <- function(
   style = NULL,
   placement = NULL,
   marker = "none",
-  id = NULL
+  id = NULL,
+  events = NULL
 ) {
   if (inherits(tag, "shiny.tag.list")) {
     tip_abort(
@@ -276,12 +288,22 @@ tip_on <- function(
   if (!inherits(tag, "shiny.tag")) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
-  tip_check_dots(..., args = c("tag", "text", "template", "record", "style", "placement", "marker", "id"))
+  tip_check_dots(..., args = c("tag", "text", "template", "record", "style", "placement", "marker", "id", "events"))
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
   tip_arg_string(template, "template", null_ok = TRUE)
   style <- tip_as_style(style, "style")
   tip_check_placement(placement)
   tip_check_id(id)
+  events <- tip_check_events(events)
+  if (!is.null(events) && is.null(id) && is.null(htmltools::tagGetAttribute(tag, "id"))) {
+    tip_abort(
+      c(
+        "{.arg events} names its inputs after an id, and the tag has none.",
+        i = "Give {.fn tip_on} an {.arg id}, or the tag an {.code id} of its own."
+      ),
+      class = "hovercraft_error_events"
+    )
+  }
   marker <- tip_as_marker(marker, "marker")
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
   if (!has_text && is.null(template)) {
@@ -322,6 +344,9 @@ tip_on <- function(
   if (!is.null(id)) {
     values[[tip_attribute("id")]] <- id
   }
+  if (!is.null(events)) {
+    values[[tip_shiny_attribute()]] <- events
+  }
   # A label made from an earlier tip on this tag goes with that tip; a label the page wrote itself stays.
   earlier <- htmltools::tagGetAttribute(tag, attrs[["text"]])
   if (!is.null(earlier) && identical(htmltools::tagGetAttribute(tag, "aria-label"), tip_plain_text(earlier))) {
@@ -329,7 +354,12 @@ tip_on <- function(
   }
   look <- tip_style_tag(style)
   # A tip made before is replaced, its look too.
-  own <- c(attrs, vapply(c("preset", "class", "placement", "id"), tip_attribute, ""), tip_theme_attribute())
+  own <- c(
+    attrs,
+    vapply(c("preset", "class", "placement", "id"), tip_attribute, ""),
+    tip_theme_attribute(),
+    tip_shiny_attribute()
+  )
   tag$attribs[names(tag$attribs) %in% own] <- NULL
   if (has_text && tip_needs_label(tag)) {
     label <- tip_plain_text(text)

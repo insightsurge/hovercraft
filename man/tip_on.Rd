@@ -13,7 +13,8 @@ tip_on(
   style = NULL,
   placement = NULL,
   marker = "none",
-  id = NULL
+  id = NULL,
+  events = NULL
 )
 }
 \arguments{
@@ -50,7 +51,18 @@ See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells o
 
 \item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one
 non-empty string with no whitespace, so \code{ns("baseline_tip")} works in a module. Give it a different id from every
-other tip source on the page. In this version it only names the tip; Shiny inputs that use it come in a later one.}
+other tip source on the page. \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} find the tip by it, and \code{events} names
+the inputs after it.}
+
+\item{events}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Which Shiny inputs this tag's tip sends, or \code{NULL} (the default)
+for none. Only \code{"hint"} is taken in this version: it sends \verb{input$<id>_hint} each time the tip opens or closes,
+a list of \code{state} (\code{"shown"} or \code{"hidden"}), \code{text} (the tip's plain words, cut at 200 characters), \code{by}
+(\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}} and \code{\link[=tip_hide]{tip_hide()}}, or \code{"data"} when the tag left the page), \code{via}
+(\code{"pointer"}, \code{"focus"}, \code{"tap"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason} (why it
+closed, \code{NULL} on \code{"shown"}). It is off unless asked for, because it sends a message to the server every time any
+reader hovers the tag. It needs an \code{id}, or a tag with
+an \code{id} of its own; in a module the input is read as \verb{input$<id>_hint}, without the namespace. \code{"pin"} and
+\code{"copy"} are named but stop with an error until the pin inputs arrive.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
@@ -123,6 +135,7 @@ Other tooltips:
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},

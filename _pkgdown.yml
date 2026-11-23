@@ -20,6 +20,9 @@ reference:
   - title: Put a tip on a tag
     contents:
       - tip_on
+  - title: Drive a tip from the server (experimental)
+    contents:
+      - tip_server
   - title: Tips on tables (experimental)
     contents:
       - tip_table

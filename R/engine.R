@@ -80,7 +80,11 @@ tip_dependency <- function(style = NULL) {
     package = "hovercraft",
     script = "tip.js",
     stylesheet = "tip.css",
-    head = paste0(sprintf("<script>%s.attach(document);</script>", tip_names()$global), tip_status_css())
+    head = paste0(
+      sprintf("<script>%s.attach(document);</script>", tip_names()$global),
+      tip_shiny_head(),
+      tip_status_css()
+    )
   )
   style <- tip_as_style(style, "style")
   page <- if (!is.null(style)) tip_style_page(style)
