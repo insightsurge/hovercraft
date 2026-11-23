@@ -52,8 +52,9 @@ tip_as_block <- function(x, where, call) {
     )
   }
   if (!x$type %in% names(rules$blocks)) {
+    types <- intersect(names(rules$blocks), names(makers))
     tip_abort(
-      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {intersect(names(rules$blocks), names(makers))}}.",
+      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {types}}.",
       class = "hovercraft_error_block",
       call = call
     )
