@@ -68,7 +68,10 @@ describe("the vendored engine, after a copy", {
   it("still has the class and the global the package's tests and pages reach the engine by", {
     expect_true(grepl(paste0(".", names$css), css, fixed = TRUE), info = names$css)
     expect_true(grepl(paste0("window.", names$global), js, fixed = TRUE), info = names$global)
-    expect_true(grepl("attach", js, fixed = TRUE), info = "attach")
+    # The methods the package calls on it: tip_dependency() attaches, tip_define() defines.
+    for (method in c("attach", "define")) {
+      expect_true(grepl(paste0("\\b", method, "\\s*[(:]"), js), info = paste0(names$global, ".", method))
+    }
     expect_true(grepl(names$attribute, js, fixed = TRUE), info = names$attribute)
   })
 

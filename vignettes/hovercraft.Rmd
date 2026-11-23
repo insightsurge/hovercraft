@@ -75,7 +75,7 @@ row <- list(label = "ADAE", status = "Check", records = 5304, differences = 3, s
 tip_on(htmltools::tags$button("ADAE"), template = "diff", record = row)
 ```
 
-```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled ADAE, with a tip below it holding a title, a badge, two label and value pairs and a sentence.", fig.show = "hold"}
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled ADAE, with a tip below it, joined to the button by a small arrow, holding a title, a badge, two label and value pairs and a sentence.", fig.show = "hold"}
 knitr::include_graphics(c("figures/template-light.png", "figures/template-dark.png"))
 ```
 

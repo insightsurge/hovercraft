@@ -53,23 +53,25 @@ tip_as_block <- function(x, where, call) {
   }
   if (!x$type %in% names(rules$blocks)) {
     tip_abort(
-      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {names(rules$blocks)}}.",
-      class = "hovercraft_error_block",
-      call = call
-    )
-  }
-  known <- names(rules$blocks[[x$type]]$fields)
-  unknown <- setdiff(names(x), c("type", known))
-  if (length(unknown)) {
-    tip_abort(
-      "{where} has fields a {.val {x$type}} block does not take: {.val {unknown}}. It takes {.val {known}}.",
+      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {intersect(names(rules$blocks), names(makers))}}.",
       class = "hovercraft_error_block",
       call = call
     )
   }
   maker <- makers[[x$type]]
+  known <- names(rules$blocks[[x$type]]$fields)
+  # What the constructor takes now; a `fields` block's list of pairs is one engine field, `fields`.
+  takes <- intersect(known, c(names(formals(maker)), if (x$type == "fields") "fields"))
+  unknown <- setdiff(names(x), c("type", known))
+  if (length(unknown)) {
+    tip_abort(
+      "{where} has fields a {.val {x$type}} block does not take: {.val {unknown}}. It takes {.val {takes}}.",
+      class = "hovercraft_error_block",
+      call = call
+    )
+  }
   # A field the engine takes but the constructor does not yet (`kicker`, `meta`, `parent`) waits for a later version.
-  later <- setdiff(intersect(names(x), known), c(names(formals(maker)), if (x$type == "fields") "fields"))
+  later <- setdiff(intersect(names(x), known), takes)
   if (length(later)) {
     tip_abort(
       "{where} has {.val {later}}, which a {.val {x$type}} block takes in the engine but comes with a later version.",
