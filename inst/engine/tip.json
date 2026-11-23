@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.50.0",
+  "version": "0.51.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -16,6 +16,8 @@
     "preset": "data-hovercraft-tip-preset",
     "arrow": "data-hovercraft-tip-arrow",
     "class": "data-hovercraft-tip-class",
+    "open": "data-hovercraft-tip-open",
+    "anchor": "data-hovercraft-tip-anchor",
     "more": "data-hovercraft-tip-more",
     "more_template": "data-hovercraft-tip-more-template",
     "more_on": "data-hovercraft-tip-more-on",
@@ -40,6 +42,13 @@
   },
   "class": {
     "pattern": "^-?[_a-zA-Z][_a-zA-Z0-9-]*$"
+  },
+  "anchor": {
+    "default": "item",
+    "values": [
+      "item",
+      "content"
+    ]
   },
   "more": {
     "on": {

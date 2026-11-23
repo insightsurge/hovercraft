@@ -40,7 +40,8 @@ choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A
 \item{marker}{The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:
 \code{"corner"} (a small triangle in the top corner, as a spreadsheet shows a note), or \code{NULL} or \code{"none"} for no
 marker (the default). A \code{\link[=tip_spec]{tip_spec()}} with its own \code{marker} beats it. A row takes no marker, and a table draws only
-the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own stop with an error. See \code{\link[=tip_marker]{tip_marker()}}.}
+the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own stop with an error. A cell with a marker is
+highlighted while its tip is open. See \code{\link[=tip_marker]{tip_marker()}}.}
 
 \item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
 whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
@@ -61,7 +62,9 @@ optionally a tip of their own to chosen cells and header cells. The tips follow 
 and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 }
 \details{
-A cell's tip wins over its row's, and a row's tip opens at the pointer. A target that needs its own settings (for now
+A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
+its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
+beside the text and not far to its left; there is no argument for it. A target that needs its own settings (for now
 only a placement) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown) with
 \code{{{ column }}} placeholders, or of a \code{\link[=tip_template]{tip_template()}}; every placeholder is checked against the table's columns, and
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,

@@ -2,7 +2,14 @@
 # own files, and its public define() call. A new engine copy that drops one fails here, naming it.
 describe("the table layer's engine names", {
   it("are all in the engine", {
-    attributes <- c(template = "template", record = "record", placement = "placement", kind = "kind", id = "id")
+    attributes <- c(
+      template = "template",
+      record = "record",
+      placement = "placement",
+      kind = "kind",
+      id = "id",
+      anchor = "anchor"
+    )
     for (key in attributes) {
       expect_true(nzchar(tip_attribute(key)), info = key)
       expect_true(
@@ -470,6 +477,29 @@ describe("tip_spec() in tip_table()", {
       class = "hovercraft_error_argument"
     )
     expect_error(tip_table(dt(), headers = tip_spec("x")), class = "hovercraft_error_argument")
+  })
+})
+
+describe("tip_table() anchors the tips of cells and header cells on their content", {
+  anchor <- function() tip_attribute("anchor")
+  it("uses a value the engine knows, under the engine's own attribute", {
+    expect_true("content" %in% unlist(tip_rules()$anchor$values))
+    expect_identical(tip_attribute("anchor"), paste0(tip_names()$attribute, "-anchor"))
+  })
+
+  it("writes the anchor on a DT table's cells and header cells, never on its rows", {
+    got <- tip_table(dt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"))
+    expect_match(js(got$x$options$columnDefs[[length(got$x$options$columnDefs)]]$createdCell), anchor(), fixed = TRUE)
+    expect_match(js(got$x$options$initComplete), sprintf("\"%s\":\"content\"", anchor()), fixed = TRUE)
+    expect_no_match(js(got$x$options$createdRow), anchor(), fixed = TRUE)
+  })
+
+  it("writes it on a reactable table's cells and header cells, never on its rows", {
+    got <- tip_table(rt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"))
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$cells[["1"]]$attrs[[anchor()]], "content")
+    expect_identical(cfg$headers[["2"]]$attrs[[anchor()]], "content")
+    expect_null(cfg$rows$attrs[[anchor()]])
   })
 })
 
