@@ -33,7 +33,8 @@ choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A
 \item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
 whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
 the page. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it, which follows
-the data row through sorting, filtering and paging; how that id is built is not part of the API. \code{NULL} gives the
+the data row through sorting, filtering and paging; how that id is built is not part of the API. The copy of a
+header cell that \code{DT} draws for \code{scrollX} or \code{fixedHeader} carries the id of the header it copies. \code{NULL} gives the
 tips no id. The engine's kind of the tips is not yours to set: \code{tip_table()} writes \code{table_row}, \code{table_cell} and
 \code{table_header}.}
 }
@@ -54,14 +55,36 @@ only a placement) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words.
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
 so it takes words only.
 
-Tips show where the pointer rests: \strong{pointer only, no keyboard reach yet.} A table row or cell cannot take keyboard
-focus, and \code{tip_table()} never adds a tab stop. A click on a row selects it in both widgets, so a row's tip does
-not pin on click.
+Tips also show for the keyboard. A row, a cell or a header cell cannot take focus by itself, so \code{tip_table()} gives
+the table one tab stop, and the arrow keys move between the rows, cells and header cells that have a tip: left and
+right inside a row (the row first, then its cells), up and down between rows to the same column, Home and End to the
+ends of the row, and Ctrl with Home or End to the ends of the table. The tip shows for what has focus. A header that
+its widget already makes focusable (the sortable headers of \code{DT}) keeps its own tab stop. Enter and Space do not
+select a row. A click on a row selects it in both widgets, so a row's tip does not pin on click.
+
+What works, each checked in a browser:
+\itemize{
+\item \code{DT}, in client mode and in server mode under Shiny, with \code{scrollX}, \code{scrollY}, \code{fixedHeader}, \code{colReorder} and
+\code{responsive}. With \code{responsive}, a column folded into the details row has no tip there; the row's tip is
+unchanged.
+\item \code{reactable}, with sorting, filtering, paging, row selection (a click selects the row and its tip stays),
+\code{groupBy} (the rows inside a group have tips, the group's own row has none) and \code{details} (the details panel has
+none).
+\item An \code{id} made by \code{\link[shiny:NS]{shiny::NS()}} inside a module.
+}
+
+Not supported: a \code{DT} table with its own \code{createdRow} or \code{initComplete} option, or with a header of more than one
+row; a \code{reactable} column whose \code{headerClass} is a JavaScript function; any other widget.
+
+Large tables: the tips of a table of thousands of rows take about 0.2 seconds per 1,000 rows to build in R, and add
+about 70 bytes per row to the page. A paged table barely notices. A table with every row drawn at once is slow in
+\code{DT} when cells or headers have tips (thousands of rows take seconds); page it, or tip its rows only.
 
 Give \code{tip_table()} the finished widget, last in the pipe or at least after the columns are settled.
-\code{DT::datatable()} gets one hidden column that holds each row's record (a table with a header of more than one row,
-or with its own \code{createdRow} or \code{initComplete} option, is refused for now). \code{reactable::reactable()} gets its own
-\code{rowClass}, \code{class} and \code{headerClass} added to yours. Only the columns a tip names are written to the page.
+\code{DT::datatable()} gets one hidden column that holds each row's record, and with an \code{id} a second one for its data
+row number (a table with a header of more than one row, or with its own \code{createdRow} or \code{initComplete} option, is
+refused for now). \code{reactable::reactable()} gets its own \code{rowClass}, \code{class} and \code{headerClass} added to yours.
+Only the columns a tip names are written to the page.
 }
 \examples{
 \dontshow{if (requireNamespace("DT", quietly = TRUE)) withAutoprint(\{ # examplesIf}
