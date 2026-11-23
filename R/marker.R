@@ -332,7 +332,7 @@ tip_marker_has_span <- function(x) {
 # Takes a marker's earlier work off a tag: its attributes, its icon child, and the span round its words, so tip_on()
 # called twice on one tag leaves one marker.
 tip_marker_clear <- function(tag) {
-  own <- startsWith(names(tag$attribs), tip_marker_attribute())
+  own <- startsWith(names(tag$attribs) %||% character(), tip_marker_attribute())
   tag$attribs[own] <- NULL
   unwrap <- function(x) {
     if (inherits(x, "html") && startsWith(as.character(x), paste0("&#8288;<span class=\"", tip_marker_class("icon")))) {

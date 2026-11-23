@@ -1,0 +1,62 @@
+/* hovercraft's tip_on(when_disabled = ): the wrapper around a control, and the lock before the reason. This is
+   hovercraft's own layer, on top of the tip engine; it never changes the engine. The class names are spelt as R writes
+   them (hovercraft-when-disabled) and as the engine draws the reason line (hc-tip-reason); test-disabled.R holds both. */
+
+/* The wrapper takes the control's size and place: inline, so buttons stay in a row, and a block when the control asked
+   for the full width. */
+.hovercraft-when-disabled {
+  display: inline-block;
+  max-width: 100%;
+  vertical-align: top;
+}
+.hovercraft-when-disabled.d-block,
+.hovercraft-when-disabled.w-100,
+.hovercraft-when-disabled-block {
+  display: block;
+}
+/* The wrapper has the control's width and place, so a control that fills a block or a grid cell fills its wrapper. */
+.d-grid > .hovercraft-when-disabled > .btn,
+.hovercraft-when-disabled.d-block > .btn {
+  width: 100%;
+}
+/* The wrapper is a tab stop only while the control is switched off (the script gives it tabindex then). */
+.hovercraft-when-disabled[tabindex="0"] {
+  cursor: not-allowed;
+}
+/* Bootstrap 5 gives a disabled button no pointer; Bootstrap 3 and other pages do. A disabled control under the wrapper takes
+   none either, so the pointer is always the wrapper's, whose tip is the reason and not the control's own. */
+.hovercraft-when-disabled[tabindex="0"] :disabled {
+  pointer-events: none;
+}
+.hovercraft-when-disabled:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 2px;
+}
+
+/* The lock: a mask in the words' own colour, so it follows every preset and light and dark. It adds no words (an empty
+   pseudo-element is not read) and the line keeps its "Not available:" text, so meaning never rests on the picture.
+   The line hangs, so a second line starts under the words and not under the lock. */
+.hc-tip-reason {
+  padding-inline-start: 1.25em;
+  text-indent: -1.25em;
+}
+.hc-tip-reason::before {
+  --hovercraft-lock: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M5 7V5a3 3 0 0 1 6 0v2' fill='none' stroke='black' stroke-width='1.6'/%3E%3Crect x='3' y='7' width='10' height='7' rx='1.5' fill='black'/%3E%3C/svg%3E");
+  content: "";
+  display: inline-block;
+  inline-size: 0.85em;
+  block-size: 0.85em;
+  margin-inline-end: 0.4em;
+  text-indent: 0;
+  vertical-align: -0.08em;
+  background-color: currentcolor;
+  -webkit-mask: var(--hovercraft-lock) no-repeat center / contain;
+  mask: var(--hovercraft-lock) no-repeat center / contain;
+}
+/* Forced colours keep the background of an element, so the lock would vanish: draw it in the system text colour. */
+@media (forced-colors: active) {
+  .hc-tip-reason::before {
+    forced-color-adjust: none;
+    background-color: CanvasText;
+  }
+}

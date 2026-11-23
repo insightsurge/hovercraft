@@ -241,11 +241,48 @@ tip_check_use <- function(template, held, id, call) {
 #'   an `id` of its own; in a module the input is read as `input$<id>_hint`, without the namespace. `"pin"` and
 #'   `"copy"` are named but stop with an error until the pin inputs arrive.
 #'
+#' @param when_disabled `r lifecycle::badge("experimental")` The reason the control is switched off, as one
+#'   string of plain text with a word in it, or `NULL` (the default) for none. While the control is disabled,
+#'   its tip says "Not available:" and the reason, with a small lock before it; when the control is enabled
+#'   again the reason goes and the tag's own tip (`text` or `template`) is shown as usual. `text` and `template`
+#'   may be left out, for a tag that only has a reason; then a `marker` is left off with a warning, since it
+#'   would show on an enabled control that has no tip. The tag must hold a control that can be disabled: a
+#'   `button`, `input`, `select`, `textarea` or `fieldset`. It works when the page is built with the control
+#'   disabled and when it is switched off later, by the `update*(disabled = )` functions of Shiny or by script,
+#'   on a Bootstrap 5 page (bslib) and on the Bootstrap 3 page of a plain `fluidPage()`; a control disabled by
+#'   `aria-disabled` alone is not covered.
+#'
+#'   A disabled control takes no keyboard focus and, under Bootstrap 5, no pointer, so `tip_on()` puts it in a small
+#'   wrapper that does: a `<span>`, or a `<div>` for a tag that is a block, such as the `div` Shiny puts around an
+#'   input. While the control is disabled the wrapper is one tab stop, and the control gets no pointer, so the
+#'   reason is the wrapper's. A button's wrapper has the role of a button; any other control is a group named by the
+#'   control's label, so a screen reader still says what the field is. The wrapper is not a tab stop when the
+#'   control is enabled. A control that has the focus when it is switched off hands it to the wrapper, and takes it
+#'   back when it is switched on. The tip's `id` and `events` stay on the control, and the wrapper answers to them
+#'   while the control is disabled, so [tip_show()] and the hint input name the control either way. The value
+#'   returned is the wrapper; calling `tip_on()` on it again changes the control's tip and keeps one wrapper, with
+#'   the reason it had unless a new one is given.
+#'
+#'   The wrapper takes the control's place in a layout: a width, a share of a flex row and a side written in its
+#'   `style`, or as the classes `w-25`, `w-50`, `w-75`, `w-100`, `flex-fill`, `flex-grow-*`, `col-*`, `order-*`,
+#'   `align-self-*` and `ms-auto`, move to the wrapper, and the control fills the wrapper. A `d-block` control and
+#'   the cells of a `d-grid` keep their width. Not covered: a control that is a direct child of a `btn-group`,
+#'   `btn-group-vertical` or `input-group`, since the wrapper then comes between the control and the joined borders;
+#'   put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
+#'   that needs no wrapper, which asks the tip engine for a keyboard stop of its own.
+#'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
-#'   and the marker's own dependency.
+#'   and the marker's own dependency; with `when_disabled`, inside a wrapper that holds the reason.
 #' @family tooltips
 #' @examples
 #' tip_on(htmltools::tags$button("Run"), "Runs the **check**")
+#'
+#' # The reason a control is switched off
+#' tip_on(
+#'   htmltools::tags$button("Run", disabled = NA),
+#'   "Runs the **check**",
+#'   when_disabled = "Pick a dataset first"
+#' )
 #'
 #' # A look for this tag only
 #' tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = "sober")
@@ -288,7 +325,8 @@ tip_on <- function(
   placement = NULL,
   marker = "none",
   id = NULL,
-  events = NULL
+  events = NULL,
+  when_disabled = NULL
 ) {
   if (inherits(tag, "shiny.tag.list")) {
     tip_abort(
@@ -299,13 +337,24 @@ tip_on <- function(
   if (!inherits(tag, "shiny.tag")) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
-  tip_check_dots(..., args = c("tag", "text", "template", "record", "style", "placement", "marker", "id", "events"))
+  tip_check_dots(
+    ...,
+    args = c("tag", "text", "template", "record", "style", "placement", "marker", "id", "events", "when_disabled")
+  )
+  # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the reason is kept or changed.
+  wrapper <- NULL
+  if (tip_is_disabled_wrapper(tag)) {
+    wrapper <- tag
+    tag <- wrapper$children[[1]]
+    when_disabled <- when_disabled %||% htmltools::tagGetAttribute(wrapper, tip_disabled_attribute())
+  }
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
   tip_arg_string(template, "template", null_ok = TRUE)
   style <- tip_as_style(style, "style")
   tip_check_placement(placement)
   tip_check_id(id)
   events <- tip_check_events(events)
+  tip_check_when_disabled(when_disabled, tag)
   if (!is.null(events) && is.null(id) && is.null(htmltools::tagGetAttribute(tag, "id"))) {
     tip_abort(
       c(
@@ -317,11 +366,22 @@ tip_on <- function(
   }
   marker <- tip_as_marker(marker, "marker")
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
-  if (!has_text && is.null(template)) {
+  if (!has_text && is.null(template) && is.null(when_disabled)) {
     if (is.null(text)) {
       tip_abort("Give {.arg text} or {.arg template}; there is nothing to show.", class = "hovercraft_error_tip")
     }
     return(tag) # a missing or empty text is no tip, so a table row with no note stays as it was
+  }
+  if (!has_text && is.null(template) && !identical(marker$type, "none")) {
+    tip_warn(
+      c(
+        "{.arg marker} is left off: the tag has no tip of its own, only a reason for when it is disabled.",
+        i = "A marker says the tag has a tip, and it would show on an enabled control that shows none.",
+        i = "Give {.arg text} or {.arg template} to have a marker."
+      ),
+      class = "hovercraft_warning_marker"
+    )
+    marker <- tip_as_marker("none", "marker")
   }
   tip_check_focus(tag, rlang::current_env())
   held <- names(record)
@@ -380,5 +440,11 @@ tip_on <- function(
   }
   tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values, look$attribs))
   tag <- tip_marker_apply(tag, marker, rlang::current_env())
-  htmltools::attachDependencies(tag, c(list(tip_dependency()), look$deps), append = TRUE)
+  deps <- c(list(tip_dependency()), look$deps)
+  if (!is.null(when_disabled)) {
+    place <- if (!is.null(placement)) stats::setNames(list(placement), tip_attribute("placement"))
+    tag <- tip_disabled_wrap(tag, when_disabled, c(look$attribs, place), wrapper)
+    deps <- c(deps, list(tip_disabled_dependency()))
+  }
+  htmltools::attachDependencies(tag, deps, append = TRUE)
 }
