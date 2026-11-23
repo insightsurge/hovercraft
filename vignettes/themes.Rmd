@@ -99,6 +99,35 @@ replaces the page's `class = "brand"`), and `class = ""` clears one:
 tip_style("sober", class = c("wide", "audit-tip"))
 ```
 
+## Markers
+
+A tip is out of sight until the pointer rests on its tag, so a reader cannot tell which words hold one. A marker is a
+visible cue on the tag, off by default and chosen for each tag with `marker =`:
+
+```{r}
+tip_on(htmltools::tags$span("Baseline", tabindex = "0"), "The first **screening** value", marker = "underline")
+```
+
+`"underline"` draws a line under the words and takes no room, `"icon"` adds a small icon after them, and `"corner"`
+draws a small triangle in the top corner, as a spreadsheet does for a note. It suits a table cell or a value box; on a
+word it can look like a stray mark. Markers are drawn in the tag's own text colour, so they keep its contrast in light
+and dark, and the pointer over a marked tag is the help cursor.
+
+The line of an underline follows the preset: dotted for `"none"`, `"sober"` and `"dense"`, dashed for `"modern"` and
+`"editorial"`, and a long gentle wave for `"lively"`. `tip_marker()` chooses one yourself, or gives your own icon, as a
+tag:
+
+```{r}
+tip_marker("underline", line = "wavy")
+tip_marker("icon", icon = htmltools::tags$b("?"))
+```
+
+An icon from `fontawesome::fa()` or `bsicons::bs_icon()` works the same way, and `marker = <icon>` is short for
+`tip_marker("icon", icon = <icon>)`. An icon is added to the tag as a child that a
+screen reader skips; a name such as `"info"` is not looked up, because the package does not pick an icon library for you.
+For an underline on a block tag (a table cell, a paragraph), the words are put in a `span` so the line goes under them and
+not across the cell. A value box marks its title. A block of other tags has no words to underline, so it stops with an error that says where the marker goes.
+
 ## A bslib theme
 
 A `bslib::bs_theme()` is read through its variables (bslib 0.6.0 or later): the tip's fill is the theme's tertiary background, its words

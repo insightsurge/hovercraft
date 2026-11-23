@@ -4,7 +4,15 @@
 \alias{tip_on}
 \title{Put a tip on a tag}
 \usage{
-tip_on(tag, text = NULL, ..., template = NULL, record = NULL, style = NULL)
+tip_on(
+  tag,
+  text = NULL,
+  ...,
+  template = NULL,
+  record = NULL,
+  style = NULL,
+  marker = "none"
+)
 }
 \arguments{
 \item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}.}
@@ -27,9 +35,15 @@ page's. A preset name from \code{\link[=tip_presets]{tip_presets()}} (\code{"non
 style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins,
 value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
 \code{\link[=tip_style]{tip_style()}}.}
+
+\item{marker}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A visible cue that the tag holds a tip, off by default: \code{"none"},
+\code{"underline"}, \code{"icon"} or \code{"corner"}, a \code{\link[=tip_marker]{tip_marker()}} to choose the line of an underline or give an icon, or a
+tag, which is used as the icon (\code{marker = fontawesome::fa("circle-info")} is \code{tip_marker("icon", icon = ...)}).
+See \code{\link[=tip_marker]{tip_marker()}} for what each draws. Markers are not drawn in tables yet.}
 }
 \value{
-The tag, with the tip's attributes and the engine's dependency added.
+The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
+and the marker's own dependency.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -68,6 +82,13 @@ tip_on(
   style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
 )
 
+# A visible cue that a word holds a tip
+tip_on(
+  htmltools::tags$span("Baseline", tabindex = "0"),
+  "The first **screening** value",
+  marker = "underline"
+)
+
 tip_define(diff = tip_template(
   tip_title("{{ label }}"),
   tip_text("{{ differences | number:0 }} differences")
@@ -89,6 +110,7 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
+\code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
