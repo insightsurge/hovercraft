@@ -199,10 +199,24 @@ tip_check_use <- function(template, held, id, call) {
 #'   else in a row is written into the page; for a template not seen here, every column goes, so choose them with
 #'   `data[i, c("label", "n")]`.
 #'
+#' @param style `r lifecycle::badge("experimental")` How this tag's tip looks, or `NULL` (the default) to take the
+#'   page's. A preset name from [tip_presets()] (`"none"` clears a preset set above), a [tip_style()], or one part of a
+#'   style: a [tip_theme()] or a [bslib::bs_theme()]. The tag's style beats the page's, and a value set nearer wins,
+#'   value by value. A list is not taken, and neither is a string that holds `:` or `;` (`style` takes no CSS); see
+#'   [tip_style()].
+#'
 #' @returns The tag, with the tip's attributes and the engine's dependency added.
 #' @family tooltips
 #' @examples
 #' tip_on(htmltools::tags$button("Run"), "Runs the **check**")
+#'
+#' # A look for this tag only
+#' tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = "sober")
+#' tip_on(
+#'   htmltools::tags$button("Run"),
+#'   "Runs the **check**",
+#'   style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+#' )
 #'
 #' tip_define(diff = tip_template(
 #'   tip_title("{{ label }}"),
@@ -220,7 +234,7 @@ tip_check_use <- function(template, held, id, call) {
 #' # An icon-only button is named from its tip
 #' tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 #' @export
-tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
+tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL, style = NULL) {
   if (inherits(tag, "shiny.tag.list")) {
     tip_abort(
       c("{.arg tag} is a list of tags; give one tag.", i = "Call {.fn tip_on} on each tag."),
@@ -230,9 +244,10 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
   if (!inherits(tag, "shiny.tag")) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
-  tip_check_dots(..., args = c("tag", "text", "template", "record"))
+  tip_check_dots(..., args = c("tag", "text", "template", "record", "style"))
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
   tip_arg_string(template, "template", null_ok = TRUE)
+  style <- tip_as_style(style, "style")
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
   if (!has_text && is.null(template)) {
     if (is.null(text)) {
@@ -271,13 +286,16 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
   if (!is.null(earlier) && identical(htmltools::tagGetAttribute(tag, "aria-label"), tip_plain_text(earlier))) {
     tag$attribs[names(tag$attribs) == "aria-label"] <- NULL
   }
-  tag$attribs[names(tag$attribs) %in% attrs] <- NULL
+  look <- tip_style_tag(style)
+  # A tip made before is replaced, its look too.
+  own <- c(attrs, vapply(c("preset", "class"), tip_attribute, ""), tip_theme_attribute())
+  tag$attribs[names(tag$attribs) %in% own] <- NULL
   if (has_text && tip_needs_label(tag)) {
     label <- tip_plain_text(text)
     if (nzchar(label)) {
       values[["aria-label"]] <- label
     }
   }
-  tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values))
-  htmltools::attachDependencies(tag, tip_dependency(), append = TRUE)
+  tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values, look$attribs))
+  htmltools::attachDependencies(tag, c(list(tip_dependency()), look$deps), append = TRUE)
 }
