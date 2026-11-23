@@ -106,8 +106,28 @@ tip_table_template_part <- function(x, arg, columns, header, call) {
       call = call
     )
   }
+  # A table's tips are defined from the widget's own script, which cannot carry an output tag into the page: the tag
+  # goes in the page's UI and the template names it by its id.
+  if (length(tip_output_tags(list(template)))) {
+    tip_abort(
+      c(
+        "{.arg {arg}} holds a {.fn tip_output} given as a tag, which a table cannot place in the page.",
+        i = paste0(
+          "Put the output tag (such as {.code shiny::plotOutput(\"detail\")}) in your UI and give ",
+          "{.fn tip_output} its id: {.code tip_output(\"detail\")}."
+        )
+      ),
+      class = "hovercraft_error_output",
+      call = call
+    )
+  }
   body <- tip_json(tip_blocks_plain(template))
-  list(name = paste0("table_", substr(rlang::hash(body), 1L, 12L)), body = body, fields = unique(fields))
+  list(
+    name = paste0("table_", substr(rlang::hash(body), 1L, 12L)),
+    body = body,
+    fields = unique(fields),
+    outputs = tip_output_ids(list(template))
+  )
 }
 
 tip_table_content <- function(
@@ -140,13 +160,14 @@ tip_table_content <- function(
   more_part <- if (!is.null(own_more)) {
     tip_table_template_part(own_more, paste0(arg, "$more"), columns, header, call)
   }
+  # A row or a cell has no pin, so the long form of a table tip opens on hover unless `more_on` says otherwise.
   if (!is.null(more_part)) {
-    effective_on <- own_more_on %||% tip_contract()$more$on$default
+    effective_on <- own_more_on %||% "hover"
     if (identical(effective_on, "pin")) {
       tip_abort(
         c(
           "{.arg {arg}} sets {.arg more} with {.code more_on = \"pin\"}, but table tips cannot pin yet.",
-          i = "Set {.code more_on = \"hover\"} in {.fn tip_spec} to show the long form on hover."
+          i = "Leave {.arg more_on} out, or set {.code more_on = \"hover\"}, to show the long form on hover."
         ),
         class = "hovercraft_error_pin",
         call = call
@@ -158,7 +179,8 @@ tip_table_content <- function(
     body = part$body,
     fields = unique(c(part$fields, more_part$fields)),
     more = more_part,
-    more_on = if (!is.null(more_part)) own_more_on %||% tip_contract()$more$on$default,
+    more_on = if (!is.null(more_part)) own_more_on %||% "hover",
+    outputs = unique(c(part$outputs, more_part$outputs)),
     placement = placement,
     style = tip_style_over(own_style, style),
     marker = tip_table_marker(own, marker, arg, row, call)
@@ -410,8 +432,18 @@ tip_table_dt <- function(widget, plan, id, call) {
   widget$x <- x
   tip_table_on_render(
     widget,
-    "function(el, x, cfg) { HovercraftTable.define(cfg.defines, cfg.desc); HovercraftTable.keyboard(el, cfg.kind); }",
-    list(defines = plan$defines, kind = tip_attribute("kind"), desc = tip_description_class())
+    paste(
+      "function(el, x, cfg) {",
+      "HovercraftTable.define(cfg.defines, cfg.desc, cfg.park);",
+      "HovercraftTable.keyboard(el, cfg.kind);",
+      "}"
+    ),
+    list(
+      defines = plan$defines,
+      kind = tip_attribute("kind"),
+      desc = tip_description_class(),
+      park = as.list(plan$outputs)
+    )
   )
 }
 
@@ -479,13 +511,14 @@ tip_table_reactable <- function(widget, plan, call) {
     records = as.list(tip_table_records(data, fields, call)),
     defines = plan$defines,
     kind = tip_attribute("kind"),
-    desc = tip_description_class()
+    desc = tip_description_class(),
+    park = as.list(plan$outputs)
   )
   tip_table_on_render(
     widget,
     paste(
       "function(el, x, cfg) {",
-      "HovercraftTable.define(cfg.defines, cfg.desc);",
+      "HovercraftTable.define(cfg.defines, cfg.desc, cfg.park);",
       "HovercraftTable.reactable(el, cfg);",
       "HovercraftTable.keyboard(el, cfg.kind);",
       "}"
@@ -647,6 +680,9 @@ tip_table <- function(
     )
   )
   plan$defines <- tip_table_defines(c(list(plan$rows), plan$cells, plan$headers))
+  plan$outputs <- unique(unlist(lapply(c(list(plan$rows), plan$cells, plan$headers), function(content) {
+    content$outputs
+  })))
   marked <- any(vapply(c(plan$cells, plan$headers), function(content) !is.null(content$marker), NA))
   if (!is.null(marker) && !marked && !identical(marker$type, "none")) {
     tip_marker_abort(

@@ -718,14 +718,39 @@ describe("tip_spec(more =, more_on =) in tip_table()", {
     expect_identical(cfg$cells[["0"]]$attrs[[tip_attribute("more_on")]], "hover")
   })
 
-  it("stops with a classed pin error when tip_spec() uses more without more_on = 'hover' in tip_table()", {
-    expect_error(
-      tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}"))),
-      class = "hovercraft_error_pin"
-    )
+  it("opens the long form of a table tip on hover when more_on is left out, since a cell has no pin", {
+    got <- tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}")))
+    defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_match(js(defs[[1]]$createdCell), sprintf("\"%s\":\"hover\"", tip_attribute("more_on")), fixed = TRUE)
+    got <- tip_table(rt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}")))
+    expect_identical(got$jsHooks$render[[1]]$data$cells[["0"]]$attrs[[tip_attribute("more_on")]], "hover")
+  })
+
+  it("stops with a classed pin error when tip_spec() asks for more_on = 'pin' in tip_table()", {
     expect_error(
       tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin"))),
       class = "hovercraft_error_pin"
     )
+  })
+})
+
+describe("tip_output() in a tip_table() template", {
+  it("hands the output ids to the table's script, so they are parked", {
+    skip_if_not_installed("shiny")
+    tpl <- tip_template(tip_title("{{ team }}"), tip_output("row_plot"))
+    got <- tip_table(dt(), rows = tpl)
+    expect_match(js(got$jsHooks$render[[1]]$code), "cfg.park", fixed = TRUE)
+    expect_identical(got$jsHooks$render[[1]]$data$park, list("row_plot"))
+    got <- tip_table(rt(), cells = c(wins = "{{ wins }}"), rows = tpl)
+    expect_identical(got$jsHooks$render[[1]]$data$park, list("row_plot"))
+    expect_identical(tip_table(dt(), rows = "{{ team }}")$jsHooks$render[[1]]$data$park, list())
+  })
+
+  it("refuses an output given as a tag, which a table cannot place in the page", {
+    skip_if_not_installed("shiny")
+    tpl <- tip_template(tip_title("{{ team }}"), tip_output(shiny::plotOutput("row_plot")))
+    err <- expect_error(tip_table(dt(), rows = tpl), class = "hovercraft_error_output")
+    expect_match(conditionMessage(err), "tip_output(\"detail\")", fixed = TRUE)
+    expect_error(tip_table(rt(), cells = list(wins = tip_spec("x", more = tpl))), class = "hovercraft_error_output")
   })
 })
