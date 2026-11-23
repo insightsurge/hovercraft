@@ -3,7 +3,13 @@
 * `tip_on()` puts a tip on an HTML tag: plain text, or a named template filled from a record.
 * `tip_define()` and `tip_template()` build and name templates, with `tip_title()`, `tip_text()`, `tip_badge()`,
   `tip_fields()` and `tip_code()` for the blocks. Placeholders are checked when the template is made.
-* `tip_rows()` turns a data frame into one record per row, for a tip on every row of a table.
+* `tip_on()` looks inside the tag for something that can take keyboard focus before it warns, so the `div` Shiny puts
+  around an input no longer gets a warning (#32).
+* `tip_on()` gives an icon-only button, with no `aria-label` of its own, the words of a plain-text tip as its
+  `aria-label`, so a screen reader has a name to read (#32).
+* `tip_badge()` takes `status` (`"success"`, `"warning"`, `"danger"` or `"info"`; any other word is an error) in place
+  of `tone`. The badge is coloured from the page's Bootstrap colours by a few lines of CSS that come with the engine's
+  dependency (#32).
 * `tip_dependency()` gives the tip engine's script and CSS as an HTML dependency.
 * `tip_theme()` and `tip_dependency(theme = )` set how the tips look: roles for light and dark (fill, words, border, code
   background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables. The tip follows `data-bs-theme`, so it turns

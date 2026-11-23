@@ -20,7 +20,11 @@ tip_block <- function(type, ...) {
 #'
 #' @param text One string, with placeholders if you like. In `tip_text()` it is markdown (strong, emphasis, code,
 #'   links, short lists), and a value put in by a placeholder is never read as markdown.
-#' @param tone One string for a badge's look, or `NULL`. What it means is up to the engine.
+#' @param status What the badge says about its item, or `NULL` for a plain badge: one of `"success"`, `"warning"`,
+#'   `"danger"` or `"info"`, the words bslib uses. Any other word is an error. The badge is coloured from the page's
+#'   Bootstrap colours for that status (with plain colours on a page without Bootstrap), and its text should say the
+#'   same thing, because colour alone is not enough. A block written as a plain list, `list(type = "badge", text = "a",
+#'   tone = "info")`, uses the engine's name for it, `tone`, with the same four words.
 #' @param ... Named strings for `tip_fields()`: each name is a label (plain text) and each value a string that may hold
 #'   placeholders, as in `tip_fields(Records = "{{ records | number:0 }}")`.
 #' @param field One string: the name of the record field that holds the code. The code is shown as text, never run,
@@ -34,7 +38,7 @@ tip_block <- function(type, ...) {
 #' @examples
 #' tip_title("{{ label }}")
 #' tip_text("**{{ differences | number:0 }}** differences")
-#' tip_badge("{{ status }}", tone = "warning")
+#' tip_badge("{{ status }}", status = "warning")
 #' tip_fields(Records = "{{ records | number:0 }}", Files = "{{ files }}")
 #' tip_code("sql", language = "sql")
 #' @name tip_blocks
@@ -58,11 +62,13 @@ tip_text <- function(text) {
 
 #' @rdname tip_blocks
 #' @export
-tip_badge <- function(text, tone = NULL) {
+tip_badge <- function(text, status = NULL) {
   tip_arg_string(text, "text")
-  tip_arg_string(tone, "tone", null_ok = TRUE)
+  tip_arg_string(status, "status", null_ok = TRUE)
+  tip_check_status(status)
   tip_check_text(text, "The text of `tip_badge()`")
-  tip_block("badge", text = text, tone = tone)
+  # The engine's badge calls this field `tone`.
+  tip_block("badge", text = text, tone = status)
 }
 
 #' @rdname tip_blocks

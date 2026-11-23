@@ -77,7 +77,6 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_on]{tip_on()}},
-\code{\link[=tip_rows]{tip_rows()}},
 \code{\link[=tip_template]{tip_template()}}
 }
 \concept{tooltips}

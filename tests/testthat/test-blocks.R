@@ -3,12 +3,28 @@ describe("the block functions", {
     expect_identical(unclass(tip_title("{{ label }}")), list(type = "title", text = "{{ label }}"))
     expect_identical(unclass(tip_text("**x**")), list(type = "text", text = "**x**"))
     expect_identical(unclass(tip_badge("ok")), list(type = "badge", text = "ok"))
-    expect_identical(unclass(tip_badge("{{ s }}", tone = "warning"))$tone, "warning")
+    expect_identical(unclass(tip_badge("{{ s }}", status = "warning"))$tone, "warning")
     expect_identical(unclass(tip_code("sql")), list(type = "code", field = "sql"))
     expect_identical(unclass(tip_code("sql", language = "sql"))$language, "sql")
     for (block in list(tip_title("a"), tip_text("a"), tip_badge("a"), tip_fields(A = "a"), tip_code("a"))) {
       expect_s3_class(block, "hovercraft_block")
     }
+  })
+
+  it("write a badge's status into the engine's tone field, for each of the four words", {
+    for (status in c("success", "warning", "danger", "info")) {
+      expect_identical(unclass(tip_badge("a", status = status))$tone, status)
+    }
+    expect_null(unclass(tip_badge("a"))$tone)
+  })
+
+  it("stop on any other status word, and list the four", {
+    err <- expect_error(tip_badge("a", status = "ok"), class = "hovercraft_error_status")
+    for (word in c("success", "warning", "danger", "info")) {
+      expect_match(conditionMessage(err), word, fixed = TRUE)
+    }
+    expect_error(tip_badge("a", status = "Warning"), class = "hovercraft_error_status")
+    expect_error(tip_badge("a", tone = "warning"), "unused argument")
   })
 
   it("make fields as an array of label and value pairs, one pair too", {
@@ -21,7 +37,7 @@ describe("the block functions", {
   it("check each argument, with an error of the package's class that says the fix", {
     expect_error(tip_title(1), "text", class = "hovercraft_error_argument")
     expect_error(tip_title(""), "text", class = "hovercraft_error_argument")
-    expect_error(tip_badge("a", tone = 1), "tone", class = "hovercraft_error_argument")
+    expect_error(tip_badge("a", status = 1), "status", class = "hovercraft_error_argument")
     expect_error(tip_fields(), "\\.\\.\\.", class = "hovercraft_error_argument")
     expect_error(tip_fields("a"), "\\.\\.\\.", class = "hovercraft_error_argument")
     expect_error(tip_fields(A = 1), "A", class = "hovercraft_error_argument")

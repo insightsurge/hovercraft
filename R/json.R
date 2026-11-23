@@ -66,7 +66,7 @@ tip_record <- function(record, keep = NULL, call = rlang::caller_env()) {
       tip_abort(
         c(
           "{.arg record} is a data frame of {nrow(record)} rows; a tip takes one.",
-          i = "Use {.code tip_rows(data)} for one record per row, then give {.arg record} one of them."
+          i = "Give one row, such as {.code data[1, ]}, or a named list."
         ),
         class = "hovercraft_error_record",
         call = call

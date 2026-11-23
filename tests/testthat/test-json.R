@@ -69,7 +69,7 @@ describe("tip_record()", {
     expect_identical(as.character(tip_json(tip_record(list()))), "{}")
   })
 
-  it("refuses a data frame of more than one row, and says where tip_rows() is", {
+  it("refuses a data frame of more than one row", {
     expect_error(tip_record(data.frame(a = 1:2)), class = "hovercraft_error_record")
   })
 

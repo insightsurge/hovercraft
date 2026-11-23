@@ -20,7 +20,7 @@ build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()
 \code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as \code{YYYY-MM-DDTHH:MM:SSZ} and
 factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen the template, only the columns it names are kept, so nothing
 else in a row is written into the page; for a template not seen here, every column goes, so choose them with
-\code{tip_rows(data, columns = )}. See \code{\link[=tip_rows]{tip_rows()}} to get one record per row of a data frame.}
+\code{data[i, c("label", "n")]}.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added.
@@ -35,9 +35,15 @@ in a plain Shiny page and in output made later with \code{renderUI()}. A tag ins
 }
 \details{
 A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a \code{div}) gives a
-keyboard user no way to the tip. \code{tip_on()} warns once about such a tag and never adds a \code{tabindex} itself, because a
-table of 3,000 rows would become 3,000 Tab stops: give the tags worth a stop \code{tabindex = "0"}, or put the tip on a
-button or a link.
+keyboard user no way to the tip. \code{tip_on()} looks at the tag and at everything inside it, so the \code{div} that Shiny
+puts around an input is fine: the input takes focus. It warns once about a tag with nothing focusable in it, and
+never adds a \code{tabindex} itself, because a table of 3,000 rows would become 3,000 Tab stops: give the tags worth a
+stop \code{tabindex = "0"}, or put the tip on a button or a link.
+
+A button with no visible words, such as one that holds only an icon, has no name for a screen reader. When it also
+has no \code{aria-label} or \code{aria-labelledby} of its own, and the tip is plain \code{text}, \code{tip_on()} gives it an
+\code{aria-label} made from the text, with the markdown marks taken out. A tip drawn from a template gives no label,
+because its words depend on the record: set \code{aria-label} yourself.
 
 If both \code{text} and \code{template} are given, the text is shown for this tag. A template whose name has been defined in
 this session is checked against the record here: a field it names that the record does not hold is an error. A
@@ -51,21 +57,22 @@ tip_define(diff = tip_template(
   tip_text("{{ differences | number:0 }} differences")
 ))
 rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
-records <- tip_rows(rows)
-lapply(records, function(record) {
+lapply(seq_len(nrow(rows)), function(i) {
   tip_on(
-    htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+    htmltools::tags$tr(htmltools::tags$td(rows$label[[i]]), tabindex = "0"),
     template = "diff",
-    record = record
+    record = rows[i, ]
   )
 })
+
+# An icon-only button is named from its tip
+tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 }
 \seealso{
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
-\code{\link[=tip_rows]{tip_rows()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}
 }

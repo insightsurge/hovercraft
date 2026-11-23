@@ -45,7 +45,8 @@ describe("the vendored engine", {
 })
 
 # The check that runs after every copy of the engine: every name the package relies on is still there. A new copy that
-# renames or drops one fails here, naming it, instead of a page quietly losing its theme or its tips.
+# renames or drops one fails here, naming it, instead of a page quietly losing its theme or its tips. The package styles
+# one engine class, the badge, by its `data-tone` attribute (R/status.R), so both are checked too.
 describe("the vendored engine, after a copy", {
   css <- paste(readLines(tip_path("www", "tip.css"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
   js <- paste(readLines(tip_path("www", "tip.js"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
@@ -73,6 +74,13 @@ describe("the vendored engine, after a copy", {
       expect_true(grepl(paste0("\\b", method, "\\s*[(:]"), js), info = paste0(names$global, ".", method))
     }
     expect_true(grepl(names$attribute, js, fixed = TRUE), info = names$attribute)
+  })
+
+  it("still has the badge's class and its tone, which the status colours in R/status.R style", {
+    expect_true(grepl(paste0(".", names$css, "-badge"), css, fixed = TRUE), info = paste0(names$css, "-badge"))
+    expect_true(grepl("dataset.tone", js, fixed = TRUE), info = "the badge's data-tone attribute")
+    # The engine's own list of what a badge takes: R's `status` is written into its `tone`.
+    expect_true("tone" %in% names(tip_rules()$blocks$badge$fields), info = "badge field tone")
   })
 
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {

@@ -5,11 +5,17 @@ describe("tip_template()", {
     got <- tip_template(
       tip_title("{{ label }}"),
       list(type = "text", text = "x"),
-      list(type = "badge", text = "b", tone = "ok")
+      list(type = "badge", text = "b", tone = "success")
     )
     expect_s3_class(got, "hovercraft_template")
     expect_identical(vapply(got, function(block) block$type, ""), c("title", "text", "badge"))
     expect_s3_class(got[[2]], "hovercraft_block")
+  })
+
+  it("reads a plain badge's engine word `tone` as the status, so the same four words apply", {
+    got <- tip_template(list(type = "badge", text = "b", tone = "danger"))
+    expect_identical(unclass(got[[1]])$tone, "danger")
+    expect_error(tip_template(list(type = "badge", text = "b", tone = "ok")), class = "hovercraft_error_status")
   })
 
   it("rebuilds a fields block and a code block from plain lists", {

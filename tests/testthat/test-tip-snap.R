@@ -16,7 +16,6 @@ describe("the tip_on() errors", {
   it("say what a bad argument was", {
     expect_snapshot(tip_on(button(), 1), error = TRUE)
     expect_snapshot(tip_define(tip_template(tip_text("a"))), error = TRUE)
-    expect_snapshot(tip_rows(list(a = 1)), error = TRUE)
   })
   it("say a tag list is not a tag", {
     expect_snapshot(tip_on(htmltools::tagList(button(), button()), "x"), error = TRUE)

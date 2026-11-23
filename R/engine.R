@@ -68,7 +68,7 @@ tip_dependency <- function(theme = NULL) {
     package = "hovercraft",
     script = "tip.js",
     stylesheet = "tip.css",
-    head = sprintf("<script>%s.attach(document);</script>", tip_names()$global)
+    head = paste0(sprintf("<script>%s.attach(document);</script>", tip_names()$global), tip_status_css())
   )
   theme <- tip_as_theme(theme)
   css <- if (is.null(theme)) "" else tip_theme_css(theme)

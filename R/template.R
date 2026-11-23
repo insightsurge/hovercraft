@@ -70,7 +70,9 @@ tip_as_block <- function(x, where, call) {
   maker <- makers[[x$type]]
   known <- names(rules$blocks[[x$type]]$fields)
   # What the constructor takes now; a `fields` block's list of pairs is one engine field, `fields`.
-  takes <- intersect(known, c(names(formals(maker)), if (x$type == "fields") "fields"))
+  # A badge's `status` is the engine's `tone`.
+  args <- sub("^status$", "tone", names(formals(maker)))
+  takes <- intersect(known, c(args, if (x$type == "fields") "fields"))
   unknown <- setdiff(names(x), c("type", known))
   if (length(unknown)) {
     tip_abort(
@@ -94,6 +96,9 @@ tip_as_block <- function(x, where, call) {
       lapply(rest$fields, function(pair) pair$value),
       vapply(rest$fields, function(pair) pair$label, "")
     )
+  }
+  if (x$type == "badge") {
+    names(rest)[names(rest) == "tone"] <- "status" # the engine's word for what R calls `status`
   }
   do.call(maker, rest)
 }

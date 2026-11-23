@@ -41,7 +41,6 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_on]{tip_on()}},
-\code{\link[=tip_rows]{tip_rows()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}
 }
