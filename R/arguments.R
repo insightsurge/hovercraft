@@ -69,3 +69,30 @@ tip_arg_chars <- function(x, arg, null_ok = FALSE, call = rlang::caller_env()) {
 tip_arg_data <- function(x, arg, call = rlang::caller_env()) {
   tip_arg(checkmate::check_data_frame(x), arg, "Give a data frame.", call)
 }
+
+# A Shiny id, the same rule for every `id =` in the package: one non-empty string with no whitespace. Hyphens are fine,
+# so an id made by `ns()` works. `null_ok`: `NULL` means no id.
+tip_check_id <- function(x, arg = "id", null_ok = TRUE, call = rlang::caller_env()) {
+  ok <- checkmate::test_string(x, min.chars = 1L, null.ok = null_ok) && (is.null(x) || !grepl("[[:space:]]", x))
+  tip_arg(
+    if (ok) TRUE else "Must be one non-empty string without whitespace.",
+    arg,
+    paste0(
+      "Give one non-empty string with no spaces, such as {.code ns(\"scores\")}",
+      if (null_ok) ", or {.code NULL}",
+      "."
+    ),
+    call
+  )
+}
+
+# Where a tip shows: one of the engine's placements, or `NULL` for the page's choice.
+tip_check_placement <- function(x, arg = "placement", call = rlang::caller_env()) {
+  places <- unlist(tip_rules()$placement$values)
+  tip_arg(
+    checkmate::check_choice(x, places, null.ok = TRUE),
+    arg,
+    paste0("Give one of ", paste0("\"", places, "\"", collapse = ", "), ", or {.code NULL}."),
+    call
+  )
+}

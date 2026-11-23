@@ -2,7 +2,7 @@
 # own files, and its public define() call. A new engine copy that drops one fails here, naming it.
 describe("the table layer's engine names", {
   it("are all in the engine", {
-    attributes <- c(template = "template", record = "record", placement = "placement", kind = "kind")
+    attributes <- c(template = "template", record = "record", placement = "placement", kind = "kind", id = "id")
     for (key in attributes) {
       expect_true(nzchar(tip_attribute(key)), info = key)
       expect_true(
@@ -73,11 +73,65 @@ describe("tip_table() on a DT table", {
     expect_identical(got$x$data[[".hovercraft"]][[1]], "{\"wins\":7}")
   })
 
-  it("writes the placement and the id as the engine's attributes", {
-    got <- tip_table(dt(), rows = "{{ team }}", placement = "right", id = "league")
+  it("writes the placement and the fixed kind as the engine's attributes", {
+    got <- tip_table(dt(), rows = "{{ team }}", placement = "right")
     expect_match(js(got$x$options$createdRow), tip_attribute("placement"), fixed = TRUE)
     expect_match(js(got$x$options$createdRow), "\"right\"", fixed = TRUE)
-    expect_match(js(got$x$options$createdRow), tip_attribute("kind"), fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), paste0("\"", tip_attribute("kind"), "\":\"table_row\""), fixed = TRUE)
+  })
+
+  it("writes a fixed kind for rows, cells and headers whether or not there is an id", {
+    got <- tip_table(dt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"), headers = c(wins = "Won"))
+    kind <- function(target) paste0("\"", tip_attribute("kind"), "\":\"table_", target, "\"")
+    expect_match(js(got$x$options$createdRow), kind("row"), fixed = TRUE)
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_match(js(cells[[1]]$createdCell), kind("cell"), fixed = TRUE)
+    expect_match(js(got$x$options$initComplete), kind("header"), fixed = TRUE)
+    expect_no_match(js(got$x$options$createdRow), tip_attribute("id"), fixed = TRUE)
+  })
+
+  it("with an id adds a hidden column of 1-based data row numbers and tells the layer how to build each tip id", {
+    got <- tip_table(
+      dt(),
+      rows = "{{ team }}",
+      cells = c(wins = "{{ wins }}"),
+      headers = c(losses = "Games lost"),
+      id = "mod1-league_tips"
+    )
+    expect_identical(
+      unname(attr(got$x, "colnames")),
+      c("team", "wins", "losses", "note", ".hovercraft", ".hovercraft_row")
+    )
+    expect_identical(got$x$data[[".hovercraft_row"]], 1:3)
+    expect_match(got$x$container, "<th>.hovercraft_row</th></tr>", fixed = TRUE)
+    hidden <- Filter(function(def) identical(def$name, ".hovercraft_row"), got$x$options$columnDefs)[[1]]
+    expect_identical(hidden$targets, 5L)
+    expect_false(hidden$visible)
+    expect_match(js(got$x$options$createdRow), "HovercraftTable.mark(row, ", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), ", data[4], data[5]);", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "\"base\":\"mod1-league_tips\",\"target\":\"row\"}", fixed = TRUE)
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_match(js(cells[[1]]$createdCell), "\"target\":\"cell\",\"column\":2}", fixed = TRUE)
+    expect_match(js(got$x$options$initComplete), "\"target\":\"header\",\"column\":3}", fixed = TRUE)
+  })
+
+  it("with an id adds the row column even when no tip reads the row, and not the record column", {
+    got <- tip_table(dt(), rows = "A fixed note", id = "league")
+    expect_null(got$x$data[[".hovercraft"]])
+    expect_identical(got$x$data[[".hovercraft_row"]], 1:3)
+    expect_match(js(got$x$options$createdRow), ", null, data[4]);", fixed = TRUE)
+  })
+
+  it("counts the column of a cell's tip id from the data, not the row names column", {
+    got <- tip_table(DT::datatable(scores), cells = c(wins = "{{ wins }}"), id = "league")
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_identical(cells[[1]]$targets, 2L)
+    expect_match(js(cells[[1]]$createdCell), "\"column\":2}", fixed = TRUE)
+  })
+
+  it("writes no id column when there is no id", {
+    got <- tip_table(dt(), rows = "{{ team }}")
+    expect_null(got$x$data[[".hovercraft_row"]])
   })
 
   it("defines the templates and attaches the engine and the layer", {
@@ -171,6 +225,23 @@ describe("tip_table() on a reactable table", {
     expect_identical(unlist(got$jsHooks$render[[1]]$data$records), rep("", 3L))
   })
 
+  it("hands the layer the table id and each target's data column for the derived tip ids", {
+    got <- tip_table(
+      rt(),
+      rows = "{{ team }}",
+      cells = c(wins = "{{ wins }}"),
+      headers = c(losses = "Games lost"),
+      id = "mod1-league_tips"
+    )
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$rows$id, list(attribute = tip_attribute("id"), base = "mod1-league_tips", target = "row"))
+    expect_identical(cfg$cells[["1"]]$id$column, 2L)
+    expect_identical(cfg$cells[["1"]]$id$target, "cell")
+    expect_identical(cfg$headers[["2"]]$id$column, 3L)
+    expect_identical(cfg$headers[["2"]]$id$target, "header")
+    expect_null(tip_table(rt(), rows = "{{ team }}")$jsHooks$render[[1]]$data$rows$id)
+  })
+
   it("attaches the engine and the layer", {
     got <- tip_table(rt(), rows = "{{ team }}")
     deps <- vapply(got$dependencies, function(d) d$name, "")
@@ -223,7 +294,15 @@ describe("tip_table() checks", {
   it("checks the placeholders' syntax, the placement and the id", {
     expect_error(tip_table(dt(), rows = "{{ team | shout }}"), class = "hovercraft_error_placeholder")
     expect_error(tip_table(dt(), rows = "x", placement = "above"), class = "hovercraft_error_argument")
-    expect_error(tip_table(dt(), rows = "x", id = "Not Allowed"), class = "hovercraft_error_argument")
+  })
+
+  it("takes a Shiny id: any string without whitespace, hyphens from ns() included", {
+    for (id in c("league", "mod1-league_tips", "a.b:c", "Scores")) {
+      expect_no_error(tip_table(dt(), rows = "x", id = id))
+    }
+    for (bad in list("", "Not Allowed", " a", NA_character_, c("a", "b"), 1, "tab\tbed", character())) {
+      expect_error(tip_table(dt(), rows = "x", id = bad), "id", class = "hovercraft_error_argument")
+    }
   })
 
   it("makes a misspelt argument an error", {
@@ -234,5 +313,141 @@ describe("tip_table() checks", {
     wide <- scores
     wide$nested <- data.frame(a = 1:3)
     expect_error(tip_table(DT::datatable(wide), rows = "{{ nested }}"), class = "hovercraft_error_record")
+  })
+})
+
+describe("tip_spec()", {
+  it("holds the words and a placement, with the class tip_table() reads", {
+    got <- tip_spec("{{ team }}", placement = "right")
+    expect_s3_class(got, "hovercraft_spec")
+    expect_identical(got$content, "{{ team }}")
+    expect_identical(got$placement, "right")
+    expect_null(tip_spec("x")$placement)
+  })
+
+  it("takes words, NA, empty words or a template, and nothing else", {
+    expect_no_error(tip_spec(NA))
+    expect_no_error(tip_spec(NA_character_))
+    expect_no_error(tip_spec(""))
+    expect_no_error(tip_spec(tip_template(tip_text("x"))))
+    for (bad in list(1, c("a", "b"), NULL, list("a"), mean)) {
+      expect_error(tip_spec(bad), "content", class = "hovercraft_error_argument")
+    }
+  })
+
+  it("checks the placement and makes a misspelt argument an error", {
+    expect_error(tip_spec("x", placement = "above"), "placement", class = "hovercraft_error_argument")
+    expect_error(tip_spec("x", plcement = "right"), class = "hovercraft_error_argument")
+    expect_error(tip_spec("x", style = "dense"), class = "hovercraft_error_argument")
+    expect_error(tip_spec("x", marker = "corner"), class = "hovercraft_error_argument")
+  })
+})
+
+describe("tip_spec() in tip_table()", {
+  placement_key <- function() tip_attribute("placement")
+
+  it("gives a row its own placement, over the table's", {
+    got <- tip_table(dt(), rows = tip_spec("{{ team }}", placement = "left"), placement = "right")
+    expect_match(js(got$x$options$createdRow), "\"left\"", fixed = TRUE)
+    expect_no_match(js(got$x$options$createdRow), "\"right\"", fixed = TRUE)
+  })
+
+  it("gives a cell and a header cell their own placement, and the others the table's", {
+    got <- tip_table(
+      dt(),
+      cells = list(wins = tip_spec("{{ wins }}", placement = "left"), losses = "{{ losses }}"),
+      headers = list(wins = tip_spec("Won", placement = "bottom"), losses = "Lost"),
+      placement = "right"
+    )
+    defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_match(js(defs[[1]]$createdCell), "\"left\"", fixed = TRUE)
+    expect_match(js(defs[[2]]$createdCell), "\"right\"", fixed = TRUE)
+    header <- jsonlite::fromJSON(
+      sub("\\); \\}$", "", sub("^.*this\\.api\\(\\), ", "", js(got$x$options$initComplete))),
+      simplifyVector = FALSE
+    )
+    expect_identical(header[["1"]]$attrs[[placement_key()]], "bottom")
+    expect_identical(header[["2"]]$attrs[[placement_key()]], "right")
+  })
+
+  it("inherits the table's placement when its own is NULL, and writes none when neither has one", {
+    got <- tip_table(dt(), rows = tip_spec("{{ team }}"))
+    expect_no_match(js(got$x$options$createdRow), placement_key(), fixed = TRUE)
+    got <- tip_table(dt(), rows = tip_spec("{{ team }}"), placement = "top")
+    expect_match(js(got$x$options$createdRow), "\"top\"", fixed = TRUE)
+  })
+
+  it("lets an explicit auto beat the table's placement", {
+    got <- tip_table(dt(), rows = tip_spec("{{ team }}", placement = "auto"), placement = "right")
+    expect_match(js(got$x$options$createdRow), "\"auto\"", fixed = TRUE)
+  })
+
+  it("makes a cell follow the table, not its row, when the row has a placement of its own", {
+    got <- tip_table(
+      dt(),
+      rows = tip_spec("{{ team }}", placement = "left"),
+      cells = c(wins = "{{ wins }}"),
+      headers = c(wins = "Won")
+    )
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    expect_match(js(cells[[1]]$createdCell), "\"auto\"", fixed = TRUE)
+    got <- tip_table(
+      rt(),
+      rows = tip_spec("{{ team }}", placement = "left"),
+      cells = list(wins = "{{ wins }}", losses = tip_spec("{{ losses }}", placement = "top")),
+      placement = "right"
+    )
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$cells[["1"]]$attrs[[placement_key()]], "right")
+    expect_identical(cfg$cells[["2"]]$attrs[[placement_key()]], "top")
+    expect_identical(cfg$rows$attrs[[placement_key()]], "left")
+  })
+
+  it("leaves a cell's placement alone when the row's is the table's", {
+    got <- tip_table(rt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"))
+    expect_null(got$jsHooks$render[[1]]$data$cells[["1"]]$attrs[[placement_key()]])
+  })
+
+  it("gives no tip for a spec whose words are NA or empty", {
+    got <- tip_table(dt(), rows = tip_spec(NA), cells = list(wins = tip_spec("{{ wins }}"), losses = tip_spec("")))
+    expect_null(got$x$options$createdRow)
+    expect_length(Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs), 1L)
+    expect_error(
+      tip_table(dt(), rows = tip_spec(NA), cells = list(wins = tip_spec(NA))),
+      class = "hovercraft_error_tip"
+    )
+  })
+
+  it("checks a spec's words against the table like any other words", {
+    expect_error(tip_table(dt(), rows = tip_spec("{{ nope }}")), "nope", class = "hovercraft_error_field")
+    expect_error(
+      tip_table(dt(), cells = list(wins = tip_spec("{{ nope }}"))),
+      "does not have",
+      class = "hovercraft_error_field"
+    )
+    expect_error(
+      tip_table(dt(), headers = list(wins = tip_spec("{{ wins }}"))),
+      "no row",
+      class = "hovercraft_error_field"
+    )
+    expect_error(tip_table(dt(), cells = list(winz = tip_spec("x"))), "wins", class = "hovercraft_error_field")
+  })
+
+  it("accepts a template and a spec holding one next to plain words", {
+    got <- tip_table(
+      dt(),
+      rows = tip_spec(tip_template(tip_title("{{ team }}"), tip_text("{{ wins }}"))),
+      cells = list(wins = tip_template(tip_text("{{ wins }}")), losses = "{{ losses }}")
+    )
+    expect_length(got$jsHooks$render[[1]]$data$defines, 3L)
+  })
+
+  it("points to a list when cells is a bare spec", {
+    expect_error(
+      tip_table(dt(), cells = tip_spec("x")),
+      "tip_spec",
+      class = "hovercraft_error_argument"
+    )
+    expect_error(tip_table(dt(), headers = tip_spec("x")), class = "hovercraft_error_argument")
   })
 })

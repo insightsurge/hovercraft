@@ -17,4 +17,10 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_table(dt(), rows = 1), error = TRUE)
     expect_snapshot(tip_table(dt()), error = TRUE)
   })
+  it("say what an id and a spec must be", {
+    expect_snapshot(tip_table(dt(), rows = "x", id = "two words"), error = TRUE)
+    expect_snapshot(tip_table(dt(), cells = tip_spec("x")), error = TRUE)
+    expect_snapshot(tip_spec(1), error = TRUE)
+    expect_snapshot(tip_spec("x", placement = "above"), error = TRUE)
+  })
 })
