@@ -630,6 +630,22 @@ describe("tip_table(style =)", {
     expect_length(theme_dep(got), 1L)
   })
 
+  it("writes a spec's size and motion settings under a marker, and adds one stylesheet for them", {
+    got <- tip_table(
+      dt(),
+      cells = list(wins = tip_spec("{{ wins }}", style = tip_style(gap = 2)), losses = "{{ losses }}"),
+      style = tip_style("sober", motion = "slide")
+    )
+    expect_match(look_of(got, 1L), tip_theme_attribute(), fixed = TRUE)
+    expect_match(look_of(got, 1L), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
+    expect_length(theme_dep(got), 2L)
+    expect_match(
+      paste(vapply(got$dependencies, function(d) paste(d$head, collapse = ""), ""), collapse = ""),
+      "--hovercraft-tip-motion: slide;",
+      fixed = TRUE
+    )
+  })
+
   it("stops on what style does not take, as tip_on() does", {
     expect_error(tip_table(dt(), rows = "x", style = "nope"), class = "hovercraft_error_style")
     expect_error(tip_table(dt(), rows = "x", style = list(bg = "red")), class = "hovercraft_error_style")

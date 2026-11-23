@@ -4,7 +4,16 @@
 \alias{tip_style}
 \title{How the tips look}
 \usage{
-tip_style(preset = NULL, ..., theme = NULL, class = NULL)
+tip_style(
+  preset = NULL,
+  ...,
+  theme = NULL,
+  class = NULL,
+  motion = NULL,
+  gap = NULL,
+  max_width = NULL,
+  pin_width = NULL
+)
 }
 \arguments{
 \item{preset}{A preset name from \code{\link[=tip_presets]{tip_presets()}}, \code{"none"} to clear an inherited preset, or \code{NULL} (the default) to
@@ -17,6 +26,18 @@ CSS variables, or \code{NULL} (the default).}
 
 \item{class}{Class names for the tip box, \code{""} to clear an inherited class, or \code{NULL} (the default) to inherit. See
 the section on the class.}
+
+\item{motion}{How a tip enters: \code{"fade"}, \code{"slide"} or \code{"none"}, or \code{NULL} (the default) to inherit. A page that sets
+no motion has none. See the section on size and motion.}
+
+\item{gap}{The space between the tag and the tip, in pixels: a whole number from 0 to 24, or \code{NULL} (the default) to
+inherit.}
+
+\item{max_width}{The widest a hint grows, in pixels: a whole number from 160 to 640, or \code{NULL} (the default) to
+inherit. It is also kept inside the window.}
+
+\item{pin_width}{The widest a pinned tip grows, in pixels: a whole number from 240 to 720, or \code{NULL} (the default) to
+inherit.}
 }
 \value{
 A \code{hovercraft_style} object, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=tip_dependency]{tip_dependency()}}. Its fields are
@@ -24,9 +45,9 @@ internal; pass the object on.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font) and a
-class on the tip box. Give the result as \verb{style =} to \code{\link[=tip_on]{tip_on()}} for one tag, or to \code{\link[=tip_dependency]{tip_dependency()}} for the whole
-page.
+Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font), a class
+on the tip box, and how it enters and how big it is. Give the result as \verb{style =} to \code{\link[=tip_on]{tip_on()}} for one tag, or to
+\code{\link[=tip_dependency]{tip_dependency()}} for the whole page.
 A part left out is left alone: it is inherited from the page, or from the page's own bslib variables.
 }
 \details{
@@ -46,6 +67,21 @@ with a line in its console. The nearest class wins as a whole and the classes ar
 \code{class = "wide"} replaces a page's \code{class = "brand"}.
 }
 
+\section{Size and motion}{
+
+\code{motion} is how a tip enters: \code{"fade"}, \code{"slide"} (it moves four pixels from its side while it fades) or \code{"none"}.
+\code{gap} is the space between the tag and the tip, \code{max_width} the widest a hint grows, and \code{pin_width} the widest a
+pinned tip grows, all in pixels and all whole numbers. R checks them against the ranges in the tip engine's page
+contract, so a value outside one stops with an error that names it. A tip is also kept inside the window.
+
+They are written the way a theme is, on the page or on one tag, and a value set nearer the tip wins, one value at a
+time: a tag that sets only \code{gap} keeps the page's \code{motion}. They apply with a preset or without one.
+A reader's reduced-motion setting always wins over \code{"fade"} and \code{"slide"}; the tip engine does this, and nothing here
+switches it off.
+
+There is no \code{delay} argument: the tip engine reads the delay before a hint shows only from the file of a preset.
+}
+
 \section{Themes on one tag}{
 
 A theme given to a tag sets the roles \code{bg}, \code{ink}, \code{line}, \code{code_bg}, \code{radius}, \code{shadow} and \code{font}. CSS variables
@@ -58,6 +94,8 @@ tip_style("sober")
 tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
 tip_style(class = "wide")
 tip_style(class = "") # clears a class set above
+tip_style("sober", motion = "slide", max_width = 280)
+tip_dependency(style = tip_style(motion = "fade", gap = 10))
 tip_on(
   htmltools::tags$button("Run"),
   "Runs the **check**",

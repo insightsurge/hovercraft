@@ -11,7 +11,7 @@ tip_dependency(style = NULL)
 so a page with a \code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
 \itemize{
 \item a preset name from \code{\link[=tip_presets]{tip_presets()}}, such as \code{"sober"};
-\item a \code{\link[=tip_style]{tip_style()}}, which bundles a preset, a theme and a class for the tip box;
+\item a \code{\link[=tip_style]{tip_style()}}, which bundles a preset, a theme, a class for the tip box, and its motion and size;
 \item one part of a style, read as \verb{tip_style(<part>)}: a \code{\link[=tip_theme]{tip_theme()}}, or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its
 variables (bslib 0.6.0 or later). The tip is a shade of the page: its fill is the theme's tertiary background
 and its words the theme's text colour, with the border colour, corner and font.

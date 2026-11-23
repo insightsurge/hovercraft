@@ -15,11 +15,23 @@ describe("the style errors", {
     expect_snapshot(tip_style(class = c("fine", "1a", "b.c")), error = TRUE)
     expect_snapshot(tip_style(class = "hc-tip-wide"), error = TRUE)
   })
+  it("say a size is outside the engine's range, and which range", {
+    expect_snapshot(tip_style(gap = 30), error = TRUE)
+    expect_snapshot(tip_style(max_width = 100), error = TRUE)
+    expect_snapshot(tip_style(pin_width = 300.5), error = TRUE)
+    expect_snapshot(tip_style(gap = "wide"), error = TRUE)
+  })
+  it("say a motion is not one of the choices, and the close one", {
+    expect_snapshot(tip_style(motion = "slid"), error = TRUE)
+    expect_snapshot(tip_style(motion = "bounce"), error = TRUE)
+  })
   it("say ... must be empty", {
     expect_snapshot(tip_style("sober", themee = 1), error = TRUE)
+    expect_snapshot(tip_style(delay = 300), error = TRUE)
   })
   it("print a style", {
     expect_snapshot(tip_style("dense", theme = tip_theme(light = list(radius = 6)), class = "wide"))
     expect_snapshot(tip_style())
+    expect_snapshot(tip_style("modern", motion = "slide", gap = 12, max_width = 280, pin_width = 500))
   })
 })

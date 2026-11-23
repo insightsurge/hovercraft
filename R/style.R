@@ -91,8 +91,79 @@ tip_style_class <- function(x, arg, call) {
   paste(tokens, collapse = " ")
 }
 
-new_tip_style <- function(preset = NULL, theme = NULL, class = NULL) {
-  structure(list(preset = preset, theme = theme, class = class), class = "hovercraft_style")
+# The size and motion settings of a tip: the engine's preset fields that a page or a tag may also set. Their names are
+# the arguments of tip_style(); the range or the choices come from the engine's page contract, tip.json.
+tip_size_fields <- c("motion", "gap", "max_width", "pin_width")
+
+tip_size_field <- function(name) tip_contract()$presets_fields$fields[[name]]
+
+# A whole number in the engine's range for `arg` (px): NULL, or the number as an integer. A number outside the range, or
+# with a fraction, is a classed error that names the range.
+tip_style_number <- function(x, arg, call) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  field <- tip_size_field(arg)
+  tip_arg(
+    checkmate::check_number(x, finite = TRUE),
+    arg,
+    paste0("Give one whole number from ", field$min, " to ", field$max, " (px), or {.code NULL}."),
+    call
+  )
+  if (x != round(x) || x < field$min || x > field$max) {
+    tip_style_abort(
+      c(
+        "{.arg {arg}} is {.val {x}}, which is not a whole number from {field$min} to {field$max}.",
+        i = tip_escape(field$about)
+      ),
+      class = "hovercraft_error_style_range",
+      call = call
+    )
+  }
+  as.integer(x)
+}
+
+# How a tip enters: NULL, or one of the engine's motion words.
+tip_style_motion <- function(x, arg, call) {
+  if (is.null(x)) {
+    return(NULL)
+  }
+  tip_arg_string(x, arg, call = call)
+  known <- unlist(tip_size_field("motion")$values)
+  if (!x %in% known) {
+    tip_style_abort(
+      c(
+        "{.arg {arg}} is {.val {x}}, which is not a motion.",
+        i = paste0("The choices are ", paste0("{.val ", known, "}", collapse = ", "), ".", tip_near(x, known))
+      ),
+      class = "hovercraft_error_style_motion",
+      call = call
+    )
+  }
+  x
+}
+
+new_tip_style <- function(
+  preset = NULL,
+  theme = NULL,
+  class = NULL,
+  motion = NULL,
+  gap = NULL,
+  max_width = NULL,
+  pin_width = NULL
+) {
+  structure(
+    list(
+      preset = preset,
+      theme = theme,
+      class = class,
+      motion = motion,
+      gap = gap,
+      max_width = max_width,
+      pin_width = pin_width
+    ),
+    class = "hovercraft_style"
+  )
 }
 
 # `near` over `far`, part by part: a spec's style and the table's, where a part set nearer wins and the rest comes from
@@ -101,15 +172,23 @@ tip_style_over <- function(near, far) {
   if (is.null(near) || is.null(far)) {
     return(near %||% far)
   }
-  new_tip_style(near$preset %||% far$preset, near$theme %||% far$theme, near$class %||% far$class)
+  new_tip_style(
+    near$preset %||% far$preset,
+    near$theme %||% far$theme,
+    near$class %||% far$class,
+    near$motion %||% far$motion,
+    near$gap %||% far$gap,
+    near$max_width %||% far$max_width,
+    near$pin_width %||% far$pin_width
+  )
 }
 
 #' How the tips look
 #'
 #' `r lifecycle::badge("experimental")`
-#' Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font) and a
-#' class on the tip box. Give the result as `style =` to [tip_on()] for one tag, or to [tip_dependency()] for the whole
-#' page.
+#' Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font), a class
+#' on the tip box, and how it enters and how big it is. Give the result as `style =` to [tip_on()] for one tag, or to
+#' [tip_dependency()] for the whole page.
 #' A part left out is left alone: it is inherited from the page, or from the page's own bslib variables.
 #'
 #' A value set nearer the tip wins: a tag's `style` beats the page's. A theme is merged role by role, so a tag that sets
@@ -126,6 +205,19 @@ tip_style_over <- function(near, far) {
 #' with a line in its console. The nearest class wins as a whole and the classes are not added together: a tag's
 #' `class = "wide"` replaces a page's `class = "brand"`.
 #'
+#' @section Size and motion:
+#' `motion` is how a tip enters: `"fade"`, `"slide"` (it moves four pixels from its side while it fades) or `"none"`.
+#' `gap` is the space between the tag and the tip, `max_width` the widest a hint grows, and `pin_width` the widest a
+#' pinned tip grows, all in pixels and all whole numbers. R checks them against the ranges in the tip engine's page
+#' contract, so a value outside one stops with an error that names it. A tip is also kept inside the window.
+#'
+#' They are written the way a theme is, on the page or on one tag, and a value set nearer the tip wins, one value at a
+#' time: a tag that sets only `gap` keeps the page's `motion`. They apply with a preset or without one.
+#' A reader's reduced-motion setting always wins over `"fade"` and `"slide"`; the tip engine does this, and nothing here
+#' switches it off.
+#'
+#' There is no `delay` argument: the tip engine reads the delay before a hint shows only from the file of a preset.
+#'
 #' @section Themes on one tag:
 #' A theme given to a tag sets the roles `bg`, `ink`, `line`, `code_bg`, `radius`, `shadow` and `font`. CSS variables
 #' given as a list of names that start with `--` reach the tip only from the page, not from a tag, because a tip is
@@ -138,6 +230,14 @@ tip_style_over <- function(near, far) {
 #'   CSS variables, or `NULL` (the default).
 #' @param class Class names for the tip box, `""` to clear an inherited class, or `NULL` (the default) to inherit. See
 #'   the section on the class.
+#' @param motion How a tip enters: `"fade"`, `"slide"` or `"none"`, or `NULL` (the default) to inherit. A page that sets
+#'   no motion has none. See the section on size and motion.
+#' @param gap The space between the tag and the tip, in pixels: a whole number from 0 to 24, or `NULL` (the default) to
+#'   inherit.
+#' @param max_width The widest a hint grows, in pixels: a whole number from 160 to 640, or `NULL` (the default) to
+#'   inherit. It is also kept inside the window.
+#' @param pin_width The widest a pinned tip grows, in pixels: a whole number from 240 to 720, or `NULL` (the default) to
+#'   inherit.
 #'
 #' @returns A `hovercraft_style` object, to give as `style =` to [tip_on()] or [tip_dependency()]. Its fields are
 #'   internal; pass the object on.
@@ -147,19 +247,38 @@ tip_style_over <- function(near, far) {
 #' tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
 #' tip_style(class = "wide")
 #' tip_style(class = "") # clears a class set above
+#' tip_style("sober", motion = "slide", max_width = 280)
+#' tip_dependency(style = tip_style(motion = "fade", gap = 10))
 #' tip_on(
 #'   htmltools::tags$button("Run"),
 #'   "Runs the **check**",
 #'   style = tip_style("dense", class = "audit-tip")
 #' )
 #' @export
-tip_style <- function(preset = NULL, ..., theme = NULL, class = NULL) {
+tip_style <- function(
+  preset = NULL,
+  ...,
+  theme = NULL,
+  class = NULL,
+  motion = NULL,
+  gap = NULL,
+  max_width = NULL,
+  pin_width = NULL
+) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("preset", "theme", "class"), class = "hovercraft_error_style")
+  tip_check_dots(
+    ...,
+    args = c("preset", "theme", "class", "motion", "gap", "max_width", "pin_width"),
+    class = "hovercraft_error_style"
+  )
   new_tip_style(
     tip_style_preset(preset, "preset", call),
     tip_as_theme(theme, call),
-    tip_style_class(class, "class", call)
+    tip_style_class(class, "class", call),
+    tip_style_motion(motion, "motion", call),
+    tip_style_number(gap, "gap", call),
+    tip_style_number(max_width, "max_width", call),
+    tip_style_number(pin_width, "pin_width", call)
   )
 }
 
@@ -211,12 +330,33 @@ tip_as_style <- function(x, arg = "style", call = rlang::caller_env()) {
 # The tag marker a tag's theme is scoped to, and the hash of the theme that names it.
 tip_theme_attribute <- function() paste0("data-", tip_names()$prefix, "-theme")
 
+# The size and motion settings as CSS variables on `scope`, which the engine reads from the page or from the tag, as it
+# reads a theme: the variable is `--<prefix>-tip-<name>`, with the name the engine's preset field maps to. A number is
+# in px. NULL settings write nothing, so a tag that sets only `gap` keeps the page's `motion`.
+tip_size_css <- function(style, scope) {
+  set <- Filter(Negate(is.null), style[tip_size_fields])
+  if (!length(set)) {
+    return("")
+  }
+  prefix <- sub("^data-", "", tip_names()$attribute)
+  lines <- vapply(
+    names(set),
+    function(name) {
+      field <- tip_size_field(name)
+      value <- if (identical(field$type, "integer")) paste0(set[[name]], "px") else set[[name]]
+      sprintf("  --%s-%s: %s;", prefix, field$maps_to, value)
+    },
+    ""
+  )
+  sprintf("<style>\n%s {\n%s\n}\n</style>", scope, paste(lines, collapse = "\n"))
+}
+
 # A page's style: its theme as CSS on `body`, and its preset and class as the engine's own attributes on the page. The
 # engine reads a preset from the attribute before its settings, and a script in the head does not depend on the engine
 # having loaded. Its own dependency, not part of the engine's, so that the plain engine dependency every tag attaches
 # can never replace it. NULL when the style sets nothing.
 tip_style_page <- function(style) {
-  css <- if (is.null(style$theme)) "" else tip_theme_css(style$theme, "body")
+  css <- paste0(if (is.null(style$theme)) "" else tip_theme_css(style$theme, "body"), tip_size_css(style, "body"))
   set <- c(
     stats::setNames(list(style$preset), tip_attribute("preset")),
     stats::setNames(list(style$class), tip_attribute("class"))
@@ -257,10 +397,13 @@ tip_style_tag <- function(style) {
   }
   attribs[[tip_attribute("preset")]] <- style$preset
   attribs[[tip_attribute("class")]] <- style$class
-  if (!is.null(style$theme)) {
-    hash <- substr(rlang::hash(style$theme), 1L, 12L)
+  # A tag's theme and its size and motion settings share one marker, named by a hash of them all.
+  set <- list(theme = style$theme, size = style[tip_size_fields])
+  if (!is.null(style$theme) || any(lengths(set$size))) {
+    hash <- substr(rlang::hash(set), 1L, 12L)
     marker <- tip_theme_attribute()
-    css <- tip_theme_css(style$theme, sprintf("[%s=\"%s\"]", marker, hash))
+    scope <- sprintf("[%s=\"%s\"]", marker, hash)
+    css <- paste0(if (is.null(style$theme)) "" else tip_theme_css(style$theme, scope), tip_size_css(style, scope))
     if (nzchar(css)) {
       attribs[[marker]] <- hash
       deps <- list(htmltools::htmlDependency(
@@ -281,7 +424,11 @@ format.hovercraft_style <- function(x, ...) {
   args <- c(
     if (!is.null(x$preset)) encodeString(x$preset, quote = "\""),
     if (!is.null(x$theme)) paste0("theme = ", format(x$theme)),
-    if (!is.null(x$class)) paste0("class = ", encodeString(x$class, quote = "\""))
+    if (!is.null(x$class)) paste0("class = ", encodeString(x$class, quote = "\"")),
+    if (!is.null(x$motion)) paste0("motion = ", encodeString(x$motion, quote = "\"")),
+    if (!is.null(x$gap)) paste0("gap = ", x$gap),
+    if (!is.null(x$max_width)) paste0("max_width = ", x$max_width),
+    if (!is.null(x$pin_width)) paste0("pin_width = ", x$pin_width)
   )
   paste0("tip_style(", paste(args, collapse = ", "), ")")
 }

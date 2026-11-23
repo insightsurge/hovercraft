@@ -84,7 +84,7 @@ tip_dependency(style = "sober")[[2]]$name
 ```
 
 `style` takes a preset name, `"none"` (clears a preset set further out), a `tip_style()`, or one part of a style, such as a
-`tip_theme()`. `tip_style()` bundles a preset, a theme and a class for the tip box: `tip_style("sober", theme = brand)` is
+`tip_theme()`. `tip_style()` bundles a preset, a theme, a class for the tip box, and its motion and size: `tip_style("sober", theme = brand)` is
 sober with the roles of `brand` changed. A string that holds `:` or `;` is not a style: `style` takes no CSS, and a list
 goes to `tip_theme()` or `tip_style(theme = list(...))`.
 
@@ -101,6 +101,18 @@ replaces the page's `class = "brand"`), and `class = ""` clears one:
 
 ```{r}
 tip_style("sober", class = c("wide", "audit-tip"))
+```
+
+## Motion and size
+
+`motion` is how a tip enters (`"fade"`, `"slide"` or `"none"`), `gap` the space between a tag and its tip, `max_width` the
+widest a hint grows and `pin_width` the widest a pinned tip grows, in pixels. They are set on the page or on one tag, and
+the nearest value wins, value by value: a tag that sets only `gap` keeps the page's `motion`. A reader's reduced-motion
+setting always wins over a fade or a slide.
+
+```{r}
+tip_style("sober", motion = "slide", max_width = 280)
+tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = tip_style(gap = 12))
 ```
 
 ## Markers

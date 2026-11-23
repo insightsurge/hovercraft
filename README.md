@@ -81,7 +81,7 @@ bslib::page_fluid(tip_dependency(style = brand), ...)
 ```
 
 `style` also takes a preset name, `tip_dependency(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
-bundles a preset, a theme and a class for the tip box. One tag can have its own look: `tip_on(btn, "Run", style = "dense")`.
+bundles a preset, a theme, a class for the tip box, and its motion and size (`tip_style(motion = "slide", max_width = 280)`). One tag can have its own look: `tip_on(btn, "Run", style = "dense")`.
 
 A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See
 `vignette("themes")`, and `vignette("hovercraft")` to get started.
