@@ -395,6 +395,20 @@ describe("tip_on(more =, more_on =)", {
     expect_true(any(startsWith(deps, "hovercraft-more-")))
   })
 
+  it("parks a Shiny output that a more template holds, with the park markup in the template's dependency", {
+    skip_if_not_installed("shiny")
+    tag <- tip_on(
+      pinnable(),
+      "Short",
+      more = tip_template(tip_output(shiny::plotOutput("mod1-more_plot"))),
+      id = "run_out"
+    )
+    dep <- Filter(function(d) startsWith(d$name, "hovercraft-more-"), htmltools::findDependencies(tag))[[1]]
+    expect_match(dep$head, "HovercraftShiny.park(\"mod1-more_plot\")", fixed = TRUE)
+    expect_match(dep$head, "id=\"mod1-more_plot\"", fixed = TRUE)
+    expect_match(dep$head, "hidden", fixed = TRUE)
+  })
+
   it("treats NA and empty more as no long form and clears earlier more attributes on replacement", {
     expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = ""), tip_attribute("more")))
     expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = NA_character_), tip_attribute("more")))
