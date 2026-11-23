@@ -41,16 +41,15 @@ page_file <- function(dir) {
     collapse = "\n"
   )))
   rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
-  records <- tip_rows(rows)
   page <- bslib::page_fluid(
     tip_define(diff = tip_template(tip_title("{{ label }}"), tip_text("{{ differences | number:0 }} differences"))),
     tip_on(htmltools::tags$button(id = "plain", "Run"), "Runs the **check**"),
     htmltools::tags$table(
-      lapply(records, function(record) {
+      lapply(seq_len(nrow(rows)), function(i) {
         tip_on(
-          htmltools::tags$tr(htmltools::tags$td(record$label, class = "cell"), tabindex = "0"),
+          htmltools::tags$tr(htmltools::tags$td(rows$label[[i]], class = "cell"), tabindex = "0"),
           template = "diff",
-          record = record
+          record = rows[i, ]
         )
       })
     ),

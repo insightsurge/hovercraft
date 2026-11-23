@@ -60,13 +60,18 @@ tip_define(
 |---|---|
 | `tip_title()` | the first line |
 | `tip_text()` | a paragraph of markdown |
-| `tip_badge()` | a short label |
+| `tip_badge()` | a short label, coloured by `status =` |
 | `tip_fields()` | label and value pairs |
 | `tip_code()` | code, as text |
 
 A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | percent:1 }}` to round. It names one field of the
 record, exactly, and a value that is missing or blank shows a dash. A mistake in a placeholder, such as one that never
 closes, stops with an error when the template is made, not later in the browser.
+
+A badge may say what state its item is in. `tip_badge("Check", status = "warning")` takes one of `"success"`, `"warning"`,
+`"danger"` or `"info"`, and any other word is an error that lists the four. The colours come from the page's Bootstrap
+colours, so they follow a bslib theme and its dark mode. Colour never carries the meaning alone: the badge's own text should
+say it too.
 
 Then name the template and give the tag a record, a named list of single values or a data frame of one row:
 
@@ -81,8 +86,8 @@ knitr::include_graphics(c("figures/template-light.png", "figures/template-dark.p
 
 ## A tip on every row of a table
 
-`tip_rows()` turns a data frame into one record per row. Name the columns the template uses, so nothing else in the data is
-written into the page:
+Give each row of a data frame to `tip_on()` as its record: `data[i, ]` is a data frame of one row, which a record may be.
+Once the template is defined, only the columns it names are kept, so nothing else in the data is written into the page:
 
 ```{r}
 files <- data.frame(
@@ -93,12 +98,11 @@ files <- data.frame(
   share = c(0.0006, 0),
   reviewer = c("A. Reviewer", "B. Reviewer")
 )
-records <- tip_rows(files, columns = c("label", "status", "records", "differences", "share"))
-rows <- lapply(records, function(record) {
+rows <- lapply(seq_len(nrow(files)), function(i) {
   tip_on(
-    htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+    htmltools::tags$tr(htmltools::tags$td(files$label[[i]]), tabindex = "0"),
     template = "diff",
-    record = record
+    record = files[i, ]
   )
 })
 length(rows)
@@ -110,8 +114,16 @@ written out in full. A record that holds a value a tip cannot show, such as a li
 ## Keyboard users
 
 A tip shows on keyboard focus, so a tag that cannot take focus, such as a table row or a `div`, gives a keyboard user no
-way to its tip. `tip_on()` says so once. It never adds a tab stop itself, because a table of 3,000 rows would become
-3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a link.
+way to its tip. `tip_on()` looks at the tag and at everything inside it, so the `div` that Shiny puts around an input is
+fine, and says so once for a tag with nothing focusable in it. It never adds a tab stop itself, because a table of 3,000
+rows would become 3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a link.
+
+A button that holds only an icon has no name for a screen reader. When its tip is plain text and the button has no
+`aria-label` of its own, `tip_on()` uses the tip's words, without the markdown marks, as the label:
+
+```{r}
+tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
+```
 
 ## In a Shiny app
 

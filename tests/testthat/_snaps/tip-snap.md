@@ -36,15 +36,6 @@
       ! `...` is not right: Must have names
       i Give each template a name: `tip_define(name = tip_template(...))`.
 
----
-
-    Code
-      tip_rows(list(a = 1))
-    Condition
-      Error in `tip_rows()`:
-      ! `data` is not right: Must be of type 'data.frame', not 'list'
-      i Give a data frame.
-
 # the tip_on() errors / say a tag list is not a tag
 
     Code

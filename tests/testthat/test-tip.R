@@ -101,11 +101,108 @@ describe("tip_on()", {
     }
   })
 
+  it("looks inside the tag for something focusable: a Shiny input's outer div is fine", {
+    rlang::reset_warning_verbosity("hovercraft-focus")
+    wrapped <- htmltools::tags$div(
+      class = "form-group",
+      htmltools::tags$label("Name"),
+      htmltools::tagList(htmltools::tags$span("x"), list(htmltools::tags$input(type = "text")))
+    )
+    expect_no_warning(tip_on(wrapped, "Tip"))
+    expect_no_warning(tip_on(htmltools::tags$div(htmltools::tags$span(htmltools::tags$a(href = "#", "go"))), "Tip"))
+    expect_no_warning(tip_on(htmltools::tags$tr(htmltools::tags$td(htmltools::tags$button("b"))), "Tip"))
+    expect_null(htmltools::tagGetAttribute(tip_on(wrapped, "Tip"), "tabindex"))
+  })
+
+  it("still warns when nothing inside the tag can take focus", {
+    rlang::reset_warning_verbosity("hovercraft-focus")
+    nothing <- htmltools::tags$div(
+      "text",
+      htmltools::HTML("<b>raw</b>"),
+      htmltools::tags$span(htmltools::tags$input(type = "hidden"), htmltools::tags$a("no href"))
+    )
+    expect_warning(tip_on(nothing, "Tip"), class = "hovercraft_warning_focus")
+  })
+
   it("warns about an anchor with no href and a hidden input, which cannot take focus", {
     rlang::reset_warning_verbosity("hovercraft-focus")
     expect_warning(tip_on(htmltools::tags$a("l"), "Tip"), class = "hovercraft_warning_focus")
     rlang::reset_warning_verbosity("hovercraft-focus")
     expect_warning(tip_on(htmltools::tags$input(type = "hidden"), "Tip"), class = "hovercraft_warning_focus")
+  })
+
+  it("labels an icon-only button from a plain-text tip, with the markdown marks taken out", {
+    icon <- htmltools::tags$i(class = "icon-gear", `aria-hidden` = "true")
+    got <- tip_on(htmltools::tags$button(icon), "Open the **settings**, see [help](https://example.com)")
+    expect_identical(htmltools::tagGetAttribute(got, "aria-label"), "Open the settings, see help")
+    expect_identical(
+      htmltools::tagGetAttribute(got, tip_names()$attribute),
+      "Open the **settings**, see [help](https://example.com)"
+    )
+    expect_identical(htmltools::tagGetAttribute(tip_on(htmltools::tags$button(), "Empty"), "aria-label"), "Empty")
+    expect_identical(
+      htmltools::tagGetAttribute(
+        tip_on(htmltools::tags$span(role = "button", tabindex = "0", icon), "A\n\n- `one`\n- _two_ x"),
+        "aria-label"
+      ),
+      "A one two x"
+    )
+    expect_identical(
+      htmltools::tagGetAttribute(tip_on(htmltools::tags$button(htmltools::HTML("<svg></svg>")), "Svg"), "aria-label"),
+      "Svg"
+    )
+  })
+
+  it("leaves a button that has a name, or a tag that is not a button, as it is", {
+    icon <- htmltools::tags$i(class = "icon-gear")
+    named <- list(
+      htmltools::tags$button("Run"),
+      htmltools::tags$button(icon, " ", htmltools::tags$span("Settings")),
+      htmltools::tags$button(htmltools::HTML("<i></i> Words")),
+      htmltools::tags$button(htmltools::tags$img(src = "x.png", alt = "Settings")),
+      htmltools::tags$button(icon, `aria-label` = "Own label"),
+      htmltools::tags$button(icon, `aria-labelledby` = "other")
+    )
+    for (tag in named) {
+      expect_identical(
+        htmltools::tagGetAttribute(tip_on(tag, "Tip"), "aria-label"),
+        htmltools::tagGetAttribute(tag, "aria-label")
+      )
+    }
+    expect_identical(htmltools::tagGetAttribute(tip_on(named[[5]], "Tip"), "aria-label"), "Own label")
+    expect_null(htmltools::tagGetAttribute(tip_on(htmltools::tags$a(icon, href = "#"), "Tip"), "aria-label"))
+  })
+
+  it("takes the real Shiny markup: no focus warning on an input, a label for an icon-only action button", {
+    skip_if_not_installed("shiny")
+    rlang::reset_warning_verbosity("hovercraft-focus")
+    expect_no_warning(tip_on(shiny::textInput("name", "Name"), "Tip"))
+    expect_no_warning(tip_on(shiny::checkboxInput("flag", "Flag"), "Tip"))
+    expect_no_warning(tip_on(shiny::selectInput("pick", "Pick", c("a", "b")), "Tip"))
+    got <- tip_on(shiny::actionButton("go", NULL, icon = shiny::icon("gear")), "Settings")
+    expect_identical(htmltools::tagGetAttribute(got, "aria-label"), "Settings")
+    expect_null(htmltools::tagGetAttribute(tip_on(shiny::actionButton("go", "Go"), "Settings"), "aria-label"))
+  })
+
+  it("replaces the label of an earlier tip, but keeps one the page wrote", {
+    icon <- htmltools::tags$i(class = "icon-gear")
+    once <- tip_on(htmltools::tags$button(icon), "First")
+    twice <- tip_on(once, "Second **one**")
+    expect_identical(htmltools::tagGetAttribute(twice, "aria-label"), "Second one")
+    own <- tip_on(htmltools::tags$button(icon, `aria-label` = "Mine"), "First")
+    expect_identical(htmltools::tagGetAttribute(tip_on(own, "Second"), "aria-label"), "Mine")
+  })
+
+  it("counts a number in a button as visible words, and nothing else as none", {
+    expect_null(htmltools::tagGetAttribute(tip_on(htmltools::tags$button(5), "Tip"), "aria-label"))
+    expect_false(tip_has_words(NULL))
+    expect_false(tip_has_words(list()))
+  })
+
+  it("gives a template tip no label, because its words depend on the record", {
+    tip_define(lab = tip_template(tip_text("{{ x }}")))
+    got <- tip_on(htmltools::tags$button(htmltools::tags$i()), template = "lab", record = list(x = 1))
+    expect_null(htmltools::tagGetAttribute(got, "aria-label"))
   })
 
   it("warns when a record has no template to fill", {

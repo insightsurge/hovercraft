@@ -71,6 +71,9 @@ tip_as_block <- function(x, where, call) {
       vapply(rest$fields, function(pair) pair$label, "")
     )
   }
+  if (x$type == "badge") {
+    names(rest)[names(rest) == "tone"] <- "status" # the engine's word for what R calls `status`
+  }
   do.call(maker, rest)
 }
 

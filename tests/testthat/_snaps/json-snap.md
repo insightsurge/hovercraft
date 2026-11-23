@@ -11,14 +11,14 @@
       x `record$d` is complex; give text, a number or true or false.
       i Keep only the columns the template names.
 
-# the record errors / say where tip_rows() is
+# the record errors / say what to give instead of a data frame of many rows
 
     Code
       tip_record(data.frame(a = 1:2))
     Condition
       Error:
       ! `record` is a data frame of 2 rows; a tip takes one.
-      i Use `tip_rows(data)` for one record per row, then give `record` one of them.
+      i Give one row, such as `data[1, ]`, or a named list.
 
 # the record errors / name a column with braces as it is
 

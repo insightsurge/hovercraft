@@ -13,7 +13,7 @@ tip_title(text)
 
 tip_text(text)
 
-tip_badge(text, tone = NULL)
+tip_badge(text, status = NULL)
 
 tip_fields(...)
 
@@ -23,7 +23,10 @@ tip_code(field, language = NULL, copy = FALSE)
 \item{text}{One string, with placeholders if you like. In \code{tip_text()} it is markdown (strong, emphasis, code,
 links, short lists), and a value put in by a placeholder is never read as markdown.}
 
-\item{tone}{One string for a badge's look, or \code{NULL}. What it means is up to the engine.}
+\item{status}{What the badge says about its item, or \code{NULL} for a plain badge: one of \code{"success"}, \code{"warning"},
+\code{"danger"} or \code{"info"}, the words bslib uses. Any other word is an error. The badge is coloured from the page's
+Bootstrap colours for that status (with plain colours on a page without Bootstrap), and its text should say the
+same thing, because colour alone is not enough. A block written as a plain list, \code{list(type = "badge", text = "a", tone = "info")}, uses the engine's name for it, \code{tone}, with the same four words.}
 
 \item{...}{Named strings for \code{tip_fields()}: each name is a label (plain text) and each value a string that may hold
 placeholders, as in \code{tip_fields(Records = "{{ records | number:0 }}")}.}
@@ -51,7 +54,7 @@ then a percent sign). A value that is missing or blank shows a dash. There is no
 \examples{
 tip_title("{{ label }}")
 tip_text("**{{ differences | number:0 }}** differences")
-tip_badge("{{ status }}", tone = "warning")
+tip_badge("{{ status }}", status = "warning")
 tip_fields(Records = "{{ records | number:0 }}", Files = "{{ files }}")
 tip_code("sql", language = "sql")
 }
@@ -60,7 +63,6 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_on]{tip_on()}},
-\code{\link[=tip_rows]{tip_rows()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}
 }

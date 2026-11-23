@@ -89,7 +89,7 @@ for (mode in c("light", "dark")) {
 invisible(tip_define(
   diff = tip_template(
     tip_title("{{ label }}"),
-    tip_badge("{{ status }}", tone = "warning"),
+    tip_badge("{{ status }}", status = "warning"),
     tip_fields(Records = "{{ records | number:0 }}", Differences = "{{ differences | number:0 }}"),
     tip_text("{{ share | percent:1 }} of the records differ.")
   )
@@ -103,7 +103,7 @@ templated <- tip_on(
 templates <- tip_define(
   diff = tip_template(
     tip_title("{{ label }}"),
-    tip_badge("{{ status }}", tone = "warning"),
+    tip_badge("{{ status }}", status = "warning"),
     tip_fields(Records = "{{ records | number:0 }}", Differences = "{{ differences | number:0 }}"),
     tip_text("{{ share | percent:1 }} of the records differ.")
   )

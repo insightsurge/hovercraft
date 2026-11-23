@@ -20,7 +20,6 @@ reference:
   - title: Put a tip on a tag
     contents:
       - tip_on
-      - tip_rows
   - title: Templates
     contents:
       - tip_define

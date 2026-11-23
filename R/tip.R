@@ -6,7 +6,8 @@ tip_attributes <- function() {
 
 # A tip shows when the pointer rests on a tag or keyboard focus arrives on it, so a tag that cannot take focus gives a
 # keyboard user no way to the tip. This only says so, once; it never adds a tabindex (a table of 3,000 rows would become
-# 3,000 Tab stops), because the choice of which tags are worth a Tab stop is the page's.
+# 3,000 Tab stops), because the choice of which tags are worth a Tab stop is the page's. A tag is fine when something
+# inside it can take focus: Shiny wraps an input in a `div`, and focus on the input reaches the tip.
 tip_can_focus <- function(tag) {
   type <- htmltools::tagGetAttribute(tag, "type")
   switch(
@@ -23,8 +24,19 @@ tip_can_focus <- function(tag) {
     !is.null(htmltools::tagGetAttribute(tag, "tabindex"))
 }
 
+# `x` and every tag inside it, as a flat list: `x` is a tag, a tag list, a plain list or text (which holds no tag).
+tip_tags_in <- function(x) {
+  if (inherits(x, "shiny.tag")) {
+    return(c(list(x), Reduce(c, lapply(x$children, tip_tags_in), list())))
+  }
+  if (is.list(x) && !inherits(x, "html_dependency")) {
+    return(Reduce(c, lapply(x, tip_tags_in), list()))
+  }
+  list()
+}
+
 tip_check_focus <- function(tag, call) {
-  if (!tip_can_focus(tag)) {
+  if (!any(vapply(tip_tags_in(tag), tip_can_focus, NA))) {
     tip_warn(
       c(
         "A {.code <{tag$name}>} tag cannot take keyboard focus, so a keyboard user will not reach its tip.",
@@ -38,6 +50,40 @@ tip_check_focus <- function(tag, call) {
     )
   }
   invisible()
+}
+
+# Visible words inside `x`: any text that is not blank, or an image with alt text. A fixed icon has none.
+tip_has_words <- function(x) {
+  if (inherits(x, "shiny.tag")) {
+    alt <- htmltools::tagGetAttribute(x, "alt")
+    return((identical(x$name, "img") && !is.null(alt) && nzchar(alt)) || tip_has_words(x$children))
+  }
+  if (is.list(x) && !inherits(x, "html_dependency")) {
+    return(any(vapply(x, tip_has_words, NA)))
+  }
+  if (is.character(x) || is.numeric(x)) {
+    # `HTML()` text is markup: only what is left outside the angle brackets is read.
+    return(any(nzchar(trimws(gsub("<[^>]*>|&[a-z#0-9]+;", "", as.character(x))))))
+  }
+  FALSE
+}
+
+# A button with no visible words and no label of its own has no accessible name; a screen reader says only "button".
+tip_needs_label <- function(tag) {
+  is_button <- identical(tag$name, "button") || identical(htmltools::tagGetAttribute(tag, "role"), "button")
+  is_button &&
+    is.null(htmltools::tagGetAttribute(tag, "aria-label")) &&
+    is.null(htmltools::tagGetAttribute(tag, "aria-labelledby")) &&
+    !tip_has_words(tag$children)
+}
+
+# The words of a markdown tip: markers removed, one line, so a screen reader reads what a sighted user reads.
+tip_plain_text <- function(text) {
+  text <- gsub("!?\\[([^]]*)\\]\\([^)]*\\)", "\\1", text, perl = TRUE)
+  text <- gsub("(?m)^\\s*([-*+]|[0-9]+[.)])\\s+", "", text, perl = TRUE)
+  text <- gsub("(\\*\\*|__|\\*|`)", "", text)
+  text <- gsub("(?<![[:alnum:]])_([^_]+)_(?![[:alnum:]])", "\\1", text, perl = TRUE)
+  trimws(gsub("\\s+", " ", text))
 }
 
 # What tip_on() can check in R about the template it was given: its name against the ones defined in this session, and
@@ -126,9 +172,15 @@ tip_check_use <- function(template, held, id, call) {
 #' [bslib::popover()], or with `data-bs-toggle`, keeps the tip that bslib draws and this one is left off.
 #'
 #' A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a `div`) gives a
-#' keyboard user no way to the tip. `tip_on()` warns once about such a tag and never adds a `tabindex` itself, because a
-#' table of 3,000 rows would become 3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, or put the tip on a
-#' button or a link.
+#' keyboard user no way to the tip. `tip_on()` looks at the tag and at everything inside it, so the `div` that Shiny
+#' puts around an input is fine: the input takes focus. It warns once about a tag with nothing focusable in it, and
+#' never adds a `tabindex` itself, because a table of 3,000 rows would become 3,000 Tab stops: give the tags worth a
+#' stop `tabindex = "0"`, or put the tip on a button or a link.
+#'
+#' A button with no visible words, such as one that holds only an icon, has no name for a screen reader. When it also
+#' has no `aria-label` or `aria-labelledby` of its own, and the tip is plain `text`, `tip_on()` gives it an
+#' `aria-label` made from the text, with the markdown marks taken out. A tip drawn from a template gives no label,
+#' because its words depend on the record: set `aria-label` yourself.
 #'
 #' If both `text` and `template` are given, the text is shown for this tag. A template whose name has been defined in
 #' this session is checked against the record here: a field it names that the record does not hold is an error. A
@@ -143,7 +195,7 @@ tip_check_use <- function(template, held, id, call) {
 #'   `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as `YYYY-MM-DDTHH:MM:SSZ` and
 #'   factors as their labels. Once [tip_define()] has seen the template, only the columns it names are kept, so nothing
 #'   else in a row is written into the page; for a template not seen here, every column goes, so choose them with
-#'   `tip_rows(data, columns = )`. See [tip_rows()] to get one record per row of a data frame.
+#'   `data[i, c("label", "n")]`.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added.
 #' @family tooltips
@@ -155,14 +207,16 @@ tip_check_use <- function(template, held, id, call) {
 #'   tip_text("{{ differences | number:0 }} differences")
 #' ))
 #' rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
-#' records <- tip_rows(rows)
-#' lapply(records, function(record) {
+#' lapply(seq_len(nrow(rows)), function(i) {
 #'   tip_on(
-#'     htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+#'     htmltools::tags$tr(htmltools::tags$td(rows$label[[i]]), tabindex = "0"),
 #'     template = "diff",
-#'     record = record
+#'     record = rows[i, ]
 #'   )
 #' })
+#'
+#' # An icon-only button is named from its tip
+#' tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 #' @export
 tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
   if (inherits(tag, "shiny.tag.list")) {
@@ -210,7 +264,18 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL) {
   if (!is.null(record)) {
     values[[attrs[["record"]]]] <- tip_json(record)
   }
+  # A label made from an earlier tip on this tag goes with that tip; a label the page wrote itself stays.
+  earlier <- htmltools::tagGetAttribute(tag, attrs[["text"]])
+  if (!is.null(earlier) && identical(htmltools::tagGetAttribute(tag, "aria-label"), tip_plain_text(earlier))) {
+    tag$attribs[names(tag$attribs) == "aria-label"] <- NULL
+  }
   tag$attribs[names(tag$attribs) %in% attrs] <- NULL
+  if (has_text && tip_needs_label(tag)) {
+    label <- tip_plain_text(text)
+    if (nzchar(label)) {
+      values[["aria-label"]] <- label
+    }
+  }
   tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values))
   htmltools::attachDependencies(tag, tip_dependency(), append = TRUE)
 }

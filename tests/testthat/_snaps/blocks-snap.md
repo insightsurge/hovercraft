@@ -36,6 +36,15 @@
       x "{{" at character 1 never closes; add "}}", or write the words without it
       i A placeholder is `{{ field }}` or `{{ field | number:2 }}`, with one filter at most.
 
+# the block errors / say which statuses a badge takes
+
+    Code
+      tip_badge("a", status = "ok")
+    Condition
+      Error in `tip_badge()`:
+      ! `status` is "ok", which is not a status.
+      i Give one of "success", "warning", "danger", and "info", or leave it out for a plain badge.
+
 # the block errors / say Copy comes later
 
     Code

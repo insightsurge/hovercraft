@@ -30,7 +30,7 @@ library(hovercraft)
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
 ```
 
-A tip drawn from a template, with one record for each row of a table:
+A tip drawn from a template, with one row of a data frame as the record for each row of a table:
 
 ```r
 rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
@@ -43,11 +43,11 @@ ui <- bslib::page_fluid(
     )
   ),
   htmltools::tags$table(
-    lapply(tip_rows(rows), function(record) {
+    lapply(seq_len(nrow(rows)), function(i) {
       tip_on(
-        htmltools::tags$tr(htmltools::tags$td(record$label), tabindex = "0"),
+        htmltools::tags$tr(htmltools::tags$td(rows$label[[i]]), tabindex = "0"),
         template = "diff",
-        record = record
+        record = rows[i, ]
       )
     })
   )
