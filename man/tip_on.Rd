@@ -14,7 +14,8 @@ tip_on(
   placement = NULL,
   marker = "none",
   id = NULL,
-  events = NULL
+  events = NULL,
+  when_disabled = NULL
 )
 }
 \arguments{
@@ -63,10 +64,23 @@ closed, \code{NULL} on \code{"shown"}). It is off unless asked for, because it s
 reader hovers the tag. It needs an \code{id}, or a tag with
 an \code{id} of its own; in a module the input is read as \verb{input$<id>_hint}, without the namespace. \code{"pin"} and
 \code{"copy"} are named but stop with an error until the pin inputs arrive.}
+
+\item{when_disabled}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The reason the control is switched off, as one string
+of plain text, or \code{NULL} (the default) for none. While the control is disabled, its tip says "Not available:"
+and the reason, with a small lock before it; when the control is enabled again the reason goes and the tag's own
+tip (\code{text} or \code{template}) is shown as usual. \code{text} and \code{template} may be left out, for a tag that only has a
+reason. The tag must hold a control that can be disabled: a \code{button}, \code{input}, \code{select} or \code{textarea}. It works
+when the page is built with the control disabled and when it is switched off later, by the \verb{update*(disabled = )} functions of Shiny or by script; a control disabled by \code{aria-disabled} alone is not covered. A disabled
+control takes no keyboard focus and, under Bootstrap, no pointer, so \code{tip_on()} puts it in a small wrapper (a
+\verb{<span>}) that does: while the control is disabled the wrapper is one tab stop with the role of a button, and it
+is not a tab stop when the control is enabled. The wrapper keeps the control's width where it is written in its
+\code{style} or as the class \code{w-100} or \code{d-block}. The tip's \code{id} and \code{events} stay on the control, and the wrapper
+answers to them while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way.
+The value returned is the wrapper.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
-and the marker's own dependency.
+and the marker's own dependency; with \code{when_disabled}, inside a wrapper that holds the reason.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -96,6 +110,13 @@ name that has not been defined is left to the page, which says so once in the br
 }
 \examples{
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
+
+# The reason a control is switched off
+tip_on(
+  htmltools::tags$button("Run", disabled = NA),
+  "Runs the **check**",
+  when_disabled = "Pick a dataset first"
+)
 
 # A look for this tag only
 tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = "sober")
