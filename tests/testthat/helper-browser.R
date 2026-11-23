@@ -68,10 +68,50 @@ local_page <- function(html_file, env = parent.frame()) {
     )
     session$Page$captureScreenshot(format = "png", clip = clip)$data
   }
+  # Presses and releases a key the way a keyboard does (focus-visible follows), then waits past the engine's delay.
+  press <- function(key, ctrl = FALSE, wait = 0.6) {
+    codes <- c(
+      Tab = 9,
+      Enter = 13,
+      Escape = 27,
+      " " = 32,
+      End = 35,
+      Home = 36,
+      ArrowLeft = 37,
+      ArrowUp = 38,
+      ArrowRight = 39,
+      ArrowDown = 40
+    )
+    args <- list(
+      key = key,
+      code = if (key == " ") "Space" else key,
+      windowsVirtualKeyCode = unname(codes[[key]]),
+      modifiers = if (ctrl) 2L else 0L
+    )
+    do.call(session$Input$dispatchKeyEvent, c(list(type = "rawKeyDown"), args))
+    do.call(session$Input$dispatchKeyEvent, c(list(type = "keyUp"), args))
+    Sys.sleep(wait)
+    shown()
+  }
+  # Rests the pointer on the element (so its tip opens), then clicks it with the mouse; returns the tips on show.
+  click <- function(selector) {
+    hover(selector)
+    box <- jsonlite::fromJSON(evaluate(sprintf(
+      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify([r.x + 10, r.y + r.height / 2]); })()",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    )))
+    for (type in c("mousePressed", "mouseReleased")) {
+      session$Input$dispatchMouseEvent(type = type, x = box[[1]], y = box[[2]], button = "left", clickCount = 1)
+    }
+    Sys.sleep(0.7)
+    shown()
+  }
   list(
     evaluate = evaluate,
     wait_until = wait_until,
     hover = hover,
+    click = click,
+    press = press,
     shown = shown,
     screenshot = screenshot,
     problems = function() problems

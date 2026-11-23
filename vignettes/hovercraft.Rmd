@@ -117,6 +117,8 @@ A tip shows on keyboard focus, so a tag that cannot take focus, such as a table 
 way to its tip. `tip_on()` looks at the tag and at everything inside it, so the `div` that Shiny puts around an input is
 fine, and says so once for a tag with nothing focusable in it. It never adds a tab stop itself, because a table of 3,000
 rows would become 3,000 Tab stops: give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a link.
+The rows, cells and headers of a `DT::datatable()` or `reactable::reactable()` table are the exception: `tip_table()` gives the table one tab stop and
+moves between them with the arrow keys.
 
 A button that holds only an icon has no name for a screen reader. When its tip is plain text and the button has no
 `aria-label` of its own, `tip_on()` uses the tip's words, without the markdown marks, as the label:
