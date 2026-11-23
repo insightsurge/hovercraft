@@ -83,6 +83,15 @@ describe("the vendored engine, after a copy", {
     expect_true("tone" %in% names(tip_rules()$blocks$badge$fields), info = "badge field tone")
   })
 
+  it("has the names the engine added in 0.52.0 (a part mark, a pin by hand, a reason line, who pinned and how)", {
+    contract <- jsonlite::read_json(tip_path("tip.json"))
+    expect_identical(contract$attributes$part, paste0(names$attribute, "-part"))
+    expect_true(grepl(paste0("[${NAMES.attr}-part]"), js, fixed = TRUE), info = "the part mark")
+    expect_true(grepl("=== 'manual'", js, fixed = TRUE), info = "the pin value manual")
+    expect_true(grepl("${CSS}-reason", js, fixed = TRUE), info = paste0(names$css, "-reason"))
+    expect_true(grepl("const { by = 'host', via = 'command' }", js, fixed = TRUE), info = "pin(el, { by, via })")
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))
