@@ -139,11 +139,11 @@
    A small triangle in the top corner, drawn over the tag, so it takes no room. :where() keeps the specificity at
    nothing: a tag that is already positioned (absolute, fixed, sticky) keeps its position. */
 
-:where([data-hovercraft-marker="corner"]) {
+:where([data-hovercraft-marker="corner"]:not([data-hovercraft-marker-in])) {
   position: relative;
 }
 
-[data-hovercraft-marker="corner"]::after {
+[data-hovercraft-marker="corner"]:not([data-hovercraft-marker-in])::after {
   content: "";
   position: absolute;
   top: 0;
@@ -156,7 +156,7 @@
   pointer-events: none;
 }
 
-[dir="rtl"] [data-hovercraft-marker="corner"]::after {
+[dir="rtl"] [data-hovercraft-marker="corner"]:not([data-hovercraft-marker-in])::after {
   clip-path: polygon(0 0, 100% 0, 0 100%);
 }
 
@@ -183,6 +183,22 @@ label[data-hovercraft-marker="corner"]::after {
   border-start-start-radius: var(--bs-card-inner-border-radius, var(--bs-border-radius, 0.375rem));
 }
 
+/* A cell or header cell of a table (tip_table() writes data-hovercraft-marker-in="table"). The triangle is a background,
+   not a pseudo-element: DT draws a header cell's sort arrows with ::before and ::after, and a widget may restyle its
+   cells. It takes no room and follows the cell's text colour. */
+
+[data-hovercraft-marker="corner"][data-hovercraft-marker-in="table"] {
+  background-image: linear-gradient(to bottom left, currentColor calc(50% - 0.5px), transparent calc(50% + 0.5px));
+  background-repeat: no-repeat;
+  background-size: 0.5rem 0.5rem;
+  background-position: top right;
+}
+
+[dir="rtl"] [data-hovercraft-marker="corner"][data-hovercraft-marker-in="table"] {
+  background-image: linear-gradient(to bottom right, currentColor calc(50% - 0.5px), transparent calc(50% + 0.5px));
+  background-position: top left;
+}
+
 /* ---- The pointer -------------------------------------------------------------------------------------------------
    A tip does nothing on a click, so the pointer says "help" and never "pointer", which promises a click. A tip that
    can be pinned (the engine's pin attribute) does answer a click, and keeps the hand. A button or a link keeps the
@@ -202,7 +218,7 @@ label[data-hovercraft-marker="corner"]::after {
 @media (forced-colors: active) {
   [data-hovercraft-marker="icon"]:not(.bslib-value-box):not([data-hovercraft-marker-icon])::after,
   .bslib-value-box[data-hovercraft-marker="icon"]:not([data-hovercraft-marker-icon]) .value-box-title::after,
-  [data-hovercraft-marker="corner"]::after {
+  [data-hovercraft-marker="corner"]:not([data-hovercraft-marker-in])::after {
     forced-color-adjust: none;
     background-color: CanvasText;
   }

@@ -7,7 +7,7 @@
 tip_marker(type, ..., line = NULL, icon = NULL)
 }
 \arguments{
-\item{type}{The kind of marker: \code{"underline"}, \code{"icon"}, \code{"corner"} or \code{"none"}.}
+\item{type}{The kind of marker: \code{"underline"}, \code{"icon"}, \code{"corner"} or \code{"none"}. A table draws only \code{"corner"}.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
@@ -18,14 +18,14 @@ tip preset in use. \code{"wavy"} is a long gentle wave in the text's own colour,
 \code{NULL} (the default) for the built-in one. It is added to the tag as a child that a screen reader skips.}
 }
 \value{
-A \code{hovercraft_marker} object, to give as \verb{marker =} to \code{\link[=tip_on]{tip_on()}}. Its fields are internal; pass the object
-on.
+A \code{hovercraft_marker} object, to give as \verb{marker =} to \code{\link[=tip_on]{tip_on()}}, \code{\link[=tip_table]{tip_table()}} or \code{\link[=tip_spec]{tip_spec()}}. Its
+fields are internal; pass the object on.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-Describes the visible cue on a tipped tag, to give as \verb{marker =} to \code{\link[=tip_on]{tip_on()}}. For the common cases
-\code{marker = "underline"}, \code{"icon"} or \code{"corner"} is enough; use \code{tip_marker()} to choose the line of an underline or to
-give your own icon.
+Describes the visible cue on a tipped tag, to give as \verb{marker =} to \code{\link[=tip_on]{tip_on()}}, \code{\link[=tip_table]{tip_table()}} or \code{\link[=tip_spec]{tip_spec()}}. For
+the common cases \code{marker = "underline"}, \code{"icon"} or \code{"corner"} is enough; use \code{tip_marker()} to choose the line of
+an underline or to give your own icon.
 }
 \section{The types}{
 

@@ -39,7 +39,7 @@ value by value. A list is not taken, and neither is a string that holds \code{:}
 \item{marker}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A visible cue that the tag holds a tip, off by default: \code{"none"},
 \code{"underline"}, \code{"icon"} or \code{"corner"}, a \code{\link[=tip_marker]{tip_marker()}} to choose the line of an underline or give an icon, or a
 tag, which is used as the icon (\code{marker = fontawesome::fa("circle-info")} is \code{tip_marker("icon", icon = ...)}).
-See \code{\link[=tip_marker]{tip_marker()}} for what each draws. Markers are not drawn in tables yet.}
+See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells of a table, use the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,

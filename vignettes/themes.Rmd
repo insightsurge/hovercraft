@@ -128,6 +128,14 @@ screen reader skips; a name such as `"info"` is not looked up, because the packa
 For an underline on a block tag (a table cell, a paragraph), the words are put in a `span` so the line goes under them and
 not across the cell. A value box marks its title. A block of other tags has no words to underline, so it stops with an error that says where the marker goes.
 
+In a table, `tip_table(marker = "corner")` marks every cell and header cell that has a tip, in `DT` and `reactable`;
+a `tip_spec(marker = )` marks or unmarks one column. Only the corner is drawn there for now, and a row takes no marker.
+
+```{r, eval = FALSE}
+DT::datatable(scores) |>
+  tip_table(cells = c(wins = "{{ wins }} wins"), headers = c(wins = "Games won"), marker = "corner")
+```
+
 ## A bslib theme
 
 A `bslib::bs_theme()` is read through its variables (bslib 0.6.0 or later): the tip's fill is the theme's tertiary background, its words

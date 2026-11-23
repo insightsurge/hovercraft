@@ -11,6 +11,7 @@ tip_table(
   cells = NULL,
   headers = NULL,
   placement = NULL,
+  marker = NULL,
   id = NULL
 )
 }
@@ -29,6 +30,11 @@ tip_table(
 
 \item{placement}{Where the tips show: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} for the page's
 choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A cell's tip follows this, not its row's.}
+
+\item{marker}{The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:
+\code{"corner"} (a small triangle in the top corner, as a spreadsheet shows a note), or \code{NULL} or \code{"none"} for no
+marker (the default). A \code{\link[=tip_spec]{tip_spec()}} with its own \code{marker} beats it. A row takes no marker, and a table draws only
+the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own stop with an error. See \code{\link[=tip_marker]{tip_marker()}}.}
 
 \item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
 whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
