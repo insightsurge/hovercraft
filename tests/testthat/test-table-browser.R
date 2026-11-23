@@ -181,6 +181,89 @@ describe("tip_table(id =) in a browser, on a reactable table", {
   })
 })
 
+# A cell's or a header cell's tip points at its text, not at the whole cell: a right-aligned number in a wide column
+# used to get a tip far to its left. The first text node of the element is what the reader sees.
+text_and_tip <- function(page, selector) {
+  jsonlite::fromJSON(page$evaluate(sprintf(
+    paste0(
+      "(() => { const n = document.querySelector(%s); const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT,",
+      " { acceptNode: (t) => (t.nodeValue.trim() ? 1 : 3) }); const range = document.createRange();",
+      " range.selectNodeContents(w.nextNode()); const text = range.getBoundingClientRect(); const cell = n.getBoundingClientRect();",
+      " const tip = [...document.querySelectorAll('.%s')].filter((t) => !t.hidden)[0].getBoundingClientRect();",
+      " return JSON.stringify({ text: (text.left + text.right) / 2, cell: (cell.left + cell.right) / 2,",
+      " tip: (tip.left + tip.right) / 2, open: n.getAttribute('%s') }); })()"
+    ),
+    jsonlite::toJSON(selector, auto_unbox = TRUE),
+    tip_names()$css,
+    tip_attribute("open")
+  )))
+}
+
+describe("tip_table() anchors a cell's and a header cell's tip on its text, in a browser", {
+  wide <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5))
+  right <- function(widget) tip_table(widget, cells = c(wins = "{{ wins }} wins"), headers = c(wins = "Games won"))
+  dt_page <- local_page(
+    save_page(right(DT::datatable(
+      wide,
+      rownames = FALSE,
+      options = list(columnDefs = list(list(className = "dt-right", targets = 1L)))
+    ))),
+    environment()
+  )
+  rt_page <- local_page(
+    save_page(right(reactable::reactable(
+      wide,
+      columns = list(wins = reactable::colDef(align = "right", headerStyle = list(textAlign = "right")))
+    ))),
+    environment()
+  )
+  closer_to_text <- function(got) abs(got$tip - got$text) < abs(got$tip - got$cell)
+
+  it("points at the number in a right-aligned DT cell and at the text of its header", {
+    expect_true(dt_page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-tip-anchor]').length === 2"))
+    dt_page$hover("tbody tr:first-child td:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(dt_page, "tbody tr:first-child td:nth-child(2)")))
+    dt_page$hover("thead th:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(dt_page, "thead th:nth-child(2)")))
+  })
+
+  it("does the same on a reactable table", {
+    expect_true(rt_page$wait_until("document.querySelectorAll('.rt-td[data-hovercraft-tip-anchor]').length >= 2"))
+    rt_page$hover(".rt-tbody [role=cell]:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(rt_page, ".rt-tbody [role=cell]:nth-child(2)")))
+    rt_page$hover("[role=columnheader]:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(rt_page, "[role=columnheader]:nth-child(2)")))
+  })
+})
+
+describe("tip_table(marker =) highlights a cell while its tip is open, in a browser", {
+  page <- local_page(
+    save_page(tip_table(
+      DT::datatable(scores, rownames = FALSE),
+      cells = c(wins = "{{ wins }} wins"),
+      marker = "corner"
+    )),
+    environment()
+  )
+  fill <- function(selector) {
+    page$evaluate(sprintf("getComputedStyle(document.querySelector('%s')).backgroundColor", selector))
+  }
+
+  it("tints the cell while the tip shows and takes the tint away when it closes", {
+    cell <- "tbody tr:first-child td:nth-child(2)"
+    expect_true(page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-marker]').length === 5"))
+    expect_false(grepl("127", fill(cell), fixed = TRUE))
+    expect_identical(page$hover(cell), "7 wins")
+    expect_identical(
+      page$evaluate(sprintf("document.querySelector('%s').getAttribute('%s')", cell, tip_attribute("open"))),
+      "hint"
+    )
+    expect_match(fill(cell), "rgba(127, 127, 127", fixed = TRUE)
+    page$hover("tbody tr:first-child td:nth-child(1)")
+    expect_false(grepl("127", fill(cell), fixed = TRUE))
+  })
+})
+
 describe("a cell's placement in a browser", {
   file <- save_page(
     tip_table(

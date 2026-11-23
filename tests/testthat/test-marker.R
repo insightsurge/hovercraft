@@ -284,6 +284,18 @@ describe("the marker stylesheet", {
     }
   })
 
+  it("highlights a marked tag while the engine says its tip is open, and glows a value box", {
+    open <- paste0("[", tip_attribute("open"), "]")
+    expect_match(code, open, fixed = TRUE)
+    for (type in c("underline", "icon", "corner")) {
+      expect_match(code, paste0("[", marker_attribute(), "=\"", type, "\"]", open), fixed = TRUE)
+    }
+    expect_match(code, paste0(".hc-marker-text"), fixed = TRUE)
+    expect_match(code, paste0(".bslib-value-box[", marker_attribute(), "]", open), fixed = TRUE)
+    # The values the engine writes are the ones the highlight is for: a hint and a pin both open a tip.
+    expect_setequal(unlist(tip_rules()$open$values), c("hint", "pin"))
+  })
+
   it("holds no :has(), no color-mix() and no hard-coded colour, so it works from the browser floor", {
     expect_false(grepl(":has(", code, fixed = TRUE))
     expect_false(grepl("color-mix(", code, fixed = TRUE))

@@ -229,14 +229,19 @@ tip_table_records <- function(data, fields, call) {
   vapply(seq_len(nrow(data)), function(i) tip_json(tip_record(data[i, fields, drop = FALSE], call = call)), "")
 }
 
-# What an element carries for one content: its template, the fixed kind of its target and the placement when there is
-# one. With a table `id`, the layer also gives it a derived tip id from the base id, the target, the data row and the
-# data column (`column`, 1-based, for a cell or a header cell); the format is the layer's own and may change.
+# What an element carries for one content: its template, the fixed kind of its target, the placement when there is
+# one, and, for a cell or a header cell, the anchor `content`, so the tip points at the text and not at the whole cell
+# (a right-aligned header would point at empty space). A row keeps the engine's pointer alignment. With a table `id`,
+# the layer also gives it a derived tip id from the base id, the target, the data row and the data column (`column`,
+# 1-based, for a cell or a header cell); the format is the layer's own and may change.
 tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   attrs <- stats::setNames(list(content$name), tip_attribute("template"))
   attrs[[tip_attribute("kind")]] <- paste0("table_", target)
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
+  }
+  if (!identical(target, "row")) {
+    attrs[[tip_attribute("anchor")]] <- "content"
   }
   if (!is.null(content$style)) {
     attrs <- c(attrs, tip_style_tag(content$style)$attribs)
@@ -461,7 +466,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' optionally a tip of their own to chosen cells and header cells. The tips follow the data row, so sorting, filtering
 #' and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 #'
-#' A cell's tip wins over its row's, and a row's tip opens at the pointer. A target that needs its own settings (for now
+#' A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
+#' its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
+#' beside the text and not far to its left; there is no argument for it. A target that needs its own settings (for now
 #' only a placement) takes a [tip_spec()] in place of words. A tip is made of words (markdown) with
 #' `{{ column }}` placeholders, or of a [tip_template()]; every placeholder is checked against the table's columns, and
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
@@ -512,7 +519,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' @param marker The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:
 #'   `"corner"` (a small triangle in the top corner, as a spreadsheet shows a note), or `NULL` or `"none"` for no
 #'   marker (the default). A [tip_spec()] with its own `marker` beats it. A row takes no marker, and a table draws only
-#'   the corner for now: `"underline"`, `"icon"` and an icon of your own stop with an error. See [tip_marker()].
+#'   the corner for now: `"underline"`, `"icon"` and an icon of your own stop with an error. A cell with a marker is
+#'   highlighted while its tip is open. See [tip_marker()].
 #' @param id A Shiny id for this table's tips, the same as [tip_on()]'s `id` will be: one non-empty string with no
 #'   whitespace, so `ns("scores_tips")` works inside a module. Give it a different id from every other tip source on
 #'   the page. With an `id`, every marked row, cell and header cell gets its own tip id derived from it, which follows

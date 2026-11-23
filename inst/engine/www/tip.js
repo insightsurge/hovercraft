@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.50.0, built from its source; do not edit.
+// hovercraft tip engine 0.51.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.50.0';
+  const VERSION = '0.51.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -884,6 +884,77 @@
       for (const token of classAdded.get(box) ?? []) box.classList.remove(token);
       classAdded.delete(box);
     }
+    const OPEN_ATTR = `${NAMES.attr}-open`;
+    function markOpen(el, kind) {
+      if (el?.nodeType === 1 && el.getAttribute(OPEN_ATTR) !== kind) el.setAttribute(OPEN_ATTR, kind);
+    }
+    function unmarkOpen(el, kind) {
+      if (el?.nodeType === 1 && el.getAttribute(OPEN_ATTR) === kind) el.removeAttribute(OPEN_ATTR);
+    }
+    const ANCHORS = ['item', 'content'];
+    const ANCHOR_ATTR = `${NAMES.attr}-anchor`;
+    function anchorWord(v, where) {
+      const word = typeof v === 'string' ? v.trim() : '';
+      if (ANCHORS.includes(word)) return word;
+      if (typeof v !== 'string' || word) {
+        note(
+          `anchor|${where}|${String(v)}`,
+          `${where}: "${String(v)}" is not ${ANCHORS.join(' or ')}; it reads as ${ANCHORS[0]}.`,
+        );
+      }
+      return ANCHORS[0];
+    }
+    function anchorAt(from) {
+      for (let node = from; node?.nodeType === 1; node = node.parentElement) {
+        const attr = node.getAttribute(ANCHOR_ATTR);
+        if (attr !== null) return anchorWord(attr, ANCHOR_ATTR);
+        const mine = own.get(node);
+        if (mine && tipOwn(mine, 'anchor')) return mine.anchor;
+      }
+      return ANCHORS[0];
+    }
+    const REPLACED = 'img, svg, canvas, video, iframe, input, select, textarea, button, meter, progress, object, embed';
+    function contentBox(el) {
+      const doc = el.ownerDocument;
+      const view = doc.defaultView;
+      if (!view) return null;
+      const rects = [];
+      const take = (parent) => {
+        for (const c of parent.childNodes) {
+          if (c.nodeType === 3) {
+            if (!c.nodeValue.trim()) continue;
+            const range = doc.createRange();
+            range.selectNodeContents(c);
+            rects.push(...range.getClientRects());
+          } else if (c.nodeType === 1 && !c.hidden && !c.classList.contains(`${CSS}-desc`)) {
+            const style = view.getComputedStyle(c);
+            if (style.display === 'none' || style.visibility === 'hidden') continue;
+            if (style.display === 'contents' || (!style.display.startsWith('inline') && !c.matches(REPLACED))) take(c);
+            else rects.push(...c.getClientRects());
+          }
+        }
+      };
+      take(el);
+      const seen = rects.filter((r) => r.width > 0 && r.height > 0).sort((a, b) => a.top - b.top);
+      if (!seen.length) return null;
+      let left = Number.POSITIVE_INFINITY;
+      let right = Number.NEGATIVE_INFINITY;
+      let top = seen[0].top;
+      let bottom = seen[0].bottom;
+      for (const r of seen) {
+        const mid = (r.top + r.bottom) / 2;
+        if (mid > bottom + 1 || mid < top - 1) return null;
+        left = Math.min(left, r.left);
+        right = Math.max(right, r.right);
+        top = Math.min(top, r.top);
+        bottom = Math.max(bottom, r.bottom);
+      }
+      return { left, right, top, bottom, width: right - left, height: bottom - top };
+    }
+    const aimAt = (item, anchor, line) => {
+      const at = item && anchor.contains(item) ? item : anchor;
+      return !line && anchorAt(at) === ANCHORS[1] ? contentBox(at) : null;
+    };
     const CODE_FILL = 'color-mix(in srgb, var(--hc-tip-ink) 12%, transparent)';
     const dressed = new WeakMap();
     function dress(box, anchor, mode) {
@@ -938,7 +1009,7 @@
         if (!tipObject(settings))
           note(
             'settings',
-            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_class, tooltip_preset, tooltip_labels, tooltip_more_template, tooltip_more_on, tooltip_more_cue, tooltip_more_height } (or nothing to read the setting).',
+            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_class, tooltip_anchor, tooltip_preset, tooltip_labels, tooltip_more_template, tooltip_more_on, tooltip_more_cue, tooltip_more_height } (or nothing to read the setting).',
           );
         else {
           const mine = own.get(at) ?? {};
@@ -975,6 +1046,11 @@
             else if (typeof v === 'string') mine.class = classWord(v, 'tooltip');
             else
               note(`classes|${String(v)}`, 'tooltip: "tooltip_class" must be class names as text; kept the old value.');
+          }
+          if (tipOwn(settings, 'tooltip_anchor')) {
+            const v = settings.tooltip_anchor;
+            if (v === null || v === undefined) delete mine.anchor;
+            else mine.anchor = anchorWord(v, 'tooltip_anchor');
           }
           if (tipOwn(settings, 'tooltip_preset')) {
             const v = settings.tooltip_preset;
@@ -1058,6 +1134,7 @@
         tooltip_placement: got.placement,
         tooltip_arrow: got.arrow,
         tooltip_class: classesAt(at).join(' ') || null,
+        tooltip_anchor: anchorAt(at),
         tooltip_preset: presetAt(at),
         tooltip_labels: got.labels,
         tooltip_more_template: got.more_template,
@@ -1588,6 +1665,7 @@
       isPin = false,
       placement = 'auto',
       arrow = false,
+      item = null,
     ) {
       const baseGap = gapOf(box);
       const reach = baseGap === GAP ? '' : `${baseGap}px`;
@@ -1595,9 +1673,9 @@
         if (reach) box.style.setProperty('--hc-tip-reach', reach);
         else box.style.removeProperty('--hc-tip-reach');
       }
-      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap);
+      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap, item);
       if (point(box, arrow ? to : null)) return;
-      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap);
+      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap, item);
     }
     const EDGE = { below: 'top', above: 'bottom', right: 'left', left: 'right' };
     const AT = '--hc-tip-arrow-at';
@@ -1650,14 +1728,15 @@
       if (box.style.getPropertyValue(AT) !== at) box.style.setProperty(AT, at);
       return true;
     }
-    function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP) {
+    function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP, item = null) {
       const g = baseGap + grow;
       const doc = anchor.ownerDocument;
-      const r = anchor.getBoundingClientRect();
+      const whole = anchor.getBoundingClientRect();
+      const r = aimAt(item, anchor, line) ?? whole;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
       const probe = line && x !== null ? line : anchor;
-      const pr = probe === anchor ? r : probe.getBoundingClientRect();
+      const pr = probe === anchor ? whole : probe.getBoundingClientRect();
       const away =
         !probe.isConnected ||
         !probe.getClientRects().length ||
@@ -1669,7 +1748,7 @@
       box.style.visibility = away ? 'hidden' : '';
       if (away) return;
       if (placement !== 'auto' && vw >= PHONE) {
-        const hit = placeOn(box, anchor, placement, x, line, isPin, grow, baseGap);
+        const hit = placeOn(box, anchor, placement, x, line, isPin, grow, baseGap, r);
         if (hit) return hit;
       }
       const w = box.offsetWidth;
@@ -1698,7 +1777,7 @@
           box.style.top = '';
           return;
         }
-        const row = (line ?? anchor).getBoundingClientRect();
+        const row = line ? line.getBoundingClientRect() : r;
         const edge = part ?? row;
         let left = rtl ? edge.left : edge.right - w;
         let top = row.bottom + g;
@@ -1757,13 +1836,12 @@
       return { l: x ?? r.left, r: x ?? r.right, t: r.top, b: r.bottom };
     }
 
-    function placeOn(box, anchor, want, x, line, isPin, grow, baseGap = GAP) {
+    function placeOn(box, anchor, want, x, line, isPin, grow, baseGap = GAP, r = anchor.getBoundingClientRect()) {
       const doc = anchor.ownerDocument;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
       const w = box.offsetWidth;
       const h = box.offsetHeight;
-      const r = anchor.getBoundingClientRect();
       const row = line ? line.getBoundingClientRect() : null;
       const at = isPin ? null : x;
       const t = row
@@ -2123,9 +2201,15 @@
       was?.();
       if (box.classList.contains(`${CSS}-pin`)) return;
       if (!anchor || typeof View?.MutationObserver !== 'function') return;
-      const seen = new View.MutationObserver(() => copyMarks(box, anchors.get(box)));
+      const seen = new View.MutationObserver((records) => {
+        copyMarks(box, anchors.get(box));
+        if (records.some((r) => r.attributeName === ANCHOR_ATTR)) pageOf(box.ownerDocument).hint?.place(false);
+      });
       for (let n = anchor; n?.nodeType === 1; n = n.parentElement)
-        seen.observe(n, { attributes: true, attributeFilter: ['data-hovercraft-mode', 'data-bs-theme', CLASS_ATTR] });
+        seen.observe(n, {
+          attributes: true,
+          attributeFilter: ['data-hovercraft-mode', 'data-bs-theme', CLASS_ATTR, ANCHOR_ATTR],
+        });
       const stop = () => {
         seen.disconnect();
         watching.set(box, null);
@@ -2803,6 +2887,7 @@
         const delayed = closing.delayed;
         const info = hintWhy(why, lastPointer);
         page.hint = null;
+        if (why.keep !== closing.anchor) unmarkOpen(closing.anchor, 'hint');
         if (moved !== true) closeSkip();
         kit.sizes?.unobserve(kit.hint);
         endLives(kit.hint, info);
@@ -2909,7 +2994,7 @@
         const again = page.hint?.handle === handle && page.hint.anchor === n;
         const held = how === 'command' || (again && page.hint.held === true);
         const before = again ? null : page.hint;
-        if (before) before.handle.hideHint(false, { reason: 'replaced', by: who, via: how });
+        if (before) before.handle.hideHint(false, { reason: 'replaced', by: who, via: how, keep: n });
         mountNear(kit.hint, n);
         looks(kit.hint, n);
         fill(kit.hint, c, { pinned: false });
@@ -2930,9 +3015,10 @@
           delayed: c.blocks.length > 0,
           place: (restyle = true) => {
             if (restyle) copyMarks(kit.hint, n);
-            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n), arrowOf(n));
+            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n), arrowOf(n), n);
           },
         };
+        markOpen(n, 'hint');
         kit.hintMotion.set(true);
         page.hint.place();
         kit.hintMotion.enter();
@@ -3232,7 +3318,7 @@
         const from = pinned();
         const by = info.by ?? 'reader';
         if (page.pin) page.pin.handle.closePin({ reason: 'replaced', by, via: info.via ?? null });
-        if (page.hint) page.hint.handle.hideHint(false, { reason: 'pinned', by, via: info.via ?? null });
+        if (page.hint) page.hint.handle.hideHint(false, { reason: 'pinned', by, via: info.via ?? null, keep: n });
         const rec = c.rec;
         const kind = rec.kind ?? 'row';
         const text = cut(plainOf(c));
@@ -3290,6 +3376,7 @@
         };
         const offModal = inModal(pbox, () => page.pin?.handle === handle, onAround, onModalEscape);
         let anchorEl = n;
+        let marked = n;
         let clipped = false;
         const view = doc.defaultView;
         const seen =
@@ -3306,7 +3393,16 @@
               })
             : null;
         seen?.observe(n);
-        const WATCHED = [...MARKS, 'data-hovercraft-mode', 'data-bs-theme', CLASS_ATTR, 'class', 'style', 'hidden'];
+        const WATCHED = [
+          ...MARKS,
+          'data-hovercraft-mode',
+          'data-bs-theme',
+          CLASS_ATTR,
+          ANCHOR_ATTR,
+          'class',
+          'style',
+          'hidden',
+        ];
         const marks = new MutationObserver(() => page.pin?.handle === handle && page.pin.place());
         const watchLine = (a) => {
           marks.disconnect();
@@ -3334,6 +3430,9 @@
                 if (anchorEl) seen.observe(anchorEl);
               }
               if (anchorEl && anchorEl !== was) {
+                unmarkOpen(marked, 'pin');
+                marked = anchorEl;
+                markOpen(marked, 'pin');
                 watchLine(anchorEl);
                 stopPinWatch?.();
                 stopPinWatch = watchItem(anchorEl);
@@ -3355,7 +3454,7 @@
             const a = page.pin?.anchor();
             if (!a) return;
             if (restyle) copyMarks(pbox, a);
-            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a));
+            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a), a);
             if (clipped) pbox.style.visibility = 'hidden';
             room(pbox, pbox.dataset.side === 'sheet' && pbox.style.visibility !== 'hidden');
             if (pbox.style.visibility === 'hidden' && pbox.contains(doc.activeElement)) {
@@ -3393,7 +3492,18 @@
                 pbox.querySelector(`.${CSS}-close`)?.addEventListener('click', onClose);
                 stopsOff(pbox);
                 redescribeItem(a);
-                place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a));
+                place(
+                  pbox,
+                  anchorOf(a),
+                  s,
+                  x,
+                  pinBeside(a),
+                  atPointer(a) ? a : null,
+                  true,
+                  placementOf(a),
+                  arrowOf(a),
+                  a,
+                );
                 startLives(pbox);
                 if (same && slots.length) resizeLives(pbox, true);
                 if (!same) {
@@ -3405,6 +3515,7 @@
             }
           },
           stop: () => {
+            unmarkOpen(marked, 'pin');
             stopPinWatch?.();
             stopPinWatch = null;
             seen?.disconnect();
@@ -3417,6 +3528,7 @@
             stack?.remove(entry);
           },
         };
+        markOpen(n, 'pin');
         kit.pinMotion.set(true);
         stopPinWatch?.();
         stopPinWatch = watchItem(n);
@@ -3893,6 +4005,7 @@
       groupDepth: GROUP_DEPTH,
       settingsAt,
       placements: [...PLACEMENTS],
+      anchors: [...ANCHORS],
       presets: [...Object.keys(PRESET_TEXT), PRESET_NONE],
       moreOn: [...MORE_ON],
       moreCue: [...MORE_CUE],

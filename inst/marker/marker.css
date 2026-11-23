@@ -1,7 +1,9 @@
 /* hovercraft markers: a visible cue on a tipped tag. This is hovercraft's own layer, on top of the tip engine, and it
    never changes the engine. It reads only the engine's public attributes (the preset and the pin) and the attributes
    R writes (data-hovercraft-marker and its parts). Every marker is drawn in the tag's own text colour, so it keeps the
-   text's contrast in light and dark. Works from Firefox 92, Chrome 93 and Safari 15.4: no :has(), no color-mix(). */
+   text's contrast in light and dark. While a marked tag's tip is open the tag is highlighted, from the engine's open
+   attribute (see "While its tip is open" below). Works from Firefox 92, Chrome 93 and Safari 15.4: no :has(), no
+   color-mix(). */
 
 /* ---- Which line an underline draws -------------------------------------------------------------------------------
    Three custom properties carry the choice down the page, so the nearest preset wins: a page preset sits on <html>,
@@ -13,6 +15,8 @@
   --hc-ml-deco: underline;
   --hc-ml-style: dotted;
   --hc-ml-img: none;
+  --hc-mk-open: rgba(127, 127, 127, 0.22);
+  --hc-mk-glow: rgba(127, 127, 127, 0.4);
 }
 
 [data-hovercraft-tip-preset="none"],
@@ -199,6 +203,26 @@ label[data-hovercraft-marker="corner"]::after {
   background-position: top left;
 }
 
+/* ---- While its tip is open ---------------------------------------------------------------------------------------
+   The engine writes its open attribute ("hint" or "pin") on the tagged element while the tip shows and takes it off
+   when the tip closes. A marked tag is tinted then, so a reader sees which of several markers the tip belongs to: the
+   words of an underline (the tag, or the span R puts round the words of a block tag), the tag of an icon or a corner
+   (a cell, a header cell, a label). The tint is a grey that is see-through, so it keeps the text's contrast in light
+   and dark and lies behind the marker, which is drawn as a background image, a mask or a pseudo-element on top.
+   Meaning never rests on it alone: the tip is the content. A value box has a background of its own, so it gets a
+   glow round its edge, not a tint. No colour-mix(): the browsers' floor has none. */
+
+[data-hovercraft-marker="underline"][data-hovercraft-tip-open]:not([data-hovercraft-marker-text]),
+[data-hovercraft-marker="underline"][data-hovercraft-tip-open] .hc-marker-text,
+[data-hovercraft-marker="icon"][data-hovercraft-tip-open]:not(.bslib-value-box),
+[data-hovercraft-marker="corner"][data-hovercraft-tip-open]:not(.bslib-value-box) {
+  background-color: var(--hc-mk-open);
+}
+
+.bslib-value-box[data-hovercraft-marker][data-hovercraft-tip-open]:not([data-hovercraft-marker="none"]) {
+  box-shadow: 0 0 0 0.2rem var(--hc-mk-glow);
+}
+
 /* ---- The pointer -------------------------------------------------------------------------------------------------
    A tip does nothing on a click, so the pointer says "help" and never "pointer", which promises a click. A tip that
    can be pinned (the engine's pin attribute) does answer a click, and keeps the hand. A button or a link keeps the
@@ -216,6 +240,11 @@ label[data-hovercraft-marker="corner"]::after {
    A shape drawn as a background would vanish; keep its colour as the text's. */
 
 @media (forced-colors: active) {
+  [data-hovercraft-marker][data-hovercraft-tip-open] {
+    outline: 1px solid CanvasText;
+    outline-offset: 1px;
+  }
+
   [data-hovercraft-marker="icon"]:not(.bslib-value-box):not([data-hovercraft-marker-icon])::after,
   .bslib-value-box[data-hovercraft-marker="icon"]:not([data-hovercraft-marker-icon]) .value-box-title::after,
   [data-hovercraft-marker="corner"]:not([data-hovercraft-marker-in])::after {

@@ -1,4 +1,4 @@
-/* hovercraft tip engine 0.50.0, built from its source; do not edit. */
+/* hovercraft tip engine 0.51.0, built from its source; do not edit. */
 :where(:root) {
   --hovercraft-ink: var(--bs-emphasis-color, #212529);
   --hovercraft-page: var(--bs-body-bg, #ffffff);
