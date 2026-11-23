@@ -132,7 +132,12 @@ tip_output_park_class <- function() paste0(sub("-tip$", "", tip_names()$css), "-
 #' ui <- fluidPage(
 #'   tip_define(report = tip_template(tip_title("{{ label }}"), tip_output("report_text"))),
 #'   textOutput("report_text"),
-#'   tip_on(actionButton("run", "Report"), template = "report", record = list(label = "Report"), id = "run")
+#'   tip_on(
+#'     actionButton("run", "Report"),
+#'     template = "report",
+#'     record = list(label = "Report"),
+#'     id = "run"
+#'   )
 #' )
 #' server <- function(input, output, session) {
 #'   tries <- 0
@@ -149,8 +154,20 @@ tip_output_park_class <- function() paste0(sub("-tip$", "", tip_names()$css), "-
 #' ui <- fluidPage(
 #'   tip_define(detail = tip_template(tip_title("{{ label }}"), tip_output("detail_text"))),
 #'   textOutput("detail_text"),
-#'   tip_on(actionButton("a", "Item A"), template = "detail", record = list(label = "A"), id = "a", events = "hint"),
-#'   tip_on(actionButton("b", "Item B"), template = "detail", record = list(label = "B"), id = "b", events = "hint")
+#'   tip_on(
+#'     actionButton("a", "Item A"),
+#'     template = "detail",
+#'     record = list(label = "A"),
+#'     id = "a",
+#'     events = "hint"
+#'   ),
+#'   tip_on(
+#'     actionButton("b", "Item B"),
+#'     template = "detail",
+#'     record = list(label = "B"),
+#'     id = "b",
+#'     events = "hint"
+#'   )
 #' )
 #' server <- function(input, output, session) {
 #'   open_item <- reactiveVal("none")
