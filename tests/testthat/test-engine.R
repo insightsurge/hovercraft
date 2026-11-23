@@ -10,13 +10,24 @@ sha256 <- function(path) {
 describe("the vendored engine", {
   it("has the files engine.json lists, with the checksums it records", {
     engine <- tip_engine()
-    expect_setequal(unlist(engine$files), c("placeholders.json", "www/tip.css", "www/tip.js"))
+    expect_setequal(unlist(engine$files), c("placeholders.json", "tip.json", "www/tip.css", "www/tip.js"))
     for (file in unlist(engine$files)) {
       path <- tip_path(file)
       expect_true(file.exists(path), info = file)
       # A file that was edited by hand, or copied from somewhere else, no longer matches what engine.json recorded.
       expect_identical(sha256(path), engine$sha256[[file]], info = file)
     }
+  })
+
+  it("ships the engine's page contract under this package's names", {
+    contract <- jsonlite::read_json(tip_path("tip.json"))
+    names <- tip_names()
+    expect_identical(contract$global, names$global)
+    expect_identical(contract$attributes$tip, tip_engine()$names$attribute)
+    expect_identical(contract$events$tip$name, paste0(names$prefix, ":tip"))
+    expect_true("auto" %in% unlist(contract$placement$values))
+    # It is the data beside the engine, never served to a page.
+    expect_false(file.exists(tip_path("www", "tip.json")))
   })
 
   it("records the engine's version, commit, names and rules", {

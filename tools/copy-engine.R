@@ -7,9 +7,11 @@
 # the engine's own build check (tools/build_tip.py --check) fails, or when a file does not match tip.sha256. It then
 # builds the engine under this package's own names (tools/build_tip.py --names), refuses a build that still holds a
 # trace of the names it was built from, and copies tip.js and tip.css into inst/engine/www/ (the only folder a page is
-# ever given), and tip.sha256 and the shared placeholder cases into inst/engine/. It writes inst/engine/engine.json:
-# version, commit, branch, files, sha256, the names the built engine uses and its tooltip rules (read from the schema). engine.json stays
-# outside www/, so a rendered page never holds where the engine came from. Files under inst/engine/ are never edited by
+# ever given), and tip.json (the engine's page contract: attributes, events, placements, under this package's names),
+# tip.sha256 and the shared placeholder cases into inst/engine/, and the engine's presets/ folder (when it has one) into
+# inst/engine/presets/. It writes inst/engine/engine.json: version, commit, branch, files, sha256, the names the built
+# engine uses and its tooltip rules (read from the schema). engine.json stays outside www/, so a rendered page never
+# holds where the engine came from. Files under inst/engine/ are never edited by
 # hand: run this again instead. A release is copied from main; the release test fails when engine.json says otherwise.
 
 args <- commandArgs(trailingOnly = TRUE)
@@ -31,6 +33,7 @@ git <- function(...) system2("git", c("-C", shQuote(source_dir), ...), stdout = 
 for (needed in c(
   "kit/tip/tip.js",
   "kit/tip/tip.css",
+  "kit/tip/tip.json",
   "kit/tip/tip.sha256",
   "tools/build_tip.py",
   "tools/tests/fixtures/tooltip/placeholders.json",
@@ -66,7 +69,7 @@ sha256 <- function(path) {
 }
 listed <- strsplit(readLines(at("kit/tip/tip.sha256"), warn = FALSE), "  ", fixed = TRUE)
 listed <- stats::setNames(vapply(listed, `[[`, "", 1L), vapply(listed, `[[`, "", 2L))
-for (name in c("tip.js", "tip.css")) {
+for (name in c("tip.js", "tip.css", "tip.json")) {
   stop_if(!name %in% names(listed), "tip.sha256 has no line for ", name, ".")
   stop_if(!identical(sha256(at("kit/tip", name)), listed[[name]]), name, " does not match tip.sha256.")
 }
@@ -103,7 +106,8 @@ status <- system2(
 stop_if(!is.null(attr(status, "status")), "The engine's build with our names failed: ", paste(status, collapse = " "))
 built_sums <- strsplit(readLines(file.path(build, "tip.sha256"), warn = FALSE), "  ", fixed = TRUE)
 built_sums <- stats::setNames(vapply(built_sums, `[[`, "", 1L), vapply(built_sums, `[[`, "", 2L))
-for (name in c("tip.js", "tip.css")) {
+for (name in c("tip.js", "tip.css", "tip.json")) {
+  stop_if(!name %in% names(built_sums), "The built tip.sha256 has no line for ", name, ".")
   stop_if(
     !identical(sha256(file.path(build, name)), built_sums[[name]]),
     "The built ",
@@ -146,14 +150,27 @@ unlink(dest, recursive = TRUE)
 dir.create(file.path(dest, "www"), recursive = TRUE, showWarnings = FALSE)
 files <- c(
   "placeholders.json" = at("tools/tests/fixtures/tooltip/placeholders.json"),
+  "tip.json" = file.path(build, "tip.json"),
   "tip.sha256" = file.path(build, "tip.sha256"),
   "www/tip.css" = file.path(build, "tip.css"),
   "www/tip.js" = file.path(build, "tip.js")
 )
+# The engine's presets, when it has any: copied as they are, each file recorded below.
+presets <- if (dir.exists(at("kit/tip/presets"))) list.files(at("kit/tip/presets"), recursive = TRUE) else character()
+for (preset in presets) {
+  files[[file.path("presets", preset)]] <- at("kit/tip/presets", preset)
+}
 for (name in names(files)) {
+  dir.create(dirname(file.path(dest, name)), recursive = TRUE, showWarnings = FALSE)
   stop_if(!file.copy(files[[name]], file.path(dest, name), overwrite = TRUE), "Could not copy ", name)
 }
-recorded <- c("placeholders.json", "www/tip.css", "www/tip.js")
+recorded <- c(
+  "placeholders.json",
+  "tip.json",
+  "www/tip.css",
+  "www/tip.js",
+  file.path("presets", presets)[length(presets) > 0L]
+)
 record <- list(
   engine = version,
   commit = commit,

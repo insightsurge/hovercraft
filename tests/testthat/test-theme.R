@@ -73,9 +73,9 @@ describe("the contrast check", {
     )
   })
 
-  it("measures a role the theme leaves out against what Bootstrap's default gives", {
-    expect_warning(tip_theme(light = list(bg = "#e0e0e0")), "ink", class = "hovercraft_contrast")
-    expect_warning(tip_theme(dark = list(ink = "#e8e8e8"), mode = "dark"), class = "hovercraft_contrast")
+  it("measures a role the theme leaves out against the tip a bslib page draws by default", {
+    expect_warning(tip_theme(light = list(bg = "#303030")), "ink", class = "hovercraft_contrast")
+    expect_warning(tip_theme(dark = list(ink = "#444444"), mode = "dark"), class = "hovercraft_contrast")
     expect_no_warning(tip_theme(light = list(radius = 4)))
   })
 
@@ -142,9 +142,13 @@ describe("the contrast check", {
 
 describe("tip_theme_roles()", {
   it("lets a dark role replace the light one, and only in dark", {
-    theme <- tip_theme(light = list(bg = "#111111", radius = 4), dark = list(bg = "#eeeeee"), mode = "auto")
-    expect_identical(tip_theme_roles(theme, "light"), list(bg = "#111111", radius = "4px"))
-    expect_identical(tip_theme_roles(theme, "dark"), list(bg = "#eeeeee", radius = "4px"))
+    theme <- tip_theme(
+      light = list(bg = "#111111", ink = "#ffffff", radius = 4),
+      dark = list(bg = "#eeeeee", ink = "#111111"),
+      mode = "auto"
+    )
+    expect_identical(tip_theme_roles(theme, "light"), list(bg = "#111111", ink = "#ffffff", radius = "4px"))
+    expect_identical(tip_theme_roles(theme, "dark"), list(bg = "#eeeeee", ink = "#111111", radius = "4px"))
   })
 })
 
@@ -248,16 +252,61 @@ describe("tip_as_theme()", {
   })
 })
 
+describe("the colours assumed for a role the theme leaves out", {
+  it("are a shade of the page in each mode, and readable", {
+    for (mode in c("light", "dark")) {
+      expect_gte(tip_contrast(tip_assumed[[mode]][["ink"]], tip_assumed[[mode]][["bg"]]), 4.5)
+      # Not the page itself, and not its opposite: a little away from the page colour.
+      expect_gt(tip_contrast(tip_assumed[[mode]][["bg"]], tip_page[[mode]]), 1)
+      expect_lt(tip_contrast(tip_assumed[[mode]][["bg"]], tip_page[[mode]]), 2)
+    }
+    expect_identical(tip_assumed$light[["bg"]], "#f8f8f8")
+    expect_identical(tip_assumed$dark[["bg"]], "#292d34")
+  })
+
+  it("measure a theme that sets only ink, in light and in dark", {
+    # #ffffff on the light fill #f8f8f8 is 1.06:1; #1d1f21 on the dark fill #292d34 is 1.20:1. Each is a pair the old
+    # (inverted) assumption would have passed: white on #212529, and dark on #dee2e6.
+    expect_warning(
+      tip_theme(light = list(ink = "#ffffff"), mode = "light"),
+      "light mode.*#f8f8f8.*1\\.06:1",
+      class = "hovercraft_contrast"
+    )
+    expect_warning(
+      tip_theme(dark = list(ink = "#1d1f21"), mode = "dark"),
+      "dark mode.*#292d34",
+      class = "hovercraft_contrast"
+    )
+    expect_no_warning(tip_theme(light = list(ink = "#1d1f21"), mode = "light"))
+    expect_no_warning(tip_theme(dark = list(ink = "#dee2e6"), mode = "dark"))
+  })
+
+  it("measure a theme that sets only bg against the assumed words", {
+    expect_warning(tip_theme(light = list(bg = "#1d1f21"), mode = "light"), "#1d1f21", class = "hovercraft_contrast")
+    expect_no_warning(tip_theme(light = list(bg = "#ffffff"), mode = "light"))
+  })
+})
+
 describe("a bslib theme", {
   skip_if_not_installed("bslib")
 
-  it("becomes the page inverted: its text colour is the fill and its background the words", {
+  it("becomes a shade of the page: the tertiary background is the fill and the text colour the words", {
     theme <- quiet(tip_as_theme(bslib::bs_theme(version = 5, bg = "#ffffff", fg = "#102a43")))
     expect_s3_class(theme, "hovercraft_theme")
-    expect_identical(theme$light$ink, "#ffffff")
+    expect_match(theme$light$ink, "^#[0-9a-f]{6}$")
     expect_match(theme$light$bg, "^#[0-9a-f]{6}$")
+    expect_false(identical(theme$light$bg, theme$light$ink))
     expect_identical(theme$mode, "auto")
     expect_named(theme$dark, c("bg", "ink", "line"))
+    # The page's own variables, as bslib compiles them: the fill is the one the page's CSS holds, not a copy.
+    vars <- bslib::bs_get_variables(
+      bslib::bs_theme(version = 5, bg = "#ffffff", fg = "#102a43"),
+      c("body-color", "body-tertiary-bg", "body-tertiary-bg-dark", "body-color-dark")
+    )
+    expect_identical(theme$light$ink, tip_colour(vars[["body-color"]]))
+    expect_identical(theme$light$bg, tip_colour(vars[["body-tertiary-bg"]]))
+    expect_identical(theme$dark$bg, tip_colour(vars[["body-tertiary-bg-dark"]]))
+    expect_identical(theme$dark$ink, tip_colour(vars[["body-color-dark"]]))
     expect_identical(
       theme$light$radius,
       tip_length(bslib::bs_get_variables(
@@ -267,15 +316,27 @@ describe("a bslib theme", {
     )
   })
 
-  it("takes the page's emphasis colours, which is what the engine's own default uses", {
+  it("gives a light tip on a light theme and a dark one on a dark theme, never the page inverted", {
+    got <- quiet(tip_as_theme(bslib::bs_theme(version = 5)))
+    lightness <- function(x) sum(tip_channels(x)[1:3])
+    expect_gt(lightness(got$light$bg), lightness(got$light$ink))
+    expect_lt(lightness(got$dark$bg), lightness(got$dark$ink))
+    # Close to its page: a shade of it, not the opposite colour.
+    expect_lt(abs(lightness(got$light$bg) - lightness(tip_page$light)), 30)
+    expect_lt(abs(lightness(got$dark$bg) - lightness(tip_page$dark)), 60)
+    expect_identical(unname(unlist(got$light[c("bg", "ink")])), unname(tip_assumed$light))
+    expect_identical(unname(unlist(got$dark[c("bg", "ink")])), unname(tip_assumed$dark))
+  })
+
+  it("takes the tertiary background and the text colour of each mode", {
     local_mocked_bindings(
       bs_get_variables = function(theme, varnames) {
         stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
           replace_in(c(
-            "body-emphasis-color" = "#000",
-            "body-color" = "#1D1F21",
+            "body-tertiary-bg" = "#f8f9fa",
+            "body-color" = "#212529",
             "body-bg" = "#fff",
-            "body-emphasis-color-dark" = "#ffffff",
+            "body-tertiary-bg-dark" = "#2b3035",
             "body-color-dark" = "#dee2e6",
             "body-bg-dark" = "#212529"
           ))
@@ -283,22 +344,42 @@ describe("a bslib theme", {
       .package = "bslib"
     )
     got <- tip_as_theme(bslib::bs_theme(version = 5))
-    expect_identical(got$light$bg, "#000000")
-    expect_identical(got$dark$bg, "#ffffff")
+    expect_identical(got$light[c("bg", "ink")], list(bg = "#f8f9fa", ink = "#212529"))
+    expect_identical(got$dark[c("bg", "ink")], list(bg = "#2b3035", ink = "#dee2e6"))
   })
 
-  it("falls back to the body colour when there is no emphasis colour", {
+  it("makes a shade of the page when the theme has no tertiary background: 8% of the words over the page", {
     local_mocked_bindings(
       bs_get_variables = function(theme, varnames) {
         stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
-          replace_in(c("body-color" = "#1D1F21", "body-color-dark" = "#dee2e6"))
+          replace_in(c(
+            "body-color" = "#000000",
+            "body-bg" = "#ffffff",
+            "body-color-dark" = "#ffffff",
+            "body-bg-dark" = "#000000"
+          ))
       },
       .package = "bslib"
     )
-    withr::local_options(hovercraft.contrast_warnings = FALSE)
     got <- tip_as_theme(bslib::bs_theme(version = 5))
-    expect_identical(got$light$bg, "#1d1f21")
-    expect_identical(got$dark$bg, "#dee2e6")
+    # 8% of 0 over 255 is 255 * 0.92 = 234.6, rounded to 235 (#ebebeb); 8% of 255 over 0 is 20.4, rounded to 20 (#141414).
+    expect_identical(got$light$bg, "#ebebeb")
+    expect_identical(got$dark$bg, "#141414")
+    expect_identical(got$light$ink, "#000000")
+  })
+
+  it("leaves the fill to the page when there is no tertiary background and no colour to shade", {
+    withr::local_options(hovercraft.contrast_warnings = FALSE)
+    local_mocked_bindings(
+      bs_get_variables = function(theme, varnames) {
+        stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
+          replace_in(c("body-color" = "#1D1F21"))
+      },
+      .package = "bslib"
+    )
+    got <- tip_as_theme(bslib::bs_theme(version = 5))
+    expect_null(got$light$bg)
+    expect_identical(got$light$ink, "#1d1f21")
   })
 
   it("writes a font that is a bslib variable with a fallback, for a page that does not define it", {
@@ -346,7 +427,7 @@ describe("a bslib theme", {
     local_mocked_bindings(
       bs_get_variables = function(theme, varnames) {
         stats::setNames(rep(NA_character_, length(varnames)), varnames) |>
-          replace_in(c("body-bg" = "calc(1px + 2px)", "body-color" = "#222222"))
+          replace_in(c("body-tertiary-bg" = "calc(1px + 2px)", "body-color" = "#222222"))
       },
       .package = "bslib"
     )
@@ -354,8 +435,8 @@ describe("a bslib theme", {
       got <- tip_as_theme(bslib::bs_theme(version = 5)),
       class = "hovercraft_warning_theme"
     )
-    expect_null(got$light$ink)
-    expect_identical(got$light$bg, "#222222")
+    expect_null(got$light$bg)
+    expect_identical(got$light$ink, "#222222")
   })
 
   it("needs a bslib that can read the variables", {
