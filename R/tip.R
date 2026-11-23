@@ -205,10 +205,19 @@ tip_check_use <- function(template, held, id, call) {
 #'   value by value. A list is not taken, and neither is a string that holds `:` or `;` (`style` takes no CSS); see
 #'   [tip_style()].
 #'
+#' @param placement Where the tip opens: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` (the default)
+#'   for the page's choice, which is `"auto"` unless a tagged ancestor sets a side. A chosen side flips to the other
+#'   when there is no room, and `"left"` and `"right"` mirror in right-to-left text. On a phone the tip always chooses
+#'   its own side.
+#'
 #' @param marker `r lifecycle::badge("experimental")` A visible cue that the tag holds a tip, off by default: `"none"`,
 #'   `"underline"`, `"icon"` or `"corner"`, a [tip_marker()] to choose the line of an underline or give an icon, or a
 #'   tag, which is used as the icon (`marker = fontawesome::fa("circle-info")` is `tip_marker("icon", icon = ...)`).
 #'   See [tip_marker()] for what each draws. For the cells of a table, use the `marker` argument of [tip_table()].
+#'
+#' @param id `r lifecycle::badge("experimental")` A Shiny id for this tip, or `NULL` (the default) for none: one
+#'   non-empty string with no whitespace, so `ns("baseline_tip")` works in a module. Give it a different id from every
+#'   other tip source on the page. In this version it only names the tip; Shiny inputs that use it come in a later one.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 #'   and the marker's own dependency.
@@ -247,7 +256,17 @@ tip_check_use <- function(template, held, id, call) {
 #' # An icon-only button is named from its tip
 #' tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 #' @export
-tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL, style = NULL, marker = "none") {
+tip_on <- function(
+  tag,
+  text = NULL,
+  ...,
+  template = NULL,
+  record = NULL,
+  style = NULL,
+  placement = NULL,
+  marker = "none",
+  id = NULL
+) {
   if (inherits(tag, "shiny.tag.list")) {
     tip_abort(
       c("{.arg tag} is a list of tags; give one tag.", i = "Call {.fn tip_on} on each tag."),
@@ -257,10 +276,12 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL, style 
   if (!inherits(tag, "shiny.tag")) {
     tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
   }
-  tip_check_dots(..., args = c("tag", "text", "template", "record", "style", "marker"))
+  tip_check_dots(..., args = c("tag", "text", "template", "record", "style", "placement", "marker", "id"))
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
   tip_arg_string(template, "template", null_ok = TRUE)
   style <- tip_as_style(style, "style")
+  tip_check_placement(placement)
+  tip_check_id(id)
   marker <- tip_as_marker(marker, "marker")
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
   if (!has_text && is.null(template)) {
@@ -295,6 +316,12 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL, style 
   if (!is.null(record)) {
     values[[attrs[["record"]]]] <- tip_json(record)
   }
+  if (!is.null(placement)) {
+    values[[tip_attribute("placement")]] <- placement
+  }
+  if (!is.null(id)) {
+    values[[tip_attribute("id")]] <- id
+  }
   # A label made from an earlier tip on this tag goes with that tip; a label the page wrote itself stays.
   earlier <- htmltools::tagGetAttribute(tag, attrs[["text"]])
   if (!is.null(earlier) && identical(htmltools::tagGetAttribute(tag, "aria-label"), tip_plain_text(earlier))) {
@@ -302,7 +329,7 @@ tip_on <- function(tag, text = NULL, ..., template = NULL, record = NULL, style 
   }
   look <- tip_style_tag(style)
   # A tip made before is replaced, its look too.
-  own <- c(attrs, vapply(c("preset", "class"), tip_attribute, ""), tip_theme_attribute())
+  own <- c(attrs, vapply(c("preset", "class", "placement", "id"), tip_attribute, ""), tip_theme_attribute())
   tag$attribs[names(tag$attribs) %in% own] <- NULL
   if (has_text && tip_needs_label(tag)) {
     label <- tip_plain_text(text)

@@ -361,7 +361,6 @@ describe("tip_spec()", {
   it("checks the placement and makes a misspelt argument an error", {
     expect_error(tip_spec("x", placement = "above"), "placement", class = "hovercraft_error_argument")
     expect_error(tip_spec("x", plcement = "right"), class = "hovercraft_error_argument")
-    expect_error(tip_spec("x", style = "dense"), class = "hovercraft_error_argument")
   })
 })
 
@@ -557,5 +556,88 @@ describe("tip_table(marker =)", {
     expect_identical(tip_spec("x", marker = "corner")$marker$type, "corner")
     expect_null(tip_spec("x")$marker)
     expect_error(tip_spec("x", marker = "cornr"), class = "hovercraft_error_marker_type")
+  })
+})
+
+describe("tip_table(style =)", {
+  look_of <- function(got, column = 1L) {
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    js(cells[[column]]$createdCell)
+  }
+  preset <- function() tip_attribute("preset")
+  theme_dep <- function(widget) {
+    names <- vapply(widget$dependencies, function(d) d$name, "")
+    names[startsWith(names, "hovercraft-theme-")]
+  }
+  ink <- tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+
+  it("writes the preset and class on every row, cell and header cell that has a tip", {
+    got <- tip_table(
+      dt(),
+      rows = "{{ team }}",
+      cells = c(wins = "{{ wins }}"),
+      headers = c(losses = "Games lost"),
+      style = tip_style("sober", class = "league")
+    )
+    expect_match(js(got$x$options$createdRow), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
+    expect_match(look_of(got), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
+    expect_match(look_of(got), sprintf("\"%s\":\"league\"", tip_attribute("class")), fixed = TRUE)
+    expect_match(js(got$x$options$initComplete), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
+  })
+
+  it("takes a preset name and a theme, and adds the theme's stylesheet once", {
+    got <- tip_table(dt(), cells = c(wins = "{{ wins }}", losses = "{{ losses }}"), style = ink)
+    expect_match(look_of(got), tip_theme_attribute(), fixed = TRUE)
+    expect_length(theme_dep(got), 1L)
+    named <- tip_table(dt(), cells = c(wins = "{{ wins }}"), style = "dense")
+    expect_match(look_of(named), "\"dense\"", fixed = TRUE)
+    expect_length(theme_dep(named), 0L)
+  })
+
+  it("marks a reactable table the same way", {
+    got <- tip_table(rt(), cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"), style = "sober")
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$cells[["1"]]$attrs[[preset()]], "sober")
+    expect_identical(cfg$headers[["2"]]$attrs[[preset()]], "sober")
+  })
+
+  it("writes nothing and adds no stylesheet without a style", {
+    got <- tip_table(dt(), cells = c(wins = "{{ wins }}"))
+    expect_no_match(look_of(got), "preset", fixed = TRUE)
+    expect_length(theme_dep(got), 0L)
+  })
+
+  it("lets a spec's style beat the table's part by part, keeping what the spec leaves out", {
+    got <- tip_table(
+      dt(),
+      cells = list(wins = tip_spec("{{ wins }}", style = "dense"), losses = tip_spec("{{ losses }}")),
+      style = tip_style("sober", class = "league")
+    )
+    own <- look_of(got, 1L)
+    expect_match(own, sprintf("\"%s\":\"dense\"", preset()), fixed = TRUE)
+    expect_match(own, sprintf("\"%s\":\"league\"", tip_attribute("class")), fixed = TRUE)
+    expect_match(look_of(got, 2L), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
+  })
+
+  it("gives a spec a style when the table has none, and a row its own", {
+    got <- tip_table(
+      dt(),
+      rows = tip_spec("{{ team }}", style = ink),
+      cells = list(wins = tip_spec("x", style = "dense"))
+    )
+    expect_match(js(got$x$options$createdRow), tip_theme_attribute(), fixed = TRUE)
+    expect_match(look_of(got), "\"dense\"", fixed = TRUE)
+    expect_length(theme_dep(got), 1L)
+  })
+
+  it("stops on what style does not take, as tip_on() does", {
+    expect_error(tip_table(dt(), rows = "x", style = "nope"), class = "hovercraft_error_style")
+    expect_error(tip_table(dt(), rows = "x", style = list(bg = "red")), class = "hovercraft_error_style")
+    expect_error(tip_spec("x", style = "color: red"), class = "hovercraft_error_style")
+  })
+
+  it("lets tip_spec() keep a style", {
+    expect_identical(tip_spec("x", style = "sober")$style$preset, "sober")
+    expect_null(tip_spec("x")$style)
   })
 })
