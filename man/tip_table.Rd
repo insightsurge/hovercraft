@@ -10,6 +10,7 @@ tip_table(
   rows = NULL,
   cells = NULL,
   headers = NULL,
+  style = NULL,
   placement = NULL,
   marker = NULL,
   id = NULL
@@ -27,6 +28,11 @@ tip_table(
 \code{list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")}.}
 
 \item{headers}{The same for the header cells; words only, so a \code{\link[=tip_spec]{tip_spec()}} here holds words with no placeholders.}
+
+\item{style}{How every tip in the table looks, or \code{NULL} (the default) to take the page's: whatever \code{style} takes in
+\code{\link[=tip_on]{tip_on()}} (a preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A \code{\link[=tip_spec]{tip_spec()}} with its own
+\code{style} beats it for that target. A row's own style also reaches the cells in that row that have none of their
+own, because the tip engine reads the nearest tagged element.}
 
 \item{placement}{Where the tips show: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} for the page's
 choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A cell's tip follows this, not its row's.}

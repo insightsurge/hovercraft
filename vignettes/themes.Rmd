@@ -92,6 +92,10 @@ A tag can have its own look. `tip_on(btn, "Run", style = "dense")` beats the pag
 nearer wins, value by value: a tag whose theme sets only `bg` keeps the page's `ink`. A preset on a tag replaces the
 page's preset as a whole, and a theme beats a preset set at the same place or further out.
 
+The tips of a table take a look the same way: `tip_table(style = "sober")` styles all of them, and a column's
+`tip_spec("{{ note }}", style = "dense")` gives that column its own, keeping what it does not set from the table. A row's
+own style also reaches the cells of that row that have none of their own.
+
 `class` puts class names on the tip box, for your own CSS. The nearest class wins as a whole (a tag's `class = "wide"`
 replaces the page's `class = "brand"`), and `class = ""` clears one:
 

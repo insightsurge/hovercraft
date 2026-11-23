@@ -39,4 +39,8 @@ describe("the tip_on() errors", {
     expect_snapshot(invisible(tip_on(button(), template = "withid", record = list(label = "x", tip_id = "u"))))
     expect_snapshot(invisible(tip_on(button(), "x", record = list(a = 1))))
   })
+  it("say what a placement and an id must be", {
+    expect_snapshot(tip_on(button(), "x", placement = "above"), error = TRUE)
+    expect_snapshot(tip_on(button(), "x", id = "two words"), error = TRUE)
+  })
 })

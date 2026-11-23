@@ -47,11 +47,23 @@ tip_table_data <- function(widget, kind) {
 # Everything a content can be: a string (markdown, with placeholders if you like), a tip_template(), or a tip_spec()
 # that holds one of those and a placement of its own. NA and "" are no tip: the function returns NULL for them. The
 # placement is the spec's, or else the table's `placement`.
-tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL, call, marker = NULL, row = FALSE) {
+tip_table_content <- function(
+  x,
+  arg,
+  columns,
+  header = FALSE,
+  placement = NULL,
+  call,
+  marker = NULL,
+  row = FALSE,
+  style = NULL
+) {
   own <- NULL
+  own_style <- NULL
   if (inherits(x, "hovercraft_spec")) {
     placement <- x$placement %||% placement
     own <- x$marker
+    own_style <- x$style
     x <- x$content
   }
   if (inherits(x, "hovercraft_template")) {
@@ -118,6 +130,7 @@ tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL,
     body = body,
     fields = unique(fields),
     placement = placement,
+    style = tip_style_over(own_style, style),
     marker = tip_table_marker(own, marker, arg, row, call)
   )
 }
@@ -157,7 +170,7 @@ tip_table_marker <- function(own, table, arg, row, call) {
 }
 
 # `x` (cells or headers) as a named list of contents, one per column; entries that are NA or "" are left out.
-tip_table_named <- function(x, arg, columns, header, placement, call, marker = NULL) {
+tip_table_named <- function(x, arg, columns, header, placement, call, marker = NULL, style = NULL) {
   if (is.null(x)) {
     return(list())
   }
@@ -199,7 +212,8 @@ tip_table_named <- function(x, arg, columns, header, placement, call, marker = N
       header,
       placement,
       call,
-      marker = marker
+      marker = marker,
+      style = style
     )
   })
   names(out) <- names(x)
@@ -224,6 +238,9 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
   }
+  if (!is.null(content$style)) {
+    attrs <- c(attrs, tip_style_tag(content$style)$attribs)
+  }
   # The marker layer's attributes (inst/marker/marker.css draws the corner on a table's cell with a background, because
   # DT keeps a header cell's ::before and ::after for its sort arrows).
   if (!is.null(content$marker)) {
@@ -239,7 +256,7 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields), id = ident)
 }
 
-tip_table_dependencies <- function(widget, marker = FALSE) {
+tip_table_dependencies <- function(widget, marker = FALSE, looks = list()) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
     version = tip_engine_version(),
@@ -251,7 +268,7 @@ tip_table_dependencies <- function(widget, marker = FALSE) {
   if (inherits(engine, "html_dependency")) {
     engine <- list(engine)
   }
-  widget$dependencies <- c(widget$dependencies, engine, list(table), if (marker) list(tip_marker_dependency()))
+  widget$dependencies <- c(widget$dependencies, engine, list(table), if (marker) list(tip_marker_dependency()), looks)
   widget
 }
 
@@ -486,6 +503,10 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   [tip_template()] or a [tip_spec()]; `NA` and `""` give that column no tip. Use a list to mix them:
 #'   `list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")`.
 #' @param headers The same for the header cells; words only, so a [tip_spec()] here holds words with no placeholders.
+#' @param style How every tip in the table looks, or `NULL` (the default) to take the page's: whatever `style` takes in
+#'   [tip_on()] (a preset name, a [tip_style()], a [tip_theme()] or a [bslib::bs_theme()]). A [tip_spec()] with its own
+#'   `style` beats it for that target. A row's own style also reaches the cells in that row that have none of their
+#'   own, because the tip engine reads the nearest tagged element.
 #' @param placement Where the tips show: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` for the page's
 #'   choice. A [tip_spec()] with its own placement beats it. A cell's tip follows this, not its row's.
 #' @param marker The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:
@@ -515,12 +536,13 @@ tip_table <- function(
   rows = NULL,
   cells = NULL,
   headers = NULL,
+  style = NULL,
   placement = NULL,
   marker = NULL,
   id = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("widget", "rows", "cells", "headers", "placement", "marker", "id"))
+  tip_check_dots(..., args = c("widget", "rows", "cells", "headers", "style", "placement", "marker", "id"))
   kind <- tip_table_kind(widget)
   if (is.na(kind)) {
     tip_abort(
@@ -537,15 +559,16 @@ tip_table <- function(
   rlang::check_installed(if (kind == "dt") "DT" else "reactable")
   tip_check_placement(placement)
   tip_check_id(id)
+  style <- tip_as_style(style, call = call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
   plan <- list(
     rows = if (!is.null(rows)) {
-      tip_table_content(rows, "rows", columns, placement = placement, call = call, row = TRUE)
+      tip_table_content(rows, "rows", columns, placement = placement, call = call, row = TRUE, style = style)
     },
-    cells = tip_table_named(cells, "cells", columns, FALSE, placement, call, marker),
-    headers = tip_table_named(headers, "headers", columns, TRUE, placement, call, marker)
+    cells = tip_table_named(cells, "cells", columns, FALSE, placement, call, marker, style),
+    headers = tip_table_named(headers, "headers", columns, TRUE, placement, call, marker, style)
   )
   if (is.null(plan$rows) && !length(plan$cells) && !length(plan$headers)) {
     tip_abort(
@@ -589,5 +612,9 @@ tip_table <- function(
     )
   }
   widget <- if (kind == "dt") tip_table_dt(widget, plan, id, call) else tip_table_reactable(widget, plan, call)
-  tip_table_dependencies(widget, marked)
+  looks <- unlist(
+    lapply(c(list(plan$rows), plan$cells, plan$headers), function(content) tip_style_tag(content$style)$deps),
+    recursive = FALSE
+  )
+  tip_table_dependencies(widget, marked, looks[!duplicated(vapply(looks, function(dep) dep$name, ""))])
 }

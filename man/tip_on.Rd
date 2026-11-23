@@ -11,7 +11,9 @@ tip_on(
   template = NULL,
   record = NULL,
   style = NULL,
-  marker = "none"
+  placement = NULL,
+  marker = "none",
+  id = NULL
 )
 }
 \arguments{
@@ -36,10 +38,19 @@ style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{
 value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
 \code{\link[=tip_style]{tip_style()}}.}
 
+\item{placement}{Where the tip opens: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} (the default)
+for the page's choice, which is \code{"auto"} unless a tagged ancestor sets a side. A chosen side flips to the other
+when there is no room, and \code{"left"} and \code{"right"} mirror in right-to-left text. On a phone the tip always chooses
+its own side.}
+
 \item{marker}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A visible cue that the tag holds a tip, off by default: \code{"none"},
 \code{"underline"}, \code{"icon"} or \code{"corner"}, a \code{\link[=tip_marker]{tip_marker()}} to choose the line of an underline or give an icon, or a
 tag, which is used as the icon (\code{marker = fontawesome::fa("circle-info")} is \code{tip_marker("icon", icon = ...)}).
 See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells of a table, use the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
+
+\item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one
+non-empty string with no whitespace, so \code{ns("baseline_tip")} works in a module. Give it a different id from every
+other tip source on the page. In this version it only names the tip; Shiny inputs that use it come in a later one.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,

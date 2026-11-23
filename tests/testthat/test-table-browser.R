@@ -600,3 +600,65 @@ describe("tip_table(marker =) in a browser", {
     expect_identical(rt_page$problems(), character())
   })
 })
+
+# A table's style reaches the tip: the table's class on a cell's tip, and a column's own class over it.
+shown_look <- function(page) {
+  jsonlite::fromJSON(page$evaluate(sprintf(
+    paste0(
+      "(() => { const t = [...document.querySelectorAll('.%s')].find((n) => !n.hidden);",
+      " return JSON.stringify({ classes: [...t.classList], preset: t.dataset.preset ?? null }); })()"
+    ),
+    tip_names()$css
+  )))
+}
+
+describe("tip_table(style =) in a browser", {
+  file <- save_page(
+    tip_table(
+      DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2)),
+      cells = list(wins = tip_spec("{{ wins }} wins", style = tip_style(class = "own-column")), note = "{{ note }}"),
+      style = tip_style(class = "league-tip")
+    )
+  )
+  page <- local_page(file, environment())
+
+  it("puts the table's class on a tip, and a column's own class over it", {
+    expect_true(page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-tip-template]').length >= 2"))
+    expect_identical(page$hover("tbody tr:first-child td:last-child"), "Top")
+    expect_true("league-tip" %in% shown_look(page)$classes)
+    expect_identical(page$hover("tbody tr:first-child td:nth-child(2)"), "7 wins")
+    expect_true("own-column" %in% shown_look(page)$classes)
+    expect_identical(page$problems(), character())
+  })
+})
+
+# tip_on(placement =): the tip opens on the side it was asked for. A button in the middle of a wide page has room on
+# every side, so the engine keeps the side it is given.
+side_of <- function(page) {
+  page$evaluate(sprintf(
+    "[...document.querySelectorAll('.%s')].find((n) => !n.hidden).dataset.side",
+    tip_names()$css
+  ))
+}
+
+describe("tip_on(placement =) in a browser", {
+  button <- function(id, ...) {
+    tip_on(htmltools::tags$button(id = id, style = "margin: 160px 300px", id), paste("Tip", id), ...)
+  }
+  dir <- withr::local_tempdir()
+  path <- file.path(dir, "page.html")
+  htmltools::save_html(
+    htmltools::tagList(button("right", placement = "right"), button("below", placement = "bottom")),
+    path
+  )
+  page <- local_page(path, environment())
+
+  it("opens on the side that was asked for", {
+    expect_true(page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global)))
+    expect_identical(page$hover("#right"), "Tip right")
+    expect_identical(side_of(page), "right")
+    expect_identical(page$hover("#below"), "Tip below")
+    expect_identical(side_of(page), "below")
+    expect_identical(page$problems(), character())
+  })
+})

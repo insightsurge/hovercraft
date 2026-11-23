@@ -28,4 +28,8 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_table(dt(), rows = tip_spec("x", marker = "corner")), error = TRUE)
     expect_snapshot(tip_table(dt(), rows = "x", marker = "corner"), error = TRUE)
   })
+  it("say what a style must be", {
+    expect_snapshot(tip_table(dt(), rows = "x", style = "nope"), error = TRUE)
+    expect_snapshot(tip_spec("x", style = "color: red"), error = TRUE)
+  })
 })

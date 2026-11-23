@@ -95,6 +95,15 @@ new_tip_style <- function(preset = NULL, theme = NULL, class = NULL) {
   structure(list(preset = preset, theme = theme, class = class), class = "hovercraft_style")
 }
 
+# `near` over `far`, part by part: a spec's style and the table's, where a part set nearer wins and the rest comes from
+# the table. Either may be NULL.
+tip_style_over <- function(near, far) {
+  if (is.null(near) || is.null(far)) {
+    return(near %||% far)
+  }
+  new_tip_style(near$preset %||% far$preset, near$theme %||% far$theme, near$class %||% far$class)
+}
+
 #' How the tips look
 #'
 #' `r lifecycle::badge("experimental")`

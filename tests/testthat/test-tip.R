@@ -308,3 +308,44 @@ describe("tip_on() when no template has been defined", {
     expect_no_warning(tip_on(button(), template = "later", record = list(a = 1)))
   })
 })
+
+describe("tip_on(placement =, id =)", {
+  withr::defer(tip_reset())
+  tip_reset()
+  attribute <- function(key) tip_attribute(key)
+
+  it("writes a placement and an id as the engine's attributes, and nothing when they are NULL", {
+    got <- tip_on(button(), "Runs", placement = "left", id = "mod1-run_tip")
+    expect_identical(htmltools::tagGetAttribute(got, attribute("placement")), "left")
+    expect_identical(htmltools::tagGetAttribute(got, attribute("id")), "mod1-run_tip")
+    plain <- tip_on(button(), "Runs")
+    expect_null(htmltools::tagGetAttribute(plain, attribute("placement")))
+    expect_null(htmltools::tagGetAttribute(plain, attribute("id")))
+  })
+
+  it("lets \"auto\" be written, so a tag can break from a side set above it", {
+    got <- tip_on(button(), "Runs", placement = "auto")
+    expect_identical(htmltools::tagGetAttribute(got, attribute("placement")), "auto")
+  })
+
+  it("keeps the tag's own HTML id apart from the tip's id", {
+    got <- tip_on(htmltools::tags$button("Run", id = "go"), "Runs", id = "run_tip")
+    expect_identical(htmltools::tagGetAttribute(got, "id"), "go")
+    expect_identical(htmltools::tagGetAttribute(got, attribute("id")), "run_tip")
+  })
+
+  it("replaces them when tip_on() is called again on the same tag", {
+    once <- tip_on(button(), "Runs", placement = "left", id = "first")
+    twice <- tip_on(once, "Runs again")
+    expect_null(htmltools::tagGetAttribute(twice, attribute("placement")))
+    expect_null(htmltools::tagGetAttribute(twice, attribute("id")))
+  })
+
+  it("stops on a side the engine does not know and on an id that is not one", {
+    expect_error(tip_on(button(), "Runs", placement = "above"), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Runs", placement = c("left", "right")), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Runs", id = "two words"), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Runs", id = ""), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Runs", id = 1), class = "hovercraft_error_argument")
+  })
+})

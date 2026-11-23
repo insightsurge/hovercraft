@@ -4,13 +4,17 @@
 \alias{tip_spec}
 \title{A tip with settings of its own, for a table}
 \usage{
-tip_spec(content, ..., placement = NULL, marker = NULL)
+tip_spec(content, ..., style = NULL, placement = NULL, marker = NULL)
 }
 \arguments{
 \item{content}{The words of the tip (markdown, with \code{{{ column }}} placeholders for \code{rows} and \code{cells}), or a
 \code{\link[=tip_template]{tip_template()}}. \code{NA} and \code{""} mean no tip.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
+
+\item{style}{How this target's tips look, or \code{NULL} to take the table's: whatever \code{style} takes in \code{\link[=tip_on]{tip_on()}} (a
+preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A row's own style also reaches the cells
+in that row that have none of their own, because the tip engine reads the nearest tagged element.}
 
 \item{placement}{Where this tip shows: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} to take the
 table's. A cell or header cell with no placement of its own follows the table's, not its row's.}
@@ -26,7 +30,7 @@ An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{ti
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Wraps the words of one \code{\link[=tip_table]{tip_table()}} target (\code{rows}, one column of \code{cells}, or one column of \code{headers}) together
 with settings that only that target needs. A setting left as \code{NULL} is taken from \code{\link[=tip_table]{tip_table()}}. The API shape may
-change in upcoming releases: later versions add more settings, and \code{style} is not here yet.
+change in upcoming releases: later versions add more settings.
 }
 \details{
 Give a spec as \code{rows}, or as an entry of a named list given to \code{cells} or \code{headers}. Plain words and a
@@ -38,7 +42,9 @@ scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5), note = c("Top", 
 DT::datatable(scores) |>
   tip_table(
     rows = "**{{ team }}**: {{ wins | number:0 }} wins",
-    cells = list(note = tip_spec("{{ note }} in the table", placement = "right", marker = "corner"))
+    cells = list(
+      note = tip_spec("{{ note }}", style = "sober", placement = "right", marker = "corner")
+    )
   )
 \dontshow{\}) # examplesIf}
 }

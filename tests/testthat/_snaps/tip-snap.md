@@ -69,7 +69,7 @@
       Error in `tip_on()`:
       ! `...` must be empty.
       x Not an argument: "tmplate".
-      i The arguments are `tag`, `text`, `template`, `record`, `style`, and `marker`.
+      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, and `id`.
 
 # the tip_on() errors / say what a record lacks, and what it holds
 
@@ -120,4 +120,22 @@
       Warning in `tip_on()`:
       `record` is ignored without a `template`.
       i A plain text tip has no placeholders to fill in.
+
+# the tip_on() errors / say what a placement and an id must be
+
+    Code
+      tip_on(button(), "x", placement = "above")
+    Condition
+      Error in `tip_on()`:
+      ! `placement` is not right: Must be element of set {'auto','top','bottom','left','right'}, but is 'above'
+      i Give one of "auto", "top", "bottom", "left", "right", or `NULL`.
+
+---
+
+    Code
+      tip_on(button(), "x", id = "two words")
+    Condition
+      Error in `tip_on()`:
+      ! `id` is not right: Must be one non-empty string without whitespace.
+      i Give one non-empty string with no spaces, such as `ns("scores")`, or `NULL`.
 

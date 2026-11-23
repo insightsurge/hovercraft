@@ -125,3 +125,22 @@
       ! `marker` has no cell or header cell to mark.
       i A row takes no marker. Give `cells` or `headers` some words too.
 
+# the tip_table() errors / say what a style must be
+
+    Code
+      tip_table(dt(), rows = "x", style = "nope")
+    Condition
+      Error in `tip_table()`:
+      ! `style` is "nope", which is not a preset.
+      i The presets are "dense", "editorial", "lively", "modern", "sober", "none". Did you mean "dense" or "modern" or "sober" or "none"?
+
+---
+
+    Code
+      tip_spec("x", style = "color: red")
+    Condition
+      Error in `tip_spec()`:
+      ! `style` is not inline CSS: "color: red".
+      i It takes nothing (`NULL`), a preset name from `tip_presets()`, a `tip_style()`, or one part of a style such as a `tip_theme()`.
+      i Use `tip_theme()` for colours, the corner and the font, and `tip_style(class = )` for your own CSS.
+
