@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.49.0, built from its source; do not edit.
+// hovercraft tip engine 0.50.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.49.0';
+  const VERSION = '0.50.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -607,6 +607,28 @@
     const GAP = 6;
     const ARROW = 5;
     const CUT = 200;
+    const DEFAULT_LABELS = Object.freeze({
+      copy: 'Copy',
+      copied: 'Copied',
+      copy_failed: 'Copy failed',
+      close: 'Close',
+      not_available: 'Not available:',
+      pinned: '{label}: details pinned. Tab to reach them.',
+      code_line: 'code: {first}',
+      code_line_empty: 'code, 1 line',
+      code_lines: 'code, {n} lines, starting {first}',
+      code_lines_empty: 'code, {n} lines',
+      more: 'More',
+      more_pinned: 'More when pinned',
+    });
+    const formatLabel = (s, v) => String(s).replace(/\{(\w+)\}/g, (m, k) => (tipOwn(v, k) ? String(v[k]) : m));
+    function labelsAt(from) {
+      const out = { ...DEFAULT_LABELS };
+      const stack = [];
+      for (let n = from; n; n = n.parentElement) if (own.get(n)?.labels) stack.push(own.get(n).labels);
+      while (stack.length) for (const [k, v] of stack.pop()) out[k] = v;
+      return out;
+    }
     const RESERVED = [
       'title',
       'text',
@@ -759,6 +781,7 @@
         }
       };
       walk(treeOf(headFirst(content.blocks)));
+      if (content.more) walk(treeOf(content.more.blocks));
       return out;
     }
     function placementWord(v, where) {
@@ -803,6 +826,19 @@
     }
     const CLASS_ATTR = `${NAMES.attr}-class`;
     const CLASS_TOKEN = /^-?[_a-zA-Z][_a-zA-Z0-9-]*$/;
+    const MORE_ON = ['pin', 'hover'];
+    const MORE_CUE = ['icon', 'none'];
+    const MORE_ON_ATTR = `${NAMES.attr}-more-on`;
+    const MORE_CUE_ATTR = `${NAMES.attr}-more-cue`;
+    function moreWord(v, words, where) {
+      const word = typeof v === 'string' ? v.trim() : '';
+      if (words.includes(word)) return word;
+      note(
+        `more|${where}|${String(v)}`,
+        `${where}: "${String(v)}" is not ${words.join(' or ')}; it reads as ${words[0]}.`,
+      );
+      return words[0];
+    }
     function classWord(v, where) {
       const out = [];
       for (const token of String(v).split(/\s+/).filter(Boolean)) {
@@ -860,7 +896,7 @@
       for (const [prop, value] of declaredAt(anchor, box.parentElement, ['layer'])) set[prop] = value;
       const made = Object.entries(set)
         .filter(([, value]) => value !== undefined && value !== null)
-        .map(([prop, value]) => [prop, String(value)]);
+        .map(([prop, value]) => [prop.startsWith('--') ? prop : `--hovercraft-tip-${prop}`, String(value)]);
       const name = preset ? at.name : null;
       if (box.getAttribute(PRESET_ATTR) !== name) {
         if (name) box.setAttribute(PRESET_ATTR, name);
@@ -873,24 +909,27 @@
       if (now.size) dressed.set(box, [...now]);
       else dressed.delete(box);
     }
-    function presetValues(preset, mode) {
-      const side = preset[mode] ?? preset.light;
+    function presetValues(p, mode) {
+      const s = p[mode] ?? p.light;
       return {
-        '--hovercraft-tip-radius': `${preset.radius}px`,
-        '--hovercraft-tip-font': preset.font,
-        '--hovercraft-tip-size': preset.size,
-        '--hovercraft-tip-bg': side.bg,
-        '--hovercraft-tip-ink': side.ink,
-        '--hovercraft-tip-line': side.line,
-        '--hovercraft-tip-code-bg': side.code_bg ?? CODE_FILL,
-        '--hovercraft-tip-shadow': side.shadow ?? preset.light.shadow ?? 'var(--hovercraft-shadow-2)',
+        radius: `${p.radius}px`,
+        font: p.font,
+        size: p.size,
+        bg: s.bg,
+        ink: s.ink,
+        line: s.line,
+        'code-bg': s.code_bg ?? CODE_FILL,
+        shadow: s.shadow ?? p.light.shadow ?? 'var(--hovercraft-shadow-2)',
+        gap: `${p.gap ?? GAP}px`,
+        'max-width': `${p.max_width ?? 320}px`,
+        'pin-width': `${p.pin_width ?? 420}px`,
+        motion: p.motion ?? 'initial',
       };
     }
     function delayAt(anchor) {
       const name = presetAt(anchor);
       if (name) return presetData(name).delay ?? HINT_DELAY;
-      const style = anchor.ownerDocument.defaultView?.getComputedStyle(anchor);
-      const ms = Number.parseFloat(style?.getPropertyValue('--hovercraft-tip-delay'));
+      const ms = Number.parseFloat(cssProp(anchor, '--hovercraft-tip-delay'));
       return Number.isFinite(ms) && ms >= 0 && ms <= 800 ? ms : HINT_DELAY;
     }
     function tooltip(settings, el) {
@@ -899,7 +938,7 @@
         if (!tipObject(settings))
           note(
             'settings',
-            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_class, tooltip_preset } (or nothing to read the setting).',
+            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_class, tooltip_preset, tooltip_labels, tooltip_more_template, tooltip_more_on, tooltip_more_cue, tooltip_more_height } (or nothing to read the setting).',
           );
         else {
           const mine = own.get(at) ?? {};
@@ -956,11 +995,57 @@
               }
             }
           }
+          if (tipOwn(settings, 'tooltip_labels')) {
+            const v = settings.tooltip_labels;
+            if (v === null || v === undefined) delete mine.labels;
+            else if (Array.isArray(v) && !v.length) mine.labels = new Map();
+            else if (!tipObject(v)) note('labels', 'tooltip: "tooltip_labels" must be { key: text }.');
+            else {
+              mine.labels = new Map();
+              for (const [k, t] of Object.entries(v)) {
+                if (!tipOwn(DEFAULT_LABELS, k)) note(`label-key|${k}`, `tooltip: "${k}" is not a label; left out.`);
+                else if (t !== null && t !== undefined)
+                  tipText(t)
+                    ? mine.labels.set(k, t)
+                    : note(`label-val|${k}|${String(t)}`, `tooltip: label "${k}" must be text; left out.`);
+              }
+            }
+          }
+          if (tipOwn(settings, 'tooltip_more_template')) {
+            const v = settings.tooltip_more_template;
+            if (v === null || v === undefined) delete mine.tooltip_more_template;
+            else if (tipText(v)) mine.tooltip_more_template = v;
+            else
+              note(
+                `more-template|${String(v)}`,
+                'tooltip: "tooltip_more_template" must be a template\'s name; kept the old value.',
+              );
+          }
+          for (const [key, words, own_key] of [
+            ['tooltip_more_on', MORE_ON, 'more_on'],
+            ['tooltip_more_cue', MORE_CUE, 'more_cue'],
+          ]) {
+            if (!tipOwn(settings, key)) continue;
+            const v = settings[key];
+            if (v === null || v === undefined) delete mine[own_key];
+            else mine[own_key] = moreWord(v, words, 'tooltip');
+          }
+          if (tipOwn(settings, 'tooltip_more_height')) {
+            const v = settings.tooltip_more_height;
+            if (v === null || v === undefined) delete mine.more_height;
+            else if (lengthOf(v)) mine.more_height = lengthOf(v);
+            else
+              note(
+                `more-height|${String(v)}`,
+                'tooltip: "tooltip_more_height" must be a length such as 12rem, 40vh or 240 (pixels); kept the old value.',
+              );
+          }
           own.set(at, mine);
           for (const h of handles) if (h.under(at)) h.redescribe();
         }
       }
       const got = settingsAt(at);
+      const more = got.more();
       const templates = {};
       for (let node = at; node; node = node.parentElement) {
         for (const [name, blocks] of own.get(node)?.templates ?? [])
@@ -974,6 +1059,11 @@
         tooltip_arrow: got.arrow,
         tooltip_class: classesAt(at).join(' ') || null,
         tooltip_preset: presetAt(at),
+        tooltip_labels: got.labels,
+        tooltip_more_template: got.more_template,
+        tooltip_more_on: more.on,
+        tooltip_more_cue: more.cue,
+        tooltip_more_height: more.height,
       };
     }
     function settingsAt(el) {
@@ -982,9 +1072,11 @@
       let namedAt = null;
       let placed = null;
       let arrow = null;
+      let longName = null;
+      let longAt = null;
       for (
         let node = el;
-        node && (on === null || name === null || placed === null || arrow === null);
+        node && (on === null || name === null || placed === null || arrow === null || longName === null);
         node = node.parentElement
       ) {
         const mine = own.get(node);
@@ -996,6 +1088,10 @@
           name = mine.tooltip_template;
           namedAt = node;
         }
+        if (longName === null && tipOwn(mine, 'tooltip_more_template')) {
+          longName = mine.tooltip_more_template;
+          longAt = node;
+        }
       }
       const template = (wanted) => {
         for (let node = el; node; node = node.parentElement) {
@@ -1004,13 +1100,40 @@
         }
         return null;
       };
+      const more = () => {
+        const out = { on: MORE_ON[0], cue: MORE_CUE[0], height: null };
+        const seen = new Set();
+        for (let node = el; node?.nodeType === 1 && seen.size < 3; node = node.parentElement) {
+          const mine = own.get(node);
+          for (const [key, attr, words, setting] of [
+            ['on', MORE_ON_ATTR, MORE_ON, 'more_on'],
+            ['cue', MORE_CUE_ATTR, MORE_CUE, 'more_cue'],
+          ]) {
+            if (seen.has(key)) continue;
+            const given = node.getAttribute(attr);
+            if (given !== null) out[key] = moreWord(given, words, attr);
+            else if (mine && tipOwn(mine, setting)) out[key] = mine[setting];
+            else continue;
+            seen.add(key);
+          }
+          if (!seen.has('height') && mine && tipOwn(mine, 'more_height')) {
+            out.height = mine.more_height;
+            seen.add('height');
+          }
+        }
+        return out;
+      };
       return {
         tooltip: on !== false,
         tooltip_template: name,
         named_at: namedAt,
+        more_template: longName,
+        more_named_at: longAt,
+        more,
         template,
         placement: placed ?? 'auto',
         arrow: arrow !== false,
+        labels: labelsAt(el),
       };
     }
 
@@ -1025,6 +1148,7 @@
       const row = tipObject(rec.row) ? rec.row : {};
       let blocks = null;
       let literal = false;
+      let longForm = null;
       const templated = rec.row !== null;
       if (at.tooltip && Array.isArray(over) && over.length) blocks = usable(over, "a part's tooltip");
       else if (at.tooltip && templated) {
@@ -1047,6 +1171,7 @@
           if (found) blocks = usable(found, `tooltip template "${named}"`);
           else note(`no-template|${named}`, `tooltip template "${named}" is not defined; no tooltip is drawn from it.`);
         }
+        longForm = moreOf(rec, row, at, blocks);
       }
       const first = label && (tipText(rec.label) || Number.isFinite(rec.label)) ? String(rec.label) : '';
       if (!blocks && !reason && !first) return null;
@@ -1058,7 +1183,48 @@
         rec,
         label: first,
         prefix: rec.reason_prefix === true,
+        labels: at?.labels ?? DEFAULT_LABELS,
+        more: longForm,
       };
+    }
+    function moreOf(rec, row, at, blocks) {
+      let long = null;
+      let literal = false;
+      const t = row.tooltip_more;
+      if (tipText(t) || (typeof t === 'number' && Number.isFinite(t))) {
+        long = [{ type: 'text', text: typeof t === 'number' ? String(env.num(t)) : t }];
+        literal = true;
+      } else if (t !== null && t !== undefined && t !== '' && typeof t !== 'string') {
+        note(`row-more|${rec.id}`, `the long form of ${String(rec.id)} must be text; it has none.`);
+      } else if (!(rec.own_template_only && !at.own_more_template) && at.more_template) {
+        const found = at.template(at.more_template);
+        if (found) long = usable(found, `tooltip more template "${at.more_template}"`);
+        else
+          note(
+            `no-more-template|${at.more_template}`,
+            `more template "${at.more_template}" is not defined; no long form.`,
+          );
+      }
+      if (!long?.length) return null;
+      if (!blocks?.length) {
+        note(
+          `more-alone|${literal ? rec.id : at.more_template}`,
+          `${literal ? rec.id : at.more_template} has a long form but no short form; a long form alone draws nothing.`,
+        );
+        return null;
+      }
+      const taken = new Set(blocks.filter((b) => b.type === 'host').map((b) => slotId(b.id)));
+      const kept = long.filter((b) => {
+        if (b.type !== 'host' || !taken.has(slotId(b.id))) return true;
+        note(
+          `more-host|${slotId(b.id)}`,
+          `host block "${slotId(b.id)}" is in the short form already; left out of the long form.`,
+        );
+        return false;
+      });
+      if (!kept.length) return null;
+      const m = at.more();
+      return { blocks: kept, literal, on: m.on, cue: m.cue, height: m.height, canPin: false };
     }
 
     function valueWords(v, filter, field) {
@@ -1129,10 +1295,10 @@
     const asMarkdown = (pieces) =>
       pieces.map((p) => (p.text !== undefined ? p.text : env.markdown.escape(p.value))).join('');
     const asWords = (pieces) => pieces.map((p) => (p.text !== undefined ? p.text : p.value)).join('');
-    const wordsOf = (content, text) =>
-      content.literal ? String(text ?? '') : asWords(expand(text ?? '', content.record));
-    const markdownOf = (content, text) =>
-      content.literal ? String(text ?? '') : asMarkdown(expand(text ?? '', content.record));
+    const wordsOf = (content, text, literal = content.literal) =>
+      literal ? String(text ?? '') : asWords(expand(text ?? '', content.record));
+    const markdownOf = (content, text, literal = content.literal) =>
+      literal ? String(text ?? '') : asMarkdown(expand(text ?? '', content.record));
 
     function codeOf(record, block) {
       if (!tipText(block.field)) return null;
@@ -1151,10 +1317,9 @@
       const i = blocks.findIndex((b) => b.type === 'title' && !hasParent(b));
       return i > 0 ? [blocks[i], ...blocks.slice(0, i), ...blocks.slice(i + 1)] : blocks;
     };
-    function plainOf(content, withReason = true) {
+    function plainOf(content, withReason = true, form = 'pin') {
       const out = [content.label ?? ''];
-      const ctx = flatCtx(content);
-      const read = (nodes) => {
+      const read = (nodes, ctx) => {
         for (const { b, kids } of nodes) {
           const def = registry.get(b.type);
           if (!def) continue;
@@ -1164,10 +1329,12 @@
           } catch (e) {
             note(`flatten|${b.type}`, `a tooltip ${b.type} block could not be read out: ${e?.message ?? e}`);
           }
-          read(kids);
+          read(kids, ctx);
         }
       };
-      read(treeOf(headFirst(content.blocks)));
+      read(treeOf(headFirst(content.blocks)), flatCtx(content));
+      if (content.more && (form === 'pin' || (form === 'hint' && content.more.on === 'hover')))
+        read(treeOf(content.more.blocks), flatCtx(content, content.more.literal));
       if (withReason && content.reason) out.push(reasonWords(content));
       return out.filter((w) => w !== '').join(' ');
     }
@@ -1188,22 +1355,25 @@
         reason: c.reason,
         prefix: c.prefix,
         literal: c.literal,
+        labels: c.labels,
         record,
         blocks: c.blocks,
+        more: c.more && { ...c.more },
         words: plainOf(c),
       });
     };
-    const flatCtx = (content) => ({
+    const flatCtx = (content, literal = content.literal) => ({
       record: content.record,
       cls: CSS,
-      words: (text) => wordsOf(content, text),
-      plain: (text) => env.markdown.plain(markdownOf(content, text), { notes: false }),
+      labels: content.labels,
+      words: (text) => wordsOf(content, text, literal),
+      plain: (text) => env.markdown.plain(markdownOf(content, text, literal), { notes: false }),
     });
     const reasonWords = (content) =>
       !content.reason
         ? ''
         : content.blocks.length || content.prefix
-          ? `Not available: ${content.reason}`
+          ? `${content.labels.not_available} ${content.reason}`
           : content.reason;
     const titleOf = (content) => {
       const t = content.blocks.find((b) => b.type === 'title' && !hasParent(b));
@@ -1212,6 +1382,17 @@
     const hostInfo = () => ({ reason: 'host', by: 'host', via: null });
     const goneInfo = () => ({ reason: 'gone', by: 'data', via: null });
     const cut = (text) => (text.length > CUT ? `${text.slice(0, CUT)}…` : text);
+    const HINT_HOLDS = ['leave', 'blur', 'outside'];
+    const HINT_VIA = ['pointer', 'focus', 'tap', 'key'];
+    const hintWhy = (why, pointer) => {
+      const by = why.by ?? 'reader';
+      let via = why.via ?? null;
+      if (by === 'data') via = null;
+      else if (by === 'host') via = 'command';
+      else if (via === 'click') via = pointer === 'mouse' ? 'pointer' : 'tap';
+      else if (!HINT_VIA.includes(via)) via = 'pointer';
+      return { reason: why.reason, by, via };
+    };
 
     const el = (doc, tag, className, text) => {
       const node = doc.createElement(tag);
@@ -1252,8 +1433,8 @@
         pin,
         live,
         sizes,
-        hintMotion: lifted(hint, env.motion(hint, { axis: 'fade', rise: 0, exit: 'none' })),
-        pinMotion: lifted(pin, env.motion(pin, { axis: 'fade', rise: 0, exit: 'none' })),
+        hintMotion: tipMotion(hint),
+        pinMotion: tipMotion(pin),
       };
       boxes.set(doc, made);
       return made;
@@ -1309,17 +1490,29 @@
         watch?.disconnect();
       };
     }
+    const tipMotion = (b) =>
+      lifted(
+        b,
+        env.motion(b, {
+          axis: () => motionOf(b),
+          side: () => MOTION_SIDES[b.dataset.side] ?? 'top',
+          distance: 4,
+          rise: 0,
+          exit: 'none',
+        }),
+      );
     function lifted(box, shows) {
       return {
         set: (open) => {
           if (open) {
-            shows.set(true);
+            (shows.quiet ?? shows.set)(true);
             lift(box);
           } else {
             drop(box);
             shows.set(false);
           }
         },
+        enter: () => shows.enter?.(),
       };
     }
     const isLifted = (box) => typeof box.showPopover === 'function' && box.matches(':popover-open');
@@ -1334,7 +1527,19 @@
     function drop(box) {
       if (isLifted(box)) box.hidePopover();
     }
-    const CARRIED = ['bg', 'ink', 'line', 'radius', 'shadow', 'code-bg', 'size', 'font'];
+    const cssProp = (el, k) => el.ownerDocument.defaultView?.getComputedStyle(el).getPropertyValue(k).trim() ?? '';
+    const MOTION_SIDES = { above: 'bottom', below: 'top', left: 'right', right: 'left', sheet: 'bottom' };
+    function motionOf(box) {
+      const w = cssProp(box, '--hovercraft-tip-motion');
+      return w === 'fade' || w === 'slide' || w === 'none' ? w : NAMES.standalone ? 'none' : 'fade';
+    }
+    function gapOf(box) {
+      const raw = cssProp(box, '--hovercraft-tip-gap');
+      const m = /^(-?(?:\d+\.?\d*|\.\d+))(px)?$/i.exec(raw);
+      return m ? Math.min(24, Math.max(0, Number(m[1]))) : GAP;
+    }
+    const CARRIED =
+      'bg ink line radius shadow code-bg size font gap max-width pin-width motion cue more-max-height'.split(' ');
     function declaredAt(anchor, above, keys) {
       const found = new Map();
       const view = anchor.ownerDocument.defaultView;
@@ -1384,9 +1589,15 @@
       placement = 'auto',
       arrow = false,
     ) {
-      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0);
+      const baseGap = gapOf(box);
+      const reach = baseGap === GAP ? '' : `${baseGap}px`;
+      if (box.style.getPropertyValue('--hc-tip-reach') !== reach) {
+        if (reach) box.style.setProperty('--hc-tip-reach', reach);
+        else box.style.removeProperty('--hc-tip-reach');
+      }
+      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap);
       if (point(box, arrow ? to : null)) return;
-      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0);
+      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap);
     }
     const EDGE = { below: 'top', above: 'bottom', right: 'left', left: 'right' };
     const AT = '--hc-tip-arrow-at';
@@ -1419,7 +1630,7 @@
       const none =
         !edge ||
         len - corner * 2 < BASE ||
-        gap < ARROW ||
+        gap < ARROW - 0.5 ||
         !solid(style.backgroundColor) ||
         tall ||
         box.scrollWidth > box.clientWidth + bridge + 1;
@@ -1439,8 +1650,8 @@
       if (box.style.getPropertyValue(AT) !== at) box.style.setProperty(AT, at);
       return true;
     }
-    function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow) {
-      const g = GAP + grow;
+    function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP) {
+      const g = baseGap + grow;
       const doc = anchor.ownerDocument;
       const r = anchor.getBoundingClientRect();
       const vw = doc.documentElement.clientWidth;
@@ -1458,7 +1669,7 @@
       box.style.visibility = away ? 'hidden' : '';
       if (away) return;
       if (placement !== 'auto' && vw >= PHONE) {
-        const hit = placeOn(box, anchor, placement, x, line, isPin, grow);
+        const hit = placeOn(box, anchor, placement, x, line, isPin, grow, baseGap);
         if (hit) return hit;
       }
       const w = box.offsetWidth;
@@ -1505,7 +1716,7 @@
       if (line && !isPin && !room) {
         const row = line.getBoundingClientRect();
         const rtl = doc.defaultView?.getComputedStyle(line).direction === 'rtl';
-        const gap = x === null ? g : 14 + grow;
+        const gap = x === null ? g : baseGap + 8 + grow;
         const from = x === null ? (rtl ? r.left : r.right) : x;
         const ends = rtl ? from - gap - w : from + gap;
         const starts = rtl ? from + gap : from - gap - w;
@@ -1546,7 +1757,7 @@
       return { l: x ?? r.left, r: x ?? r.right, t: r.top, b: r.bottom };
     }
 
-    function placeOn(box, anchor, want, x, line, isPin, grow) {
+    function placeOn(box, anchor, want, x, line, isPin, grow, baseGap = GAP) {
       const doc = anchor.ownerDocument;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
@@ -1567,8 +1778,8 @@
       const swap = { left: 'right', right: 'left' };
       const first = rtl && swap[want] ? swap[want] : want;
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
-      const g = GAP + grow;
-      const gapX = at === null ? g + 2 : 14 + grow;
+      const g = baseGap + grow;
+      const gapX = at === null ? g + 2 : baseGap + 8 + grow;
       const midX = (t.left + t.right) / 2 - w / 2;
       const midY = (t.top + t.bottom) / 2 - h / 2;
       const spots = {
@@ -1624,13 +1835,14 @@
         pad.base = page.scrollHeight;
         doc.body.append(pad);
       }
-      at(pad.base + box.offsetHeight + GAP);
+      at(pad.base + box.offsetHeight + gapOf(box));
     }
     function reveal(item, box) {
       const vh = item.ownerDocument.documentElement.clientHeight;
-      if (item.getBoundingClientRect().bottom <= vh - box.offsetHeight - GAP) return;
+      const g = gapOf(box);
+      if (item.getBoundingClientRect().bottom <= vh - box.offsetHeight - g) return;
       const was = item.style.scrollMarginBlockEnd;
-      item.style.scrollMarginBlockEnd = `${box.offsetHeight + GAP}px`;
+      item.style.scrollMarginBlockEnd = `${box.offsetHeight + g}px`;
       item.scrollIntoView({ block: 'end', inline: 'nearest' });
       item.style.scrollMarginBlockEnd = was;
     }
@@ -1737,14 +1949,14 @@
         language: { type: 'string', required: false },
         copy: { type: 'boolean', required: false },
       },
-      (b, record) => {
+      (b, record, ctx) => {
         const code = codeOf(record, b);
         if (code === null) return '';
         const lines = code.split(/\r\n|\r|\n/);
         const said = (lines.find((l) => l.trim() !== '') ?? '').trim();
         const first = said.length > 120 ? `${said.slice(0, 120).trimEnd()}…` : said;
-        if (lines.length === 1) return first ? `code: ${first}` : 'code, 1 line';
-        return `code, ${lines.length} lines${first ? `, starting ${first}` : ''}`;
+        const key = `code_${lines.length === 1 ? 'line' : 'lines'}${first ? '' : '_empty'}`;
+        return formatLabel((ctx?.labels ?? DEFAULT_LABELS)[key], { n: lines.length, first });
       },
       (b, record, ctx, more) => {
         const code = codeOf(record, b);
@@ -1772,7 +1984,7 @@
         }
         if (pinned && b.copy === true) {
           const bar = el(doc, 'div', `${CSS}-copybar`);
-          const button = el(doc, 'button', `${CSS}-copy`, 'Copy');
+          const button = el(doc, 'button', `${CSS}-copy`, (ctx.labels ?? DEFAULT_LABELS).copy);
           button.type = 'button';
           const status = el(doc, 'span', `${CSS}-status`);
           status.setAttribute('role', 'status');
@@ -1943,6 +2155,35 @@
       for (const h of drawn.get(box) ?? []) lifeCall(h, 'mode', next);
       resizeLives(box, true);
     }
+    const LINK = /\[[^\]]*\]\([^)]+\)/;
+    const pressable = (b) =>
+      b.type === 'host' || (b.type === 'code' && b.copy === true) || (b.type === 'text' && LINK.test(String(b.text)));
+    function withoutHosts(blocks) {
+      let kept = blocks.filter((b) => b.type !== 'host');
+      for (let again = true; again; ) {
+        const used = new Set(kept.filter(hasParent).map((b) => String(b.parent)));
+        const next = kept.filter((b) => b.type !== 'group' || used.has(String(b.id)));
+        again = next.length !== kept.length;
+        kept = next;
+      }
+      return kept;
+    }
+    function moreForm(content, pinned, phone) {
+      const m = content.more;
+      if (!m) return { hover: false, label: null };
+      const hover = m.on === 'hover' && !(phone && m.canPin);
+      if (pinned || m.cue !== 'icon' || !m.canPin) return { hover, label: null };
+      return { hover, label: !hover ? 'more_pinned' : m.blocks.some(pressable) ? 'more' : null };
+    }
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const ELLIPSIS =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>';
+    function cueNode(doc, words) {
+      const line = el(doc, 'div', `${CSS}-cue`);
+      line.innerHTML = ELLIPSIS;
+      line.append(el(doc, 'span', '', words));
+      return line;
+    }
     function fill(box, content, { pinned, onCopy }) {
       const doc = box.ownerDocument;
       const want = pinned ? slotsOf(content) : [];
@@ -1968,7 +2209,7 @@
         const [kicker, title, meta] = ['kicker', 'text', 'meta'].map((k) => (first ? wordsOf(content, first[k]) : ''));
         const close = el(doc, 'button', `${CSS}-close`, '×');
         close.type = 'button';
-        close.setAttribute('aria-label', 'Close');
+        close.setAttribute('aria-label', content.labels.close);
         if (title || kicker || meta) {
           const head = el(doc, 'div', `${CSS}-head`);
           head.append(heading(doc, kicker, title, meta), close);
@@ -1980,20 +2221,24 @@
       }
       const kept = [];
       const mode = modes.get(box) ?? 'light';
-      const ctx = {
-        ...flatCtx(content),
+      const ctxFor = (literal) => ({
+        ...flatCtx(content, literal),
         doc,
         box,
         pinned,
         mode,
         write: (node, text) => {
           if (!node.parentNode) stage.append(node);
-          env.markdown(node, markdownOf(content, text), { field: 'tooltip', id: content.rec.id, notes: false });
+          env.markdown(node, markdownOf(content, text, literal), {
+            field: 'tooltip',
+            id: content.rec.id,
+            notes: false,
+          });
           return node;
         },
-      };
+      });
       let code = -1;
-      const draw = (n, into, top) => {
+      const draw = (n, into, top, ctx) => {
         const b = n.b;
         if (b.type === 'code') code += 1;
         const def = registry.get(b.type);
@@ -2022,7 +2267,7 @@
         if (h.node && h.node.parentNode !== into) into.append(h.node);
         if (n.kids.length && h.node) {
           const before = kept.length;
-          for (const k of n.kids) draw(k, h.node, false);
+          for (const k of n.kids) draw(k, h.node, false, ctx);
           if (!h.node.firstChild) {
             note(`grp|empty|${b.id}`, `the group "${b.id}" drew no block; it is left out.`);
             h.node.remove();
@@ -2044,8 +2289,23 @@
             renew: h.renew,
           });
       };
-      for (const n of treeOf(ordered)) draw(n, stage, true);
+      const shortCtx = ctxFor(content.literal);
+      for (const n of treeOf(ordered)) draw(n, stage, true, shortCtx);
+      const phone = (doc.defaultView?.innerWidth ?? Number.POSITIVE_INFINITY) < PHONE;
+      const form = moreForm(content, pinned, phone);
+      if (content.more && (pinned || form.hover)) {
+        const blocks = pinned ? content.more.blocks : withoutHosts(content.more.blocks);
+        const wrap = pinned ? stage : el(doc, 'div', `${CSS}-more`);
+        const longCtx = ctxFor(content.more.literal);
+        for (const n of treeOf(blocks)) draw(n, wrap, false, longCtx);
+        if (!pinned && wrap.firstChild) {
+          wrap.setAttribute('tabindex', '-1');
+          if (content.more.height) wrap.style.setProperty('--hovercraft-tip-more-max-height', content.more.height);
+          stage.append(wrap);
+        }
+      }
       drawn.set(box, kept);
+      if (!pinned && form.label) stage.append(cueNode(doc, content.labels[form.label]));
       if (content.reason) stage.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
       refill(box, stage, marks);
       if (kept.length || box.querySelector(`.${CSS}-group[data-direction="row"]`)) box.classList.add(`${CSS}-wide`);
@@ -2282,7 +2542,8 @@
       const page = pageOf(doc);
       const owner = root ?? host?.root ?? box;
       const kit = boxesOf(doc);
-      const canPin = (n) => !disabledAt(n) && (typeof pin === 'function' ? pin(n) : pin) === true;
+      const pinsAt = (n) => (typeof pin === 'function' ? pin(n) : pin) === true;
+      const canPin = (n) => !disabledAt(n) && pinsAt(n);
       const sideOf = () => (typeof side === 'function' ? side() : side);
       let timer = 0;
       let leave = 0;
@@ -2323,15 +2584,27 @@
       const settingsFor = (n) => {
         const at = settingsAt(n);
         at.own_template = at.named_at !== null && (at.named_at === owner || owner.contains(at.named_at));
+        at.own_more_template =
+          at.more_named_at !== null && (at.more_named_at === owner || owner.contains(at.more_named_at));
         return at;
       };
-      const contentFor = (n) =>
-        when(n)
-          ? contentOf(recOf(n), settingsFor(n), {
-              over: overOf(n),
-              label: typeof label === 'function' ? label(n) : label,
-            })
-          : null;
+      const contentFor = (n) => {
+        if (!when(n)) return null;
+        const c = contentOf(recOf(n), settingsFor(n), {
+          over: overOf(n),
+          label: typeof label === 'function' ? label(n) : label,
+        });
+        if (c?.more) {
+          if (c.more.on === 'pin' && !pinsAt(n)) {
+            note(
+              `more-pin|${selector}`,
+              'a long form that shows when pinned needs an item that can pin; left out (pin it, or set tooltip_more_on to hover).',
+            );
+            c.more = null;
+          } else c.more.canPin = canPin(n) && !focusOf(n)?.matches(':disabled');
+        }
+        return c;
+      };
       const PLACE_ATTR = `${NAMES.attr}-placement`;
       const placementOf = (n) => {
         for (let node = n; node && node.nodeType === 1; node = node.parentElement) {
@@ -2449,7 +2722,10 @@
         const blocks = c.blocks.map((b) =>
           b.type === 'title' && name && wordsOf(c, b.text) === name ? { ...b, text: '' } : b,
         );
-        const words = c.blocks.length ? plainOf({ ...c, label: '', blocks }, false) : '';
+        const form = moreForm(c, false, false);
+        const cue = form.label ? c.labels[form.label] : '';
+        const plain = c.blocks.length ? plainOf({ ...c, label: '', blocks }, false, form.hover ? 'pin' : 'short') : '';
+        const words = joined(plain, cue);
         const why = c.prefix ? reasonWords(c) : c.reason;
         const shared = sharedStop(item);
         const own = [];
@@ -2509,7 +2785,9 @@
       watch.observe(box, { childList: true, subtree: true });
       describe();
 
-      function hideHint(moved = false, why = { reason: 'closed', by: 'reader', via: null }) {
+      const closeWhy = (reason, via = 'pointer') => ({ reason, by: 'reader', via });
+      function hideHint(moved = false, why = { reason: 'leave', by: 'reader', via: 'pointer' }) {
+        if (page.hint?.handle === handle && page.hint.held && HINT_HOLDS.includes(why.reason)) return false;
         clearTimeout(timer);
         clearTimeout(leave);
         timer = 0;
@@ -2520,21 +2798,43 @@
         stopHintWatch?.();
         stopHintWatch = null;
         inHint = false;
-        if (page.hint?.handle !== handle) return;
-        const delayed = page.hint.delayed;
+        if (page.hint?.handle !== handle) return false;
+        const closing = page.hint;
+        const delayed = closing.delayed;
+        const info = hintWhy(why, lastPointer);
         page.hint = null;
         if (moved !== true) closeSkip();
         kit.sizes?.unobserve(kit.hint);
-        endLives(kit.hint, why);
+        endLives(kit.hint, info);
         kit.hintMotion.set(false);
         unclass(kit.hint);
         if (moved === true && delayed) {
           page.skip = true;
+          page.lastHint = closing.id;
           clearTimeout(page.skipTimer);
           page.skipTimer = setTimeout(() => {
             page.skip = false;
           }, HINT_DELAY);
         }
+        emitHint('hidden', closing, info, closing.id);
+        return true;
+      }
+      function emitHint(state, h, info, from) {
+        env.emit(
+          host,
+          'hovercraft:hint',
+          {
+            state,
+            id: h.id,
+            kind: h.kind,
+            text: h.text,
+            by: info.by,
+            via: info.via,
+            from,
+            reason: state === 'hidden' ? info.reason : null,
+          },
+          h.anchor,
+        );
       }
       function hintCheck() {
         const h = page.hint;
@@ -2548,6 +2848,7 @@
         const sig = keyOf(c);
         if (sig === h.sig) return;
         h.sig = sig;
+        h.text = cut(plainOf(c, true, 'hint'));
         fill(kit.hint, c, { pinned: false });
         redescribeItem(n);
         h.place();
@@ -2576,7 +2877,16 @@
         });
         seen.observe(n, {
           attributes: true,
-          attributeFilter: [ATTR, `${ATTR}-template`, `${ATTR}-record`, `${ATTR}-reason`],
+          attributeFilter: [
+            ATTR,
+            `${ATTR}-template`,
+            `${ATTR}-record`,
+            `${ATTR}-reason`,
+            `${ATTR}-more`,
+            `${ATTR}-more-template`,
+            MORE_ON_ATTR,
+            MORE_CUE_ATTR,
+          ],
           characterData: true,
           childList: true,
           subtree: true,
@@ -2591,12 +2901,15 @@
         page.skip = false;
         clearTimeout(page.skipTimer);
       }
-      function showHint(n, how) {
+      function showHint(n, how, who = 'reader') {
         if (page.pin?.handle === handle && page.pin.anchor() === n) return;
         const c = contentFor(n);
         if (!c) return;
-        if (page.hint && page.hint.handle !== handle)
-          page.hint.handle.hideHint(false, { reason: 'replaced', by: 'reader', via: null });
+        const resumed = page.skip ? (page.lastHint ?? null) : null;
+        const again = page.hint?.handle === handle && page.hint.anchor === n;
+        const held = how === 'command' || (again && page.hint.held === true);
+        const before = again ? null : page.hint;
+        if (before) before.handle.hideHint(false, { reason: 'replaced', by: who, via: how });
         mountNear(kit.hint, n);
         looks(kit.hint, n);
         fill(kit.hint, c, { pinned: false });
@@ -2604,11 +2917,16 @@
         const x = how === 'pointer' || how === 'tap' ? xOf(n) : null;
         const by = besideOf(n);
         closeSkip();
+        const text = cut(plainOf(c, true, 'hint'));
         page.hint = {
           handle,
           anchor: n,
           sig: keyOf(c),
           how,
+          held,
+          id: c.rec.id === undefined || c.rec.id === null || c.rec.id === '' ? null : String(c.rec.id),
+          kind: c.rec.kind ?? 'row',
+          text,
           delayed: c.blocks.length > 0,
           place: (restyle = true) => {
             if (restyle) copyMarks(kit.hint, n);
@@ -2617,6 +2935,7 @@
         };
         kit.hintMotion.set(true);
         page.hint.place();
+        kit.hintMotion.enter();
         startLives(kit.hint);
         kit.sizes?.observe(kit.hint);
         listenPage(doc);
@@ -2632,6 +2951,10 @@
               })
             : null;
         seenHint?.observe(n);
+        if (again) return;
+        const info = hintWhy({ by: who, via: how }, lastPointer);
+        emitHint('shown', page.hint, info, before ? before.id : resumed);
+        if (how === 'command' && page.hint?.anchor === n) say(doc, plainOf(c, true, 'hint'), n);
       }
       function soon(n, how) {
         clearTimeout(timer);
@@ -2647,21 +2970,21 @@
       const over = (e) => {
         if (e.pointerType === 'touch') return;
         const n = itemAt(e.target);
-        if (!n) return;
+        if (!n || hitOwns(n)) return;
         hovered = true;
         clearTimeout(leave);
-        if (page.hint?.handle === handle && page.hint.anchor !== n) hideHint(true);
+        if (page.hint?.handle === handle && page.hint.anchor !== n) hideHint(true, closeWhy('leave'));
         soon(n, 'pointer');
       };
       const out = (e) => {
         if (e.pointerType === 'touch') return;
         if (e.pointerType === 'pen' && page.hint?.handle === handle && page.hint.how === 'tap') return;
         const n = itemAt(e.target);
-        if (!n || n.contains(e.relatedTarget) || anchorOf(n).contains(e.relatedTarget)) return;
+        if (!n || hitOwns(n) || n.contains(e.relatedTarget) || anchorOf(n).contains(e.relatedTarget)) return;
         hovered = false;
         clearTimeout(timer);
         if (kit.hint.contains(e.relatedTarget)) return;
-        leave = setTimeout(() => hideHint(true), LEAVE_MS);
+        leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
       };
       const hintOver = () => {
         if (page.hint?.handle !== handle) return;
@@ -2679,29 +3002,33 @@
             if (page.hint?.handle !== handle || kit.hint.contains(ev.target) || anchorOf(n).contains(ev.target)) return;
             const sel = doc.getSelection?.();
             if (sel && String(sel) && kit.hint.contains(sel.anchorNode)) {
-              doc.addEventListener('pointerdown', (d) => !kit.hint.contains(d.target) && hideHint(true), {
-                capture: true,
-                once: true,
-              });
-            } else hideHint(true);
+              doc.addEventListener(
+                'pointerdown',
+                (d) => !kit.hint.contains(d.target) && hideHint(true, closeWhy('outside')),
+                {
+                  capture: true,
+                  once: true,
+                },
+              );
+            } else hideHint(true, closeWhy('leave'));
           };
           doc.addEventListener('pointerup', up, { capture: true, once: true });
           return;
         }
-        leave = setTimeout(() => hideHint(true), LEAVE_MS);
+        leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
       };
       const focus = (e) => {
         const n = itemAt(e.target);
         const stop = typeof focusAt !== 'function' || (n && e.target === focusOf(n));
         if (n && stop && e.target.matches(':focus-visible')) soon(n, 'focus');
-        else if (!n) hideHint(true);
+        else if (!n) hideHint(true, closeWhy('blur', 'focus'));
       };
       const blur = (e) => {
         clearTimeout(timer);
         if (page.hint?.handle !== handle) return;
         if (kit.hint.contains(e.relatedTarget) || inHint) return;
         if (hovered && page.hint.how === 'pointer') return;
-        hideHint(true);
+        hideHint(true, closeWhy('blur', 'focus'));
       };
       const down = (e) => {
         lastPointer = e.pointerType || 'mouse';
@@ -2759,7 +3086,7 @@
           return;
         }
         if (shown && page.hint.how === 'tap') {
-          if (!acts(n)) hideHint();
+          if (!acts(n)) hideHint(false, closeWhy('leave', 'tap'));
           return;
         }
         showHint(n, 'tap');
@@ -2768,13 +3095,13 @@
         const away = (ev) => {
           if (kit.hint.contains(ev.target)) {
             if (!focusables(kit.hint).length) {
-              hideHint();
+              hideHint(false, closeWhy('outside', 'tap'));
               swallowClick();
             }
             return;
           }
           if (itemAt(ev.target) === n) return;
-          hideHint();
+          hideHint(false, closeWhy('outside', 'tap'));
         };
         doc.addEventListener('pointerdown', away, true);
         awayOff = () => doc.removeEventListener('pointerdown', away, true);
@@ -2922,7 +3249,7 @@
             status.textContent = '';
             clearTimeout(status.tipTimer);
             setTimeout(() => {
-              status.textContent = ok ? 'Copied' : 'Copy failed';
+              status.textContent = labelsAt(item)[ok ? 'copied' : 'copy_failed'];
               status.tipTimer = setTimeout(() => {
                 status.textContent = '';
               }, 3000);
@@ -3100,7 +3427,8 @@
         kit.sizes?.observe(pbox);
         listenPage(doc);
         emitTip('pinned', key, kind, null, text, { by, via: info.via ?? null }, from, n, page.pin.slots);
-        say(doc, `${name}: details pinned. Tab to reach them.`, n);
+        say(doc, formatLabel(c.labels.pinned, { label: name }), n);
+        kit.pinMotion.enter();
         return true;
       }
 
@@ -3115,6 +3443,64 @@
       box.addEventListener('click', tap);
       kit.hint.addEventListener('pointerover', hintOver);
       kit.hint.addEventListener('pointerout', hintOut);
+
+      function hideByHost() {
+        return hideHint(false, hostInfo());
+      }
+      function showByHost(el) {
+        if (el?.nodeType !== 1) {
+          note('show|element', 'show(el): el must be an element.');
+          return false;
+        }
+        if (!el.isConnected) {
+          note('show|connected', 'show(el): el is not in the page.');
+          return false;
+        }
+        const n = itemAt(el);
+        if (!n) {
+          note('show|item', 'show(el): el is not an item of this part.');
+          return false;
+        }
+        if (page.pin?.handle === handle && page.pin.anchor() === n) return true;
+        if (page.hint?.handle === handle && page.hint.anchor === n) {
+          page.hint.held = true;
+          return true;
+        }
+        if (!contentFor(n)) {
+          note('show|tip', 'show(el): el has no tip to show.');
+          return false;
+        }
+        if (!n.getClientRects().length) {
+          note('show|drawn', 'show(el): el is not drawn (hidden), so it has no place for a tip.');
+          return false;
+        }
+        clearTimeout(timer);
+        clearTimeout(leave);
+        showHint(n, 'command', 'host');
+        return page.hint?.handle === handle && page.hint.anchor === n;
+      }
+      function hitOwns(n) {
+        return NAMES.standalone && n.matches(':disabled') && !!recOf(n)?.reason;
+      }
+      function hitOn(n) {
+        hovered = true;
+        lastPointer = 'mouse';
+        clearTimeout(leave);
+        if (page.hint?.handle === handle && page.hint.anchor !== n) hideHint(true, closeWhy('leave'));
+        soon(n, 'pointer');
+      }
+      function hitOff(n) {
+        hovered = false;
+        clearTimeout(timer);
+        clearTimeout(leave);
+        const open = page.hint;
+        if (open?.handle !== handle || open.anchor !== n || open.how === 'tap') return;
+        leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
+      }
+      function hitTap(n, type) {
+        lastPointer = type;
+        if (contentFor(n)) tapOn(n, type !== 'mouse');
+      }
 
       const handle = {
         hideHint,
@@ -3143,7 +3529,12 @@
           describe();
           checkOpen(info.by ?? 'data');
         },
-        hide: () => hideHint(false, hostInfo()),
+        hide: hideByHost,
+        show: showByHost,
+        hitOn,
+        hitOff,
+        hitTap,
+        hitOwns,
         destroy() {
           if (gone) return;
           gone = true;
@@ -3174,7 +3565,8 @@
         },
         element: handle.element,
         refresh: handle.refresh,
-        hide: () => hideHint(false, hostInfo()),
+        hide: hideByHost,
+        show: showByHost,
         destroy: handle.destroy,
       });
       inner.set(outward, handle);
@@ -3191,8 +3583,8 @@
       return tipNumbers.get(node);
     }
 
-    function reasonTips(box, { selector, when = () => true, side = 'below' } = {}) {
-      const t = tips({ root: box }, { box, selector, when, side });
+    function reasonTips(box, { selector, when = () => true, side = 'below', host = null } = {}) {
+      const t = tips(host ?? { root: box }, { box, selector, when, side, root: box });
       return Object.freeze({ hide: t.hide, destroy: t.destroy });
     }
 
@@ -3219,9 +3611,13 @@
       const PIN_ATTR = `${ATTR}-pin`;
       const PIN = `[${PIN_ATTR}]`;
       const REASON = `${ATTR}-reason`;
-      const GIVEN = '[data-reason][aria-disabled="true"]';
-      const selector = `[${ATTR}], [${ATTR}-template], [${REASON}], ${GIVEN}, ${PIN}`;
+      const GIVEN = '[data-reason][aria-disabled="true"], [data-reason]:disabled';
+      const selector = `[${ATTR}], [${ATTR}-template], [${ATTR}-more], [${ATTR}-more-template], [${REASON}], ${GIVEN}, ${PIN}`;
       const ours = (n) => !(NAMES.skip && n.closest(NAMES.skip)) && !n.matches(BSLIB);
+      const reasonAt = (n) => {
+        const why = n.getAttribute(REASON) ?? (n.matches(GIVEN) ? n.dataset.reason : null);
+        return tipText(why) ? why : null;
+      };
       const idOf = (n) => n.getAttribute(`${ATTR}-id`) || n.id || '';
       const kindOf = (n) => {
         const kind = n.getAttribute(`${ATTR}-kind`);
@@ -3242,6 +3638,8 @@
       };
       const pinnable = (n) => !!n?.hasAttribute(PIN_ATTR) && n.matches(selector) && ours(n) && refusal(n) === null;
       const marked = new WeakSet();
+      const managed = new WeakSet();
+      const natives = new Set();
       const t = tips(
         { root: at },
         {
@@ -3266,9 +3664,22 @@
             if (tipText(text)) row = { ...row, tooltip: text };
             const name = n.getAttribute(`${ATTR}-template`);
             if (name && !tipText(text)) own.set(n, { ...(own.get(n) ?? {}), tooltip_template: name });
-            const why = n.getAttribute(REASON) ?? (n.matches(GIVEN) ? n.dataset.reason : null);
-            const reason = tipText(why) ? why : null;
-            if (reason && n.getAttribute('aria-disabled') !== 'true') {
+            const long = n.getAttribute(`${ATTR}-more`);
+            if (tipText(long)) row = { ...row, tooltip_more: long };
+            const longName = n.getAttribute(`${ATTR}-more-template`);
+            const held = own.get(n);
+            if (longName && !tipText(long)) own.set(n, { ...(held ?? {}), tooltip_more_template: longName });
+            else if (held && tipOwn(held, 'tooltip_more_template')) delete held.tooltip_more_template;
+            const reason = reasonAt(n);
+            if (reason && n.matches(':disabled')) {
+              managed.add(n);
+              natives.add(n);
+              if (marked.has(n)) {
+                n.removeAttribute('aria-disabled');
+                marked.delete(n);
+              }
+            } else natives.delete(n);
+            if (reason && n.getAttribute('aria-disabled') !== 'true' && !managed.has(n)) {
               n.setAttribute('aria-disabled', 'true');
               marked.add(n);
             }
@@ -3310,7 +3721,7 @@
       };
       const blocked = (target) => {
         const n = target?.closest?.(`[${REASON}]`) ?? h.itemAt(target);
-        return n && at.contains(n) && ours(n) && tipText(n.getAttribute(REASON)) ? n : null;
+        return n && at.contains(n) && ours(n) && !managed.has(n) && tipText(n.getAttribute(REASON)) ? n : null;
       };
       const stopClick = (e) => {
         const n = blocked(e.target);
@@ -3335,22 +3746,104 @@
             n.removeAttribute('aria-disabled');
             marked.delete(n);
           }
+          if (!reasonAt(n)) {
+            managed.delete(n);
+            natives.delete(n);
+          }
         }
         h.redescribe();
       });
       reasons.observe(at, {
         attributes: true,
         subtree: true,
-        attributeFilter: [REASON, 'data-reason', 'aria-disabled', ...NAME_ATTRS],
+        attributeFilter: [REASON, 'data-reason', 'aria-disabled', 'disabled', ...NAME_ATTRS],
       });
+      const doc = at.ownerDocument;
+      const view = doc.defaultView;
+      let hit = null;
+      let frame = 0;
+      let lastMove = null;
+      const underAt = (e) => {
+        const top = doc.elementsFromPoint?.(e.clientX, e.clientY)?.[0] ?? null;
+        const n = top?.closest?.(selector) ?? null;
+        return { top, item: n && at.contains(n) && ours(n) && natives.has(n) && h.hitOwns(n) ? n : null };
+      };
+      const probe = (e) => {
+        for (const n of natives) if (!n.isConnected) natives.delete(n);
+        if (!natives.size && !hit) return;
+        const { top, item } = underAt(e);
+        if (item) {
+          hit = item;
+          h.hitOn(item);
+        } else if (hit && !(top && boxesOf(doc).hint.contains(top))) {
+          const was = hit;
+          hit = null;
+          h.hitOff(was);
+        }
+      };
+      const onMove = (e) => {
+        if (e.pointerType === 'touch') return;
+        lastMove = e;
+        if (frame) return;
+        if (typeof view?.requestAnimationFrame !== 'function') probe(e);
+        else
+          frame = view.requestAnimationFrame(() => {
+            frame = 0;
+            probe(lastMove);
+          });
+      };
+      const onOut = (e) => {
+        if (e.relatedTarget || !hit) return;
+        const was = hit;
+        hit = null;
+        h.hitOff(was);
+      };
+      const onUp = (e) => {
+        if (e.pointerType !== 'touch' && e.pointerType !== 'pen') return;
+        const { item } = underAt(e);
+        if (item) h.hitTap(item, e.pointerType);
+      };
+      doc.addEventListener('pointermove', onMove, true);
+      doc.addEventListener('pointerout', onOut, true);
+      doc.addEventListener('pointerup', onUp, true);
       at.addEventListener('click', stopClick, true);
       at.addEventListener('keydown', stopKey, true);
       at.addEventListener('click', onClick);
       at.addEventListener('keydown', onKey);
+      const door = Object.freeze({
+        show: (el) => t.show(el),
+        hide: () => t.hide(),
+        pin: (el) => {
+          const n = h.itemAt(el);
+          if (!n) {
+            note('pin|item', 'pin(el): el has no tip to pin.');
+            return false;
+          }
+          const no = n.hasAttribute(PIN_ATTR) ? refusal(n) : `it has no ${PIN_ATTR}`;
+          if (no || !pinnable(n)) {
+            note(`pin|${no}`, `pin(el): it cannot pin: ${no ?? "it is not one of this scope's tips"}.`);
+            return false;
+          }
+          if (t.pinned === idOf(n)) return true;
+          const ok = h.pinElement(n, { by: 'host', via: 'command' });
+          if (!ok && n.getAttribute('aria-disabled') !== 'true')
+            note('pin|tip', 'pin(el): its tip has no content to pin.');
+          return ok;
+        },
+        close: () => t.close({ reason: 'host', by: 'host', via: 'command' }),
+      });
+      doors.set(at, door);
+      liveDoors.add(door);
       const handle = Object.freeze({
         destroy: () => {
           attached.delete(at);
+          doors.delete(at);
+          liveDoors.delete(door);
           reasons.disconnect();
+          if (frame) view?.cancelAnimationFrame?.(frame);
+          doc.removeEventListener('pointermove', onMove, true);
+          doc.removeEventListener('pointerout', onOut, true);
+          doc.removeEventListener('pointerup', onUp, true);
           at.removeEventListener('click', stopClick, true);
           at.removeEventListener('keydown', stopKey, true);
           at.removeEventListener('click', onClick);
@@ -3361,6 +3854,25 @@
       attached.set(at, handle);
       return handle;
     }
+    const doors = new WeakMap();
+    const liveDoors = new Set();
+    function doorFor(el, what) {
+      if (el?.nodeType !== 1) {
+        note(`${what}|element`, `${what}(el): el must be an element.`);
+        return null;
+      }
+      if (!el.isConnected) {
+        note(`${what}|connected`, `${what}(el): el is not in the page.`);
+        return null;
+      }
+      for (let node = el; node; node = node.parentElement) if (doors.has(node)) return doors.get(node);
+      note(`${what}|scope`, `${what}(el): el is under no scope attach() was given.`);
+      return null;
+    }
+    const commandShow = (el) => doorFor(el, 'show')?.show(el) ?? false;
+    const commandPin = (el) => doorFor(el, 'pin')?.pin(el) ?? false;
+    const commandHide = () => [...liveDoors].map((d) => d.hide()).includes(true);
+    const commandClose = () => [...liveDoors].map((d) => d.close()).includes(true);
 
     return Object.freeze({
       tips,
@@ -3368,6 +3880,10 @@
       tooltip,
       define,
       attach,
+      show: commandShow,
+      hide: commandHide,
+      pin: commandPin,
+      close: commandClose,
       block,
       host,
       register,
@@ -3378,6 +3894,8 @@
       settingsAt,
       placements: [...PLACEMENTS],
       presets: [...Object.keys(PRESET_TEXT), PRESET_NONE],
+      moreOn: [...MORE_ON],
+      moreCue: [...MORE_CUE],
     });
   }
 
@@ -3390,11 +3908,42 @@
     num,
     format: format_number,
     layer: () => null,
-    motion: (el) => ({
-      set: (open) => {
-        el.hidden = !open;
-      },
-    }),
+    motion: (el, o = {}) => {
+      let a = null;
+      const clear = () => {
+        a = null;
+      };
+      const stop = () => {
+        a?.cancel?.();
+        clear();
+      };
+      const mq = el.ownerDocument.defaultView?.matchMedia?.('(prefers-reduced-motion: reduce)');
+      mq?.addEventListener?.('change', (e) => {
+        if (e.matches) stop();
+      });
+      const S = { left: 'X(-4', right: 'X(4', top: 'Y(-4', bottom: 'Y(4' };
+      return {
+        set: (open) => {
+          stop();
+          el.hidden = !open;
+        },
+        enter: () => {
+          stop();
+          if (el.hidden || !el.isConnected || mq?.matches || !el.animate) return;
+          const ax = typeof o.axis === 'function' ? o.axis() : o.axis;
+          if (ax !== 'fade' && ax !== 'slide') return;
+          const s = ax === 'slide' ? S[typeof o.side === 'function' ? o.side() : o.side] : '';
+          a = el.animate(
+            [
+              { opacity: 0, transform: s ? `translate${s}px)` : 'none' },
+              { opacity: 1, transform: 'none' },
+            ],
+            { duration: 120, easing: 'ease-out' },
+          );
+          a.finished.then(clear, clear);
+        },
+      };
+    },
     outside: (root, fn) => {
       const doc = root.ownerDocument ?? document;
       doc.addEventListener('click', fn);
@@ -3408,5 +3957,9 @@
     tooltip: engine.tooltip,
     block: engine.block,
     host: engine.host,
+    show: engine.show,
+    hide: engine.hide,
+    pin: engine.pin,
+    close: engine.close,
   });
 })();
