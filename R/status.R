@@ -3,12 +3,27 @@
 # not a plain badge in the browser.
 tip_statuses <- c("success", "warning", "danger", "info")
 
+tip_status_has_placeholder <- function(status) {
+  is.character(status) && length(status) == 1L && grepl(tip_rules()$placeholder$open, status, fixed = TRUE)
+}
+
 tip_check_status <- function(status, call = rlang::caller_env()) {
-  if (!is.null(status) && !status %in% tip_statuses) {
+  if (is.null(status)) {
+    return(invisible(status))
+  }
+  if (tip_status_has_placeholder(status)) {
+    tip_check_text(status, "The status of `tip_badge()`", call = call)
+    return(invisible(status))
+  }
+  if (!status %in% tip_statuses) {
     tip_abort(
       c(
         "{.arg status} is {.val {status}}, which is not a status.",
-        i = "Give one of {.val {tip_statuses}}, or leave it out for a plain badge."
+        i = paste0(
+          "Give one of {.val {tip_statuses}}, a placeholder such as {.code \"",
+          tip_escape("{{ status }}"),
+          "\"}, or leave it out for a plain badge."
+        )
       ),
       class = "hovercraft_error_status",
       call = call

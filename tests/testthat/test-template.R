@@ -151,4 +151,80 @@ describe("tip_define()", {
   it("checks a list of blocks the same way as tip_template()", {
     expect_error(tip_define(a = list("not a block")), class = "hovercraft_error_block")
   })
+
+  it("accepts Shiny ns() module-namespaced template names so two module copies do not overwrite each other", {
+    skip_if_not_installed("shiny")
+    tip_reset()
+    ns_a <- shiny::NS("mod_a")
+    ns_b <- shiny::NS("mod_b")
+    ns_nested <- shiny::NS("outer")("inner")
+    expect_no_warning(
+      a <- tip_define(!!ns_a("card") := tip_template(tip_title("Alpha"), tip_text("{{ a }}")))
+    )
+    expect_no_warning(
+      b <- tip_define(!!ns_b("card") := tip_template(tip_title("Beta"), tip_text("{{ b }}")))
+    )
+    expect_no_warning(
+      tip_define(!!paste0(ns_nested, "-card") := tip_template(tip_text("Nested")))
+    )
+    expect_match(as.character(a), "define(\"mod_a-card\"", fixed = TRUE)
+    expect_match(as.character(b), "define(\"mod_b-card\"", fixed = TRUE)
+    expect_identical(tip_known()[["mod_a-card"]]$fields, "a")
+    expect_identical(tip_known()[["mod_b-card"]]$fields, "b")
+    expect_error(tip_define(`-card` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+    expect_error(tip_define(`mod-` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+    expect_error(tip_define(`mod--card` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+    expect_error(tip_define(`mod-1st` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+    expect_error(tip_define(`mod-function` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+    expect_error(tip_define(`bad name-card` = tip_template(tip_text("a"))), class = "hovercraft_error_name")
+  })
+})
+
+describe("tip_template() with head, body and foot slots", {
+  withr::defer(tip_reset())
+  tip_reset()
+
+  it("orders head, body and foot blocks and records their fields including dynamic badge status", {
+    tpl <- tip_template(
+      head = list(tip_title("{{ label }}"), tip_badge("{{ status }}", status = "{{ tone }}")),
+      body = tip_fields(Count = "{{ n | number:0 }}"),
+      foot = tip_text("Source: {{ source }}")
+    )
+    expect_s3_class(tpl, "hovercraft_template")
+    expect_identical(vapply(tpl, function(b) b$type, ""), c("title", "badge", "fields", "text"))
+    expect_identical(tip_template_fields(tpl), c("label", "status", "tone", "n", "source"))
+    expect_output(print(tpl), "<tip template: head(title, badge), body(fields), foot(text)>", fixed = TRUE)
+  })
+
+  it("serializes foot into a footer group with a divider, and routes dynamic badge status to badge_data", {
+    tpl <- tip_template(
+      head = tip_title("{{ label }}"),
+      body = tip_badge("{{ status }}", status = "{{ tone }}"),
+      foot = tip_text("Footnote")
+    )
+    plain <- tip_blocks_plain(tpl)
+    types <- vapply(plain, function(b) b$type, "")
+    expect_identical(types, c("title", "badge_data", "slot_divider", "group", "text"))
+    expect_identical(plain[[5]]$parent, "hc_foot")
+
+    foot_only <- tip_template(foot = tip_text("Only foot"))
+    expect_identical(vapply(tip_blocks_plain(foot_only), function(b) b$type, ""), c("group", "text"))
+  })
+
+  it("allows positional body blocks alongside head or foot, and rejects ambiguous or unknown slots", {
+    mixed <- tip_template(tip_text("Body"), head = tip_title("Head"), foot = tip_text("Foot"))
+    expect_identical(vapply(mixed, function(b) b$type, ""), c("title", "text", "text"))
+
+    expect_error(
+      tip_template(tip_text("A"), body = tip_text("B")),
+      class = "hovercraft_error_template"
+    )
+    expect_error(
+      tip_template(header = tip_title("A")),
+      "head",
+      class = "hovercraft_error_template"
+    )
+    expect_error(tip_template(head = list()), class = "hovercraft_error_template")
+    expect_error(tip_template(head = "not a block"), class = "hovercraft_error_block")
+  })
 })

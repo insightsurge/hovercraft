@@ -7,8 +7,9 @@
 tip_define(...)
 }
 \arguments{
-\item{...}{Templates, each with a name: \code{tip_define(diff = tip_template(...))}. A template may also be a list of
-blocks.}
+\item{...}{Templates, each with a name: \code{tip_define(diff = tip_template(...))}, or in a Shiny module
+\code{tip_define(!!ns("diff") := tip_template(...))}. A template may also be a list of blocks. Supports dynamic dots
+(\code{rlang::list2()}).}
 }
 \value{
 Tags to put in the page's UI.
@@ -16,9 +17,10 @@ Tags to put in the page's UI.
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the
-page's UI, once. A name is lower-case letters, digits and \verb{_}, starting with a letter. Defining a name again replaces
-the earlier template under it, with a warning when the blocks differ. Templates belong to the whole page, so a Shiny
-module should put its id in the names it defines, such as \code{paste0(id, "_row")}.
+page's UI, once. A name is lower-case letters, digits and \verb{_}, starting with a letter; inside a Shiny module, prefix
+it with \code{ns()} (for example \code{tip_define(!!ns("row") := tip_template(...))}) so two copies of the module keep their
+own templates without overwriting each other. Defining the same name again replaces the earlier template under it,
+with a warning when the blocks differ.
 }
 \examples{
 tip_define(

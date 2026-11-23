@@ -433,6 +433,40 @@
     });
   };
 
+  const registerExtraBlocks = () => {
+    const engine = window[names.global];
+    if (!engine?.block) return;
+    // Dynamic badge status: expands {{ placeholder }} in tone from the record and applies valid Bootstrap statuses.
+    engine.block('badge_data', {
+      shape: {
+        text: { type: 'string', required: true },
+        tone: { type: 'string', required: false },
+      },
+      flatten: (b, _record, ctx) => ctx.words(b.text),
+      render: (b, _record, ctx) => {
+        const badge = ctx.doc.createElement('span');
+        badge.className = `${ctx.cls}-badge`;
+        badge.textContent = ctx.words(b.text);
+        const tone = typeof b.tone === 'string' ? ctx.words(b.tone).trim() : '';
+        if (tone && Array.isArray(names.statuses) && names.statuses.includes(tone)) {
+          badge.dataset.tone = tone;
+        }
+        return { node: badge };
+      },
+    });
+    // Subtle hairline divider placed before a template's `foot` slot group.
+    engine.block('slot_divider', {
+      shape: {},
+      flatten: () => '',
+      render: (_b, _record, ctx) => {
+        const hr = ctx.doc.createElement('hr');
+        hr.className = 'hc-slot-divider';
+        hr.setAttribute('aria-hidden', 'true');
+        return { node: hr };
+      },
+    });
+  };
+
   const register = () => {
     for (const [what, handler] of Object.entries(handlers)) {
       window.Shiny.addCustomMessageHandler(names.messages[what], handler);
@@ -451,6 +485,7 @@
       names = config;
       document.addEventListener(names.events.hint, sendHint);
       registerOutputBlock();
+      registerExtraBlocks();
       if (window.Shiny?.addCustomMessageHandler) register();
       else {
         document.addEventListener('DOMContentLoaded', () => {

@@ -21,10 +21,12 @@ tip_block <- function(type, ...) {
 #' @param text One string, with placeholders if you like. In `tip_text()` it is markdown (strong, emphasis, code,
 #'   links, short lists), and a value put in by a placeholder is never read as markdown.
 #' @param status What the badge says about its item, or `NULL` for a plain badge: one of `"success"`, `"warning"`,
-#'   `"danger"` or `"info"`, the words bslib uses. Any other word is an error. The badge is coloured from the page's
-#'   Bootstrap colours for that status (with plain colours on a page without Bootstrap), and its text should say the
-#'   same thing, because colour alone is not enough. A block written as a plain list, `list(type = "badge", text = "a",
-#'   tone = "info")`, uses the engine's name for it, `tone`, with the same four words.
+#'   `"danger"` or `"info"`, the words bslib uses, or a placeholder such as `"{{ tone }}"` filled from the record. Any
+#'   other fixed word is an error. When filled from a record, one of the four words colours the badge and any other
+#'   value shows a plain badge. The badge is coloured from the page's Bootstrap colours for that status (with plain
+#'   colours on a page without Bootstrap), and its text should say the same thing, because colour alone is not enough. A
+#'   block written as a plain list, `list(type = "badge", text = "a", tone = "info")`, uses the engine's name for it,
+#'   `tone`, with the same rule.
 #' @param ... Named strings for `tip_fields()`: each name is a label (plain text) and each value a string that may hold
 #'   placeholders, as in `tip_fields(Records = "{{ records | number:0 }}")`.
 #' @param field One string: the name of the record field that holds the code. The code is shown as text, never run,

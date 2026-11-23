@@ -137,4 +137,22 @@
     border-color: ButtonText;
     color: ButtonText;
   }
+
+  .hc-slot-divider {
+    border-top-color: CanvasText;
+  }
+}
+
+/* ---- Template slots (foot divider and muted footer) -------------------------------------------------------------- */
+
+.hc-slot-divider {
+  border: 0;
+  border-top: 1px solid var(--hc-tip-edge, currentColor);
+  opacity: 0.35;
+  margin: var(--hovercraft-space-2, 8px) 0 var(--hovercraft-space-1, 4px);
+}
+
+.hc-slot-divider + .hc-tip-group {
+  color: var(--hc-tip-quiet, inherit);
+  font-size: 0.92em;
 }

@@ -2,7 +2,8 @@
 # page. The template names follow the engine's name rule (lower-case letters, digits and _, starting with a letter, not
 # a word R reserves), read from engine.json.
 
-# The fields a template's blocks name: the placeholders in their text and the field of a code block.
+# The fields a template's blocks name: the placeholders in their text, a badge's dynamic status, and the field of a
+# code block.
 tip_template_fields <- function(template) {
   blocks <- tip_rules()$blocks
   out <- character()
@@ -18,6 +19,9 @@ tip_template_fields <- function(template) {
       }
       out <- c(out, unlist(lapply(texts, function(text) tip_parse(text)$fields)))
     }
+    if (identical(block$type, "badge") && tip_status_has_placeholder(block$tone)) {
+      out <- c(out, tip_parse(block$tone)$fields)
+    }
     for (key in unlist(spec$names_fields)) {
       out <- c(out, block[[key]])
     }
@@ -31,13 +35,78 @@ tip_block_makers <- function() {
   list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
 }
 
-# Strips S3 class and custom R attributes from each block so JSON carries only the block's own fields.
+# Serializes a template's blocks into plain lists for the engine JSON: strips R attributes, routes dynamic-status
+# badges to the package's `badge_data` block, and adds the footer group/divider when `foot` slot blocks are present.
 tip_blocks_plain <- function(template) {
-  lapply(template, function(block) {
+  plain_one <- function(block, parent = NULL) {
     out <- unclass(block)
     attributes(out) <- list(names = names(out))
+    if (identical(out$type, "badge") && tip_status_has_placeholder(out$tone)) {
+      out$type <- "badge_data"
+    }
+    if (!is.null(parent)) {
+      out$parent <- parent
+    }
     out
+  }
+  slots <- attr(template, "slots")
+  if (is.null(slots) || !length(slots$foot)) {
+    return(lapply(template, plain_one))
+  }
+  above <- c(slots$head, slots$body)
+  out <- lapply(template[above], plain_one)
+  if (length(above)) {
+    out <- c(out, list(list(type = "slot_divider")))
+  }
+  out <- c(
+    out,
+    list(list(type = "group", id = "hc_foot", direction = "column", gap = "s")),
+    lapply(template[slots$foot], plain_one, parent = "hc_foot")
+  )
+  out
+}
+
+# Normalizes one template slot (head, body or foot): NULL, a single block, or a list of blocks.
+tip_slot_blocks <- function(x, slot, call) {
+  if (is.null(x)) {
+    return(list())
+  }
+  items <- if (inherits(x, "hovercraft_block") || (is.list(x) && !is.null(x$type))) {
+    list(x)
+  } else if (is.list(x)) {
+    unname(x)
+  } else {
+    tip_abort(
+      c(
+        "{.arg {slot}} must be a block or a list of blocks, not {.obj_type_friendly {x}}.",
+        i = "Give a block such as {.fn tip_title} or a list of blocks."
+      ),
+      class = "hovercraft_error_block",
+      call = call
+    )
+  }
+  lapply(seq_along(items), function(i) {
+    where <- if (length(items) == 1L) paste0("Slot `", slot, "`") else paste0("Slot `", slot, "`, block ", i)
+    tip_as_block(items[[i]], where, call)
   })
+}
+
+# Checks a template name: plain engine name, or a Shiny ns()-prefixed module name (`mod-name`, `outer-inner-name`).
+tip_template_name_ok <- function(name, rules) {
+  reserved <- unlist(rules$r_reserved)
+  if (!grepl("-", name, fixed = TRUE)) {
+    return(grepl(rules$pattern, name) && !name %in% reserved)
+  }
+  if (endsWith(name, "-") || startsWith(name, "-")) {
+    return(FALSE)
+  }
+  parts <- strsplit(name, "-", fixed = TRUE)[[1L]]
+  if (any(!nzchar(parts))) {
+    return(FALSE)
+  }
+  prefixes <- parts[-length(parts)]
+  base <- parts[[length(parts)]]
+  all(grepl("^[A-Za-z0-9_]+$", prefixes)) && grepl(rules$pattern, base) && !base %in% reserved
 }
 
 # The block types the engine has and this package can make: what a message may offer.
@@ -133,7 +202,15 @@ tip_as_block <- function(x, where, call) {
 #' block can be made with [tip_title()] and the other block functions, or written as a plain list such as
 #' `list(type = "text", text = "...")`; both are checked in the same way.
 #'
-#' @param ... One or more blocks.
+#' Blocks can be given in order through `...`, or placed into the named slots `head`, `body` and `foot`. Each slot
+#' takes one block or a list of blocks; `foot` is drawn below a thin divider in muted text, suited for a source line or
+#' footnote. Do not pass both positional blocks in `...` and `body`.
+#'
+#' @param ... One or more blocks in order (cannot be named; use `head`, `body` and `foot` for slots).
+#' @param head Optional block or list of blocks drawn at the top of the tip (for example a [tip_title()] and a
+#'   [tip_badge()]).
+#' @param body Optional block or list of blocks drawn in the middle of the tip. Cannot be combined with `...`.
+#' @param foot Optional block or list of blocks drawn at the bottom of the tip below a subtle divider.
 #'
 #' @returns A template, to give to [tip_define()].
 #' @family tooltips
@@ -143,20 +220,85 @@ tip_as_block <- function(x, where, call) {
 #'   tip_text("{{ differences | number:0 }} differences"),
 #'   list(type = "badge", text = "{{ status }}")
 #' )
+#'
+#' tip_template(
+#'   head = list(tip_title("{{ label }}"), tip_badge("{{ status }}", status = "{{ tone }}")),
+#'   body = tip_fields(Records = "{{ records | number:0 }}"),
+#'   foot = tip_text("Source: {{ source }}")
+#' )
 #' @export
-tip_template <- function(...) {
-  blocks <- list(...)
-  if (!length(blocks)) {
-    tip_abort("A template needs at least one block.", class = "hovercraft_error_template")
-  }
+tip_template <- function(..., head = NULL, body = NULL, foot = NULL) {
   call <- rlang::current_env()
-  blocks <- lapply(seq_along(blocks), function(i) tip_as_block(blocks[[i]], paste0("Block ", i), call))
-  structure(blocks, class = "hovercraft_template")
+  dots <- list(...)
+  dot_names <- names(dots)
+  if (!is.null(dot_names) && any(nzchar(dot_names))) {
+    bad <- dot_names[nzchar(dot_names)]
+    known <- c("head", "body", "foot")
+    tip_abort(
+      c(
+        "Unknown template slot{?s}: {.val {bad}}.",
+        i = paste0("The slots are {.arg head}, {.arg body} and {.arg foot}.", tip_near(bad[[1L]], known))
+      ),
+      class = "hovercraft_error_template",
+      call = call
+    )
+  }
+  if (length(dots) && !is.null(body)) {
+    tip_abort(
+      c(
+        "Blocks were given in both {.arg ...} and {.arg body}.",
+        i = "Pass blocks either positionally in {.arg ...}, or in {.arg head}, {.arg body} and {.arg foot}."
+      ),
+      class = "hovercraft_error_template",
+      call = call
+    )
+  }
+  use_slots <- !is.null(head) || !is.null(body) || !is.null(foot)
+  if (!use_slots) {
+    if (!length(dots)) {
+      tip_abort("A template needs at least one block.", class = "hovercraft_error_template", call = call)
+    }
+    blocks <- lapply(seq_along(dots), function(i) tip_as_block(dots[[i]], paste0("Block ", i), call))
+    return(structure(blocks, class = "hovercraft_template"))
+  }
+  head_blocks <- tip_slot_blocks(head, "head", call)
+  body_blocks <- if (length(dots)) {
+    lapply(seq_along(dots), function(i) tip_as_block(dots[[i]], paste0("Block ", i), call))
+  } else {
+    tip_slot_blocks(body, "body", call)
+  }
+  foot_blocks <- tip_slot_blocks(foot, "foot", call)
+  blocks <- c(head_blocks, body_blocks, foot_blocks)
+  if (!length(blocks)) {
+    tip_abort("A template needs at least one block.", class = "hovercraft_error_template", call = call)
+  }
+  n_head <- length(head_blocks)
+  n_body <- length(body_blocks)
+  n_foot <- length(foot_blocks)
+  slots <- list(
+    head = seq_len(n_head),
+    body = if (n_body) n_head + seq_len(n_body) else integer(),
+    foot = if (n_foot) n_head + n_body + seq_len(n_foot) else integer()
+  )
+  structure(blocks, slots = slots, class = "hovercraft_template")
 }
 
 #' @export
 print.hovercraft_template <- function(x, ...) {
-  cli::cat_line("<tip template: ", paste(vapply(x, function(block) block$type, ""), collapse = ", "), ">")
+  slots <- attr(x, "slots")
+  if (is.null(slots)) {
+    cli::cat_line("<tip template: ", paste(vapply(x, function(block) block$type, ""), collapse = ", "), ">")
+  } else {
+    parts <- character()
+    for (slot in c("head", "body", "foot")) {
+      idx <- slots[[slot]]
+      if (length(idx)) {
+        types <- paste(vapply(x[idx], function(block) block$type, ""), collapse = ", ")
+        parts <- c(parts, paste0(slot, "(", types, ")"))
+      }
+    }
+    cli::cat_line("<tip template: ", paste(parts, collapse = ", "), ">")
+  }
   invisible(x)
 }
 
@@ -164,12 +306,14 @@ print.hovercraft_template <- function(x, ...) {
 #'
 #' `r lifecycle::badge("experimental")`
 #' Puts named templates on the page, so a tag can use one with `tip_on(tag, template = "name")`. Put the result in the
-#' page's UI, once. A name is lower-case letters, digits and `_`, starting with a letter. Defining a name again replaces
-#' the earlier template under it, with a warning when the blocks differ. Templates belong to the whole page, so a Shiny
-#' module should put its id in the names it defines, such as `paste0(id, "_row")`.
+#' page's UI, once. A name is lower-case letters, digits and `_`, starting with a letter; inside a Shiny module, prefix
+#' it with `ns()` (for example `tip_define(!!ns("row") := tip_template(...))`) so two copies of the module keep their
+#' own templates without overwriting each other. Defining the same name again replaces the earlier template under it,
+#' with a warning when the blocks differ.
 #'
-#' @param ... Templates, each with a name: `tip_define(diff = tip_template(...))`. A template may also be a list of
-#'   blocks.
+#' @param ... Templates, each with a name: `tip_define(diff = tip_template(...))`, or in a Shiny module
+#'   `tip_define(!!ns("diff") := tip_template(...))`. A template may also be a list of blocks. Supports dynamic dots
+#'   (`rlang::list2()`).
 #'
 #' @returns Tags to put in the page's UI.
 #' @family tooltips
@@ -182,7 +326,7 @@ print.hovercraft_template <- function(x, ...) {
 #' )
 #' @export
 tip_define <- function(...) {
-  templates <- list(...)
+  templates <- rlang::list2(...)
   tip_arg_list(
     templates,
     "...",
@@ -193,7 +337,7 @@ tip_define <- function(...) {
   js <- character()
   built <- list()
   for (name in names(templates)) {
-    if (!grepl(rules$pattern, name) || name %in% unlist(rules$r_reserved)) {
+    if (!tip_template_name_ok(name, rules)) {
       tip_abort(
         c(
           "The template name {.val {name}} is not allowed.",
