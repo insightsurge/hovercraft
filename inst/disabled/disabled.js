@@ -2,7 +2,8 @@
 // control in a wrapper that holds the reason in its own attribute. While the control is disabled, this file copies the
 // reason into the engine's reason attribute (the engine then shows "Not available: ...", and describes the wrapper) and
 // gives it the control's tip id and events (so tip_show() and the hint input name the control), and makes the wrapper a
-// tab stop, because a disabled control can take neither focus nor, under Bootstrap, the pointer.
+// tab stop (a button's role for a button, a named group for a field), because a disabled control can take neither focus
+// nor, under Bootstrap, the pointer.
 // When the control is enabled it takes all of that away: the engine keeps saying "Not available", and blocks the
 // control's clicks, for as long as its reason attribute stays. R passes the attribute names in `start()`.
 (() => {
@@ -12,10 +13,29 @@
   let wrappers = '';
   const CONTROLS = 'button, input, select, textarea, fieldset';
 
-  // The wrapper is disabled-looking when the control it holds can be disabled and is (a disabled fieldset counts).
+  // A control that is a button when it is read: the wrapper stands in for it with the same role. Any other control (a text
+  // field, a select, a checkbox, a fieldset) keeps its meaning only if the wrapper is no button: it is a named group.
+  const AS_BUTTON = 'button, input[type="button"], input[type="submit"], input[type="reset"], input[type="image"]';
+
+  // The control's own name: its aria-label, its label, the legend of a fieldset, or the label found in the wrapper.
+  const nameOf = (wrapper, control) =>
+    (
+      control.getAttribute('aria-label') ||
+      control.labels?.[0]?.textContent ||
+      control.querySelector?.('legend')?.textContent ||
+      wrapper.querySelector('label, legend')?.textContent ||
+      ''
+    )
+      .replace(/\s+/g, ' ')
+      .trim();
+
+  // While the control is disabled, the wrapper holds the reason, answers to the control's id and events, and is a tab stop.
+  // When the control is enabled it holds none of that. Focus follows the control: a control that is focused when it is
+  // switched off (a button that disables itself) hands the focus to the wrapper, and back when it is switched on.
   const sync = (wrapper) => {
     const control = wrapper.querySelector(CONTROLS);
-    const reason = wrapper.getAttribute(names.own);
+    const reason = wrapper.getAttribute(names.own)?.trim();
+    const active = wrapper.ownerDocument.activeElement;
     if (control?.matches(':disabled') && reason) {
       if (wrapper.getAttribute(names.reason) !== reason) wrapper.setAttribute(names.reason, reason);
       // The wrapper is the tip's item while the control is off, so it answers to the control's id and events.
@@ -23,12 +43,19 @@
       const events = control.getAttribute(names.events);
       if (id !== null && wrapper.getAttribute(names.id) !== id) wrapper.setAttribute(names.id, id);
       if (events !== null && wrapper.getAttribute(names.events) !== events) wrapper.setAttribute(names.events, events);
-      if (wrapper.getAttribute('tabindex') !== '0') wrapper.setAttribute('tabindex', '0');
-      // A button that is switched off: the control inside is out of the accessibility tree and the wrapper stands in.
-      if (wrapper.getAttribute('role') !== 'button') wrapper.setAttribute('role', 'button');
+      const stop = wrapper.getAttribute('tabindex') === '0';
+      if (!stop) wrapper.setAttribute('tabindex', '0');
+      const name = control.matches(AS_BUTTON) ? '' : nameOf(wrapper, control);
+      const role = control.matches(AS_BUTTON) ? 'button' : name ? 'group' : null;
+      if (role && wrapper.getAttribute('role') !== role) wrapper.setAttribute('role', role);
+      if (!role) wrapper.removeAttribute('role');
+      if (name && wrapper.getAttribute('aria-label') !== name) wrapper.setAttribute('aria-label', name);
+      if (!name) wrapper.removeAttribute('aria-label');
+      if (!stop && active === control) wrapper.focus();
     } else {
-      for (const attribute of [names.reason, names.id, names.events, 'tabindex', 'role'])
+      for (const attribute of [names.reason, names.id, names.events, 'tabindex', 'role', 'aria-label'])
         wrapper.removeAttribute(attribute);
+      if (active === wrapper && control && !control.matches(':disabled')) control.focus();
     }
   };
 

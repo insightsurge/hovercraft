@@ -10,12 +10,23 @@
   vertical-align: top;
 }
 .hovercraft-when-disabled.d-block,
-.hovercraft-when-disabled.w-100 {
+.hovercraft-when-disabled.w-100,
+.hovercraft-when-disabled-block {
   display: block;
 }
-/* The wrapper is a tab stop only while the control is switched off (the script gives it role="button" then). */
-.hovercraft-when-disabled[role="button"] {
+/* The wrapper has the control's width and place, so a control that fills a block or a grid cell fills its wrapper. */
+.d-grid > .hovercraft-when-disabled > .btn,
+.hovercraft-when-disabled.d-block > .btn {
+  width: 100%;
+}
+/* The wrapper is a tab stop only while the control is switched off (the script gives it tabindex then). */
+.hovercraft-when-disabled[tabindex="0"] {
   cursor: not-allowed;
+}
+/* Bootstrap 5 gives a disabled button no pointer; Bootstrap 3 and other pages do. A disabled control under the wrapper takes
+   none either, so the pointer is always the wrapper's, whose tip is the reason and not the control's own. */
+.hovercraft-when-disabled[tabindex="0"] :disabled {
+  pointer-events: none;
 }
 .hovercraft-when-disabled:focus-visible {
   outline: 2px solid currentcolor;

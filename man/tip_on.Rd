@@ -65,18 +65,35 @@ reader hovers the tag. It needs an \code{id}, or a tag with
 an \code{id} of its own; in a module the input is read as \verb{input$<id>_hint}, without the namespace. \code{"pin"} and
 \code{"copy"} are named but stop with an error until the pin inputs arrive.}
 
-\item{when_disabled}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The reason the control is switched off, as one string
-of plain text, or \code{NULL} (the default) for none. While the control is disabled, its tip says "Not available:"
-and the reason, with a small lock before it; when the control is enabled again the reason goes and the tag's own
-tip (\code{text} or \code{template}) is shown as usual. \code{text} and \code{template} may be left out, for a tag that only has a
-reason. The tag must hold a control that can be disabled: a \code{button}, \code{input}, \code{select} or \code{textarea}. It works
-when the page is built with the control disabled and when it is switched off later, by the \verb{update*(disabled = )} functions of Shiny or by script; a control disabled by \code{aria-disabled} alone is not covered. A disabled
-control takes no keyboard focus and, under Bootstrap, no pointer, so \code{tip_on()} puts it in a small wrapper (a
-\verb{<span>}) that does: while the control is disabled the wrapper is one tab stop with the role of a button, and it
-is not a tab stop when the control is enabled. The wrapper keeps the control's width where it is written in its
-\code{style} or as the class \code{w-100} or \code{d-block}. The tip's \code{id} and \code{events} stay on the control, and the wrapper
-answers to them while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way.
-The value returned is the wrapper.}
+\item{when_disabled}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The reason the control is switched off, as one
+string of plain text with a word in it, or \code{NULL} (the default) for none. While the control is disabled,
+its tip says "Not available:" and the reason, with a small lock before it; when the control is enabled
+again the reason goes and the tag's own tip (\code{text} or \code{template}) is shown as usual. \code{text} and \code{template}
+may be left out, for a tag that only has a reason; then a \code{marker} is left off with a warning, since it
+would show on an enabled control that has no tip. The tag must hold a control that can be disabled: a
+\code{button}, \code{input}, \code{select}, \code{textarea} or \code{fieldset}. It works when the page is built with the control
+disabled and when it is switched off later, by the \verb{update*(disabled = )} functions of Shiny or by script,
+on a Bootstrap 5 page (bslib) and on the Bootstrap 3 page of a plain \code{fluidPage()}; a control disabled by
+\code{aria-disabled} alone is not covered.
+
+A disabled control takes no keyboard focus and, under Bootstrap 5, no pointer, so \code{tip_on()} puts it in a small
+wrapper that does: a \verb{<span>}, or a \verb{<div>} for a tag that is a block, such as the \code{div} Shiny puts around an
+input. While the control is disabled the wrapper is one tab stop, and the control gets no pointer, so the
+reason is the wrapper's. A button's wrapper has the role of a button; any other control is a group named by the
+control's label, so a screen reader still says what the field is. The wrapper is not a tab stop when the
+control is enabled. A control that has the focus when it is switched off hands it to the wrapper, and takes it
+back when it is switched on. The tip's \code{id} and \code{events} stay on the control, and the wrapper answers to them
+while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way. The value
+returned is the wrapper; calling \code{tip_on()} on it again changes the control's tip and keeps one wrapper, with
+the reason it had unless a new one is given.
+
+The wrapper takes the control's place in a layout: a width, a share of a flex row and a side written in its
+\code{style}, or as the classes \code{w-25}, \code{w-50}, \code{w-75}, \code{w-100}, \code{flex-fill}, \verb{flex-grow-*}, \verb{col-*}, \verb{order-*},
+\verb{align-self-*} and \code{ms-auto}, move to the wrapper, and the control fills the wrapper. A \code{d-block} control and
+the cells of a \code{d-grid} keep their width. Not covered: a control that is a direct child of a \code{btn-group},
+\code{btn-group-vertical} or \code{input-group}, since the wrapper then comes between the control and the joined borders;
+put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
+that needs no wrapper, which asks the tip engine for a keyboard stop of its own.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
