@@ -1,6 +1,6 @@
 {
-  "engine": "0.48.0",
-  "commit": "d3126466e1331cd2101bd300f721d609ec0de2b9",
+  "engine": "0.49.0",
+  "commit": "a5ad3f509a6b0834b864e2fb567bf84c7be33bf7",
   "branch": "main",
   "files": [
     "placeholders.json",
@@ -15,9 +15,9 @@
   ],
   "sha256": {
     "placeholders.json": "9fcdbb659edddf8664b0d8500814041b7cdd132235de71a085ab905a06f5dd05",
-    "tip.json": "d313fe7226f232ad6a5f55a9690332fc6413d57cad5ed2ca258d50634d20d4cc",
-    "www/tip.css": "ea538b3c7d8091277081cf8dddfd3d21abe92dc2ff6e4320e5fb05f4d8c947bd",
-    "www/tip.js": "d4d1f77c8a4acee8e7268d9607aa93d59fdd08c89e9c736b07c8a8a948b3ea25",
+    "tip.json": "89d0619458b0408ea696d796674e3fb0ada972d9a621bd255a33c1758a608755",
+    "www/tip.css": "e215872a2c788090154e37a06e91e82c4765d50d37c0ac7048c3bd361af3696d",
+    "www/tip.js": "1e49b70513b1a153b6fe3355186c10682a01dd4a71b2a73cfdd2b0cbdefe1d22",
     "presets/dense.json": "8447dd84b6f7f49c3588d5159da771fbe5f928ab6b8b6fe18a28c020622556a7",
     "presets/editorial.json": "a6a9136d30a697c19544a6b1b47b783dee1e6bdacaebafee137258a4d1ec4f24",
     "presets/lively.json": "204afca9a747f599c3fd319229159e9e28857c736e552bb12a4d4b1f0f6bb338",
@@ -45,7 +45,8 @@
         "default_key": "tip",
         "default_template_key": "template",
         "default_record_key": "record",
-        "arrow_option": "tooltip_arrow"
+        "arrow_option": "tooltip_arrow",
+        "class_option": "tooltip_class"
       },
       "placement": {
         "values": [
@@ -59,6 +60,9 @@
       },
       "arrow": {
         "default": true
+      },
+      "class": {
+        "pattern": "^-?[_a-zA-Z][_a-zA-Z0-9-]*$"
       },
       "switch": {
         "rule": "nearest"
@@ -307,7 +311,8 @@
           "kind": "-kind",
           "placement": "-placement",
           "preset": "-preset",
-          "arrow": "-arrow"
+          "arrow": "-arrow",
+          "class": "-class"
         },
         "host_attribute": "host",
         "kind_default": "element",

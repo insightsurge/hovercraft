@@ -44,6 +44,7 @@ page_file <- function(dir) {
   page <- bslib::page_fluid(
     tip_define(diff = tip_template(tip_title("{{ label }}"), tip_text("{{ differences | number:0 }} differences"))),
     tip_on(htmltools::tags$button(id = "plain", "Run"), "Runs the **check**"),
+    tip_on(htmltools::tags$button(id = "icon", htmltools::tags$i(class = "icon-gear")), "Open the **settings**"),
     htmltools::tags$table(
       lapply(seq_len(nrow(rows)), function(i) {
         tip_on(
@@ -81,6 +82,16 @@ describe("a bslib page", {
       page$evaluate(sprintf("document.querySelector('.%s strong').textContent", tip_names()$css)),
       "check"
     )
+  })
+
+  it("reads an icon button's tip once, as its name, and not again as a description", {
+    read <- function(id, attr) {
+      page$evaluate(sprintf("document.getElementById('%s').getAttribute('%s')", id, attr))
+    }
+    expect_identical(read("icon", "aria-label"), "Open the settings")
+    expect_null(read("icon", "aria-describedby"))
+    # A button with visible words of its own still gets the tip as its description.
+    expect_false(is.null(read("plain", "aria-describedby")))
   })
 
   it("shows a template tip filled from the row's record", {

@@ -43,7 +43,9 @@ stop \code{tabindex = "0"}, or put the tip on a button or a link.
 A button with no visible words, such as one that holds only an icon, has no name for a screen reader. When it also
 has no \code{aria-label} or \code{aria-labelledby} of its own, and the tip is plain \code{text}, \code{tip_on()} gives it an
 \code{aria-label} made from the text, with the markdown marks taken out. A tip drawn from a template gives no label,
-because its words depend on the record: set \code{aria-label} yourself.
+because its words depend on the record: set \code{aria-label} yourself. The engine reads the tip once: when a tag's
+name, from \code{aria-label}, \code{aria-labelledby} or its own words, is the same as the tip's words, the tip is not also
+given to a screen reader as a description.
 
 If both \code{text} and \code{template} are given, the text is shown for this tag. A template whose name has been defined in
 this session is checked against the record here: a field it names that the record does not hold is an error. A

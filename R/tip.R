@@ -180,7 +180,9 @@ tip_check_use <- function(template, held, id, call) {
 #' A button with no visible words, such as one that holds only an icon, has no name for a screen reader. When it also
 #' has no `aria-label` or `aria-labelledby` of its own, and the tip is plain `text`, `tip_on()` gives it an
 #' `aria-label` made from the text, with the markdown marks taken out. A tip drawn from a template gives no label,
-#' because its words depend on the record: set `aria-label` yourself.
+#' because its words depend on the record: set `aria-label` yourself. The engine reads the tip once: when a tag's
+#' name, from `aria-label`, `aria-labelledby` or its own words, is the same as the tip's words, the tip is not also
+#' given to a screen reader as a description.
 #'
 #' If both `text` and `template` are given, the text is shown for this tag. A template whose name has been defined in
 #' this session is checked against the record here: a field it names that the record does not hold is an error. A
