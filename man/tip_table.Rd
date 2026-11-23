@@ -33,7 +33,8 @@ choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A
 \item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
 whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
 the page. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it, which follows
-the data row through sorting, filtering and paging; how that id is built is not part of the API. \code{NULL} gives the
+the data row through sorting, filtering and paging; how that id is built is not part of the API. The copy of a
+header cell that \code{DT} draws for \code{scrollX} or \code{fixedHeader} carries the id of the header it copies. \code{NULL} gives the
 tips no id. The engine's kind of the tips is not yours to set: \code{tip_table()} writes \code{table_row}, \code{table_cell} and
 \code{table_header}.}
 }
@@ -75,12 +76,9 @@ none).
 Not supported: a \code{DT} table with its own \code{createdRow} or \code{initComplete} option, or with a header of more than one
 row; a \code{reactable} column whose \code{headerClass} is a JavaScript function; any other widget.
 
-Large tables, measured on one laptop with a tip on every row, one column of cells and one header: building the tips
-in R takes about 0.2 seconds per 1,000 rows, and the page grows by about 70 bytes per row. A paged table barely
-notices (50,000 rows: 0.7 seconds to 0.9 seconds to draw in \code{DT}, 0.09 seconds to 0.12 seconds in \code{reactable}). A
-table with every row drawn at once is slower: 5,000 rows took 0.13 seconds without tips and 4.6 seconds with them in
-\code{DT} (0.23 seconds when only the rows have a tip), and 1.0 seconds to 1.3 seconds in \code{reactable}. Page a large \code{DT}
-table, or tip its rows only.
+Large tables: the tips of a table of thousands of rows take about 0.2 seconds per 1,000 rows to build in R, and add
+about 70 bytes per row to the page. A paged table barely notices. A table with every row drawn at once is slow in
+\code{DT} when cells or headers have tips (thousands of rows take seconds); page it, or tip its rows only.
 
 Give \code{tip_table()} the finished widget, last in the pipe or at least after the columns are settled.
 \code{DT::datatable()} gets one hidden column that holds each row's record, and with an \code{id} a second one for its data

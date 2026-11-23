@@ -13,6 +13,11 @@ describe("the table layer's engine names", {
     script <- paste(readLines(tip_path("www", "tip.js"), warn = FALSE), collapse = "\n")
     expect_match(script, "define,", fixed = TRUE)
     expect_match(script, "window.Hovercraft = Object.freeze({", fixed = TRUE)
+    # The layer removes the engine's hidden descriptions (a span of this class, named by aria-describedby) when a
+    # widget reuses a row; a new engine copy that renames either must fail here.
+    expect_match(script, "`${CSS}-desc`", fixed = TRUE)
+    expect_match(script, "aria-describedby", fixed = TRUE)
+    expect_identical(tip_names()$css, "hc-tip")
   })
 })
 

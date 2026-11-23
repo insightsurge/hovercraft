@@ -158,13 +158,15 @@
     const STOP = `[${kind}^="table_"]`;
     const ROW = 'tr, [role="row"]';
     let current = null;
+    // DT's scrollX keeps a collapsed copy of the header (no height) that cannot be seen, so it is not a stop.
+    const shown = (n) => n.getClientRects().length > 0 && n.getBoundingClientRect().height > 0;
     const stops = () => [...root.querySelectorAll(STOP)];
     const owned = (n) => !n.hasAttribute('tabindex') || given.has(n);
 
     const settle = () => {
       const all = stops();
       if (!current?.isConnected || !given.has(current) || !root.contains(current)) {
-        current = all.find(owned) ?? null;
+        current = all.find((n) => owned(n) && shown(n)) ?? null;
       }
       for (const n of all) {
         if (!owned(n)) continue;
@@ -180,7 +182,7 @@
       list.reduce((best, n) => (Math.abs(column(n) - key) < Math.abs(column(best) - key) ? n : best));
 
     const target = (from, key, ctrl) => {
-      const all = stops();
+      const all = stops().filter(shown);
       const rows = [...new Set(all.map(rowOf))];
       const here = all.filter((n) => rowOf(n) === rowOf(from));
       const at = here.indexOf(from);

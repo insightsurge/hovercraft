@@ -142,10 +142,17 @@ describe("tip_table(id =) in a browser, on a reactable table", {
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
     page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Voles: 1 wins")
-    expect_match(id_of(page, row), "5$")
+    ends <- function(n) {
+      page$wait_until(sprintf(
+        "document.querySelector('%s')?.getAttribute('data-hovercraft-tip-id')?.endsWith('/%s')",
+        row,
+        n
+      ))
+    }
+    expect_true(ends("row/5"))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
     page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
-    expect_match(id_of(page, row), "2$")
+    expect_true(ends("row/2"))
     expect_false(anyDuplicated(all_ids(page)) > 0L)
     expect_identical(page$problems(), character())
   })
@@ -226,6 +233,8 @@ describe("tip_table() with the keyboard, on a DT table", {
     expect_identical(page$press("ArrowUp"), "Owls: 7 wins")
     expect_identical(page$press("End"), "Note: Top")
     expect_identical(page$press("Home"), "Owls: 7 wins")
+    expect_identical(page$press("End", ctrl = TRUE), "Foxes: 5 wins")
+    expect_identical(page$press("Home", ctrl = TRUE), "Games won")
   })
 
   it("leaves the arrow keys alone on an element that is not one of its stops", {
@@ -494,5 +503,47 @@ describe("tip_table() with reactable's groupBy and row details, in a browser", {
       0L
     )
     expect_identical(page$problems(), character())
+  })
+})
+
+describe("tip_table(id =) and the keyboard with DT's copies of the header", {
+  with_id <- function(widget) {
+    tip_table(widget, rows = rows, cells = c(note = "Note: {{ note }}"), headers = c(wins = "Games won"), id = "t")
+  }
+  duplicated_ids <- "JSON.stringify((() => {
+    const ids = [...document.querySelectorAll('[data-hovercraft-tip-id]')].map((n) => n.getAttribute('data-hovercraft-tip-id'));
+    return [...new Set(ids.filter((x, i) => ids.indexOf(x) !== i))];
+  })())"
+
+  it("skips the collapsed header copy of scrollX, and gives only a header's copy the header's id", {
+    file <- save_page(
+      with_id(DT::datatable(wide, rownames = FALSE, options = list(scrollX = TRUE, scrollY = "200px", paging = FALSE)))
+    )
+    page <- local_page(file, environment())
+    dt_ready(page)
+    page$evaluate("$('.dataTables_scrollBody table').DataTable().order([1, 'desc']).draw(); 0")
+    Sys.sleep(0.5)
+    expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
+    focus(page, ".dataTables_scrollBody tbody tr:first-child")
+    expect_identical(page$press("ArrowUp"), "Games won")
+    expect_true(page$evaluate("!!document.activeElement.closest('.dataTables_scrollHead')"))
+  })
+
+  it("gives the floating header of fixedHeader the id of the header it copies", {
+    file <- save_page(
+      with_id(
+        DT::datatable(
+          wide,
+          rownames = FALSE,
+          extensions = "FixedHeader",
+          options = list(fixedHeader = TRUE, paging = FALSE)
+        )
+      )
+    )
+    page <- local_page(file, environment())
+    dt_ready(page)
+    page$evaluate("document.body.style.minHeight = '3000px'; window.scrollTo(0, 400); 0")
+    expect_true(page$wait_until("document.querySelector('.fixedHeader-floating') !== null"))
+    expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
   })
 })
