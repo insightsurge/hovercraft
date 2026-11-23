@@ -57,5 +57,23 @@ local_page <- function(html_file, env = parent.frame()) {
     )
     jsonlite::fromJSON(evaluate(js))
   }
-  list(evaluate = evaluate, wait_until = wait_until, hover = hover, shown = shown, problems = function() problems)
+  # The page region `region = c(left, top, right, bottom)` in CSS pixels as a base64 PNG, for the page to read back.
+  screenshot <- function(region) {
+    clip <- list(
+      x = region[[1]],
+      y = region[[2]],
+      width = region[[3]] - region[[1]],
+      height = region[[4]] - region[[2]],
+      scale = 2
+    )
+    session$Page$captureScreenshot(format = "png", clip = clip)$data
+  }
+  list(
+    evaluate = evaluate,
+    wait_until = wait_until,
+    hover = hover,
+    shown = shown,
+    screenshot = screenshot,
+    problems = function() problems
+  )
 }

@@ -34,5 +34,6 @@ reference:
       - tip_style
       - tip_presets
       - tip_theme
+      - tip_marker
   - title: The engine
     contents: tip_dependency
