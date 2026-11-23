@@ -149,5 +149,6 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-A template belongs to the whole page. A Shiny module should put its id in the names it defines, such as
-`paste0(id, "_row")`, so two modules do not replace each other's templates.
+A template belongs to the whole page. Inside a Shiny module, namespace the template name with `ns()` — for example
+`tip_define(!!ns("row") := tip_template(...))` and `tip_on(..., template = ns("row"))` — so two copies of the module
+keep their own templates.

@@ -96,3 +96,14 @@ tip_check_placement <- function(x, arg = "placement", call = rlang::caller_env()
     call
   )
 }
+
+# When a tip's long form (`more =`) opens: one of the engine's `more.on` values ("pin" or "hover"), or NULL.
+tip_check_more_on <- function(x, arg = "more_on", call = rlang::caller_env()) {
+  choices <- unlist(tip_contract()$more$on$values)
+  tip_arg(
+    checkmate::check_choice(x, choices, null.ok = TRUE),
+    arg,
+    paste0("Give one of ", paste0("\"", choices, "\"", collapse = ", "), ", or {.code NULL}."),
+    call
+  )
+}

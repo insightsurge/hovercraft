@@ -15,7 +15,9 @@ tip_on(
   marker = "none",
   id = NULL,
   events = NULL,
-  when_disabled = NULL
+  when_disabled = NULL,
+  more = NULL,
+  more_on = NULL
 )
 }
 \arguments{
@@ -94,6 +96,15 @@ the cells of a \code{d-grid} keep their width. Not covered: a control that is a 
 \code{btn-group-vertical} or \code{input-group}, since the wrapper then comes between the control and the joined borders;
 put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
 that needs no wrapper, which asks the tip engine for a keyboard stop of its own.}
+
+\item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Extra content for the long form of the tip, or \code{NULL} (the default)
+for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}) or a \code{\link[=tip_template]{tip_template()}}.
+\code{NA} and \code{""} count as none. When \code{more_on} is \code{"pin"} (the default), the tag must be able to pin and have an \code{id}
+(either \verb{id =} or the tag's own HTML \code{id}); otherwise \code{tip_on()} stops with an error.}
+
+\item{more_on}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} When the long form (\code{more}) opens: \code{"pin"} (the default, shows a
+short hint on hover and expands to the long form when pinned) or \code{"hover"} (shows the long form on hover too), or
+\code{NULL} to use the engine's default (\code{"pin"}).}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
@@ -133,6 +144,14 @@ tip_on(
   htmltools::tags$button("Run", disabled = NA),
   "Runs the **check**",
   when_disabled = "Pick a dataset first"
+)
+
+# Short tip on hover with extra detail
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  more = "Checks every column and prints a summary.",
+  more_on = "hover"
 )
 
 # A look for this tag only

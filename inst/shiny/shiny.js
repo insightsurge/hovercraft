@@ -467,6 +467,160 @@
     });
   };
 
+  // ---- Smooth short-to-long growth when pinning a tip with `more =` ----------------------------------------------
+  // Captures the short hint's bounding rect before it closes for a pin, then smoothly morphs the pinned long box from
+  // the short rect to its final positioned rect without scaling text, clipping the arrow, or stealing keyboard focus.
+  let lastHint = null;
+  let activeGrowth = [];
+
+  const cancelGrowth = () => {
+    for (const anim of activeGrowth) anim.cancel();
+    activeGrowth = [];
+  };
+
+  const reducedMotion = () => Boolean(window.matchMedia?.('(prefers-reduced-motion: reduce)').matches);
+
+  const visibleHintBox = () => {
+    const cls = names?.css ?? 'hc-tip';
+    return document.querySelector(`.${cls}:not(.${cls}-pin):not([hidden])`);
+  };
+
+  const snapshotHint = (el, id) => {
+    const box = visibleHintBox();
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    if (rect.width <= 0 || rect.height <= 0) return;
+    lastHint = {
+      id: id ?? el?.getAttribute?.(names.attributes.id) ?? el?.id ?? null,
+      el: el ?? null,
+      rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+      side: box.dataset.side ?? null,
+      children: box.children.length,
+      at: Date.now(),
+    };
+  };
+
+  const trackHint = (event) => {
+    const detail = event.detail;
+    if (!detail) return;
+    if (detail.state === 'shown') {
+      snapshotHint(event.target, detail.id);
+    } else if (detail.state === 'hidden' && detail.reason !== 'pinned') {
+      if (lastHint && (!detail.id || lastHint.id === detail.id)) lastHint = null;
+    }
+  };
+
+  const refreshHintSnapshot = () => {
+    if (!lastHint) return;
+    const box = visibleHintBox();
+    if (!box) return;
+    const rect = box.getBoundingClientRect();
+    if (rect.width > 0 && rect.height > 0) {
+      lastHint.rect = { left: rect.left, top: rect.top, width: rect.width, height: rect.height };
+      lastHint.side = box.dataset.side ?? lastHint.side;
+      lastHint.at = Date.now();
+    }
+  };
+
+  const animatePinGrowth = (event) => {
+    const detail = event.detail;
+    if (!detail) return;
+    if (detail.state === 'closed') {
+      cancelGrowth();
+      return;
+    }
+    if (detail.state !== 'pinned') return;
+    const prev = lastHint;
+    lastHint = null;
+    if (reducedMotion()) return;
+    const el = event.target?.nodeType === 1 ? event.target : find(detail.id);
+    if (!el) return;
+    const hasMore = el.hasAttribute(names.attributes.more) || el.hasAttribute(names.attributes.moreTemplate);
+    if (!hasMore || !prev || Date.now() - prev.at > 5000) return;
+    if (prev.id && detail.id && prev.id !== detail.id) return;
+
+    // Run right after the engine's synchronous pinMotion.enter() and before the first browser paint.
+    Promise.resolve().then(() => {
+      if (reducedMotion()) return;
+      const cls = names?.css ?? 'hc-tip';
+      const pinBox = document.querySelector(`.${cls}.${cls}-pin:not([hidden])`);
+      if (!pinBox || typeof pinBox.animate !== 'function') return;
+      cancelGrowth();
+      // Cancel any opacity-0 entrance animation from the engine so the already-visible tip does not flicker.
+      if (typeof pinBox.getAnimations === 'function') {
+        for (const a of pinBox.getAnimations()) a.cancel();
+      }
+      const easing = 'cubic-bezier(0.2, 0.8, 0.2, 1)';
+      if (pinBox.dataset.side === 'sheet') {
+        const anim = pinBox.animate(
+          [
+            { transform: 'translateY(16px)', opacity: 0.25 },
+            { transform: 'translateY(0)', opacity: 1 },
+          ],
+          { duration: 180, easing },
+        );
+        activeGrowth.push(anim);
+        anim.finished.then(
+          () => {
+            activeGrowth = activeGrowth.filter((a) => a !== anim);
+          },
+          () => {},
+        );
+        return;
+      }
+      const to = pinBox.getBoundingClientRect();
+      const from = prev.rect;
+      if (to.width <= 0 || to.height <= 0) return;
+      if (Math.abs(to.height - from.height) <= 2 && Math.abs(to.width - from.width) <= 2) return;
+      const dx = from.left - to.left;
+      const dy = from.top - to.top;
+      const boxAnim = pinBox.animate(
+        [
+          {
+            width: `${from.width}px`,
+            height: `${from.height}px`,
+            transform: `translate(${dx}px, ${dy}px)`,
+          },
+          {
+            width: `${to.width}px`,
+            height: `${to.height}px`,
+            transform: 'translate(0px, 0px)',
+          },
+        ],
+        { duration: 180, easing },
+      );
+      activeGrowth.push(boxAnim);
+      boxAnim.finished.then(
+        () => {
+          activeGrowth = activeGrowth.filter((a) => a !== boxAnim);
+        },
+        () => {},
+      );
+      // Gently reveal the newly added long-form blocks as the box opens.
+      const kids = [...pinBox.children].filter(
+        (c) => !c.classList.contains(`${cls}-head`) && !c.classList.contains(`${cls}-close`),
+      );
+      const startAt = Math.max(1, prev.children - 1);
+      for (const child of kids.slice(startAt)) {
+        if (typeof child.animate !== 'function') continue;
+        const cAnim = child.animate(
+          [
+            { opacity: 0, transform: 'translateY(-3px)' },
+            { opacity: 1, transform: 'translateY(0)' },
+          ],
+          { duration: 140, delay: 40, fill: 'backwards', easing: 'ease-out' },
+        );
+        activeGrowth.push(cAnim);
+        cAnim.finished.then(
+          () => {
+            activeGrowth = activeGrowth.filter((a) => a !== cAnim);
+          },
+          () => {},
+        );
+      }
+    });
+  };
+
   const register = () => {
     for (const [what, handler] of Object.entries(handlers)) {
       window.Shiny.addCustomMessageHandler(names.messages[what], handler);
@@ -484,6 +638,16 @@
       if (names) return;
       names = config;
       document.addEventListener(names.events.hint, sendHint);
+      document.addEventListener(names.events.hint, trackHint);
+      if (names.events.tip) document.addEventListener(names.events.tip, animatePinGrowth);
+      document.addEventListener('pointerdown', refreshHintSnapshot, true);
+      document.addEventListener(
+        'keydown',
+        (e) => {
+          if (e.key === 'Enter' || e.key === ' ') refreshHintSnapshot();
+        },
+        true,
+      );
       registerOutputBlock();
       registerExtraBlocks();
       if (window.Shiny?.addCustomMessageHandler) register();

@@ -687,3 +687,45 @@ describe("tip_table(style =)", {
     expect_null(tip_spec("x")$style)
   })
 })
+
+describe("tip_spec(more =, more_on =) in tip_table()", {
+  it("stores more and more_on on tip_spec() and validates them", {
+    s <- tip_spec("{{ team }}", more = "{{ note }}", more_on = "hover")
+    expect_identical(s$more, "{{ note }}")
+    expect_identical(s$more_on, "hover")
+    expect_error(tip_spec("x", more = 1), "more", class = "hovercraft_error_argument")
+    expect_error(tip_spec("x", more = "y", more_on = "click"), "more_on", class = "hovercraft_error_argument")
+  })
+
+  it("writes more_template and more_on = 'hover' on DT and reactable cells and includes more fields in records", {
+    got_dt <- tip_table(
+      dt(),
+      cells = list(team = tip_spec("{{ team }}", more = "{{ note }} ({{ wins }})", more_on = "hover"))
+    )
+    rec1 <- jsonlite::fromJSON(got_dt$x$data[[".hovercraft"]][[1]])
+    expect_named(rec1, c("team", "note", "wins"))
+    defs <- Filter(function(def) !is.null(def$createdCell), got_dt$x$options$columnDefs)
+    expect_match(js(defs[[1]]$createdCell), tip_attribute("more_template"), fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), tip_attribute("more_on"), fixed = TRUE)
+    expect_length(got_dt$jsHooks$render[[1]]$data$defines, 2L)
+
+    got_rt <- tip_table(
+      rt(),
+      cells = list(team = tip_spec("{{ team }}", more = tip_template(tip_text("{{ note }}")), more_on = "hover"))
+    )
+    cfg <- got_rt$jsHooks$render[[1]]$data
+    expect_match(cfg$cells[["0"]]$attrs[[tip_attribute("more_template")]], "^table_[a-f0-9]{12}$")
+    expect_identical(cfg$cells[["0"]]$attrs[[tip_attribute("more_on")]], "hover")
+  })
+
+  it("stops with a classed pin error when tip_spec() uses more without more_on = 'hover' in tip_table()", {
+    expect_error(
+      tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}"))),
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin"))),
+      class = "hovercraft_error_pin"
+    )
+  })
+})

@@ -47,25 +47,7 @@ tip_table_data <- function(widget, kind) {
 # Everything a content can be: a string (markdown, with placeholders if you like), a tip_template(), or a tip_spec()
 # that holds one of those and a placement of its own. NA and "" are no tip: the function returns NULL for them. The
 # placement is the spec's, or else the table's `placement`.
-tip_table_content <- function(
-  x,
-  arg,
-  columns,
-  header = FALSE,
-  placement = NULL,
-  call,
-  marker = NULL,
-  row = FALSE,
-  style = NULL
-) {
-  own <- NULL
-  own_style <- NULL
-  if (inherits(x, "hovercraft_spec")) {
-    placement <- x$placement %||% placement
-    own <- x$marker
-    own_style <- x$style
-    x <- x$content
-  }
+tip_table_template_part <- function(x, arg, columns, header, call) {
   if (inherits(x, "hovercraft_template")) {
     template <- x
     fields <- tip_template_fields(template)
@@ -125,10 +107,58 @@ tip_table_content <- function(
     )
   }
   body <- tip_json(tip_blocks_plain(template))
+  list(name = paste0("table_", substr(rlang::hash(body), 1L, 12L)), body = body, fields = unique(fields))
+}
+
+tip_table_content <- function(
+  x,
+  arg,
+  columns,
+  header = FALSE,
+  placement = NULL,
+  call,
+  marker = NULL,
+  row = FALSE,
+  style = NULL
+) {
+  own <- NULL
+  own_style <- NULL
+  own_more <- NULL
+  own_more_on <- NULL
+  if (inherits(x, "hovercraft_spec")) {
+    placement <- x$placement %||% placement
+    own <- x$marker
+    own_style <- x$style
+    own_more <- x$more
+    own_more_on <- x$more_on
+    x <- x$content
+  }
+  part <- tip_table_template_part(x, arg, columns, header, call)
+  if (is.null(part)) {
+    return(NULL)
+  }
+  more_part <- if (!is.null(own_more)) {
+    tip_table_template_part(own_more, paste0(arg, "$more"), columns, header, call)
+  }
+  if (!is.null(more_part)) {
+    effective_on <- own_more_on %||% tip_contract()$more$on$default
+    if (identical(effective_on, "pin")) {
+      tip_abort(
+        c(
+          "{.arg {arg}} sets {.arg more} with {.code more_on = \"pin\"}, but table tips cannot pin yet.",
+          i = "Set {.code more_on = \"hover\"} in {.fn tip_spec} to show the long form on hover."
+        ),
+        class = "hovercraft_error_pin",
+        call = call
+      )
+    }
+  }
   list(
-    name = paste0("table_", substr(rlang::hash(body), 1L, 12L)),
-    body = body,
-    fields = unique(fields),
+    name = part$name,
+    body = part$body,
+    fields = unique(c(part$fields, more_part$fields)),
+    more = more_part,
+    more_on = if (!is.null(more_part)) own_more_on %||% tip_contract()$more$on$default,
     placement = placement,
     style = tip_style_over(own_style, style),
     marker = tip_table_marker(own, marker, arg, row, call)
@@ -240,6 +270,10 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
   }
+  if (!is.null(content$more)) {
+    attrs[[tip_attribute("more_template")]] <- content$more$name
+    attrs[[tip_attribute("more_on")]] <- content$more_on
+  }
   if (!identical(target, "row")) {
     attrs[[tip_attribute("anchor")]] <- "content"
   }
@@ -279,8 +313,12 @@ tip_table_dependencies <- function(widget, marker = FALSE, looks = list()) {
 
 tip_table_defines <- function(contents) {
   contents <- Filter(Negate(is.null), contents)
-  names <- vapply(contents, function(content) content$name, "")
-  stats::setNames(lapply(contents, function(content) content$body), names)[!duplicated(names)]
+  parts <- unlist(
+    lapply(contents, function(content) c(list(content), if (!is.null(content$more)) list(content$more))),
+    recursive = FALSE
+  )
+  names <- vapply(parts, function(part) part$name, "")
+  stats::setNames(lapply(parts, function(part) part$body), names)[!duplicated(names)]
 }
 
 # DT's header is drawn from the table's own HTML (`container`), so a column added to the data needs a header cell too.
@@ -468,8 +506,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'
 #' A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 #' its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
-#' beside the text and not far to its left; there is no argument for it. A target that needs its own settings (for now
-#' only a placement) takes a [tip_spec()] in place of words. A tip is made of words (markdown) with
+#' beside the text and not far to its left; there is no argument for it. A target that needs its own settings (style,
+#' placement, marker, or `more` / `more_on`) takes a [tip_spec()] in place of words. A tip is made of words (markdown)
+#' with
 #' `{{ column }}` placeholders, or of a [tip_template()]; every placeholder is checked against the table's columns, and
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
 #' so it takes words only.

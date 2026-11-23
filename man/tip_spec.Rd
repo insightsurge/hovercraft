@@ -4,7 +4,15 @@
 \alias{tip_spec}
 \title{A tip with settings of its own, for a table}
 \usage{
-tip_spec(content, ..., style = NULL, placement = NULL, marker = NULL)
+tip_spec(
+  content,
+  ...,
+  style = NULL,
+  placement = NULL,
+  marker = NULL,
+  more = NULL,
+  more_on = NULL
+)
 }
 \arguments{
 \item{content}{The words of the tip (markdown, with \code{{{ column }}} placeholders for \code{rows} and \code{cells}), or a
@@ -22,6 +30,13 @@ table's. A cell or header cell with no placement of its own follows the table's,
 \item{marker}{The visible cue for this target's cells or header cells: \code{"corner"}, \code{"none"} to take the marker off
 a column when the table has one, or \code{NULL} (the default) to take the table's. A spec for \code{rows} takes none: a row
 is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
+
+\item{more}{Extra content for the long form of this tip, or \code{NULL} (the default) for none: words (markdown, with
+\code{{{ column }}} placeholders for \code{rows} and \code{cells}) or a \code{\link[=tip_template]{tip_template()}}. \code{NA} and \code{""} mean no long form.}
+
+\item{more_on}{When the long form (\code{more}) opens: \code{"pin"} (the default) or \code{"hover"}, or \code{NULL} for the engine's
+default (\code{"pin"}). Because table rows and cells cannot pin yet, \code{tip_table()} requires \code{more_on = "hover"} when
+\code{more} is set.}
 }
 \value{
 An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{tip_table()}}.
@@ -43,7 +58,14 @@ DT::datatable(scores) |>
   tip_table(
     rows = "**{{ team }}**: {{ wins | number:0 }} wins",
     cells = list(
-      note = tip_spec("{{ note }}", style = "sober", placement = "right", marker = "corner")
+      note = tip_spec(
+        "{{ team }}",
+        more = "{{ note }}",
+        more_on = "hover",
+        style = "sober",
+        placement = "right",
+        marker = "corner"
+      )
     )
   )
 \dontshow{\}) # examplesIf}
