@@ -19,6 +19,7 @@ tools/*
 !tools/copy-engine.R
 !tools/check-release.R
 !tools/make-figures.R
+!tools/demo-tables/
 
 # Local tool settings stay out of git
 .claude/settings.local.json
