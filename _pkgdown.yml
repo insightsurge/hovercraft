@@ -32,6 +32,7 @@ reference:
       - tip_define
       - tip_template
       - tip_blocks
+      - tip_output
   - title: Looks
     contents:
       - tip_style

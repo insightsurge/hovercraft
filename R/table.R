@@ -124,7 +124,7 @@ tip_table_content <- function(
       call = call
     )
   }
-  body <- tip_json(lapply(template, unclass))
+  body <- tip_json(tip_blocks_plain(template))
   list(
     name = paste0("table_", substr(rlang::hash(body), 1L, 12L)),
     body = body,

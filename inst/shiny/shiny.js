@@ -1,7 +1,7 @@
 // hovercraft's own layer for Shiny, on top of the tip engine; it never changes the engine. It answers the server calls
-// tip_show(), tip_hide() and tip_update() (one custom message each), and sends the hint input for the tags that asked
-// for it with `events =`. It uses only the engine's public doors, `show()` and `hide()`, its public attributes and its
-// hint event. R passes the names in `start()`, so none is typed here twice.
+// tip_show(), tip_hide() and tip_update() (one custom message each), sends the hint input for the tags that asked for
+// it with `events =`, and registers the "output" block for tip_output() through the engine's public block() door.
+// R passes the names in `start()`, so none is typed here twice.
 (() => {
   if (window.HovercraftShiny) return;
 
@@ -54,8 +54,7 @@
     if (!detail?.id || !window.Shiny?.setInputValue) return;
     const el = event.target?.closest?.(`[${names.attributes.events}]`);
     const wants =
-      el &&
-      el.getAttribute(names.attributes.events).split(/\s+/).includes('hint') &&
+      el?.getAttribute(names.attributes.events).split(/\s+/).includes('hint') &&
       (el.getAttribute(names.attributes.id) ?? el.id) === detail.id;
     if (!wants && !(detail.state === 'hidden' && asked.has(detail.id))) return;
     if (detail.state === 'shown') asked.add(detail.id);
@@ -74,10 +73,376 @@
     );
   };
 
+  // ---- tip_output(): live Shiny outputs in tips -------------------------------------------------------------------
+  const LOADER_WRAPPER =
+    '.shiny-spinner-output-container, [data-spinner-id], .waiter-local-container, [data-waiter-wrapper], .bones-container, .bones-wrapper, [data-bones], [data-bones-id]';
+  const LOADER_INSIDE = '.waiter-overlay, .bones-skeleton, .load-container, .shiny-spinner-placeholder';
+
+  // Clean unrendered shell clones keyed by output id (for keep_alive = FALSE rebuilds).
+  const shells = new Map();
+  // Runtime state per output id: { state: 'idle'|'loading'|'ready'|'error'|'empty', message, retries, slot }.
+  const outputs = new Map();
+  // Output ids queued to park before DOMContentLoaded.
+  const pendingPark = new Set();
+
+  const outputRecord = (id) => {
+    if (!outputs.has(id)) {
+      outputs.set(id, { state: 'idle', message: '', retries: 0, slot: null });
+    }
+    return outputs.get(id);
+  };
+
+  const getPark = (doc) => {
+    const cls = names?.parkClass ?? 'hc-output-park';
+    let holder = doc.body?.querySelector(`:scope > .${cls}`);
+    if (!holder && doc.body) {
+      holder = doc.createElement('div');
+      holder.className = cls;
+      holder.hidden = true;
+      holder.setAttribute('aria-hidden', 'true');
+      holder.setAttribute('data-hovercraft-keep', '');
+      doc.body.append(holder);
+    }
+    return holder;
+  };
+
+  const findOutputEl = (doc, id) => doc.getElementById(id);
+
+  // Returns the loader wrapper around `outputEl` if it sits inside one, else `outputEl` itself.
+  const wrapperOf = (outputEl) => {
+    if (!outputEl) return null;
+    const wrapped = outputEl.closest(LOADER_WRAPPER);
+    if (wrapped && wrapped !== outputEl.ownerDocument.body && wrapped !== outputEl.ownerDocument.documentElement) {
+      return wrapped;
+    }
+    return outputEl;
+  };
+
+  const hasExternalLoader = (wrapper, outputEl) => {
+    if (!wrapper || !outputEl) return false;
+    if (wrapper !== outputEl) return true;
+    if (outputEl.matches(LOADER_WRAPPER) || outputEl.querySelector(LOADER_INSIDE)) return true;
+    return Boolean(outputEl.parentElement?.querySelector?.('.waiter-overlay, .bones-skeleton'));
+  };
+
+  // Clones a clean unrendered copy of `wrapper` so keep_alive = FALSE can rebuild the output on the next open.
+  const captureShell = (id, wrapper) => {
+    if (shells.has(id) || !wrapper) return;
+    const clone = wrapper.cloneNode(true);
+    const inner = clone.id === id ? clone : clone.querySelector(`[id="${CSS.escape(id)}"]`);
+    if (inner) {
+      inner.innerHTML = '';
+      inner.classList.remove(
+        'shiny-bound-output',
+        'recalculating',
+        'shiny-output-error',
+        'shiny-output-error-validation',
+      );
+      inner.style.removeProperty('visibility');
+    }
+    for (const loader of clone.querySelectorAll('.load-container, .shiny-spinner-placeholder')) {
+      loader.classList.add('shiny-spinner-hidden');
+    }
+    shells.set(id, clone);
+  };
+
+  const domLooksEmpty = (outputEl) => {
+    if (!outputEl) return true;
+    if (outputEl.querySelector('img, svg, canvas, iframe, video, table, .datatables, .ReactTable, .gt_table')) {
+      return false;
+    }
+    if (outputEl.querySelector('.shiny-output-error-validation')) return false;
+    const text = (outputEl.textContent ?? '').trim();
+    return text === '';
+  };
+
+  const valueLooksEmpty = (val) => {
+    if (val === null || val === undefined || val === '') return true;
+    if (typeof val === 'object' && 'html' in val) {
+      return String(val.html ?? '').trim() === '' && !(Array.isArray(val.deps) && val.deps.length > 0);
+    }
+    return false;
+  };
+
+  const applySlotState = (id) => {
+    const rec = outputs.get(id);
+    const slot = rec?.slot;
+    if (!slot?.isConnected) return;
+    const loadingEl = slot.querySelector('.hc-output-loading');
+    const errorEl = slot.querySelector('.hc-output-error');
+    const errorMsg = slot.querySelector('.hc-output-error-msg');
+    const emptyEl = slot.querySelector('.hc-output-empty');
+    slot.dataset.state = rec.state;
+    if (loadingEl) loadingEl.hidden = rec.state !== 'loading';
+    if (errorEl) errorEl.hidden = rec.state !== 'error';
+    if (errorMsg && rec.state === 'error') errorMsg.textContent = rec.message || 'Could not load output.';
+    if (emptyEl) emptyEl.hidden = rec.state !== 'empty';
+  };
+
+  // Moves an output placed in the page UI into the hidden parking holder so it is out of sight until a tip opens.
+  const parkId = (id, doc = document) => {
+    if (!doc.body) {
+      pendingPark.add(id);
+      return;
+    }
+    const outputEl = findOutputEl(doc, id);
+    if (!outputEl) return;
+    const wrapper = wrapperOf(outputEl);
+    captureShell(id, wrapper);
+    const holder = getPark(doc);
+    if (holder && !wrapper.closest('.hc-output') && wrapper.parentElement !== holder) {
+      holder.append(wrapper);
+    }
+  };
+
+  // Notifies Shiny and htmlwidgets that a moved output is now visible and sized inside the tip.
+  const refreshOutput = (hostEl, outputEl, id) => {
+    const view = hostEl.ownerDocument.defaultView;
+    const shiny = view?.Shiny ?? window.Shiny;
+    const jq = view?.jQuery ?? window.jQuery;
+    if (shiny?.bindAll) shiny.bindAll(hostEl);
+    if (jq && outputEl) {
+      jq(outputEl).trigger('shown');
+      jq(outputEl).trigger('resize');
+    }
+    // Wait a tick (timeout, not rAF: rAF stalls on background pages) so Shiny flushes visibility and widgets resize.
+    setTimeout(() => {
+      if (!hostEl.isConnected) return;
+      if (shiny?.bindAll) shiny.bindAll(hostEl);
+      if (jq && outputEl) {
+        jq(outputEl).trigger('shown');
+        jq(outputEl).trigger('resize');
+      }
+      view?.dispatchEvent?.(new Event('resize'));
+      // If Shiny still thinks the output is hidden (e.g., uiOutput whose IntersectionObserver watched the old parent),
+      // invoke Shiny's stored observer callback if present or re-notify via resize.
+      const hiddenKey = `.clientdata_output_${id}_hidden`;
+      if (shiny?.shinyapp?.$inputValues?.[hiddenKey] === true && jq && outputEl) {
+        const cb =
+          jq(outputEl).data('shiny-intersection-observer-callback') ??
+          jq(outputEl).data('shiny-resize-observer-callback');
+        if (typeof cb === 'function') cb();
+      }
+    }, 30);
+  };
+
+  // Re-triggers a failed Shiny output when the user clicks Retry.
+  const retryOutput = (id, hostEl) => {
+    const rec = outputRecord(id);
+    rec.retries += 1;
+    rec.state = 'loading';
+    rec.message = '';
+    applySlotState(id);
+    const view = hostEl.ownerDocument.defaultView;
+    const shiny = view?.Shiny ?? window.Shiny;
+    if (shiny?.shinyapp?.$errors) delete shiny.shinyapp.$errors[id];
+    if (shiny?.shinyapp?.$values) delete shiny.shinyapp.$values[id];
+    if (shiny?.setInputValue) {
+      shiny.setInputValue(`${id}_retry`, rec.retries, { priority: 'event' });
+    }
+    hostEl.dispatchEvent(
+      new CustomEvent('hovercraft:retry', { bubbles: true, detail: { output: id, count: rec.retries } }),
+    );
+    const outputEl = findOutputEl(hostEl.ownerDocument, id);
+    if (outputEl && shiny?.unbindAll && shiny?.bindAll) {
+      shiny.unbindAll(hostEl);
+      shiny.bindAll(hostEl);
+    }
+    refreshOutput(hostEl, findOutputEl(hostEl.ownerDocument, id), id);
+  };
+
+  let shinyListenersAttached = false;
+  const attachOutputListeners = () => {
+    if (shinyListenersAttached || !window.jQuery) return;
+    shinyListenersAttached = true;
+    const $doc = window.jQuery(document);
+    $doc.on('shiny:outputinvalidated', (event) => {
+      const id = event.target?.id;
+      if (!id || !outputs.has(id)) return;
+      const rec = outputRecord(id);
+      rec.state = 'loading';
+      rec.message = '';
+      applySlotState(id);
+    });
+    $doc.on('shiny:value', (event) => {
+      const id = event.target?.id;
+      if (!id || !outputs.has(id)) return;
+      const rec = outputRecord(id);
+      const valEmpty = valueLooksEmpty(event.value);
+      rec.state = valEmpty ? 'empty' : 'ready';
+      rec.message = '';
+      applySlotState(id);
+      // Confirm rendered DOM after Shiny writes the value (covers htmlwidgets / renderUI returning blank tags).
+      setTimeout(() => {
+        if (rec.state === 'loading' || rec.state === 'error') return;
+        const el = findOutputEl(document, id);
+        if (!el) return;
+        const next = valEmpty && domLooksEmpty(el) ? 'empty' : domLooksEmpty(el) ? 'empty' : 'ready';
+        if (rec.state !== next) {
+          rec.state = next;
+          applySlotState(id);
+        }
+      }, 20);
+    });
+    $doc.on('shiny:error', (event) => {
+      const id = event.target?.id;
+      if (!id || !outputs.has(id)) return;
+      const rec = outputRecord(id);
+      const err = event.error ?? {};
+      const types = Array.isArray(err.type) ? err.type : err.type ? [err.type] : [];
+      if (types.includes('shiny.silent.error') || (err.silent && !err.message)) {
+        rec.state = 'empty';
+        rec.message = '';
+      } else if (types.includes('validation')) {
+        rec.state = 'ready';
+        rec.message = '';
+      } else {
+        rec.state = 'error';
+        rec.message = err.message || 'Could not load output.';
+      }
+      applySlotState(id);
+    });
+  };
+
+  const registerOutputBlock = () => {
+    const engine = window[names.global];
+    if (!engine?.block) return;
+    engine.block('output', {
+      shape: {
+        output: { type: 'string', required: true },
+        keep_alive: { type: 'boolean', required: false },
+      },
+      flatten: () => '',
+      render: (b, _record, ctx) => {
+        const id = typeof b.output === 'string' ? b.output : '';
+        const keepAlive = b.keep_alive !== false;
+        const doc = ctx.doc;
+        const root = doc.createElement('div');
+        root.className = 'hc-output';
+        root.dataset.hcOutput = id;
+        root.dataset.keepAlive = keepAlive ? 'true' : 'false';
+
+        const hostEl = doc.createElement('div');
+        hostEl.className = 'hc-output-host';
+
+        const loadingEl = doc.createElement('div');
+        loadingEl.className = 'hc-output-loading';
+        loadingEl.setAttribute('role', 'status');
+        loadingEl.setAttribute('aria-live', 'polite');
+        loadingEl.hidden = true;
+        const pulse = doc.createElement('span');
+        pulse.className = 'hc-output-pulse';
+        pulse.setAttribute('aria-hidden', 'true');
+        const loadText = doc.createElement('span');
+        loadText.textContent = 'Loading…';
+        loadingEl.append(pulse, loadText);
+
+        const errorEl = doc.createElement('div');
+        errorEl.className = 'hc-output-error';
+        errorEl.setAttribute('role', 'alert');
+        errorEl.hidden = true;
+        const errorMsg = doc.createElement('span');
+        errorMsg.className = 'hc-output-error-msg';
+        const retryBtn = doc.createElement('button');
+        retryBtn.type = 'button';
+        retryBtn.className = 'hc-output-retry';
+        retryBtn.textContent = 'Retry';
+        retryBtn.addEventListener('click', (e) => {
+          e.stopPropagation();
+          retryOutput(id, hostEl);
+        });
+        errorEl.append(errorMsg, retryBtn);
+
+        const emptyEl = doc.createElement('div');
+        emptyEl.className = 'hc-output-empty';
+        emptyEl.textContent = 'Nothing to show.';
+        emptyEl.hidden = true;
+
+        root.append(hostEl, loadingEl, errorEl, emptyEl);
+
+        const mount = () => {
+          attachOutputListeners();
+          const rec = outputRecord(id);
+          rec.slot = root;
+          let outputEl = findOutputEl(doc, id);
+          let wrapper = wrapperOf(outputEl);
+          if (!wrapper && shells.has(id)) {
+            wrapper = shells.get(id).cloneNode(true);
+            outputEl = wrapper.id === id ? wrapper : wrapper.querySelector(`[id="${CSS.escape(id)}"]`);
+          }
+          if (!wrapper || !outputEl) {
+            rec.state = 'empty';
+            applySlotState(id);
+            return {
+              destroy: () => {
+                if (rec.slot === root) rec.slot = null;
+              },
+            };
+          }
+          captureShell(id, wrapper);
+          const hasLoader = hasExternalLoader(wrapper, outputEl);
+          root.dataset.hasLoader = hasLoader ? 'true' : 'false';
+          hostEl.append(wrapper);
+
+          // Determine initial display state without flashing loading over an already-rendered keep_alive output.
+          const hasRendered = !domLooksEmpty(outputEl);
+          const isRecalc = outputEl.classList.contains('recalculating');
+          const hasErr = Boolean(outputEl.querySelector('.shiny-output-error:not(.shiny-output-error-validation)'));
+          if (hasErr) {
+            rec.state = 'error';
+          } else if (isRecalc) {
+            rec.state = 'loading';
+          } else if (rec.state === 'idle') {
+            rec.state = hasRendered ? 'ready' : 'loading';
+          } else if (rec.state === 'ready' && !hasRendered && !keepAlive) {
+            rec.state = 'loading';
+          }
+          applySlotState(id);
+
+          refreshOutput(hostEl, outputEl, id);
+
+          return {
+            resize: () => {
+              const jq = doc.defaultView?.jQuery ?? window.jQuery;
+              if (jq && outputEl.isConnected) jq(outputEl).trigger('resize');
+            },
+            mode: () => {
+              const jq = doc.defaultView?.jQuery ?? window.jQuery;
+              if (jq) jq(doc).trigger('shiny:themechange');
+            },
+            destroy: (info) => {
+              if (rec.slot === root) rec.slot = null;
+              if (!wrapper.isConnected) return;
+              const redraw = info?.reason === 'redraw';
+              if (keepAlive || redraw) {
+                const holder = getPark(doc);
+                if (holder) holder.append(wrapper);
+              } else {
+                const shiny = doc.defaultView?.Shiny ?? window.Shiny;
+                if (shiny?.unbindAll) shiny.unbindAll(wrapper, true);
+                wrapper.remove();
+                rec.state = 'idle';
+                rec.message = '';
+              }
+            },
+          };
+        };
+
+        return { node: root, mount };
+      },
+    });
+  };
+
   const register = () => {
     for (const [what, handler] of Object.entries(handlers)) {
       window.Shiny.addCustomMessageHandler(names.messages[what], handler);
     }
+    attachOutputListeners();
+  };
+
+  const flushPendingPark = () => {
+    for (const id of pendingPark) parkId(id);
+    pendingPark.clear();
   };
 
   window.HovercraftShiny = Object.freeze({
@@ -85,8 +450,18 @@
       if (names) return;
       names = config;
       document.addEventListener(names.events.hint, sendHint);
+      registerOutputBlock();
       if (window.Shiny?.addCustomMessageHandler) register();
-      else document.addEventListener('DOMContentLoaded', () => window.Shiny?.addCustomMessageHandler && register());
+      else {
+        document.addEventListener('DOMContentLoaded', () => {
+          flushPendingPark();
+          if (window.Shiny?.addCustomMessageHandler) register();
+        });
+      }
+      if (document.readyState !== 'loading') flushPendingPark();
+    },
+    park: (id) => {
+      if (typeof id === 'string' && id) parkId(id);
     },
   });
 })();

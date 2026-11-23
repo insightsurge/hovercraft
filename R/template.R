@@ -31,6 +31,15 @@ tip_block_makers <- function() {
   list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
 }
 
+# Strips S3 class and custom R attributes from each block so JSON carries only the block's own fields.
+tip_blocks_plain <- function(template) {
+  lapply(template, function(block) {
+    out <- unclass(block)
+    attributes(out) <- list(names = names(out))
+    out
+  })
+}
+
 # The block types the engine has and this package can make: what a message may offer.
 tip_block_types <- function(rules) intersect(names(rules$blocks), names(tip_block_makers()))
 
@@ -50,6 +59,20 @@ tip_as_block <- function(x, where, call) {
       class = "hovercraft_error_block",
       call = call
     )
+  }
+  if (identical(x$type, "output")) {
+    unknown <- setdiff(names(x), c("type", "output", "keep_alive"))
+    if (length(unknown)) {
+      tip_abort(
+        paste0(
+          "{where} has fields an {.val output} block does not take: {.val {unknown}}. ",
+          "It takes {.val {c('output', 'keep_alive')}}."
+        ),
+        class = "hovercraft_error_block",
+        call = call
+      )
+    }
+    return(do.call(tip_output, x[names(x) != "type"]))
   }
   # The engine's block types that have no constructor here yet (a group, a host) wait for a later version too.
   makers <- tip_block_makers()
@@ -168,6 +191,7 @@ tip_define <- function(...) {
   )
   rules <- tip_engine()$rules$names
   js <- character()
+  built <- list()
   for (name in names(templates)) {
     if (!grepl(rules$pattern, name) || name %in% unlist(rules$r_reserved)) {
       tip_abort(
@@ -186,7 +210,8 @@ tip_define <- function(...) {
         do.call(tip_template, unname(template))
       }
     }
-    body <- tip_json(lapply(template, unclass))
+    built[[name]] <- template
+    body <- tip_json(tip_blocks_plain(template))
     before <- tip_state$templates[[name]]
     if (!is.null(before) && !identical(before$body, body)) {
       tip_warn(
@@ -203,8 +228,25 @@ tip_define <- function(...) {
     tip_state$templates[[name]] <- list(fields = tip_template_fields(template), body = body)
     js <- c(js, sprintf("%s.define(%s, %s);", tip_names()$global, tip_json(name), body))
   }
+  for (out_id in tip_output_ids(built)) {
+    js <- c(js, sprintf("%sShiny.park(%s);", tip_names()$global, tip_json(out_id)))
+  }
+  park_tags <- tip_output_tags(built)
+  ui <- list(htmltools::tags$script(htmltools::HTML(paste(js, collapse = "\n"))))
+  if (length(park_tags)) {
+    ui <- c(
+      ui,
+      list(htmltools::tags$div(
+        class = tip_output_park_class(),
+        hidden = NA,
+        `aria-hidden` = "true",
+        `data-hovercraft-keep` = "",
+        park_tags
+      ))
+    )
+  }
   htmltools::attachDependencies(
-    htmltools::tagList(htmltools::tags$script(htmltools::HTML(paste(js, collapse = "\n")))),
+    htmltools::tagList(ui),
     tip_dependency(),
     append = TRUE
   )

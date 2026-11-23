@@ -172,6 +172,7 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
