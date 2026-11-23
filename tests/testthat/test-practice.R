@@ -48,14 +48,13 @@ describe("module template names and ids", {
     expect_match(as.character(b), "mod_b_card")
   })
 
-  it("accepts hyphenated ns() ids in tip_on() while rejecting hyphens in template names", {
+  it("accepts hyphenated ns() ids in tip_on() and in template names (module-safe names)", {
     skip_if_not_installed("shiny")
     ns <- shiny::NS("outer-inner")
     tag <- tip_on(shiny::actionButton(ns("go"), "Go"), "Nested tip", id = ns("go_tip"), events = "hint")
     expect_identical(htmltools::tagGetAttribute(tag, tip_attribute("id")), "outer-inner-go_tip")
-    expect_error(
-      do.call(tip_define, stats::setNames(list(tip_template(tip_text("x"))), ns("card"))),
-      class = "hovercraft_error_name"
+    expect_no_error(
+      do.call(tip_define, stats::setNames(list(tip_template(tip_text("x"))), ns("card")))
     )
   })
 })

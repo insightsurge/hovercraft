@@ -465,7 +465,20 @@ tip_on <- function(
   }
   tip_check_dots(
     ...,
-    args = c("tag", "text", "template", "record", "style", "placement", "marker", "id", "events", "when_disabled", "more", "more_on")
+    args = c(
+      "tag",
+      "text",
+      "template",
+      "record",
+      "style",
+      "placement",
+      "marker",
+      "id",
+      "events",
+      "when_disabled",
+      "more",
+      "more_on"
+    )
   )
   # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the reason is kept or changed.
   wrapper <- NULL
