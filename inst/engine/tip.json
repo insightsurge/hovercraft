@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.42.0",
+  "version": "0.48.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -12,7 +12,12 @@
     "pin": "data-hovercraft-tip-pin",
     "id": "data-hovercraft-tip-id",
     "kind": "data-hovercraft-tip-kind",
-    "placement": "data-hovercraft-tip-placement"
+    "placement": "data-hovercraft-tip-placement",
+    "preset": "data-hovercraft-tip-preset",
+    "arrow": "data-hovercraft-tip-arrow"
+  },
+  "host": {
+    "attribute": "data-hovercraft-host"
   },
   "kind": {
     "default": "element",
@@ -27,6 +32,163 @@
       "left",
       "right"
     ]
+  },
+  "presets": [
+    "dense",
+    "editorial",
+    "lively",
+    "modern",
+    "sober"
+  ],
+  "presets_none": "none",
+  "presets_fields": {
+    "formats": [
+      1
+    ],
+    "name_pattern": "^[a-z][a-z0-9]*(_[a-z0-9]+)*$",
+    "colour_pattern": "^#[0-9A-Fa-f]{6}$",
+    "fields": {
+      "format": {
+        "type": "integer",
+        "required": true,
+        "table": false,
+        "about": "The file's version; a change that renames or drops a field is a new format. A reader that does not know the format uses no preset and says so once."
+      },
+      "name": {
+        "type": "name",
+        "required": true,
+        "table": false,
+        "about": "Lower-case words joined with _; equal to the file name without .json."
+      },
+      "label": {
+        "type": "text",
+        "required": true,
+        "table": false,
+        "max_length": 40,
+        "about": "A person's name for it."
+      },
+      "about": {
+        "type": "text",
+        "required": true,
+        "table": false,
+        "max_length": 140,
+        "about": "One sentence: what it is for."
+      },
+      "radius": {
+        "type": "number",
+        "required": true,
+        "min": 0,
+        "max": 16,
+        "maps_to": "radius",
+        "about": "The corner in px. 16 at most: a pill clips a two-line tip's text at the corners."
+      },
+      "font": {
+        "type": "font",
+        "required": false,
+        "pattern": "^[A-Za-z0-9 ,.'\"-]+$",
+        "maps_to": "font",
+        "about": "A CSS font-family stack of system and generic families; no web font is loaded. Left out: the page's body font."
+      },
+      "size": {
+        "type": "number",
+        "required": false,
+        "min": 0.95,
+        "max": 1.15,
+        "default": 1,
+        "maps_to": "size",
+        "about": "A multiplier of the page's label size, never below 12 px."
+      },
+      "delay": {
+        "type": "integer",
+        "required": false,
+        "min": 0,
+        "max": 800,
+        "default": 300,
+        "maps_to": "delay",
+        "about": "Milliseconds a pointer or focus rests before a hint shows. A disabled item's reason stays immediate."
+      },
+      "light": {
+        "type": "mode",
+        "required": true,
+        "about": "The colours and shadow when the item's mode is light."
+      },
+      "dark": {
+        "type": "mode",
+        "required": true,
+        "about": "The colours and shadow when the item's mode is dark."
+      },
+      "arrow": {
+        "type": "boolean",
+        "required": false,
+        "default": true,
+        "maps_to": "arrow",
+        "about": "Whether a tip in this look has an arrow (a card-style look may turn it off). Left out: on. A true here changes nothing; a false turns it off for the items the preset dresses, even where the page asks for an arrow."
+      }
+    },
+    "mode_keys": {
+      "bg": {
+        "type": "colour",
+        "required": true,
+        "maps_to": "bg",
+        "about": "The fill; opaque #rrggbb so it can be checked alone."
+      },
+      "ink": {
+        "type": "colour",
+        "required": true,
+        "maps_to": "ink",
+        "about": "The words."
+      },
+      "line": {
+        "type": "colour",
+        "required": true,
+        "maps_to": "line",
+        "about": "The border of a pinned tip."
+      },
+      "code_bg": {
+        "type": "colour",
+        "required": false,
+        "maps_to": "code_bg",
+        "about": "Behind code. Left out: the ink at 12% over the fill."
+      },
+      "shadow": {
+        "type": "shadow",
+        "required": false,
+        "max_layers": 3,
+        "pattern": "^[A-Za-z0-9 ,.()#%_-]+$",
+        "forbidden": [
+          "inset",
+          "url("
+        ],
+        "maps_to": "shadow",
+        "about": "A box-shadow, or none. Left out in dark: light's."
+      }
+    },
+    "contrast": {
+      "quiet_share": 0.78,
+      "code_share": 0.12,
+      "pairs": [
+        {
+          "pair": "ink/bg",
+          "needs": 4.5,
+          "about": "The tip's words."
+        },
+        {
+          "pair": "quiet/bg",
+          "needs": 4.5,
+          "about": "Field labels: the ink mixed 78% over the fill."
+        },
+        {
+          "pair": "ink/code_bg",
+          "needs": 4.5,
+          "about": "Code in a tip; with no code_bg, the ink at 12% over the fill."
+        },
+        {
+          "pair": "line/bg",
+          "needs": 3,
+          "about": "The pinned tip's border, a non-text mark."
+        }
+      ]
+    }
   },
   "refused": [
     "a[href]",
@@ -47,9 +209,10 @@
           "type": "enum",
           "values": [
             "pinned",
-            "closed"
+            "closed",
+            "updated"
           ],
-          "about": "What happened to the element's tip."
+          "about": "What happened to the element's tip: pinned, closed, or updated (a pinned tip was drawn again because its content changed, by \"data\", at most once per animation frame; the tip stays pinned)."
         },
         "id": {
           "type": "id",
@@ -71,9 +234,12 @@
             "button",
             "outside",
             "replaced",
-            "gone"
+            "gone",
+            "below",
+            "host",
+            "redraw"
           ],
-          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin, or the element left the page; null on a pin."
+          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin, the element left the page, a layer around it closed (not sent by this build), a host command closed it (not sent by this build), or the tip was drawn again with another set of host slots (\"redraw\", by \"data\": a \"pinned\" follows at once); null on a pin."
         },
         "text": {
           "type": "string",
@@ -83,9 +249,10 @@
           "type": "enum",
           "values": [
             "reader",
-            "data"
+            "data",
+            "host"
           ],
-          "about": "Who caused it: \"reader\", or \"data\" for a \"gone\" close."
+          "about": "Who caused it: \"reader\"; \"data\" for a \"gone\" close when the element left the page; \"host\" when a host command pinned, closed or hid the tip (not sent by this build)."
         },
         "from": {
           "type": "id",
@@ -95,9 +262,14 @@
           "type": "enum",
           "values": [
             "click",
-            "key"
+            "key",
+            "command"
           ],
-          "about": "How the reader did it, or null when by is \"data\"."
+          "about": "How it was done: \"click\" or \"key\" by the reader, \"command\" by a host command; null when by is \"data\"."
+        },
+        "slots": {
+          "type": "json",
+          "about": "The ids of the host slots in this tip, as text, in the order drawn: [] when the tip has none. A host binds into [data-<prefix>-host=\"<id>\"] on \"pinned\" and unbinds on \"closed\", which names the slots the tip had (so a redraw that changes the set sends \"closed\" with the old slots, then \"pinned\" with the new)."
         }
       }
     },

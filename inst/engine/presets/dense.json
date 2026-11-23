@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "dense",
+  "label": "Dense analyst",
+  "about": "Off-white paper, a dark edge and a tight shadow, small type, a slower wait. For table-heavy analysis.",
+  "radius": 2,
+  "font": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", sans-serif",
+  "size": 0.95,
+  "delay": 350,
+  "light": { "bg": "#FBFAF4", "ink": "#141A20", "line": "#1C2530", "code_bg": "#ECEBE2", "shadow": "0 1px 0 rgba(20, 26, 32, 0.08), 0 6px 14px -6px rgba(20, 26, 32, 0.45)" },
+  "dark": { "bg": "#1A2129", "ink": "#E8EDF2", "line": "#6C7E90", "code_bg": "#10151A", "shadow": "0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 16px -6px rgba(0, 0, 0, 0.8)" }
+}

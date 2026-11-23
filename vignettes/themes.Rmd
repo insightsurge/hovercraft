@@ -21,9 +21,9 @@ library(hovercraft)
 The tips read Bootstrap's variables where the page has them, so a page built with `bslib::page_fluid()` and a
 `bslib::bs_theme()` already has tips in the theme's colours, corner and font, and they turn dark with
 `bslib::input_dark_mode()` on their own. The tip is a shade of the page: a little darker than a light page and a little lighter than a dark one, in
-Bootstrap's tertiary background with the page's own text colour.
+Bootstrap's tertiary background with the page's own text colour. A small arrow points from the tip to its tag.
 
-```{r, echo = FALSE, out.width = "48%", fig.alt = "A button with a tip below it, a pale grey tip on a light page and a dark grey tip on a dark page.", fig.show = "hold"}
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button with a tip below it and a small arrow between them, a pale grey tip on a light page and a dark grey tip on a dark page.", fig.show = "hold"}
 knitr::include_graphics(c("figures/default-light.png", "figures/default-dark.png"))
 ```
 

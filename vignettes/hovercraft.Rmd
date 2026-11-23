@@ -32,7 +32,7 @@ run
 The tag comes back with the tip's attributes and the engine's script and CSS attached, so it works wherever you put it:
 in a bslib page, in a plain Shiny page and in output made later with `renderUI()`.
 
-```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled Run, with a tip below it, a shade of the page, that reads: Runs the check.", fig.show = "hold"}
+```{r, echo = FALSE, out.width = "48%", fig.alt = "A button labelled Run, with a tip below it, a shade of the page, joined to the button by a small arrow, that reads: Runs the check.", fig.show = "hold"}
 knitr::include_graphics(c("figures/default-light.png", "figures/default-dark.png"))
 ```
 

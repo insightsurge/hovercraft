@@ -9,10 +9,12 @@ tip_template_fields <- function(template) {
   for (block in template) {
     spec <- blocks[[block$type]]
     for (path in unlist(spec$placeholders)) {
-      texts <- if (path == "text") {
-        block$text
+      # "text" is a field of the block; "fields.value" is the `value` of each item in its `fields`.
+      parts <- strsplit(path, ".", fixed = TRUE)[[1]]
+      texts <- if (length(parts) == 1L) {
+        block[[parts]]
       } else {
-        vapply(block$fields, function(pair) pair$value, "")
+        vapply(block[[parts[[1]]]], function(item) item[[parts[[2]]]], "")
       }
       out <- c(out, unlist(lapply(texts, function(text) tip_parse(text)$fields)))
     }
@@ -40,7 +42,9 @@ tip_as_block <- function(x, where, call) {
       call = call
     )
   }
-  if (x$type %in% unlist(rules$blocks_later)) {
+  # The engine's block types that have no constructor here yet (a group, a host) wait for a later version too.
+  makers <- list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+  if (x$type %in% unlist(rules$blocks_later) || (x$type %in% names(rules$blocks) && is.null(makers[[x$type]]))) {
     tip_abort(
       "{where} is a {.val {x$type}} block, which comes with a later version.",
       class = "hovercraft_error_later",
@@ -63,7 +67,16 @@ tip_as_block <- function(x, where, call) {
       call = call
     )
   }
-  maker <- switch(x$type, title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+  maker <- makers[[x$type]]
+  # A field the engine takes but the constructor does not yet (`kicker`, `meta`, `parent`) waits for a later version.
+  later <- setdiff(intersect(names(x), known), c(names(formals(maker)), if (x$type == "fields") "fields"))
+  if (length(later)) {
+    tip_abort(
+      "{where} has {.val {later}}, which a {.val {x$type}} block takes in the engine but comes with a later version.",
+      class = "hovercraft_error_later",
+      call = call
+    )
+  }
   rest <- x[names(x) != "type"]
   if (x$type == "fields") {
     rest <- stats::setNames(
