@@ -65,6 +65,7 @@ Other tooltips:
 \code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
