@@ -10,6 +10,7 @@
 * `tip_badge()` takes `status` (`"success"`, `"warning"`, `"danger"` or `"info"`; any other word is an error) in place
   of `tone`. The badge is coloured from the page's Bootstrap colours by a few lines of CSS that come with the engine's
   dependency (#32).
+* `tip_table()` is an experimental spike that puts tips on the rows, cells and header cells of a `DT::datatable()` or `reactable::reactable()` table, drawn from each row's own values and following the data row through sorting, filtering and paging. It works by pointer only, with no keyboard reach yet, and its shape may change (#36).
 * `tip_dependency()` gives the tip engine's script and CSS as an HTML dependency.
 * `tip_theme()` and `tip_dependency(theme = )` set how the tips look: roles for light and dark (fill, words, border, code
   background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables. The tip follows `data-bs-theme`, so it turns
