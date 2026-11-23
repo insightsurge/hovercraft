@@ -111,9 +111,16 @@ local_page <- function(html_file, env = parent.frame()) {
     session$Emulation$setEmulatedMedia(features = list(list(name = feature, value = value)))
     invisible()
   }
+  # Gives the page this size in CSS pixels, such as `resize(375, 700)` for a phone; call it again to go back.
+  resize <- function(width, height) {
+    session$Emulation$setDeviceMetricsOverride(width = width, height = height, deviceScaleFactor = 1, mobile = FALSE)
+    Sys.sleep(0.3)
+    invisible()
+  }
   list(
     evaluate = evaluate,
     emulate = emulate,
+    resize = resize,
     wait_until = wait_until,
     hover = hover,
     click = click,

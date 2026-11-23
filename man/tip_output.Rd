@@ -25,7 +25,7 @@ or as the output tag itself (such as \code{shiny::plotOutput(ns("detail_plot"))}
 }
 \details{
 When \code{output} is given as an id string, place the matching \verb{*Output()} tag in your UI (plain or wrapped in a loader
-such as \code{waiter}, \code{shinycssloaders} or \code{bones}); hovercraft parks it out of sight until a tip opens and moves it
+such as \code{shinycssloaders}); hovercraft parks it out of sight until a tip opens and moves it
 into whichever item's tip is open. When \code{output} is given as an output tag, \code{\link[=tip_define]{tip_define()}} places it in the hidden
 holder for you together with its HTML dependencies.
 
@@ -36,13 +36,34 @@ With \code{keep_alive = FALSE}, closing the tip unbinds and removes the output f
 again.
 
 While the output computes (including async renders), hovercraft shows a plain loading placeholder unless the output
-already uses an external loader (\code{waiter}, \code{shinycssloaders} or \code{bones}). If the render errors, the tip shows the
-error with a Retry button (which also increments \verb{input$<output>_retry} and re-binds the output). If the output
-returns \code{NULL} or empty text, the tip shows an empty state.
+already uses an external loader. \code{shinycssloaders} is tested; \code{waiter} and \code{bones} are expected to work but are
+untested. If the render errors, the tip shows the error with a Retry button. If the output returns \code{NULL} or empty
+text, the tip shows an empty state.
+}
+\section{Retry}{
+
+Retry sets the input \verb{input$<output>_retry} (for an output with the id \code{report_table}, \code{input$report_table_retry}).
+Shiny runs a render again only when something it reads changes, so \strong{the render must read that input} to run again
+on Retry: put \code{input$report_table_retry} on a line of its own at the top of the render, as in the example below. If
+the server neither starts nor finishes the output within a few seconds of the click, the tip goes back to the error
+state with a message that says the server did not run the output again, and Retry stays available.
+}
+
+\section{One output for several items}{
+
+One output has one place in the page, so a template that many items share shows one output, drawn for one item at a
+time. Your server decides for which: ask the items for the \code{"hint"} input (\code{tip_on(events = "hint")}) and read
+\verb{input$<id>_hint} in the render, as in the second example below; its \code{state} is \code{"shown"} while the item's hint is
+open. When a tip opens for a different item than the one the output was last shown for, the tip shows the loading
+state and hides the old content until the server's new value arrives (a server that never reads the open item
+sends none, and the old content stays after about a second and a half). A pinned tip has no input yet, so an output
+shared by pins keeps what the last hint drew. While one tip holds the output and another opens for the same
+output, the first says "Shown in another tip." and gets the output back when the other closes.
 
 The tip's own markup is plain attributes and template JSON with no random or per-session ids, so
 \code{shiny::renderUI() |> shiny::bindCache()} and \verb{render*() |> shiny::bindCache()} work across sessions.
 }
+
 \examples{
 tip_template(
   tip_title("{{ label }}"),
@@ -53,6 +74,40 @@ tip_template(
   tip_title("{{ label }}"),
   tip_output("detail_table", keep_alive = FALSE)
 )
+\dontshow{if (interactive()) withAutoprint(\{ # examplesIf}
+# Retry: the render reads the retry input, so a click on Retry runs it again.
+library(shiny)
+ui <- fluidPage(
+  tip_define(report = tip_template(tip_title("{{ label }}"), tip_output("report_text"))),
+  textOutput("report_text"),
+  tip_on(actionButton("run", "Report"), template = "report", record = list(label = "Report"), id = "run")
+)
+server <- function(input, output, session) {
+  tries <- 0
+  output$report_text <- renderText({
+    input$report_text_retry
+    tries <<- tries + 1
+    if (tries == 1) stop("The first try fails")
+    "The report is ready"
+  })
+}
+shinyApp(ui, server)
+
+# One output for two items: the render reads the hint input to learn which item is open.
+ui <- fluidPage(
+  tip_define(detail = tip_template(tip_title("{{ label }}"), tip_output("detail_text"))),
+  textOutput("detail_text"),
+  tip_on(actionButton("a", "Item A"), template = "detail", record = list(label = "A"), id = "a", events = "hint"),
+  tip_on(actionButton("b", "Item B"), template = "detail", record = list(label = "B"), id = "b", events = "hint")
+)
+server <- function(input, output, session) {
+  open_item <- reactiveVal("none")
+  observeEvent(input$a_hint, if (input$a_hint$state == "shown") open_item("A"))
+  observeEvent(input$b_hint, if (input$b_hint$state == "shown") open_item("B"))
+  output$detail_text <- renderText(paste("Details of item", open_item()))
+}
+shinyApp(ui, server)
+\dontshow{\}) # examplesIf}
 }
 \seealso{
 Other tooltips:

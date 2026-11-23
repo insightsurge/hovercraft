@@ -314,16 +314,6 @@ describe("tip_output() in a live Shiny app", {
     close_tip()
   })
 
-  it("waiter loader compatibility (skipped when waiter is not installed)", {
-    skip_if_not_installed("waiter")
-    expect_true(TRUE)
-  })
-
-  it("bones loader compatibility (skipped when bones is not installed)", {
-    skip_if_not_installed("bones")
-    expect_true(TRUE)
-  })
-
   it("shows loading state during an async render, then shows the result", {
     skip_if_not(has_promises, "promises/later not installed")
     page$hover("#btn_async")
@@ -378,6 +368,227 @@ describe("tip_output() in a live Shiny app", {
       "document.querySelector('.hc-tip:not([hidden]) #cached_out')?.textContent === 'cached-n1'"
     ))
     close_tip()
+  })
+
+  it("leaves the console without errors", {
+    expect_identical(page$problems(), character())
+  })
+})
+
+# Start a Shiny app made by `make()` (a function that gives the app, run in the background R) and wait until it answers.
+start_app <- function(make, env = parent.frame(), ...) {
+  environment(make) <- globalenv()
+  path <- find.package("hovercraft")
+  port <- httpuv::randomPort()
+  proc <- callr::r_bg(
+    function(make, port, path, ...) {
+      if (dir.exists(file.path(path, "inst"))) {
+        pkgload::load_all(path, quiet = TRUE)
+      } else {
+        library(hovercraft)
+      }
+      shiny::runApp(make(...), port = port, host = "127.0.0.1", launch.browser = FALSE)
+    },
+    args = list(make = make, port = port, path = path, ...),
+    supervise = TRUE
+  )
+  withr::defer(proc$kill(), envir = env)
+  url <- paste0("http://127.0.0.1:", port)
+  for (i in 1:100) {
+    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
+    if (up || !proc$is_alive()) {
+      break
+    }
+    Sys.sleep(0.1)
+  }
+  list(url = url, proc = proc)
+}
+
+# The ways a live output goes wrong in ordinary use: a tag that comes after the tip that names it, a Retry that the
+# server never reads, one output shared by several items, and a pin that another item's hint takes the output from.
+describe("tip_output() in ordinary use", {
+  pin_attr <- tip_attribute("pin")
+  made <- start_app(
+    function(pin_attr) {
+      pinnable <- function(tag) htmltools::tagAppendAttributes(tag, !!pin_attr := "")
+      button <- function(id, label, tpl) {
+        tip_on(
+          pinnable(shiny::actionButton(id, label)),
+          template = tpl,
+          record = list(label = label),
+          id = id,
+          events = "hint"
+        )
+      }
+      ui <- shiny::fluidPage(
+        # The usual order: the templates first, the output tags after them, nothing hiding them.
+        tip_define(
+          solo_tpl = tip_template(tip_title("{{ label }}"), tip_output("solo_out")),
+          shared_tpl = tip_template(tip_title("{{ label }}"), tip_output("shared_out")),
+          quiet_tpl = tip_template(tip_title("{{ label }}"), tip_output("quiet_out"))
+        ),
+        shiny::textOutput("solo_out"),
+        shiny::textOutput("shared_out"),
+        shiny::textOutput("quiet_out"),
+        button("btn_solo", "Solo", "solo_tpl"),
+        button("btn_a", "Item A", "shared_tpl"),
+        button("btn_b", "Item B", "shared_tpl"),
+        button("btn_quiet", "Quiet", "quiet_tpl")
+      )
+      server <- function(input, output, session) {
+        output$solo_out <- shiny::renderText("solo-ready")
+        # One output for several items: the render reads the hint input to learn which item is open.
+        open_item <- shiny::reactiveVal("none")
+        for (item in c("a", "b")) {
+          local({
+            key <- item
+            shiny::observeEvent(input[[paste0("btn_", key, "_hint")]], {
+              if (identical(input[[paste0("btn_", key, "_hint")]]$state, "shown")) open_item(toupper(key))
+            })
+          })
+        }
+        output$shared_out <- shiny::renderText({
+          item <- open_item()
+          Sys.sleep(0.4)
+          paste0("shows-item-", item)
+        })
+        # A render that fails and never reads `input$quiet_out_retry`: Retry cannot make it run again.
+        output$quiet_out <- shiny::renderText(stop("boom"))
+      }
+      shiny::shinyApp(ui, server)
+    },
+    pin_attr = pin_attr
+  )
+  page <- local_page(made$url, environment())
+  css <- tip_names()$css
+  state_of <- "document.querySelector('.hc-tip:not([hidden]) .hc-output')?.dataset.state"
+  close_tip <- function() {
+    page$press("Escape", wait = 0.25)
+    page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css))
+  }
+
+  it("starts and connects", {
+    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+  })
+
+  it("parks an output whose tag comes after the tip that names it, before any tip has opened", {
+    expect_true(page$wait_until("Boolean(document.querySelector('.hc-output-park #solo_out'))"))
+    expect_true(page$evaluate("document.querySelector('body > #solo_out, .container-fluid > #solo_out') === null"))
+    page$hover("#btn_solo")
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip:not([hidden]) #solo_out')?.textContent === 'solo-ready'"
+    ))
+    close_tip()
+  })
+
+  it("does not show one item's content under another item, and then shows the new item's", {
+    page$hover("#btn_a")
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip:not([hidden]) #shared_out')?.textContent === 'shows-item-A'"
+    ))
+    close_tip()
+    page$hover("#btn_b")
+    # While the server works for item B, the box does not show item A's text.
+    expect_true(page$wait_until(paste0(state_of, " === 'loading'")))
+    expect_identical(
+      page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output').dataset.stale"),
+      "true"
+    )
+    expect_identical(
+      page$evaluate("getComputedStyle(document.querySelector('.hc-tip:not([hidden]) .hc-output-host')).visibility"),
+      "hidden"
+    )
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip:not([hidden]) #shared_out')?.textContent === 'shows-item-B'"
+    ))
+    expect_identical(page$evaluate(state_of), "ready")
+    close_tip()
+  })
+
+  it("leaves a pinned tip its output when another item's hint takes it, and gives it back", {
+    page$click("#btn_a")
+    expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden]) #shared_out').length === 1"))
+    page$hover("#btn_b")
+    expect_true(page$wait_until(
+      "document.querySelectorAll('.hc-tip:not(.hc-tip-pin):not([hidden]) #shared_out').length === 1"
+    ))
+    # The pinned tip says where its output went instead of staying empty.
+    expect_identical(
+      page$evaluate("document.querySelector('.hc-tip-pin:not([hidden]) .hc-output').dataset.state"),
+      "moved"
+    )
+    # The hint closes: the output goes back to the pin that is still open, not to the park.
+    page$hover("#btn_solo")
+    expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden]) #shared_out').length === 1"))
+    expect_identical(
+      page$evaluate("document.querySelector('.hc-tip-pin:not([hidden]) .hc-output').dataset.state"),
+      "ready"
+    )
+    page$press("Escape")
+  })
+
+  it("goes back to an error with a clear message when the server does not answer Retry", {
+    page$hover("#btn_quiet")
+    expect_true(page$wait_until(paste0(state_of, " === 'error'")))
+    page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-retry').click()")
+    expect_true(page$wait_until(paste0(state_of, " === 'loading'")))
+    # Nothing re-runs the render, so the tip must not stay on "Loading…".
+    expect_true(page$wait_until(paste0(state_of, " === 'error'"), seconds = 10))
+    expect_match(
+      page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-error-msg').textContent"),
+      "did not run this output again",
+      fixed = TRUE
+    )
+    expect_true(page$evaluate("!document.querySelector('.hc-tip:not([hidden]) .hc-output-retry').hidden"))
+    close_tip()
+  })
+
+  it("leaves the console without errors", {
+    expect_identical(page$problems(), character())
+  })
+})
+
+# A tip_output() in a tip_table() template: the output tag is in the page's UI, the table's own script parks it.
+describe("tip_output() in a tip_table() template, in a live Shiny app", {
+  skip_if_not_installed("DT")
+  skip_if_not_installed("reactable")
+  made <- start_app(function() {
+    scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5))
+    row_tip <- function(id) tip_template(tip_title("{{ team }}"), tip_output(id))
+    ui <- shiny::fluidPage(
+      DT::DTOutput("dt"),
+      reactable::reactableOutput("rt"),
+      shiny::textOutput("row_out"),
+      shiny::textOutput("rt_row_out")
+    )
+    server <- function(input, output, session) {
+      output$dt <- DT::renderDT(tip_table(DT::datatable(scores, rownames = FALSE), rows = row_tip("row_out")))
+      output$rt <- reactable::renderReactable(tip_table(reactable::reactable(scores), rows = row_tip("rt_row_out")))
+      output$row_out <- shiny::renderText("row-output-ready")
+      output$rt_row_out <- shiny::renderText("rt-output-ready")
+    }
+    shiny::shinyApp(ui, server)
+  })
+  page <- local_page(made$url, environment())
+  css <- tip_names()$css
+  shown <- function(id, text) {
+    sprintf("document.querySelector('.hc-tip:not([hidden]) #%s')?.textContent === '%s'", id, text)
+  }
+
+  it("parks the output at load and shows it in a DT row's tip", {
+    expect_true(page$wait_until("document.querySelectorAll('#dt tbody tr[data-hovercraft-tip-template]').length === 2"))
+    expect_true(page$evaluate("Boolean(document.querySelector('.hc-output-park #row_out'))"))
+    page$hover("#dt tbody tr:first-child td:first-child")
+    expect_true(page$wait_until(shown("row_out", "row-output-ready")))
+    page$press("Escape", wait = 0.25)
+  })
+
+  it("parks the output at load and shows it in a reactable row's tip", {
+    expect_true(page$wait_until("document.querySelectorAll('#rt [data-hovercraft-tip-template]').length >= 2"))
+    expect_true(page$evaluate("Boolean(document.querySelector('.hc-output-park #rt_row_out'))"))
+    page$hover("#rt .rt-tbody .rt-tr:first-child .rt-td:first-child")
+    expect_true(page$wait_until(shown("rt_row_out", "rt-output-ready")))
+    page$press("Escape", wait = 0.25)
   })
 
   it("leaves the console without errors", {

@@ -80,16 +80,52 @@
 
   // Clean unrendered shell clones keyed by output id (for keep_alive = FALSE rebuilds).
   const shells = new Map();
-  // Runtime state per output id: { state: 'idle'|'loading'|'ready'|'error'|'empty', message, retries, slot }.
+  // Runtime state per output id: { state: 'idle'|'loading'|'ready'|'error'|'empty', message, retries, slot,
+  // live, item, stale, wait }. `slot` is the tip box that holds the output now, `live` every open box that asked for it
+  // (a tip may stay pinned while another opens), `item` the tagged element it was last shown for, `stale` whether what
+  // it holds may belong to another item, and `wait` the timer for a server answer we are waiting for.
   const outputs = new Map();
-  // Output ids queued to park before DOMContentLoaded.
+  // Output ids whose tag is not in the page yet (a tag that comes later in the UI than the tip that names it).
   const pendingPark = new Set();
+
+  // How long to wait for the server to answer a Retry, and to answer the opening of a tip for another item. An output
+  // runs again only when something it reads changes, and the server may not read the Retry input or the open item.
+  const RETRY_WAIT = 4000;
+  const SWITCH_WAIT = 1500;
+  const NO_ANSWER = 'The server did not run this output again. Try again.';
 
   const outputRecord = (id) => {
     if (!outputs.has(id)) {
-      outputs.set(id, { state: 'idle', message: '', retries: 0, slot: null });
+      outputs.set(id, {
+        state: 'idle',
+        message: '',
+        retries: 0,
+        slot: null,
+        live: [],
+        item: null,
+        stale: false,
+        wait: null,
+      });
     }
     return outputs.get(id);
+  };
+
+  const clearWait = (rec) => {
+    if (rec.wait) clearTimeout(rec.wait.timer);
+    rec.wait = null;
+  };
+
+  // Waits `ms` for the server to start (outputinvalidated) or finish (value, error) this output; once it has started,
+  // it is waited for until it finishes. `onSilence` runs when nothing came.
+  const awaitServer = (rec, ms, onSilence) => {
+    clearWait(rec);
+    const wait = { invalidated: false, timer: null };
+    wait.timer = setTimeout(() => {
+      if (rec.wait !== wait || wait.invalidated) return;
+      rec.wait = null;
+      onSilence();
+    }, ms);
+    rec.wait = wait;
   };
 
   const getPark = (doc) => {
@@ -172,7 +208,10 @@
     const errorEl = slot.querySelector('.hc-output-error');
     const errorMsg = slot.querySelector('.hc-output-error-msg');
     const emptyEl = slot.querySelector('.hc-output-empty');
+    const movedEl = slot.querySelector('.hc-output-moved');
     slot.dataset.state = rec.state;
+    slot.dataset.stale = rec.stale && rec.state === 'loading' ? 'true' : 'false';
+    if (movedEl) movedEl.hidden = true;
     if (loadingEl) loadingEl.hidden = rec.state !== 'loading';
     if (errorEl) errorEl.hidden = rec.state !== 'error';
     if (errorMsg && rec.state === 'error') errorMsg.textContent = rec.message || 'Could not load output.';
@@ -181,18 +220,33 @@
 
   // Moves an output placed in the page UI into the hidden parking holder so it is out of sight until a tip opens.
   const parkId = (id, doc = document) => {
-    if (!doc.body) {
+    const outputEl = doc.body ? findOutputEl(doc, id) : null;
+    if (!outputEl) {
+      // The tag is usually later in the UI than the tip that names it: keep looking until the page has it.
       pendingPark.add(id);
+      watchForOutputs(doc);
       return;
     }
-    const outputEl = findOutputEl(doc, id);
-    if (!outputEl) return;
+    pendingPark.delete(id);
     const wrapper = wrapperOf(outputEl);
     captureShell(id, wrapper);
     const holder = getPark(doc);
     if (holder && !wrapper.closest('.hc-output') && wrapper.parentElement !== holder) {
       holder.append(wrapper);
     }
+  };
+
+  let outputWatch = null;
+  const watchForOutputs = (doc) => {
+    if (outputWatch || typeof doc.defaultView?.MutationObserver !== 'function') return;
+    outputWatch = new doc.defaultView.MutationObserver(() => {
+      flushPendingPark();
+      if (!pendingPark.size) {
+        outputWatch.disconnect();
+        outputWatch = null;
+      }
+    });
+    outputWatch.observe(doc.documentElement, { childList: true, subtree: true });
   };
 
   // Notifies Shiny and htmlwidgets that a moved output is now visible and sized inside the tip.
@@ -226,29 +280,28 @@
     }, 30);
   };
 
-  // Re-triggers a failed Shiny output when the user clicks Retry.
+  // Retry sets the input `<id>_retry`, which re-runs an output only when its render reads it (see `tip_output()`). If
+  // the server neither starts nor finishes the output within RETRY_WAIT, the tip says so and offers Retry again, so it
+  // never stays on "Loading…" for good.
   const retryOutput = (id, hostEl) => {
     const rec = outputRecord(id);
     rec.retries += 1;
     rec.state = 'loading';
+    rec.stale = false;
     rec.message = '';
     applySlotState(id);
-    const view = hostEl.ownerDocument.defaultView;
-    const shiny = view?.Shiny ?? window.Shiny;
-    if (shiny?.shinyapp?.$errors) delete shiny.shinyapp.$errors[id];
-    if (shiny?.shinyapp?.$values) delete shiny.shinyapp.$values[id];
+    const shiny = hostEl.ownerDocument.defaultView?.Shiny ?? window.Shiny;
     if (shiny?.setInputValue) {
       shiny.setInputValue(`${id}_retry`, rec.retries, { priority: 'event' });
     }
     hostEl.dispatchEvent(
       new CustomEvent('hovercraft:retry', { bubbles: true, detail: { output: id, count: rec.retries } }),
     );
-    const outputEl = findOutputEl(hostEl.ownerDocument, id);
-    if (outputEl && shiny?.unbindAll && shiny?.bindAll) {
-      shiny.unbindAll(hostEl);
-      shiny.bindAll(hostEl);
-    }
-    refreshOutput(hostEl, findOutputEl(hostEl.ownerDocument, id), id);
+    awaitServer(rec, RETRY_WAIT, () => {
+      rec.state = 'error';
+      rec.message = NO_ANSWER;
+      applySlotState(id);
+    });
   };
 
   let shinyListenersAttached = false;
@@ -262,6 +315,7 @@
       const rec = outputRecord(id);
       rec.state = 'loading';
       rec.message = '';
+      if (rec.wait) rec.wait.invalidated = true;
       applySlotState(id);
     });
     $doc.on('shiny:value', (event) => {
@@ -269,6 +323,8 @@
       if (!id || !outputs.has(id)) return;
       const rec = outputRecord(id);
       const valEmpty = valueLooksEmpty(event.value);
+      clearWait(rec);
+      rec.stale = false;
       rec.state = valEmpty ? 'empty' : 'ready';
       rec.message = '';
       applySlotState(id);
@@ -277,7 +333,7 @@
         if (rec.state === 'loading' || rec.state === 'error') return;
         const el = findOutputEl(document, id);
         if (!el) return;
-        const next = valEmpty && domLooksEmpty(el) ? 'empty' : domLooksEmpty(el) ? 'empty' : 'ready';
+        const next = domLooksEmpty(el) ? 'empty' : 'ready';
         if (rec.state !== next) {
           rec.state = next;
           applySlotState(id);
@@ -288,6 +344,8 @@
       const id = event.target?.id;
       if (!id || !outputs.has(id)) return;
       const rec = outputRecord(id);
+      clearWait(rec);
+      rec.stale = false;
       const err = event.error ?? {};
       const types = Array.isArray(err.type) ? err.type : err.type ? [err.type] : [];
       if (types.includes('shiny.silent.error') || (err.silent && !err.message)) {
@@ -358,12 +416,37 @@
         emptyEl.textContent = 'Nothing to show.';
         emptyEl.hidden = true;
 
-        root.append(hostEl, loadingEl, errorEl, emptyEl);
+        // One output has one node in the page: while another tip holds it, this one says so.
+        const movedEl = doc.createElement('div');
+        movedEl.className = 'hc-output-moved';
+        movedEl.textContent = 'Shown in another tip.';
+        movedEl.hidden = true;
 
-        const mount = () => {
+        root.append(hostEl, loadingEl, errorEl, emptyEl, movedEl);
+
+        // The tagged element whose tip holds `box` now: the engine marks it while the tip is open.
+        const itemOf = (box) => {
+          const kind = box?.classList.contains(`${names.css}-pin`) ? names.states.pin : names.states.hint;
+          return doc.querySelector(`[${names.attributes.open}="${kind}"]`);
+        };
+
+        // Gives the node of an output that another box holds to the one that opens now: the box that had it says so.
+        const takeOver = (rec) => {
+          const from = rec.slot;
+          if (from && from !== root && from.isConnected) {
+            from.dataset.state = 'moved';
+            for (const part of from.querySelectorAll('.hc-output-loading, .hc-output-error, .hc-output-empty')) {
+              part.hidden = true;
+            }
+            const moved = from.querySelector('.hc-output-moved');
+            if (moved) moved.hidden = false;
+          }
+          rec.slot = root;
+        };
+
+        const mount = (_node, info) => {
           attachOutputListeners();
           const rec = outputRecord(id);
-          rec.slot = root;
           let outputEl = findOutputEl(doc, id);
           let wrapper = wrapperOf(outputEl);
           if (!wrapper && shells.has(id)) {
@@ -371,6 +454,7 @@
             outputEl = wrapper.id === id ? wrapper : wrapper.querySelector(`[id="${CSS.escape(id)}"]`);
           }
           if (!wrapper || !outputEl) {
+            rec.slot = root;
             rec.state = 'empty';
             applySlotState(id);
             return {
@@ -379,6 +463,9 @@
               },
             };
           }
+          const mine = { root, hostEl };
+          takeOver(rec);
+          rec.live.push(mine);
           captureShell(id, wrapper);
           const hasLoader = hasExternalLoader(wrapper, outputEl);
           root.dataset.hasLoader = hasLoader ? 'true' : 'false';
@@ -397,6 +484,20 @@
           } else if (rec.state === 'ready' && !hasRendered && !keepAlive) {
             rec.state = 'loading';
           }
+          // An output drawn for another item still holds that item's content: show loading until the server answers
+          // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
+          const item = itemOf(info?.box);
+          if (item && rec.item && item !== rec.item && rec.state === 'ready') {
+            rec.state = 'loading';
+            rec.stale = true;
+            awaitServer(rec, SWITCH_WAIT, () => {
+              rec.stale = false;
+              const el = findOutputEl(doc, id);
+              rec.state = domLooksEmpty(el) ? 'empty' : 'ready';
+              applySlotState(id);
+            });
+          }
+          if (item) rec.item = item;
           applySlotState(id);
 
           refreshOutput(hostEl, outputEl, id);
@@ -411,9 +512,21 @@
               if (jq) jq(doc).trigger('shiny:themechange');
             },
             destroy: (info) => {
-              if (rec.slot === root) rec.slot = null;
-              if (!wrapper.isConnected) return;
+              rec.live = rec.live.filter((slot) => slot !== mine);
+              // Only the box that holds the node lets go of it; another box may have taken it over.
+              if (rec.slot !== root) return;
+              rec.slot = null;
               const redraw = info?.reason === 'redraw';
+              // A box that stayed open (a pin) gets the node back; a redraw parks it, and the new box asks for it.
+              const next = rec.live.at(-1);
+              if (!redraw && next?.root.isConnected) {
+                next.hostEl.append(wrapper);
+                rec.slot = next.root;
+                applySlotState(id);
+                refreshOutput(next.hostEl, outputEl, id);
+                return;
+              }
+              if (!hostEl.contains(wrapper)) return;
               if (keepAlive || redraw) {
                 const holder = getPark(doc);
                 if (holder) holder.append(wrapper);
@@ -421,6 +534,7 @@
                 const shiny = doc.defaultView?.Shiny ?? window.Shiny;
                 if (shiny?.unbindAll) shiny.unbindAll(wrapper, true);
                 wrapper.remove();
+                clearWait(rec);
                 rec.state = 'idle';
                 rec.message = '';
               }
@@ -485,6 +599,29 @@
     return document.querySelector(`.${cls}:not(.${cls}-pin):not([hidden])`);
   };
 
+  // What a block is, for telling the short form's blocks from the long form's in a pinned box: the engine marks neither.
+  const signature = (node) => `${node.tagName}|${node.className}|${node.textContent}`;
+  const isChrome = (node, cls) => node.matches(`.${cls}-head, .${cls}-close, .${cls}-cue, .${cls}-reason`);
+  const shortBlocks = (box) => {
+    const cls = names?.css ?? 'hc-tip';
+    return [...box.children].filter((c) => !isChrome(c, cls) && !c.matches(`.${cls}-more`)).map(signature);
+  };
+
+  // The blocks of a pinned box that the short form did not have, in order. Each short block is matched once, wherever it
+  // sits: a pinned box moves the title into its head, so the short form's list is not a prefix of the pinned one.
+  const longBlocks = (pinBox, shorts) => {
+    const cls = names?.css ?? 'hc-tip';
+    const left = [...shorts];
+    const fresh = [];
+    for (const child of pinBox.children) {
+      if (isChrome(child, cls)) continue;
+      const at = left.indexOf(signature(child));
+      if (at >= 0) left.splice(at, 1);
+      else fresh.push(child);
+    }
+    return fresh;
+  };
+
   const snapshotHint = (el, id) => {
     const box = visibleHintBox();
     if (!box) return;
@@ -495,7 +632,7 @@
       el: el ?? null,
       rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
       side: box.dataset.side ?? null,
-      children: box.children.length,
+      blocks: shortBlocks(box),
       at: Date.now(),
     };
   };
@@ -532,7 +669,6 @@
     if (detail.state !== 'pinned') return;
     const prev = lastHint;
     lastHint = null;
-    if (reducedMotion()) return;
     const el = event.target?.nodeType === 1 ? event.target : find(detail.id);
     if (!el) return;
     const hasMore = el.hasAttribute(names.attributes.more) || el.hasAttribute(names.attributes.moreTemplate);
@@ -541,10 +677,12 @@
 
     // Run right after the engine's synchronous pinMotion.enter() and before the first browser paint.
     Promise.resolve().then(() => {
-      if (reducedMotion()) return;
       const cls = names?.css ?? 'hc-tip';
       const pinBox = document.querySelector(`.${cls}.${cls}-pin:not([hidden])`);
-      if (!pinBox || typeof pinBox.animate !== 'function') return;
+      if (!pinBox) return;
+      // The long form starts with a hairline, as in the hover form (the engine draws no wrapper for it when pinned).
+      longBlocks(pinBox, prev.blocks)[0]?.classList.add('hc-long-first');
+      if (reducedMotion() || typeof pinBox.animate !== 'function') return;
       cancelGrowth();
       // Cancel any opacity-0 entrance animation from the engine so the already-visible tip does not flicker.
       if (typeof pinBox.getAnimations === 'function') {
@@ -574,6 +712,9 @@
       if (Math.abs(to.height - from.height) <= 2 && Math.abs(to.width - from.width) <= 2) return;
       const dx = from.left - to.left;
       const dy = from.top - to.top;
+      // The box has `overflow: visible`: clip it while it grows, so the long form never draws outside its background.
+      const clipped = pinBox.style.overflow;
+      pinBox.style.overflow = 'clip';
       const boxAnim = pinBox.animate(
         [
           {
@@ -590,18 +731,15 @@
         { duration: 180, easing },
       );
       activeGrowth.push(boxAnim);
-      boxAnim.finished.then(
-        () => {
-          activeGrowth = activeGrowth.filter((a) => a !== boxAnim);
-        },
-        () => {},
-      );
-      // Gently reveal the newly added long-form blocks as the box opens.
-      const kids = [...pinBox.children].filter(
-        (c) => !c.classList.contains(`${cls}-head`) && !c.classList.contains(`${cls}-close`),
-      );
-      const startAt = Math.max(1, prev.children - 1);
-      for (const child of kids.slice(startAt)) {
+      const unclip = () => {
+        pinBox.style.overflow = clipped;
+      };
+      boxAnim.finished.then(() => {
+        activeGrowth = activeGrowth.filter((a) => a !== boxAnim);
+        unclip();
+      }, unclip);
+      // Gently reveal the long form's blocks as the box opens.
+      for (const child of longBlocks(pinBox, prev.blocks)) {
         if (typeof child.animate !== 'function') continue;
         const cAnim = child.animate(
           [
@@ -628,9 +766,23 @@
     attachOutputListeners();
   };
 
+  // Output tags that R hands over as HTML (a `more` template that holds a tag): put in the park holder once there is a
+  // body, each only once, and bound by Shiny when it is already running.
+  const pendingHtml = [];
+  const parkedHtml = new Set();
+  const flushParkHtml = () => {
+    if (!document.body || !pendingHtml.length) return;
+    const holder = getPark(document);
+    for (const html of pendingHtml.splice(0)) {
+      if (parkedHtml.has(html)) continue;
+      parkedHtml.add(html);
+      holder.insertAdjacentHTML('beforeend', html);
+    }
+    if (window.Shiny?.shinyapp && window.Shiny.bindAll) window.Shiny.bindAll(holder);
+  };
+
   const flushPendingPark = () => {
-    for (const id of pendingPark) parkId(id);
-    pendingPark.clear();
+    for (const id of [...pendingPark]) parkId(id);
   };
 
   window.HovercraftShiny = Object.freeze({
@@ -650,14 +802,22 @@
       );
       registerOutputBlock();
       registerExtraBlocks();
-      if (window.Shiny?.addCustomMessageHandler) register();
-      else {
-        document.addEventListener('DOMContentLoaded', () => {
-          flushPendingPark();
-          if (window.Shiny?.addCustomMessageHandler) register();
-        });
-      }
-      if (document.readyState !== 'loading') flushPendingPark();
+      let registered = false;
+      const ready = () => {
+        flushParkHtml();
+        flushPendingPark();
+        if (!registered && window.Shiny?.addCustomMessageHandler) {
+          registered = true;
+          register();
+        }
+      };
+      ready();
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+    },
+    parkHtml: (html) => {
+      if (typeof html !== 'string' || !html) return;
+      pendingHtml.push(html);
+      flushParkHtml();
     },
     park: (id) => {
       if (typeof id === 'string' && id) parkId(id);

@@ -31,7 +31,7 @@ tip_shiny_head <- function() {
       parkClass = tip_output_park_class(),
       statuses = as.list(tip_statuses),
       # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
-      states = list(hint = tip_rules()$open$values[[1]]),
+      states = list(hint = tip_rules()$open$values[[1]], pin = tip_rules()$open$values[[2]]),
       events = list(hint = tip_contract()$events$hint$name, tip = tip_contract()$events$tip$name),
       messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
     )

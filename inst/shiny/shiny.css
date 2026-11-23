@@ -115,6 +115,28 @@
   display: none;
 }
 
+/* The output still holds another item's content while the server answers for this one: keep it out of sight. */
+.hc-output[data-stale="true"] .hc-output-host {
+  max-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.hc-output-moved {
+  padding: 6px 0;
+  color: var(--hc-tip-quiet, inherit);
+  font-style: italic;
+  font-size: 0.92em;
+}
+
+.hc-output-moved[hidden] {
+  display: none;
+}
+
+.hc-output[data-state="moved"] .hc-output-host {
+  display: none;
+}
+
 .hc-output-empty {
   padding: 6px 0;
   color: var(--hc-tip-quiet, inherit);
@@ -174,6 +196,18 @@
   }
 }
 
+.hc-long-first {
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+  padding-block-start: var(--hovercraft-space-1, 4px);
+  margin-block-start: var(--hovercraft-space-2, 8px);
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .hc-long-first {
+    border-top-color: color-mix(in srgb, var(--hc-tip-ink, currentColor) 16%, transparent);
+  }
+}
+
 .hc-tip-more > :first-child {
   margin-block-start: 0;
 }
@@ -187,7 +221,21 @@
 }
 
 @media (forced-colors: active) {
-  .hc-tip-more {
+  .hc-tip-more,
+  .hc-long-first {
     border-top-color: CanvasText;
   }
+}
+
+/* ---- The bottom sheet of a pinned tip on a narrow screen -------------------------------------------------------- */
+
+/* A sheet has no arrow, but its hover area (::before) and arrow (::after) still add room below the text, so the sheet
+   scrolled by a few pixels. It also keeps its last line off the bottom edge and clear of a phone's home bar. */
+.hc-tip.hc-tip-pin[data-side="sheet"]::before,
+.hc-tip.hc-tip-pin[data-side="sheet"]::after {
+  content: none;
+}
+
+.hc-tip.hc-tip-pin[data-side="sheet"] {
+  padding-block-end: calc(var(--hovercraft-space-3, 12px) + env(safe-area-inset-bottom, 0px));
 }

@@ -266,6 +266,61 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
     page$press("Escape", wait = 0.2)
   })
 
+  it("clips the pinned box while it grows, marks where the long form starts, and lets the clip go", {
+    page$hover("#pin_btn")
+    expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
+    # Sample the box every few milliseconds from the click on: while it grows, nothing may draw outside it.
+    page$evaluate(sprintf(
+      paste0(
+        "window.__samples = []; window.__sampler = setInterval(() => {",
+        " const b = document.querySelector('.%s.%s-pin:not([hidden])'); if (!b) return;",
+        " window.__samples.push([b.getAnimations().length, getComputedStyle(b).overflow]); }, 4)"
+      ),
+      css,
+      css
+    ))
+    page$click("#pin_btn")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('.%s.%s-pin:not([hidden])')?.getAnimations?.().length === 0",
+      css,
+      css
+    )))
+    samples <- jsonlite::fromJSON(page$evaluate("clearInterval(window.__sampler); JSON.stringify(window.__samples)"))
+    growing <- samples[as.integer(samples[, 1]) > 0, , drop = FALSE]
+    expect_gt(nrow(growing), 0L)
+    expect_true(all(growing[, 2] == "clip"))
+    pin <- sprintf("document.querySelector('.%s.%s-pin:not([hidden])')", css, css)
+    expect_identical(page$evaluate(paste0(pin, ".style.overflow")), "")
+    expect_false(identical(page$evaluate(sprintf("getComputedStyle(%s).overflow", pin)), "clip"))
+    # The long form starts at its first block, whatever the number of blocks the short form has.
+    expect_identical(page$evaluate(paste0(pin, ".querySelectorAll('.hc-long-first').length")), 1L)
+    expect_match(page$evaluate(paste0(pin, ".querySelector('.hc-long-first').textContent")), "Biostats", fixed = TRUE)
+    page$press("Escape", wait = 0.2)
+  })
+
+  it("keeps a pinned bottom sheet from scrolling for a few pixels, with its last line off the bottom edge", {
+    page$resize(375, 700)
+    page$hover("#pin_btn")
+    page$click("#pin_btn")
+    sheet <- sprintf("document.querySelector('.%s.%s-pin[data-side=\"sheet\"]:not([hidden])')", css, css)
+    expect_true(page$wait_until(paste0(sheet, " !== null")))
+    expect_true(page$wait_until(paste0(sheet, ".getAnimations().length === 0")))
+    got <- jsonlite::fromJSON(page$evaluate(
+      sprintf(
+        "(() => { const b = %s; const last = b.lastElementChild.getBoundingClientRect();",
+        sheet
+      ) |>
+        paste0(
+          " return JSON.stringify({ scroll: b.scrollHeight, client: b.clientHeight,",
+          " gap: Math.round(b.getBoundingClientRect().bottom - last.bottom) }); })()"
+        )
+    ))
+    expect_lte(got$scroll, got$client)
+    expect_gte(got$gap, 8)
+    page$press("Escape", wait = 0.2)
+    page$resize(900, 700)
+  })
+
   it("respects prefers-reduced-motion: reduce (no growth animation)", {
     page$emulate("prefers-reduced-motion", "reduce")
     page$hover("#pin_btn")
