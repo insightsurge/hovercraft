@@ -392,7 +392,7 @@ describe("a bslib theme", {
     )
     got <- tip_as_theme(bslib::bs_theme(version = 5))
     expect_identical(got$light$font, "var(--bs-font-sans-serif, system-ui, sans-serif)")
-    expect_match(css_of(got), "font-body: var(--bs-font-sans-serif, system-ui, sans-serif);", fixed = TRUE)
+    expect_match(css_of(got), "tip-font: var(--bs-font-sans-serif, system-ui, sans-serif);", fixed = TRUE)
   })
 
   it("warns about a font it cannot read, like every other role", {

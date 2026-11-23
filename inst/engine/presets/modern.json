@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "modern",
+  "label": "Quiet modern",
+  "about": "White card, a soft shadow and a rounded corner. A general look for product pages.",
+  "radius": 8,
+  "font": "ui-sans-serif, system-ui, -apple-system, \"Segoe UI\", Roboto, sans-serif",
+  "size": 1,
+  "delay": 300,
+  "light": { "bg": "#FFFFFF", "ink": "#14171F", "line": "#8A92A3", "shadow": "0 1px 2px rgba(15, 20, 30, 0.05), 0 8px 24px -6px rgba(15, 20, 30, 0.1)" },
+  "dark": { "bg": "#171A22", "ink": "#EEF1F6", "line": "#6F7A90", "shadow": "0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 28px -6px rgba(0, 0, 0, 0.55)" }
+}

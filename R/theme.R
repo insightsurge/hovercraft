@@ -12,7 +12,7 @@ tip_roles <- c(
   code_bg = "tip-code-bg",
   radius = "tip-radius",
   shadow = "tip-shadow",
-  font = "font-body"
+  font = "tip-font"
 )
 tip_colour_roles <- c("bg", "ink", "line", "code_bg")
 
@@ -106,6 +106,9 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' it. A theme can also be a [bslib::bs_theme()] or a plain list, see [tip_dependency()].
 #'
 #' A role set in `light` and not in `dark` is used in dark mode too, so a brand colour set once holds in both modes.
+#'
+#' The tip has a small arrow pointing at its tag. It takes the colour of the tip, so it is drawn only when the `bg` is
+#' opaque: with a translucent `bg` (`"rgba(0, 0, 0, 0.8)"`) the tip has no arrow.
 #'
 #' @section Contrast warnings:
 #' The words of a tip must be readable on its fill. For each mode, the `ink` on the `bg` (and on the `code_bg`, if you

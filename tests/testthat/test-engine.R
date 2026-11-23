@@ -10,7 +10,11 @@ sha256 <- function(path) {
 describe("the vendored engine", {
   it("has the files engine.json lists, with the checksums it records", {
     engine <- tip_engine()
-    expect_setequal(unlist(engine$files), c("placeholders.json", "tip.json", "www/tip.css", "www/tip.js"))
+    presets <- file.path("presets", c("dense", "editorial", "lively", "modern", "sober"))
+    expect_setequal(
+      unlist(engine$files),
+      c("placeholders.json", "tip.json", "www/tip.css", "www/tip.js", paste0(presets, ".json"))
+    )
     for (file in unlist(engine$files)) {
       path <- tip_path(file)
       expect_true(file.exists(path), info = file)
@@ -37,6 +41,44 @@ describe("the vendored engine", {
     expect_named(engine$names, c("attribute", "css", "global", "prefix", "product"), ignore.order = TRUE)
     expect_true(all(c("placeholder", "filters", "blocks", "blocks_later", "engine_fields") %in% names(tip_rules())))
     expect_identical(tip_engine_version(), engine$engine)
+  })
+})
+
+# The check that runs after every copy of the engine: every name the package relies on is still there. A new copy that
+# renames or drops one fails here, naming it, instead of a page quietly losing its theme or its tips.
+describe("the vendored engine, after a copy", {
+  css <- paste(readLines(tip_path("www", "tip.css"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  js <- paste(readLines(tip_path("www", "tip.js"), warn = FALSE, encoding = "UTF-8"), collapse = "\n")
+  names <- tip_names()
+
+  it("still has the CSS variable of every theme role, which tip_theme() writes", {
+    for (role in names(tip_roles)) {
+      variable <- paste0("--", names$prefix, "-", tip_roles[[role]])
+      expect_true(grepl(variable, css, fixed = TRUE) || grepl(variable, js, fixed = TRUE), info = variable)
+    }
+  })
+
+  it("still has the attributes tip_on() writes", {
+    contract <- jsonlite::read_json(tip_path("tip.json"))
+    for (attribute in tip_attributes()) {
+      expect_true(attribute %in% unlist(contract$attributes), info = attribute)
+    }
+  })
+
+  it("still has the class and the global the package's tests and pages reach the engine by", {
+    expect_true(grepl(paste0(".", names$css), css, fixed = TRUE), info = names$css)
+    expect_true(grepl(paste0("window.", names$global), js, fixed = TRUE), info = names$global)
+    # The methods the package calls on it: tip_dependency() attaches, tip_define() defines.
+    for (method in c("attach", "define")) {
+      expect_true(grepl(paste0("\\b", method, "\\s*[(:]"), js), info = paste0(names$global, ".", method))
+    }
+    expect_true(grepl(names$attribute, js, fixed = TRUE), info = names$attribute)
+  })
+
+  it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
+    expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
+    expect_true(grepl("--bs-body-color", css, fixed = TRUE))
+    expect_true(grepl("data-bs-theme", js, fixed = TRUE))
   })
 })
 
