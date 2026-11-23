@@ -41,9 +41,14 @@ tip_table_data <- function(widget, kind) {
   as.data.frame(raw, stringsAsFactors = FALSE, check.names = FALSE)
 }
 
-# Everything a content can be: a string (markdown, with placeholders if you like), or a tip_template(). NA and "" are no
-# tip: the function returns NULL for them.
-tip_table_content <- function(x, arg, columns, header = FALSE, call) {
+# Everything a content can be: a string (markdown, with placeholders if you like), a tip_template(), or a tip_spec()
+# that holds one of those and a placement of its own. NA and "" are no tip: the function returns NULL for them. The
+# placement is the spec's, or else the table's `placement`.
+tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL, call) {
+  if (inherits(x, "hovercraft_spec")) {
+    placement <- x$placement %||% placement
+    x <- x$content
+  }
   if (inherits(x, "hovercraft_template")) {
     template <- x
     fields <- tip_template_fields(template)
@@ -103,16 +108,21 @@ tip_table_content <- function(x, arg, columns, header = FALSE, call) {
     )
   }
   body <- tip_json(lapply(template, unclass))
-  list(name = paste0("table_", substr(rlang::hash(body), 1L, 12L)), body = body, fields = unique(fields))
+  list(
+    name = paste0("table_", substr(rlang::hash(body), 1L, 12L)),
+    body = body,
+    fields = unique(fields),
+    placement = placement
+  )
 }
 
 # `x` (cells or headers) as a named list of contents, one per column; entries that are NA or "" are left out.
-tip_table_named <- function(x, arg, columns, header, call) {
+tip_table_named <- function(x, arg, columns, header, placement, call) {
   if (is.null(x)) {
     return(list())
   }
   if (
-    inherits(x, "hovercraft_template") ||
+    inherits(x, c("hovercraft_template", "hovercraft_spec")) ||
       !is.vector(x) ||
       is.null(names(x)) ||
       anyNA(names(x)) ||
@@ -121,7 +131,10 @@ tip_table_named <- function(x, arg, columns, header, call) {
     tip_abort(
       c(
         "{.arg {arg}} must be a named vector or list, one entry per column.",
-        i = "For example {.code {arg} = c({columns[[1]]} = \"words\")}."
+        i = paste0(
+          "For example {.code {arg} = c({columns[[1]]} = \"words\")}, ",
+          "or {.code {arg} = list({columns[[1]]} = tip_spec(\"words\"))}."
+        )
       ),
       class = "hovercraft_error_argument",
       call = call
@@ -139,7 +152,7 @@ tip_table_named <- function(x, arg, columns, header, call) {
     )
   }
   out <- lapply(seq_along(x), function(i) {
-    tip_table_content(x[[i]], paste0(arg, "[[\"", names(x)[[i]], "\"]]"), columns, header, call)
+    tip_table_content(x[[i]], paste0(arg, "[[\"", names(x)[[i]], "\"]]"), columns, header, placement, call)
   })
   names(out) <- names(x)
   out[!vapply(out, is.null, NA)]
@@ -154,17 +167,22 @@ tip_table_records <- function(data, fields, call) {
   vapply(seq_len(nrow(data)), function(i) tip_json(tip_record(data[i, fields, drop = FALSE], call = call)), "")
 }
 
-# What an element carries for one content: its template, and the placement and kind when given.
-tip_table_spec <- function(content, placement, id) {
+# What an element carries for one content: its template, the fixed kind of its target and the placement when there is
+# one. With a table `id`, the layer also gives it a derived tip id from the base id, the target, the data row and the
+# data column (`column`, 1-based, for a cell or a header cell); the format is the layer's own and may change.
+tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   attrs <- stats::setNames(list(content$name), tip_attribute("template"))
-  if (!is.null(placement)) {
-    attrs[[tip_attribute("placement")]] <- placement
+  attrs[[tip_attribute("kind")]] <- paste0("table_", target)
+  if (!is.null(content$placement)) {
+    attrs[[tip_attribute("placement")]] <- content$placement
   }
+  ident <- NULL
   if (!is.null(id)) {
-    attrs[[tip_attribute("kind")]] <- id
+    ident <- list(attribute = tip_attribute("id"), base = id, target = target)
+    ident$column <- column
   }
   # `needs`: the fields the tip reads; a record where all of them are blank gets no tip (a cell that holds NA).
-  list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields))
+  list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields), id = ident)
 }
 
 tip_table_dependencies <- function(widget) {
@@ -205,7 +223,21 @@ tip_table_add_header_cell <- function(container, name, call) {
   sub("</tr>", paste0("<th>", name, "</th></tr>"), container, fixed = TRUE)
 }
 
-tip_table_dt <- function(widget, plan, call) {
+# A hidden, unsearchable column added to a DT table's data; `name` is needed by DT's server mode, and the header comes
+# from the table's HTML, so it needs a header cell too. `at` is the column's 0-based position.
+tip_table_dt_hidden <- function(x, name, values, call) {
+  at <- ncol(x$data)
+  x$data[[name]] <- values
+  x$container <- tip_table_add_header_cell(x$container, name, call)
+  attr(x, "colnames") <- c(attr(x, "colnames"), name)
+  x$options$columnDefs <- c(
+    x$options$columnDefs,
+    list(list(targets = at, name = name, visible = FALSE, searchable = FALSE, orderable = FALSE))
+  )
+  list(x = x, at = at)
+}
+
+tip_table_dt <- function(widget, plan, id, call) {
   x <- widget$x
   taken <- intersect(c("createdRow", "initComplete"), names(x$options))
   if (length(taken)) {
@@ -221,33 +253,35 @@ tip_table_dt <- function(widget, plan, call) {
   data <- tip_table_data(widget, "dt")
   position <- function(column) match(column, names(x$data)) - 1L
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
-  record <- NA_integer_
+  # The record of each row, and (with an `id`) its 1-based data row, which DT's own row index cannot give in
+  # server mode.
+  record_at <- row_at <- "null"
   if (length(fields)) {
-    record <- ncol(x$data)
-    name <- ".hovercraft"
-    x$data[[name]] <- tip_table_records(data, fields, call)
-    x$container <- tip_table_add_header_cell(x$container, name, call)
-    attr(x, "colnames") <- c(attr(x, "colnames"), name)
-    x$options$columnDefs <- c(
-      x$options$columnDefs,
-      list(list(targets = record, name = name, visible = FALSE, searchable = FALSE, orderable = FALSE))
-    )
+    hidden <- tip_table_dt_hidden(x, ".hovercraft", tip_table_records(data, fields, call), call)
+    x <- hidden$x
+    record_at <- sprintf("data[%d]", hidden$at)
   }
-  record_at <- if (is.na(record)) "null" else sprintf("data[%d]", record)
+  if (!is.null(id)) {
+    hidden <- tip_table_dt_hidden(x, ".hovercraft_row", seq_len(nrow(data)), call)
+    x <- hidden$x
+    row_at <- sprintf("data[%d]", hidden$at)
+  }
   if (!is.null(plan$rows)) {
     x$options$createdRow <- tip_js(sprintf(
-      "function(row, data) { HovercraftTable.mark(row, %s, %s); }",
+      "function(row, data) { HovercraftTable.mark(row, %s, %s, %s); }",
       tip_json(plan$specs$rows),
-      record_at
+      record_at,
+      row_at
     ))
   }
   for (column in names(plan$cells)) {
     def <- list(
       targets = position(column),
       createdCell = tip_js(sprintf(
-        "function(td, cell, data) { HovercraftTable.mark(td, %s, %s); }",
+        "function(td, cell, data) { HovercraftTable.mark(td, %s, %s, %s); }",
         tip_json(plan$specs$cells[[column]]),
-        record_at
+        record_at,
+        row_at
       ))
     )
     x$options$columnDefs <- c(x$options$columnDefs, list(def))
@@ -348,7 +382,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' optionally a tip of their own to chosen cells and header cells. The tips follow the data row, so sorting, filtering
 #' and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 #'
-#' A cell's tip wins over its row's, and a row's tip opens at the pointer. A tip is made of words (markdown) with
+#' A cell's tip wins over its row's, and a row's tip opens at the pointer. A target that needs its own settings (for now
+#' only a placement) takes a [tip_spec()] in place of words. A tip is made of words (markdown) with
 #' `{{ column }}` placeholders, or of a [tip_template()]; every placeholder is checked against the table's columns, and
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
 #' so it takes words only.
@@ -364,14 +399,19 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'
 #' @param widget A table made by `DT::datatable()` or by `reactable::reactable()`.
 #' @param ... Must be empty. It makes a misspelt argument an error.
-#' @param rows One string or [tip_template()] for every row, or `NULL`. `NA` and `""` are no tip.
-#' @param cells A named vector or list, one entry per column, for the cells of that column. Each entry is a string or a
-#'   [tip_template()]; `NA` and `""` give that column no tip.
-#' @param headers The same for the header cells; words only.
+#' @param rows One string, [tip_template()] or [tip_spec()] for every row, or `NULL`. `NA` and `""` are no tip.
+#' @param cells A named vector or list, one entry per column, for the cells of that column. Each entry is a string, a
+#'   [tip_template()] or a [tip_spec()]; `NA` and `""` give that column no tip. Use a list to mix them:
+#'   `list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")`.
+#' @param headers The same for the header cells; words only, so a [tip_spec()] here holds words with no placeholders.
 #' @param placement Where the tips show: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` for the page's
-#'   choice.
-#' @param id A name for this table's tips (lower-case words joined with `_`), written as the tip's kind, which the
-#'   engine's events will carry, or `NULL`.
+#'   choice. A [tip_spec()] with its own placement beats it. A cell's tip follows this, not its row's.
+#' @param id A Shiny id for this table's tips, the same as [tip_on()]'s `id` will be: one non-empty string with no
+#'   whitespace, so `ns("scores_tips")` works inside a module. Give it a different id from every other tip source on
+#'   the page. With an `id`, every marked row, cell and header cell gets its own tip id derived from it, which follows
+#'   the data row through sorting, filtering and paging; how that id is built is not part of the API. `NULL` gives the
+#'   tips no id. The engine's kind of the tips is not yours to set: `tip_table()` writes `table_row`, `table_cell` and
+#'   `table_header`.
 #'
 #' @returns The widget, with the tips added.
 #' @family tooltips
@@ -408,23 +448,14 @@ tip_table <- function(
     )
   }
   rlang::check_installed(if (kind == "dt") "DT" else "reactable")
-  places <- unlist(tip_rules()$placement$values)
-  tip_arg(
-    checkmate::check_choice(placement, places, null.ok = TRUE),
-    "placement",
-    paste0("Give one of ", paste0("\"", places, "\"", collapse = ", "), ", or {.code NULL}.")
-  )
-  tip_arg(
-    checkmate::check_string(id, pattern = tip_rules()$pin$kind_pattern, null.ok = TRUE),
-    "id",
-    "Give lower-case words joined with {.code _}, or {.code NULL}."
-  )
+  tip_check_placement(placement)
+  tip_check_id(id)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
   plan <- list(
-    rows = if (!is.null(rows)) tip_table_content(rows, "rows", columns, call = call),
-    cells = tip_table_named(cells, "cells", columns, FALSE, call),
-    headers = tip_table_named(headers, "headers", columns, TRUE, call)
+    rows = if (!is.null(rows)) tip_table_content(rows, "rows", columns, placement = placement, call = call),
+    cells = tip_table_named(cells, "cells", columns, FALSE, placement, call),
+    headers = tip_table_named(headers, "headers", columns, TRUE, placement, call)
   )
   if (is.null(plan$rows) && !length(plan$cells) && !length(plan$headers)) {
     tip_abort(
@@ -433,12 +464,29 @@ tip_table <- function(
       call = call
     )
   }
+  # The engine reads a placement from the nearest tagged ancestor, so a cell with none of its own would follow its
+  # row's. A cell follows the table's: when the row's differs, the cell says the table's (or "auto") itself.
+  if (!is.null(plan$rows$placement) && !identical(plan$rows$placement, placement)) {
+    plan$cells <- lapply(plan$cells, function(content) {
+      content$placement <- content$placement %||% placement %||% "auto"
+      content
+    })
+  }
+  column_of <- function(column) match(column, columns)
   plan$specs <- list(
-    rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, placement, id),
-    cells = lapply(plan$cells, tip_table_spec, placement = placement, id = id),
-    headers = lapply(plan$headers, tip_table_spec, placement = placement, id = id)
+    rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, "row", id = id),
+    cells = Map(
+      function(content, column) tip_table_spec(content, "cell", column_of(column), id),
+      plan$cells,
+      names(plan$cells)
+    ),
+    headers = Map(
+      function(content, column) tip_table_spec(content, "header", column_of(column), id),
+      plan$headers,
+      names(plan$headers)
+    )
   )
   plan$defines <- tip_table_defines(c(list(plan$rows), plan$cells, plan$headers))
-  widget <- if (kind == "dt") tip_table_dt(widget, plan, call) else tip_table_reactable(widget, plan, call)
+  widget <- if (kind == "dt") tip_table_dt(widget, plan, id, call) else tip_table_reactable(widget, plan, call)
   tip_table_dependencies(widget)
 }

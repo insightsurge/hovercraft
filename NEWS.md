@@ -10,7 +10,8 @@
 * `tip_badge()` takes `status` (`"success"`, `"warning"`, `"danger"` or `"info"`; any other word is an error) in place
   of `tone`. The badge is coloured from the page's Bootstrap colours by a few lines of CSS that come with the engine's
   dependency (#32).
-* `tip_table()` is an experimental spike that puts tips on the rows, cells and header cells of a `DT::datatable()` or `reactable::reactable()` table, drawn from each row's own values and following the data row through sorting, filtering and paging. It works by pointer only, with no keyboard reach yet, and its shape may change (#36).
+* `tip_table()` is an experimental spike that puts tips on the rows, cells and header cells of a `DT::datatable()` or `reactable::reactable()` table, drawn from each row's own values and following the data row through sorting, filtering and paging. It works by pointer only, with no keyboard reach yet, and its shape may change (#36). Its `id` is a Shiny id, the same as `tip_on()`'s will be: one string with no whitespace, so `ns()` ids work, and every marked row, cell and header cell gets its own tip id derived from it (#41). The engine's kind of the tips is fixed (`table_row`, `table_cell`, `table_header`) and no longer set by `id`.
+* `tip_spec()` (experimental) gives one `tip_table()` target its own settings, for now a `placement`: as `rows`, or as an entry of the named list given to `cells` or `headers`. A setting left as `NULL` is taken from `tip_table()`; a cell follows the table's placement, not its row's (#41).
 * `tip_dependency()` gives the tip engine's script and CSS as an HTML dependency.
 * `tip_theme()` and `tip_dependency(style = )` set how the tips look: roles for light and dark (fill, words, border, code
   background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables (through `tip_style(theme = )`). The tip follows `data-bs-theme`, so it turns
