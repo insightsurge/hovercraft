@@ -23,4 +23,9 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_spec(1), error = TRUE)
     expect_snapshot(tip_spec("x", placement = "above"), error = TRUE)
   })
+  it("say what a table can mark", {
+    expect_snapshot(tip_table(dt(), cells = c(wins = "x"), marker = "underline"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = tip_spec("x", marker = "corner")), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = "x", marker = "corner"), error = TRUE)
+  })
 })

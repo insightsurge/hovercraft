@@ -98,3 +98,30 @@
       ! `placement` is not right: Must be element of set {'auto','top','bottom','left','right'}, but is 'above'
       i Give one of "auto", "top", "bottom", "left", "right", or `NULL`.
 
+# the tip_table() errors / say what a table can mark
+
+    Code
+      tip_table(dt(), cells = c(wins = "x"), marker = "underline")
+    Condition
+      Error in `tip_table()`:
+      ! A table draws only a "corner" marker for now, not "underline".
+      i Use `marker = "corner"`, or mark the words with `tip_on()` outside the table.
+
+---
+
+    Code
+      tip_table(dt(), rows = tip_spec("x", marker = "corner"))
+    Condition
+      Error in `tip_table()`:
+      ! `rows` has a marker, but a row takes none.
+      i Put the marker on `cells` or `headers`, where a reader can see it.
+
+---
+
+    Code
+      tip_table(dt(), rows = "x", marker = "corner")
+    Condition
+      Error in `tip_table()`:
+      ! `marker` has no cell or header cell to mark.
+      i A row takes no marker. Give `cells` or `headers` some words too.
+

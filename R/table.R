@@ -47,9 +47,11 @@ tip_table_data <- function(widget, kind) {
 # Everything a content can be: a string (markdown, with placeholders if you like), a tip_template(), or a tip_spec()
 # that holds one of those and a placement of its own. NA and "" are no tip: the function returns NULL for them. The
 # placement is the spec's, or else the table's `placement`.
-tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL, call) {
+tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL, call, marker = NULL, row = FALSE) {
+  own <- NULL
   if (inherits(x, "hovercraft_spec")) {
     placement <- x$placement %||% placement
+    own <- x$marker
     x <- x$content
   }
   if (inherits(x, "hovercraft_template")) {
@@ -115,12 +117,47 @@ tip_table_content <- function(x, arg, columns, header = FALSE, placement = NULL,
     name = paste0("table_", substr(rlang::hash(body), 1L, 12L)),
     body = body,
     fields = unique(fields),
-    placement = placement
+    placement = placement,
+    marker = tip_table_marker(own, marker, arg, row, call)
   )
 }
 
+# The marker of one target as a type, or NULL for none. A spec's own marker beats the table's; a row never takes the
+# table's (a row is not marked), and a marker of its own on the rows stops. Only the corner is drawn in a table for now:
+# the other markers need the widget's own markup (a words span, DT's sort arrows), which hovercraft does not write.
+tip_table_marker <- function(own, table, arg, row, call) {
+  if (row) {
+    if (!is.null(own) && !identical(own$type, "none")) {
+      tip_marker_abort(
+        c(
+          "{.arg {arg}} has a marker, but a row takes none.",
+          i = "Put the marker on {.arg cells} or {.arg headers}, where a reader can see it."
+        ),
+        class = c("hovercraft_error_marker_table", "hovercraft_error_marker_tag"),
+        call = call
+      )
+    }
+    return(NULL)
+  }
+  marker <- own %||% table
+  if (is.null(marker) || identical(marker$type, "none")) {
+    return(NULL)
+  }
+  if (!identical(marker$type, "corner")) {
+    tip_marker_abort(
+      c(
+        "A table draws only a {.val corner} marker for now, not {.val {marker$type}}.",
+        i = "Use {.code marker = \"corner\"}, or mark the words with {.fn tip_on} outside the table."
+      ),
+      class = c("hovercraft_error_marker_table", "hovercraft_error_marker_type"),
+      call = call
+    )
+  }
+  marker$type
+}
+
 # `x` (cells or headers) as a named list of contents, one per column; entries that are NA or "" are left out.
-tip_table_named <- function(x, arg, columns, header, placement, call) {
+tip_table_named <- function(x, arg, columns, header, placement, call, marker = NULL) {
   if (is.null(x)) {
     return(list())
   }
@@ -155,7 +192,15 @@ tip_table_named <- function(x, arg, columns, header, placement, call) {
     )
   }
   out <- lapply(seq_along(x), function(i) {
-    tip_table_content(x[[i]], paste0(arg, "[[\"", names(x)[[i]], "\"]]"), columns, header, placement, call)
+    tip_table_content(
+      x[[i]],
+      paste0(arg, "[[\"", names(x)[[i]], "\"]]"),
+      columns,
+      header,
+      placement,
+      call,
+      marker = marker
+    )
   })
   names(out) <- names(x)
   out[!vapply(out, is.null, NA)]
@@ -179,6 +224,12 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
   }
+  # The marker layer's attributes (inst/marker/marker.css draws the corner on a table's cell with a background, because
+  # DT keeps a header cell's ::before and ::after for its sort arrows).
+  if (!is.null(content$marker)) {
+    attrs[[tip_marker_attribute()]] <- content$marker
+    attrs[[tip_marker_attribute("in")]] <- "table"
+  }
   ident <- NULL
   if (!is.null(id)) {
     ident <- list(attribute = tip_attribute("id"), base = id, target = target)
@@ -188,7 +239,7 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
   list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields), id = ident)
 }
 
-tip_table_dependencies <- function(widget) {
+tip_table_dependencies <- function(widget, marker = FALSE) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
     version = tip_engine_version(),
@@ -200,7 +251,7 @@ tip_table_dependencies <- function(widget) {
   if (inherits(engine, "html_dependency")) {
     engine <- list(engine)
   }
-  widget$dependencies <- c(widget$dependencies, engine, list(table))
+  widget$dependencies <- c(widget$dependencies, engine, list(table), if (marker) list(tip_marker_dependency()))
   widget
 }
 
@@ -437,6 +488,10 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' @param headers The same for the header cells; words only, so a [tip_spec()] here holds words with no placeholders.
 #' @param placement Where the tips show: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` for the page's
 #'   choice. A [tip_spec()] with its own placement beats it. A cell's tip follows this, not its row's.
+#' @param marker The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:
+#'   `"corner"` (a small triangle in the top corner, as a spreadsheet shows a note), or `NULL` or `"none"` for no
+#'   marker (the default). A [tip_spec()] with its own `marker` beats it. A row takes no marker, and a table draws only
+#'   the corner for now: `"underline"`, `"icon"` and an icon of your own stop with an error. See [tip_marker()].
 #' @param id A Shiny id for this table's tips, the same as [tip_on()]'s `id` will be: one non-empty string with no
 #'   whitespace, so `ns("scores_tips")` works inside a module. Give it a different id from every other tip source on
 #'   the page. With an `id`, every marked row, cell and header cell gets its own tip id derived from it, which follows
@@ -461,10 +516,11 @@ tip_table <- function(
   cells = NULL,
   headers = NULL,
   placement = NULL,
+  marker = NULL,
   id = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("widget", "rows", "cells", "headers", "placement", "id"))
+  tip_check_dots(..., args = c("widget", "rows", "cells", "headers", "placement", "marker", "id"))
   kind <- tip_table_kind(widget)
   if (is.na(kind)) {
     tip_abort(
@@ -481,12 +537,15 @@ tip_table <- function(
   rlang::check_installed(if (kind == "dt") "DT" else "reactable")
   tip_check_placement(placement)
   tip_check_id(id)
+  marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
   plan <- list(
-    rows = if (!is.null(rows)) tip_table_content(rows, "rows", columns, placement = placement, call = call),
-    cells = tip_table_named(cells, "cells", columns, FALSE, placement, call),
-    headers = tip_table_named(headers, "headers", columns, TRUE, placement, call)
+    rows = if (!is.null(rows)) {
+      tip_table_content(rows, "rows", columns, placement = placement, call = call, row = TRUE)
+    },
+    cells = tip_table_named(cells, "cells", columns, FALSE, placement, call, marker),
+    headers = tip_table_named(headers, "headers", columns, TRUE, placement, call, marker)
   )
   if (is.null(plan$rows) && !length(plan$cells) && !length(plan$headers)) {
     tip_abort(
@@ -518,6 +577,17 @@ tip_table <- function(
     )
   )
   plan$defines <- tip_table_defines(c(list(plan$rows), plan$cells, plan$headers))
+  marked <- any(vapply(c(plan$cells, plan$headers), function(content) !is.null(content$marker), NA))
+  if (!is.null(marker) && !marked && !identical(marker$type, "none")) {
+    tip_marker_abort(
+      c(
+        "{.arg marker} has no cell or header cell to mark.",
+        i = "A row takes no marker. Give {.arg cells} or {.arg headers} some words too."
+      ),
+      class = "hovercraft_error_marker_table",
+      call = call
+    )
+  }
   widget <- if (kind == "dt") tip_table_dt(widget, plan, id, call) else tip_table_reactable(widget, plan, call)
-  tip_table_dependencies(widget)
+  tip_table_dependencies(widget, marked)
 }

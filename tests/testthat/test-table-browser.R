@@ -547,3 +547,56 @@ describe("tip_table(id =) and the keyboard with DT's copies of the header", {
     expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
   })
 })
+
+# A table's corner is a background triangle on the cell, so it takes no room and leaves DT's sort arrows (the header
+# cell's ::before and ::after) alone. It must show on cells and header cells of both widgets, and follow the text colour.
+corner <- function(page, selector) {
+  jsonlite::fromJSON(page$evaluate(sprintf(
+    paste0(
+      "(() => { const n = document.querySelector('%s'); const s = getComputedStyle(n);",
+      " return JSON.stringify({ image: s.backgroundImage, color: s.color, size: s.backgroundSize }); })()"
+    ),
+    selector
+  )))
+}
+marked_settings <- list(cells = c(wins = "{{ wins }} wins"), headers = c(wins = "Games won"), marker = "corner")
+
+describe("tip_table(marker =) in a browser", {
+  dt_file <- save_page(
+    do.call(
+      tip_table,
+      c(list(DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2))), marked_settings)
+    )
+  )
+  dt_page <- local_page(dt_file, environment())
+  rt_file <- save_page(do.call(tip_table, c(list(reactable::reactable(scores, defaultPageSize = 2)), marked_settings)))
+  rt_page <- local_page(rt_file, environment())
+
+  it("draws a triangle on a DT cell and header cell, and leaves the sort arrows", {
+    expect_true(dt_page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-marker]').length === 2"))
+    for (selector in c("tbody tr:first-child td:nth-child(2)", "thead th:nth-child(2)")) {
+      got <- corner(dt_page, selector)
+      expect_match(got$image, "linear-gradient", fixed = TRUE)
+      expect_match(got$image, got$color, fixed = TRUE)
+    }
+    expect_identical(corner(dt_page, "tbody tr:first-child td:nth-child(1)")$image, "none")
+    sort_arrow <- "getComputedStyle(document.querySelector('thead th:nth-child(2)'), '::after').content"
+    expect_false(dt_page$evaluate(sprintf("%s === 'none' || %s === 'normal'", sort_arrow, sort_arrow)))
+    expect_identical(dt_page$problems(), character())
+  })
+
+  it("keeps the triangle on the cells after a sort", {
+    dt_page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
+    expect_match(corner(dt_page, "tbody tr:first-child td:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
+  })
+
+  it("draws a triangle on a reactable cell and header cell, and keeps it after a change of page", {
+    expect_true(rt_page$wait_until("document.querySelectorAll('.rt-td[data-hovercraft-marker]').length >= 2"))
+    expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
+    expect_match(corner(rt_page, "[role=columnheader][data-hovercraft-marker]")$image, "linear-gradient", fixed = TRUE)
+    rt_page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
+    rt_page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Hares')")
+    expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
+    expect_identical(rt_page$problems(), character())
+  })
+})

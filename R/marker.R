@@ -55,9 +55,9 @@ new_tip_marker <- function(type, line = NULL, icon = NULL) {
 #' A marker for a tipped tag
 #'
 #' `r lifecycle::badge("experimental")`
-#' Describes the visible cue on a tipped tag, to give as `marker =` to [tip_on()]. For the common cases
-#' `marker = "underline"`, `"icon"` or `"corner"` is enough; use `tip_marker()` to choose the line of an underline or to
-#' give your own icon.
+#' Describes the visible cue on a tipped tag, to give as `marker =` to [tip_on()], [tip_table()] or [tip_spec()]. For
+#' the common cases `marker = "underline"`, `"icon"` or `"corner"` is enough; use `tip_marker()` to choose the line of
+#' an underline or to give your own icon.
 #'
 #' @section The types:
 #' * `"underline"` draws a line under the tag's words. It takes no room, so nothing moves. The line follows the tip
@@ -80,15 +80,15 @@ new_tip_marker <- function(type, line = NULL, icon = NULL) {
 #' such as a `div` of other tags, has nothing to underline and stops with an error: put the marker on the tag that holds
 #' the words, or use `"corner"` or `"icon"`.
 #'
-#' @param type The kind of marker: `"underline"`, `"icon"`, `"corner"` or `"none"`.
+#' @param type The kind of marker: `"underline"`, `"icon"`, `"corner"` or `"none"`. A table draws only `"corner"`.
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param line Only for `type = "underline"`: `"dotted"`, `"dashed"` or `"wavy"`, or `NULL` (the default) to follow the
 #'   tip preset in use. `"wavy"` is a long gentle wave in the text's own colour, not the browser's short zigzag.
 #' @param icon Only for `type = "icon"`: an icon as a tag, such as `fontawesome::fa()` or `bsicons::bs_icon()`, or
 #'   `NULL` (the default) for the built-in one. It is added to the tag as a child that a screen reader skips.
 #'
-#' @returns A `hovercraft_marker` object, to give as `marker =` to [tip_on()]. Its fields are internal; pass the object
-#'   on.
+#' @returns A `hovercraft_marker` object, to give as `marker =` to [tip_on()], [tip_table()] or [tip_spec()]. Its
+#'   fields are internal; pass the object on.
 #' @family tooltips
 #' @examples
 #' tip_marker("underline")

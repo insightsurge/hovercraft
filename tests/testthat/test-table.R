@@ -362,7 +362,6 @@ describe("tip_spec()", {
     expect_error(tip_spec("x", placement = "above"), "placement", class = "hovercraft_error_argument")
     expect_error(tip_spec("x", plcement = "right"), class = "hovercraft_error_argument")
     expect_error(tip_spec("x", style = "dense"), class = "hovercraft_error_argument")
-    expect_error(tip_spec("x", marker = "corner"), class = "hovercraft_error_argument")
   })
 })
 
@@ -472,5 +471,91 @@ describe("tip_spec() in tip_table()", {
       class = "hovercraft_error_argument"
     )
     expect_error(tip_table(dt(), headers = tip_spec("x")), class = "hovercraft_error_argument")
+  })
+})
+
+describe("tip_table(marker =)", {
+  marker_attr <- function(key = NULL) {
+    paste0("data-", tip_names()$prefix, "-marker", if (!is.null(key)) paste0("-", key))
+  }
+  # What the layer is told to write on each kind of target of a DT table.
+  cell_spec <- function(got) {
+    cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    js(cells[[1]]$createdCell)
+  }
+  has_marker_dep <- function(widget) "hovercraft-marker" %in% vapply(widget$dependencies, function(d) d$name, "")
+
+  it("writes the corner and its table flag on the cells and header cells that have a tip, and adds the stylesheet", {
+    got <- tip_table(dt(), cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"), marker = "corner")
+    expect_match(cell_spec(got), sprintf("\"%s\":\"corner\"", marker_attr()), fixed = TRUE)
+    expect_match(cell_spec(got), sprintf("\"%s\":\"table\"", marker_attr("in")), fixed = TRUE)
+    expect_match(js(got$x$options$initComplete), sprintf("\"%s\":\"corner\"", marker_attr()), fixed = TRUE)
+    expect_true(has_marker_dep(got))
+  })
+
+  it("marks a reactable table's cells and header cells the same way", {
+    got <- tip_table(rt(), cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"), marker = "corner")
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$cells[["1"]]$attrs[[marker_attr()]], "corner")
+    expect_identical(cfg$cells[["1"]]$attrs[[marker_attr("in")]], "table")
+    expect_identical(cfg$headers[["2"]]$attrs[[marker_attr()]], "corner")
+    expect_true(has_marker_dep(got))
+  })
+
+  it("writes nothing and adds no stylesheet when there is no marker, or the marker is none", {
+    for (marker in list(NULL, "none", tip_marker("none"))) {
+      got <- tip_table(dt(), cells = c(wins = "{{ wins }}"), marker = marker)
+      expect_no_match(cell_spec(got), "marker", fixed = TRUE)
+      expect_false(has_marker_dep(got))
+    }
+  })
+
+  it("never marks a row, even when the table has a marker", {
+    got <- tip_table(dt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"), marker = "corner")
+    expect_no_match(js(got$x$options$createdRow), "marker", fixed = TRUE)
+    expect_match(cell_spec(got), "marker", fixed = TRUE)
+  })
+
+  it("lets a spec's own marker beat the table's, and none take it off", {
+    got <- tip_table(
+      dt(),
+      cells = list(wins = tip_spec("{{ wins }}", marker = "none"), losses = "{{ losses }}", note = tip_spec("x")),
+      marker = "corner"
+    )
+    defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
+    marked <- vapply(defs, function(def) grepl("marker", js(def$createdCell), fixed = TRUE), NA)
+    expect_identical(unname(marked), c(FALSE, TRUE, TRUE))
+    only <- tip_table(dt(), cells = list(wins = tip_spec("{{ wins }}", marker = "corner"), losses = "{{ losses }}"))
+    marked <- vapply(
+      Filter(function(def) !is.null(def$createdCell), only$x$options$columnDefs),
+      function(def) grepl("marker", js(def$createdCell), fixed = TRUE),
+      NA
+    )
+    expect_identical(marked, c(TRUE, FALSE))
+  })
+
+  it("stops on a marker a table cannot draw yet, and on a marker that has nothing to mark", {
+    expect_error(
+      tip_table(dt(), cells = c(wins = "x"), marker = "underline"),
+      class = "hovercraft_error_marker_table"
+    )
+    expect_error(tip_table(dt(), cells = c(wins = "x"), marker = "icon"), class = "hovercraft_error_marker_table")
+    expect_error(
+      tip_table(dt(), cells = list(wins = tip_spec("x", marker = tip_marker("icon", icon = htmltools::tags$b("?"))))),
+      class = "hovercraft_error_marker_table"
+    )
+    expect_error(
+      tip_table(dt(), rows = tip_spec("{{ team }}", marker = "corner")),
+      class = "hovercraft_error_marker_table"
+    )
+    expect_error(tip_table(dt(), rows = "{{ team }}", marker = "corner"), class = "hovercraft_error_marker_table")
+    expect_error(tip_table(dt(), cells = c(wins = "x"), marker = "dotted"), class = "hovercraft_error_marker_type")
+    expect_error(tip_table(dt(), cells = c(wins = "x"), marker = 1), class = "hovercraft_error_marker_type")
+  })
+
+  it("lets tip_spec() keep a marker, and refuses a misspelt one", {
+    expect_identical(tip_spec("x", marker = "corner")$marker$type, "corner")
+    expect_null(tip_spec("x")$marker)
+    expect_error(tip_spec("x", marker = "cornr"), class = "hovercraft_error_marker_type")
   })
 })
