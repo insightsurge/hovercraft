@@ -240,9 +240,6 @@ tip_more_template_dep <- function(template) {
 
 # Checks fields named by a `more` template against `record`, matching tip_check_use().
 tip_check_more_fields <- function(fields, held, id, call) {
-  if (!length(fields)) {
-    return(invisible())
-  }
   engine <- unlist(tip_rules()$engine_fields)
   if ("tip_index" %in% fields && !"tip_index" %in% held) {
     tip_abort(
