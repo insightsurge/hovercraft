@@ -143,6 +143,17 @@ describe("tip_table() on a DT table", {
     expect_true(all(grepl("^table_[a-f0-9]{12}$", names(hook$data$defines))))
   })
 
+  it("hands the layer the engine's kind attribute and description class, for the keyboard and for stale descriptions", {
+    cfg <- tip_table(dt(), rows = "{{ team }}")$jsHooks$render[[1]]$data
+    expect_identical(cfg$kind, tip_attribute("kind"))
+    expect_identical(cfg$desc, paste0(tip_names()$css, "-desc"))
+    expect_match(
+      js(tip_table(dt(), rows = "x")$jsHooks$render[[1]]$code),
+      "HovercraftTable.keyboard(el, cfg.kind)",
+      fixed = TRUE
+    )
+  })
+
   it("gives the same template the same name, so one text is defined once", {
     got <- tip_table(dt(), rows = "Same", cells = c(wins = "Same", losses = "Same"))
     expect_length(got$jsHooks$render[[1]]$data$defines, 1L)
@@ -240,6 +251,13 @@ describe("tip_table() on a reactable table", {
     expect_identical(cfg$headers[["2"]]$id$column, 3L)
     expect_identical(cfg$headers[["2"]]$id$target, "header")
     expect_null(tip_table(rt(), rows = "{{ team }}")$jsHooks$render[[1]]$data$rows$id)
+  })
+
+  it("hands the layer the kind attribute, the description class and the keyboard call", {
+    got <- tip_table(rt(), rows = "{{ team }}")
+    expect_identical(got$jsHooks$render[[1]]$data$kind, tip_attribute("kind"))
+    expect_identical(got$jsHooks$render[[1]]$data$desc, paste0(tip_names()$css, "-desc"))
+    expect_match(js(got$jsHooks$render[[1]]$code), "HovercraftTable.keyboard(el, cfg.kind)", fixed = TRUE)
   })
 
   it("attaches the engine and the layer", {

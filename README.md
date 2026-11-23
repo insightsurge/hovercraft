@@ -64,7 +64,8 @@ The tags work in a bslib page, in a plain Shiny page and in output made later wi
 A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a `div`) gives a
 keyboard user no way to its tip. `tip_on()` says so once. It never adds a tab stop itself, because a table of 3,000 rows
 would become 3,000 Tab stops; give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a
-link.
+link. The rows, cells and headers of a `DT::datatable()` or `reactable::reactable()` table are the exception: `tip_table()` gives the table one tab
+stop and moves between them with the arrow keys.
 
 ## Themes
 

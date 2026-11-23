@@ -20,33 +20,78 @@
     return id.target === 'row' ? `${id.base}/row/${row}` : `${id.base}/cell/${row}/${id.column}`;
   };
 
+  // The elements this layer gave a `tabindex` (see `keyboard` below), so it can take it back.
+  const given = new WeakSet();
+
+  // The engine's class for the hidden description it adds inside a tagged element (and the element's
+  // `aria-describedby` points at). Set by `define`.
+  let descClass = null;
+
+  // Takes away the descriptions the engine added to an element. Widgets that reuse an element for another row (React in
+  // reactable) leave a description that still says the old row's tip; once gone, the engine writes a fresh one.
+  const forget = (el) => {
+    const ids = (el.getAttribute('aria-describedby') ?? '').split(/\s+/).filter(Boolean);
+    if (!descClass || !ids.length) return;
+    const keep = ids.filter((id) => {
+      const node = el.ownerDocument.getElementById(id);
+      if (!node?.classList.contains(descClass) || !el.contains(node)) return true;
+      node.remove();
+      return false;
+    });
+    if (keep.length) el.setAttribute('aria-describedby', keep.join(' '));
+    else el.removeAttribute('aria-describedby');
+  };
+
   const unmark = (el, spec) => {
+    forget(el);
+    const was = el.hasAttribute(spec.record) || el.hasAttribute(Object.keys(spec.attrs)[0]);
     for (const name of Object.keys(spec.attrs)) el.removeAttribute(name);
     el.removeAttribute(spec.record);
     if (spec.id) el.removeAttribute(spec.id.attribute);
+    if (given.has(el)) {
+      el.removeAttribute('tabindex');
+      given.delete(el);
+    }
+    return was;
   };
 
-  // `row` is the 1-based data row of a row or cell, or null (a header cell has none).
+  // Sets an attribute only when it differs, and says whether it did.
+  const put = (el, name, value) => {
+    if (el.getAttribute(name) === value) return false;
+    el.setAttribute(name, value);
+    return true;
+  };
+
+  // Tags the element for one tip and says whether anything changed. `row` is the 1-based data row of a row or cell, or
+  // null (a header cell has none).
   const mark = (el, spec, record, row) => {
-    if (!el || !spec) return;
-    if (blank(spec, record)) {
-      unmark(el, spec);
-      return;
-    }
-    for (const [name, value] of Object.entries(spec.attrs)) {
-      if (el.getAttribute(name) !== value) el.setAttribute(name, value);
-    }
+    if (!el || !spec) return false;
+    if (blank(spec, record)) return unmark(el, spec);
+    let changed = false;
+    for (const [name, value] of Object.entries(spec.attrs)) changed = put(el, name, value) || changed;
+    const before = el.getAttribute(spec.record);
     if (spec.id) {
       const id = identity(spec, row);
       if (id === null) el.removeAttribute(spec.id.attribute);
-      else if (el.getAttribute(spec.id.attribute) !== id) el.setAttribute(spec.id.attribute, id);
+      else changed = put(el, spec.id.attribute, id) || changed;
     }
-    if (typeof record === 'string' && record !== '') {
-      if (el.getAttribute(spec.record) !== record) el.setAttribute(spec.record, record);
-    } else el.removeAttribute(spec.record);
+    if (typeof record === 'string' && record !== '') changed = put(el, spec.record, record) || changed;
+    else el.removeAttribute(spec.record);
+    if (changed && before !== null) forget(el);
+    return changed;
   };
 
-  const define = (defines) => {
+  // The engine describes a tagged element to a screen reader when elements are added to the page, and reactable's
+  // arrive before this layer tags them. Adding and removing a node tells the engine to look again; it describes only
+  // what it has not described yet. Only called when something was newly tagged, so it ends after one round.
+  const describeAgain = (el) => {
+    const node = el.ownerDocument.createComment('');
+    el.append(node);
+    node.remove();
+  };
+
+  const define = (defines, desc) => {
+    if (desc) descClass = desc;
     for (const [name, blocks] of Object.entries(defines ?? {})) window.Hovercraft?.define(name, JSON.parse(blocks));
   };
 
@@ -68,20 +113,22 @@
       return hit ? [Number(hit[1]), hit[2] === undefined ? null : Number(hit[2])] : null;
     };
     const apply = () => {
+      let changed = false;
       for (const node of el.querySelectorAll('[class*="hovercraft-row-"]')) {
         const at = pick(node, 'row');
-        if (at && cfg.rows) mark(node, cfg.rows, cfg.records[at[0]] ?? null, at[0] + 1);
+        if (at && cfg.rows) changed = mark(node, cfg.rows, cfg.records[at[0]] ?? null, at[0] + 1) || changed;
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-cell-"]')) {
         const at = pick(node, 'cell');
         const spec = at && cfg.cells[at[0]];
-        if (spec) mark(node, spec, cfg.records[at[1]] ?? null, at[1] + 1);
+        if (spec) changed = mark(node, spec, cfg.records[at[1]] ?? null, at[1] + 1) || changed;
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-head-"]')) {
         const at = pick(node, 'head');
         const spec = at && cfg.headers[at[0]];
-        if (spec) mark(node, spec, null, null);
+        if (spec) changed = mark(node, spec, null, null) || changed;
       }
+      if (changed) describeAgain(el);
     };
     let queued = false;
     const later = () => {
@@ -101,5 +148,80 @@
     apply();
   };
 
-  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable });
+  // Keyboard reach. A row, a cell or a header cell is not focusable by itself, so each tagged one gets `tabindex="-1"`
+  // and the table gets one tab stop (a roving `tabindex="0"`). Arrow keys move between the tagged elements: left and
+  // right inside a row (the row itself first, then its tagged cells), up and down between rows, to the same column;
+  // Home and End go to the ends of the row, with Ctrl to the ends of the table. The engine shows a tip for an element
+  // that takes focus from the keyboard. An element the widget made focusable itself (DT's sortable headers) keeps
+  // its own `tabindex`; it can still be reached with the arrow keys.
+  const keyboard = (root, kind) => {
+    const STOP = `[${kind}^="table_"]`;
+    const ROW = 'tr, [role="row"]';
+    let current = null;
+    const stops = () => [...root.querySelectorAll(STOP)];
+    const owned = (n) => !n.hasAttribute('tabindex') || given.has(n);
+
+    const settle = () => {
+      const all = stops();
+      if (!current?.isConnected || !given.has(current) || !root.contains(current)) {
+        current = all.find(owned) ?? null;
+      }
+      for (const n of all) {
+        if (!owned(n)) continue;
+        given.add(n);
+        put(n, 'tabindex', n === current ? '0' : '-1');
+      }
+    };
+
+    const rowOf = (n) => (n.matches(ROW) ? n : n.closest(ROW));
+    const column = (n) => (n.matches(ROW) ? -1 : Array.prototype.indexOf.call(n.parentElement.children, n));
+    const near = (list, key) =>
+      list.find((n) => column(n) === key) ??
+      list.reduce((best, n) => (Math.abs(column(n) - key) < Math.abs(column(best) - key) ? n : best));
+
+    const target = (from, key, ctrl) => {
+      const all = stops();
+      const rows = [...new Set(all.map(rowOf))];
+      const here = all.filter((n) => rowOf(n) === rowOf(from));
+      const at = here.indexOf(from);
+      const across = (list) => list[key === 'End' ? list.length - 1 : 0];
+      if (key === 'ArrowRight') return here[at + 1];
+      if (key === 'ArrowLeft') return here[at - 1];
+      if (key === 'Home' || key === 'End') return across(ctrl ? all : here);
+      const to = rows[rows.indexOf(rowOf(from)) + (key === 'ArrowDown' ? 1 : -1)];
+      return to
+        ? near(
+            all.filter((n) => rowOf(n) === to),
+            column(from),
+          )
+        : undefined;
+    };
+
+    const KEYS = new Set(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End']);
+    root.addEventListener('keydown', (e) => {
+      const from = e.target;
+      if (!KEYS.has(e.key) || e.altKey || e.metaKey || e.shiftKey || e.isComposing || !from.matches?.(STOP)) return;
+      if (e.ctrlKey && e.key !== 'Home' && e.key !== 'End') return;
+      e.preventDefault();
+      target(from, e.key, e.ctrlKey)?.focus();
+    });
+    root.addEventListener('focusin', (e) => {
+      if (given.has(e.target) && e.target !== current) {
+        current = e.target;
+        settle();
+      }
+    });
+    let queued = false;
+    new MutationObserver(() => {
+      if (queued) return;
+      queued = true;
+      requestAnimationFrame(() => {
+        queued = false;
+        settle();
+      });
+    }).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: [kind] });
+    settle();
+  };
+
+  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard });
 })();

@@ -18,6 +18,9 @@ tip_attribute <- function(key) {
   paste0(tip_names()$attribute, tip_rules()$pin$attributes[[key]])
 }
 
+# The engine's class for the hidden description it adds inside a tagged element.
+tip_description_class <- function() paste0(tip_names()$css, "-desc")
+
 tip_table_kind <- function(widget) {
   if (inherits(widget, "datatables")) {
     "dt"
@@ -296,8 +299,8 @@ tip_table_dt <- function(widget, plan, id, call) {
   widget$x <- x
   tip_table_on_render(
     widget,
-    "function(el, x, cfg) { HovercraftTable.define(cfg.defines); }",
-    list(defines = plan$defines)
+    "function(el, x, cfg) { HovercraftTable.define(cfg.defines, cfg.desc); HovercraftTable.keyboard(el, cfg.kind); }",
+    list(defines = plan$defines, kind = tip_attribute("kind"), desc = tip_description_class())
   )
 }
 
@@ -363,11 +366,19 @@ tip_table_reactable <- function(widget, plan, call) {
     cells = cells,
     headers = heads,
     records = as.list(tip_table_records(data, fields, call)),
-    defines = plan$defines
+    defines = plan$defines,
+    kind = tip_attribute("kind"),
+    desc = tip_description_class()
   )
   tip_table_on_render(
     widget,
-    "function(el, x, cfg) { HovercraftTable.define(cfg.defines); HovercraftTable.reactable(el, cfg); }",
+    paste(
+      "function(el, x, cfg) {",
+      "HovercraftTable.define(cfg.defines, cfg.desc);",
+      "HovercraftTable.reactable(el, cfg);",
+      "HovercraftTable.keyboard(el, cfg.kind);",
+      "}"
+    ),
     cfg
   )
 }
@@ -388,14 +399,37 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
 #' so it takes words only.
 #'
-#' Tips show where the pointer rests: **pointer only, no keyboard reach yet.** A table row or cell cannot take keyboard
-#' focus, and `tip_table()` never adds a tab stop. A click on a row selects it in both widgets, so a row's tip does
-#' not pin on click.
+#' Tips also show for the keyboard. A row, a cell or a header cell cannot take focus by itself, so `tip_table()` gives
+#' the table one tab stop, and the arrow keys move between the rows, cells and header cells that have a tip: left and
+#' right inside a row (the row first, then its cells), up and down between rows to the same column, Home and End to the
+#' ends of the row, and Ctrl with Home or End to the ends of the table. The tip shows for what has focus. A header that
+#' its widget already makes focusable (the sortable headers of `DT`) keeps its own tab stop. Enter and Space do not
+#' select a row. A click on a row selects it in both widgets, so a row's tip does not pin on click.
+#'
+#' What works, each checked in a browser:
+#' * `DT`, in client mode and in server mode under Shiny, with `scrollX`, `scrollY`, `fixedHeader`, `colReorder` and
+#'   `responsive`. With `responsive`, a column folded into the details row has no tip there; the row's tip is
+#'   unchanged.
+#' * `reactable`, with sorting, filtering, paging, row selection (a click selects the row and its tip stays),
+#'   `groupBy` (the rows inside a group have tips, the group's own row has none) and `details` (the details panel has
+#'   none).
+#' * An `id` made by [shiny::NS()] inside a module.
+#'
+#' Not supported: a `DT` table with its own `createdRow` or `initComplete` option, or with a header of more than one
+#' row; a `reactable` column whose `headerClass` is a JavaScript function; any other widget.
+#'
+#' Large tables, measured on one laptop with a tip on every row, one column of cells and one header: building the tips
+#' in R takes about 0.2 seconds per 1,000 rows, and the page grows by about 70 bytes per row. A paged table barely
+#' notices (50,000 rows: 0.7 seconds to 0.9 seconds to draw in `DT`, 0.09 seconds to 0.12 seconds in `reactable`). A
+#' table with every row drawn at once is slower: 5,000 rows took 0.13 seconds without tips and 4.6 seconds with them in
+#' `DT` (0.23 seconds when only the rows have a tip), and 1.0 seconds to 1.3 seconds in `reactable`. Page a large `DT`
+#' table, or tip its rows only.
 #'
 #' Give `tip_table()` the finished widget, last in the pipe or at least after the columns are settled.
-#' `DT::datatable()` gets one hidden column that holds each row's record (a table with a header of more than one row,
-#' or with its own `createdRow` or `initComplete` option, is refused for now). `reactable::reactable()` gets its own
-#' `rowClass`, `class` and `headerClass` added to yours. Only the columns a tip names are written to the page.
+#' `DT::datatable()` gets one hidden column that holds each row's record, and with an `id` a second one for its data
+#' row number (a table with a header of more than one row, or with its own `createdRow` or `initComplete` option, is
+#' refused for now). `reactable::reactable()` gets its own `rowClass`, `class` and `headerClass` added to yours.
+#' Only the columns a tip names are written to the page.
 #'
 #' @param widget A table made by `DT::datatable()` or by `reactable::reactable()`.
 #' @param ... Must be empty. It makes a misspelt argument an error.
