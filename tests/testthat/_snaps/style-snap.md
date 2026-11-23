@@ -73,6 +73,60 @@
       ! `class` has "hc-tip-wide", which starts with "hc-tip".
       i The tip's own classes use that start; choose another name.
 
+# the style errors / say a size is outside the engine's range, and which range
+
+    Code
+      tip_style(gap = 30)
+    Condition
+      Error in `tip_style()`:
+      ! `gap` is 30, which is not a whole number from 0 to 24.
+      i Px between item and tip; with an arrow, five px more for its point.
+
+---
+
+    Code
+      tip_style(max_width = 100)
+    Condition
+      Error in `tip_style()`:
+      ! `max_width` is 100, which is not a whole number from 160 to 640.
+      i Maximum width of a hint in px; still capped at the window less sixteen px.
+
+---
+
+    Code
+      tip_style(pin_width = 300.5)
+    Condition
+      Error in `tip_style()`:
+      ! `pin_width` is 300.5, which is not a whole number from 240 to 720.
+      i Maximum width of a pinned tip in px (and the fixed width of a tip with a host slot or row group); capped at the window less sixteen px.
+
+---
+
+    Code
+      tip_style(gap = "wide")
+    Condition
+      Error in `tip_style()`:
+      ! `gap` is not right: Must be of type 'number', not 'character'
+      i Give one whole number from 0 to 24 (px), or `NULL`.
+
+# the style errors / say a motion is not one of the choices, and the close one
+
+    Code
+      tip_style(motion = "slid")
+    Condition
+      Error in `tip_style()`:
+      ! `motion` is "slid", which is not a motion.
+      i The choices are "fade", "slide", "none". Did you mean "slide"?
+
+---
+
+    Code
+      tip_style(motion = "bounce")
+    Condition
+      Error in `tip_style()`:
+      ! `motion` is "bounce", which is not a motion.
+      i The choices are "fade", "slide", "none".
+
 # the style errors / say ... must be empty
 
     Code
@@ -81,7 +135,17 @@
       Error in `tip_style()`:
       ! `...` must be empty.
       x Not an argument: "themee".
-      i The arguments are `preset`, `theme`, and `class`.
+      i The arguments are `preset`, `theme`, `class`, `motion`, `gap`, `max_width`, and `pin_width`.
+
+---
+
+    Code
+      tip_style(delay = 300)
+    Condition
+      Error in `tip_style()`:
+      ! `...` must be empty.
+      x Not an argument: "delay".
+      i The arguments are `preset`, `theme`, `class`, `motion`, `gap`, `max_width`, and `pin_width`.
 
 # the style errors / print a style
 
@@ -96,4 +160,11 @@
       tip_style()
     Output
       tip_style()
+
+---
+
+    Code
+      tip_style("modern", motion = "slide", gap = 12, max_width = 280, pin_width = 500)
+    Output
+      tip_style("modern", motion = "slide", gap = 12, max_width = 280, pin_width = 500)
 

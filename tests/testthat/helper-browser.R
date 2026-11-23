@@ -106,8 +106,14 @@ local_page <- function(html_file, env = parent.frame()) {
     Sys.sleep(0.7)
     shown()
   }
+  # Emulates a media feature of the reader, such as `emulate("prefers-reduced-motion", "reduce")`.
+  emulate <- function(feature, value) {
+    session$Emulation$setEmulatedMedia(features = list(list(name = feature, value = value)))
+    invisible()
+  }
   list(
     evaluate = evaluate,
+    emulate = emulate,
     wait_until = wait_until,
     hover = hover,
     click = click,
