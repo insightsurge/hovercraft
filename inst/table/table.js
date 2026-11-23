@@ -10,12 +10,24 @@
     return spec.needs.every((field) => row[field] === null || row[field] === undefined || row[field] === '');
   };
 
+  // The derived tip id of one element, or null: R sends the base `id`, the target and the data column in `spec.id`
+  // (only when the table has an id); `row` is the 1-based data row. The format is this layer's own.
+  const identity = (spec, row) => {
+    const id = spec.id;
+    if (!id) return null;
+    if (id.target === 'header') return `${id.base}/header/${id.column}`;
+    if (typeof row !== 'number' || !Number.isFinite(row)) return null;
+    return id.target === 'row' ? `${id.base}/row/${row}` : `${id.base}/cell/${row}/${id.column}`;
+  };
+
   const unmark = (el, spec) => {
     for (const name of Object.keys(spec.attrs)) el.removeAttribute(name);
     el.removeAttribute(spec.record);
+    if (spec.id) el.removeAttribute(spec.id.attribute);
   };
 
-  const mark = (el, spec, record) => {
+  // `row` is the 1-based data row of a row or cell, or null (a header cell has none).
+  const mark = (el, spec, record, row) => {
     if (!el || !spec) return;
     if (blank(spec, record)) {
       unmark(el, spec);
@@ -23,6 +35,11 @@
     }
     for (const [name, value] of Object.entries(spec.attrs)) {
       if (el.getAttribute(name) !== value) el.setAttribute(name, value);
+    }
+    if (spec.id) {
+      const id = identity(spec, row);
+      if (id === null) el.removeAttribute(spec.id.attribute);
+      else if (el.getAttribute(spec.id.attribute) !== id) el.setAttribute(spec.id.attribute, id);
     }
     if (typeof record === 'string' && record !== '') {
       if (el.getAttribute(spec.record) !== record) el.setAttribute(spec.record, record);
@@ -36,7 +53,7 @@
   // DT: the row and cell callbacks R writes into the table's options call `mark` with the row's data; the header cells
   // are marked once the table exists, because DT draws them from the table's own HTML.
   const headers = (api, specs) => {
-    for (const [index, spec] of Object.entries(specs)) mark(api.column(Number(index)).header(), spec, null);
+    for (const [index, spec] of Object.entries(specs)) mark(api.column(Number(index)).header(), spec, null, null);
   };
 
   // reactable keeps no row data in the page, so R puts a class on each row, cell and header cell (its own `rowClass`,
@@ -53,17 +70,17 @@
     const apply = () => {
       for (const node of el.querySelectorAll('[class*="hovercraft-row-"]')) {
         const at = pick(node, 'row');
-        if (at && cfg.rows) mark(node, cfg.rows, cfg.records[at[0]] ?? null);
+        if (at && cfg.rows) mark(node, cfg.rows, cfg.records[at[0]] ?? null, at[0] + 1);
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-cell-"]')) {
         const at = pick(node, 'cell');
         const spec = at && cfg.cells[at[0]];
-        if (spec) mark(node, spec, cfg.records[at[1]] ?? null);
+        if (spec) mark(node, spec, cfg.records[at[1]] ?? null, at[1] + 1);
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-head-"]')) {
         const at = pick(node, 'head');
         const spec = at && cfg.headers[at[0]];
-        if (spec) mark(node, spec, null);
+        if (spec) mark(node, spec, null, null);
       }
     };
     let queued = false;

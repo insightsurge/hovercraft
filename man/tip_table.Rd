@@ -19,18 +19,23 @@ tip_table(
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{rows}{One string or \code{\link[=tip_template]{tip_template()}} for every row, or \code{NULL}. \code{NA} and \code{""} are no tip.}
+\item{rows}{One string, \code{\link[=tip_template]{tip_template()}} or \code{\link[=tip_spec]{tip_spec()}} for every row, or \code{NULL}. \code{NA} and \code{""} are no tip.}
 
-\item{cells}{A named vector or list, one entry per column, for the cells of that column. Each entry is a string or a
-\code{\link[=tip_template]{tip_template()}}; \code{NA} and \code{""} give that column no tip.}
+\item{cells}{A named vector or list, one entry per column, for the cells of that column. Each entry is a string, a
+\code{\link[=tip_template]{tip_template()}} or a \code{\link[=tip_spec]{tip_spec()}}; \code{NA} and \code{""} give that column no tip. Use a list to mix them:
+\code{list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")}.}
 
-\item{headers}{The same for the header cells; words only.}
+\item{headers}{The same for the header cells; words only, so a \code{\link[=tip_spec]{tip_spec()}} here holds words with no placeholders.}
 
 \item{placement}{Where the tips show: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} for the page's
-choice.}
+choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A cell's tip follows this, not its row's.}
 
-\item{id}{A name for this table's tips (lower-case words joined with \verb{_}), written as the tip's kind, which the
-engine's events will carry, or \code{NULL}.}
+\item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
+whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
+the page. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it, which follows
+the data row through sorting, filtering and paging; how that id is built is not part of the API. \code{NULL} gives the
+tips no id. The engine's kind of the tips is not yours to set: \code{tip_table()} writes \code{table_row}, \code{table_cell} and
+\code{table_header}.}
 }
 \value{
 The widget, with the tips added.
@@ -43,7 +48,8 @@ optionally a tip of their own to chosen cells and header cells. The tips follow 
 and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 }
 \details{
-A cell's tip wins over its row's, and a row's tip opens at the pointer. A tip is made of words (markdown) with
+A cell's tip wins over its row's, and a row's tip opens at the pointer. A target that needs its own settings (for now
+only a placement) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown) with
 \code{{{ column }}} placeholders, or of a \code{\link[=tip_template]{tip_template()}}; every placeholder is checked against the table's columns, and
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
 so it takes words only.
@@ -73,6 +79,7 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}
 }

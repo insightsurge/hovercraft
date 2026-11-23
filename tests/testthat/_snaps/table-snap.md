@@ -62,3 +62,39 @@
       ! There is no tip to put on the table.
       i Give `rows`, `cells` or `headers` some words.
 
+# the tip_table() errors / say what an id and a spec must be
+
+    Code
+      tip_table(dt(), rows = "x", id = "two words")
+    Condition
+      Error in `tip_table()`:
+      ! `id` is not right: Must be one non-empty string without whitespace.
+      i Give one non-empty string with no spaces, such as `ns("scores")`, or `NULL`.
+
+---
+
+    Code
+      tip_table(dt(), cells = tip_spec("x"))
+    Condition
+      Error in `tip_table()`:
+      ! `cells` must be a named vector or list, one entry per column.
+      i For example `cells = c(team = "words")`, or `cells = list(team = tip_spec("words"))`.
+
+---
+
+    Code
+      tip_spec(1)
+    Condition
+      Error in `tip_spec()`:
+      ! `content` must be a string or a `tip_template()`, not a number.
+      i Give the words of the tip, or `NA` for no tip.
+
+---
+
+    Code
+      tip_spec("x", placement = "above")
+    Condition
+      Error in `tip_spec()`:
+      ! `placement` is not right: Must be element of set {'auto','top','bottom','left','right'}, but is 'above'
+      i Give one of "auto", "top", "bottom", "left", "right", or `NULL`.
+

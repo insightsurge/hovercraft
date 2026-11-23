@@ -23,6 +23,7 @@ reference:
   - title: Tips on tables (experimental)
     contents:
       - tip_table
+      - tip_spec
   - title: Templates
     contents:
       - tip_define
