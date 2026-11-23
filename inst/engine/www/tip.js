@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.51.0, built from its source; do not edit.
+// hovercraft tip engine 0.52.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.51.0';
+  const VERSION = '0.52.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -885,6 +885,7 @@
       classAdded.delete(box);
     }
     const OPEN_ATTR = `${NAMES.attr}-open`;
+    const PART = `[${NAMES.attr}-part]`;
     function markOpen(el, kind) {
       if (el?.nodeType === 1 && el.getAttribute(OPEN_ATTR) !== kind) el.setAttribute(OPEN_ATTR, kind);
     }
@@ -2283,7 +2284,7 @@
       const marks = new Map();
       if (content.label) stage.append(el(doc, 'div', `${CSS}-title`, content.label));
       if (!content.blocks.length && content.reason) {
-        stage.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+        stage.append(el(doc, 'div', `${CSS}-line ${CSS}-reason`, reasonWords(content)));
         box.replaceChildren(...stage.childNodes);
         return;
       }
@@ -2390,8 +2391,9 @@
       }
       drawn.set(box, kept);
       if (!pinned && form.label) stage.append(cueNode(doc, content.labels[form.label]));
-      if (content.reason) stage.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+      if (content.reason) stage.append(el(doc, 'div', `${CSS}-line ${CSS}-reason`, reasonWords(content)));
       refill(box, stage, marks);
+      if (!pinned) for (const n of box.querySelectorAll(PRESS)) n.tabIndex = -1;
       if (kept.length || box.querySelector(`.${CSS}-group[data-direction="row"]`)) box.classList.add(`${CSS}-wide`);
     }
     function refill(box, stage, marks) {
@@ -2506,6 +2508,7 @@
       if (!pages.has(doc)) pages.set(doc, { hint: null, pin: null, keys: false, skip: false, skipTimer: 0 });
       return pages.get(doc);
     }
+    const PRESS = 'button, a[href], summary, [role="button"]';
     const focusables = (box) => [...box.querySelectorAll('button, a[href]')].filter((n) => !n.hidden && !n.disabled);
     const stopsOff = (box) => {
       for (const n of focusables(box)) if (n.tabIndex !== -1) n.tabIndex = -1;
@@ -2626,8 +2629,10 @@
       const page = pageOf(doc);
       const owner = root ?? host?.root ?? box;
       const kit = boxesOf(doc);
-      const pinsAt = (n) => (typeof pin === 'function' ? pin(n) : pin) === true;
+      const pinHow = (n) => (typeof pin === 'function' ? pin(n) : pin);
+      const pinsAt = (n) => pinHow(n) === true || pinHow(n) === 'manual';
       const canPin = (n) => !disabledAt(n) && pinsAt(n);
+      const partOf = (t) => t?.closest?.(PART) ?? null;
       const sideOf = () => (typeof side === 'function' ? side() : side);
       let timer = 0;
       let leave = 0;
@@ -3078,7 +3083,7 @@
         inHint = true;
       };
       const hintOut = (e) => {
-        if (page.hint?.handle !== handle || kit.hint.contains(e.relatedTarget)) return;
+        if (page.hint?.handle !== handle || kit.hint.contains(e.relatedTarget) || partOf(e.relatedTarget)) return;
         if (e.pointerType === 'touch' || page.hint.how === 'tap') return;
         const n = page.hint.anchor;
         if (n.contains(e.relatedTarget) || anchorOf(n).contains(e.relatedTarget)) return;
@@ -3103,16 +3108,19 @@
         }
         leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
       };
+      const hintDown = (e) => {
+        if (e.target.closest?.(PRESS)) e.preventDefault();
+      };
       const focus = (e) => {
         const n = itemAt(e.target);
         const stop = typeof focusAt !== 'function' || (n && e.target === focusOf(n));
         if (n && stop && e.target.matches(':focus-visible')) soon(n, 'focus');
-        else if (!n) hideHint(true, closeWhy('blur', 'focus'));
+        else if (!n && !partOf(e.target)) hideHint(true, closeWhy('blur', 'focus'));
       };
       const blur = (e) => {
         clearTimeout(timer);
         if (page.hint?.handle !== handle) return;
-        if (kit.hint.contains(e.relatedTarget) || inHint) return;
+        if (kit.hint.contains(e.relatedTarget) || partOf(e.relatedTarget) || inHint) return;
         if (hovered && page.hint.how === 'pointer') return;
         hideHint(true, closeWhy('blur', 'focus'));
       };
@@ -3144,7 +3152,7 @@
         if (e.detail === 0) return;
         const reasonOnly = !c.blocks.length;
         const touched = lastPointer !== 'mouse';
-        if (!reasonOnly && (!touched || canPin(n))) return;
+        if (!reasonOnly && (!touched || (canPin(n) && pinHow(n) !== 'manual'))) return;
         tapOn(n, touched);
       };
       function swallowClick() {
@@ -3179,8 +3187,9 @@
         if (page.hint?.handle !== handle || page.hint.anchor !== n) return;
         awayOff?.();
         const away = (ev) => {
+          if (partOf(ev.target)) return;
           if (kit.hint.contains(ev.target)) {
-            if (!focusables(kit.hint).length) {
+            if (![...kit.hint.querySelectorAll(PRESS)].some((n) => n.getClientRects().length && !n.disabled)) {
               hideHint(false, closeWhy('outside', 'tap'));
               swallowClick();
             }
@@ -3350,12 +3359,12 @@
         close?.addEventListener('click', onClose);
         const offOutside = env.outside(owner, (e) => {
           const hit = itemAt(e.target);
-          if (e === born || pbox.contains(e.target) || (hit && canPin(hit))) return;
+          if (e === born || pbox.contains(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
           closePin({ reason: 'outside', by: 'reader', via: 'click' });
         });
         const inside = (e) => {
           const hit = itemAt(e.target);
-          if (e === born || (hit && canPin(hit)) || pbox.contains(e.target)) return;
+          if (e === born || (hit && canPin(hit)) || pbox.contains(e.target) || partOf(e.target)) return;
           if (e.target.closest?.('[data-hovercraft-keep]')) return;
           closePin({ reason: 'outside', by: 'reader', via: 'click' });
         };
@@ -3555,6 +3564,15 @@
       box.addEventListener('click', tap);
       kit.hint.addEventListener('pointerover', hintOver);
       kit.hint.addEventListener('pointerout', hintOut);
+      kit.hint.addEventListener('mousedown', hintDown);
+      const partOver = (e) => {
+        if (partOf(e.target)) hintOver();
+      };
+      const partOut = (e) => {
+        if (partOf(e.target)) hintOut(e);
+      };
+      doc.addEventListener('pointerover', partOver);
+      doc.addEventListener('pointerout', partOut);
 
       function hideByHost() {
         return hideHint(false, hostInfo());
@@ -3666,6 +3684,9 @@
           box.removeEventListener('click', tap);
           kit.hint.removeEventListener('pointerover', hintOver);
           kit.hint.removeEventListener('pointerout', hintOut);
+          kit.hint.removeEventListener('mousedown', hintDown);
+          doc.removeEventListener('pointerover', partOver);
+          doc.removeEventListener('pointerout', partOut);
         },
       };
       handles.add(handle);
@@ -3749,6 +3770,8 @@
         return null;
       };
       const pinnable = (n) => !!n?.hasAttribute(PIN_ATTR) && n.matches(selector) && ours(n) && refusal(n) === null;
+      const byHand = (n) => n.getAttribute(PIN_ATTR) === 'manual';
+      const picks = (n) => pinnable(n) && !byHand(n);
       const marked = new WeakSet();
       const managed = new WeakSet();
       const natives = new Set();
@@ -3757,7 +3780,7 @@
         {
           box: at,
           selector,
-          pin: (n) => pinnable(n),
+          pin: (n) => pinnable(n) && (byHand(n) ? 'manual' : true),
           beside: (n) => (n.matches(ROW) ? (n.parentElement?.closest(ROWS) ?? null) : null),
           align: (n) => (n.matches(ROW) ? 'pointer' : 'item'),
           record: (n) => {
@@ -3821,13 +3844,13 @@
       };
       const onClick = (e) => {
         const n = pinAt(e.target);
-        if (n && at.contains(n) && pinnable(n)) flip(n, e.detail === 0 ? 'key' : 'click');
+        if (n && at.contains(n) && picks(n)) flip(n, e.detail === 0 ? 'key' : 'click');
       };
       const onKey = (e) => {
         if ((e.key !== 'Enter' && e.key !== ' ') || e.isComposing || e.defaultPrevented) return;
         if (e.target.matches?.('button')) return;
         const n = pinAt(e.target);
-        if (!n || !at.contains(n) || !pinnable(n)) return;
+        if (!n || !at.contains(n) || !picks(n)) return;
         e.preventDefault();
         flip(n, 'key');
       };
@@ -3925,7 +3948,7 @@
       const door = Object.freeze({
         show: (el) => t.show(el),
         hide: () => t.hide(),
-        pin: (el) => {
+        pin: (el, opts) => {
           const n = h.itemAt(el);
           if (!n) {
             note('pin|item', 'pin(el): el has no tip to pin.');
@@ -3937,7 +3960,7 @@
             return false;
           }
           if (t.pinned === idOf(n)) return true;
-          const ok = h.pinElement(n, { by: 'host', via: 'command' });
+          const ok = h.pinElement(n, pinWho(opts));
           if (!ok && n.getAttribute('aria-disabled') !== 'true')
             note('pin|tip', 'pin(el): its tip has no content to pin.');
           return ok;
@@ -3982,7 +4005,14 @@
       return null;
     }
     const commandShow = (el) => doorFor(el, 'show')?.show(el) ?? false;
-    const commandPin = (el) => doorFor(el, 'pin')?.pin(el) ?? false;
+    function pinWho(o) {
+      const { by = 'host', via = 'command' } = o ?? {};
+      if (typeof (o ?? {}) === 'object' && /^(reader|host)$/.test(by) && /^(click|key|command)$/.test(via))
+        return { by, via };
+      note('pin|who', 'pin(el, { by, via }): by is reader or host, via is click, key or command.');
+      return { by: 'host', via: 'command' };
+    }
+    const commandPin = (el, opts) => doorFor(el, 'pin')?.pin(el, opts) ?? false;
     const commandHide = () => [...liveDoors].map((d) => d.hide()).includes(true);
     const commandClose = () => [...liveDoors].map((d) => d.close()).includes(true);
 
