@@ -405,8 +405,24 @@ describe("tip_on(more =, more_on =)", {
     )
     dep <- Filter(function(d) startsWith(d$name, "hovercraft-more-"), htmltools::findDependencies(tag))[[1]]
     expect_match(dep$head, "HovercraftShiny.park(\"mod1-more_plot\")", fixed = TRUE)
-    expect_match(dep$head, "id=\"mod1-more_plot\"", fixed = TRUE)
-    expect_match(dep$head, "hidden", fixed = TRUE)
+    # The output tag goes to the script as a string, and the script puts it in the body: a `<div>` written into a
+    # dependency's head would end the head where the parser meets it, so the head holds one script and nothing else.
+    expect_match(dep$head, "HovercraftShiny.parkHtml(", fixed = TRUE)
+    expect_match(dep$head, "id=\\\"mod1-more_plot\\\"", fixed = TRUE)
+    expect_match(dep$head, "^<script>.*</script>$")
+    # Only the script's own end tag has "</": the output's closing tags are escaped inside the string.
+    expect_identical(lengths(gregexpr("</", dep$head, fixed = TRUE)), 1L)
+  })
+
+  it("warns once when more_on is given without more, in tip_on() and tip_spec()", {
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_warning(tip_on(button(), "Short", more_on = "hover"), class = "hovercraft_warning_more")
+    # Once per session: the second call stays quiet.
+    expect_no_warning(tip_on(button(), "Short", more_on = "hover"))
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_warning(tip_spec("x", more_on = "hover"), class = "hovercraft_warning_more")
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_no_warning(tip_on(button(), "Short", more = "Long", more_on = "hover"))
   })
 
   it("treats NA and empty more as no long form and clears earlier more attributes on replacement", {

@@ -25,6 +25,15 @@ describe("the block functions", {
     expect_error(tip_badge("a", status = "{{ tone | nope }}"), class = "hovercraft_error_placeholder")
   })
 
+  it("take a status placeholder only when it is the whole value", {
+    expect_s3_class(tip_badge("a", status = "{{ tone }}"), "hovercraft_block")
+    expect_s3_class(tip_badge("a", status = "  {{ tone }}  "), "hovercraft_block")
+    # "pre success" is not one of the four words, so a badge made from it would always be plain.
+    expect_error(tip_badge("a", status = "pre {{ tone }}"), class = "hovercraft_error_status")
+    expect_error(tip_badge("a", status = "{{ tone }} post"), class = "hovercraft_error_status")
+    expect_error(tip_badge("a", status = "{{ a }}{{ b }}"), class = "hovercraft_error_status")
+  })
+
   it("stop on any other status word, and list the four", {
     err <- expect_error(tip_badge("a", status = "ok"), class = "hovercraft_error_status")
     for (word in c("success", "warning", "danger", "info")) {

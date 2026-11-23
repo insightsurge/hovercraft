@@ -34,9 +34,9 @@ is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_tab
 \item{more}{Extra content for the long form of this tip, or \code{NULL} (the default) for none: words (markdown, with
 \code{{{ column }}} placeholders for \code{rows} and \code{cells}) or a \code{\link[=tip_template]{tip_template()}}. \code{NA} and \code{""} mean no long form.}
 
-\item{more_on}{When the long form (\code{more}) opens: \code{"pin"} (the default) or \code{"hover"}, or \code{NULL} for the engine's
-default (\code{"pin"}). Because table rows and cells cannot pin yet, \code{tip_table()} requires \code{more_on = "hover"} when
-\code{more} is set.}
+\item{more_on}{When the long form (\code{more}) opens: \code{"pin"} or \code{"hover"}, or \code{NULL} (the default) for the table's
+choice, \code{"hover"}, because table rows and cells cannot pin yet; \code{"pin"} in a table stops with an error. Without
+\code{more}, \code{more_on} does nothing and gives a warning.}
 }
 \value{
 An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{tip_table()}}.

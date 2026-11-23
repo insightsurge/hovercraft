@@ -3,8 +3,18 @@
 # not a plain badge in the browser.
 tip_statuses <- c("success", "warning", "danger", "info")
 
+# A status read from the record is one placeholder and nothing else; "pre {{ tone }}" would never be one of the four
+# words, so it is not taken for a placeholder and stops with the error that names them.
 tip_status_has_placeholder <- function(status) {
-  is.character(status) && length(status) == 1L && grepl(tip_rules()$placeholder$open, status, fixed = TRUE)
+  if (!is.character(status) || length(status) != 1L || is.na(status)) {
+    return(FALSE)
+  }
+  ph <- tip_rules()$placeholder
+  word <- trimws(status)
+  # A placeholder that is not closed is still taken for one, so the placeholder check names what is wrong with it.
+  startsWith(word, ph$open) &&
+    lengths(gregexpr(ph$open, word, fixed = TRUE)) == 1L &&
+    (endsWith(word, ph$close) || !grepl(ph$close, word, fixed = TRUE))
 }
 
 tip_check_status <- function(status, call = rlang::caller_env()) {

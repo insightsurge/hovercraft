@@ -205,6 +205,23 @@ tip_parse_more <- function(more, call) {
   )
 }
 
+# `more_on` says when the long form opens, so without a `more` it does nothing: say so, once per session.
+tip_warn_more_on <- function(more, more_on, call = rlang::caller_env()) {
+  if (!is.null(more_on) && is.null(more)) {
+    tip_warn(
+      c(
+        "{.arg more_on} is set, but there is no {.arg more}, so it does nothing.",
+        i = "Give {.arg more} the long form, or take {.arg more_on} out."
+      ),
+      class = "hovercraft_warning_more",
+      call = call,
+      .frequency = "once",
+      .frequency_id = "hovercraft_more_on_without_more"
+    )
+  }
+  invisible(NULL)
+}
+
 # Deterministic HTML dependency defining an inline `more` template (no random or per-session ids, safe for bindCache()).
 tip_more_template_dep <- function(template) {
   body <- tip_json(tip_blocks_plain(template))
@@ -215,23 +232,18 @@ tip_more_template_dep <- function(template) {
     js <- c(js, sprintf("%sShiny.park(%s);", tip_names()$global, tip_json(out_id)))
   }
   park_tags <- tip_output_tags(list(template))
-  park_html <- if (length(park_tags)) {
-    as.character(htmltools::tags$div(
-      class = tip_output_park_class(),
-      hidden = NA,
-      `aria-hidden` = "true",
-      `data-hovercraft-keep` = "",
-      park_tags
-    ))
-  } else {
-    ""
+  # The output tags are handed to the script as one string, which puts them in the page's park holder once there is a
+  # body: a `<div>` in a dependency's `head` would end the head where the parser meets it.
+  if (length(park_tags)) {
+    html <- jsonlite::toJSON(as.character(htmltools::tagList(park_tags)), auto_unbox = TRUE)
+    js <- c(js, sprintf("%sShiny.parkHtml(%s);", tip_names()$global, gsub("</", "<\\/", html, fixed = TRUE)))
   }
   dep <- htmltools::htmlDependency(
     name = paste0("hovercraft-more-", hash),
     version = tip_engine_version(),
     src = "engine/www",
     package = "hovercraft",
-    head = paste0("<script>", paste(js, collapse = "\n"), "</script>", park_html),
+    head = paste0("<script>", paste(js, collapse = "\n"), "</script>"),
     all_files = FALSE
   )
   extra_deps <- if (length(park_tags)) htmltools::findDependencies(park_tags) else list()
@@ -492,6 +504,7 @@ tip_on <- function(
   events <- tip_check_events(events)
   tip_check_when_disabled(when_disabled, tag)
   tip_check_more_on(more_on)
+  tip_warn_more_on(more, more_on)
   more_info <- tip_parse_more(more, rlang::current_env())
   tag_id <- htmltools::tagGetAttribute(tag, "id")
   effective_id <- id %||% tag_id

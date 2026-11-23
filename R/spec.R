@@ -24,9 +24,9 @@
 #'   is not marked. See the `marker` argument of [tip_table()].
 #' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with
 #'   `{{ column }}` placeholders for `rows` and `cells`) or a [tip_template()]. `NA` and `""` mean no long form.
-#' @param more_on When the long form (`more`) opens: `"pin"` (the default) or `"hover"`, or `NULL` for the engine's
-#'   default (`"pin"`). Because table rows and cells cannot pin yet, `tip_table()` requires `more_on = "hover"` when
-#'   `more` is set.
+#' @param more_on When the long form (`more`) opens: `"pin"` or `"hover"`, or `NULL` (the default) for the table's
+#'   choice, `"hover"`, because table rows and cells cannot pin yet; `"pin"` in a table stops with an error. Without
+#'   `more`, `more_on` does nothing and gives a warning.
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
 #' @family tooltips
@@ -80,6 +80,7 @@ tip_spec <- function(
   }
   tip_check_placement(placement, call = call)
   tip_check_more_on(more_on, call = call)
+  tip_warn_more_on(more, more_on, call = call)
   style <- tip_as_style(style, call = call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   structure(
