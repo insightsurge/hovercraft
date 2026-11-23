@@ -97,13 +97,13 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' light and for dark. A role left out keeps what the page gives: the tip reads Bootstrap's variables where the page has
 #' them (bslib), so a page that already has a `bslib::bs_theme()` needs no theme, and its tips follow light and dark on
 #' their own. Use a theme when the tips must look different from the page, or when the page has no bslib. Give the
-#' result to [tip_dependency()] once, in the page's UI.
+#' result to [tip_dependency()] once, in the page's UI, or to [tip_on()] for one tag, as `style =`.
 #'
 #' The roles are `bg` (the tip's fill), `ink` (its words), `line` (its border, seen in forced-colours mode and in a tip
 #' that stays open), `code_bg` (behind code), `radius` (the corner), `shadow` and `font`. Colours may be names, hex,
 #' [grDevices::rgb()] output, `"rgba(0, 0, 0, 0.8)"` text or three numbers from 0 to 255. A value that is a CSS
 #' variable, `"--team-blue"` or `"var(--team-blue)"`, is read by the browser where the page defines it; R cannot check
-#' it. A theme can also be a [bslib::bs_theme()] or a plain list, see [tip_dependency()].
+#' it. A theme can also be a [bslib::bs_theme()] or a plain list, see [tip_style()].
 #'
 #' A role set in `light` and not in `dark` is used in dark mode too, so a brand colour set once holds in both modes.
 #'
@@ -137,7 +137,8 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #'   the page says. A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not
 #'   reach it.
 #'
-#' @returns A `hovercraft_theme` object, to give to [tip_dependency()]. Its fields are internal; pass the object on.
+#' @returns A `hovercraft_theme` object, to give as `style =` to [tip_dependency()] or [tip_on()], or to
+#'   [tip_style()]. Its fields are internal; pass the object on.
 #' @family tooltips
 #' @examples
 #' tip_theme()
@@ -234,9 +235,11 @@ tip_theme_contrast <- function(theme, call) {
   invisible()
 }
 
-# The theme as <style> text: light roles on :root, and the dark roles that differ under data-bs-theme="dark" (and
-# under the visitor's own dark setting when the page names no theme).
-tip_theme_css <- function(theme) {
+# The theme as <style> text, for the tags under `scope`: the light roles on `scope`, and the dark roles that differ
+# under data-bs-theme="dark" (and under the visitor's own dark setting when the page names no theme). A page's theme is
+# scoped to `body`, never `:root`: the engine takes a variable it finds on the page's root as inherited, so a page
+# preset would overwrite a theme written there. A tag's theme is scoped to the tag's own marker.
+tip_theme_css <- function(theme, scope = "body") {
   prefix <- tip_names()$prefix
   declare <- function(roles, tokens = list()) {
     own <- vapply(names(roles), function(role) paste0("--", prefix, "-", tip_roles[[role]]), "")
@@ -250,17 +253,22 @@ tip_theme_css <- function(theme) {
   light <- tip_theme_roles(theme, "light")
   dark <- tip_theme_roles(theme, "dark")
   differs <- names(dark)[!vapply(names(dark), function(role) identical(dark[[role]], light[[role]]), NA)]
+  # The engine reads the page's mode from the root or the body, so the dark rule matches both.
+  dark_scope <- paste0("[data-bs-theme=\"dark\"] ", scope)
+  if (identical(scope, "body")) {
+    dark_scope <- paste0(dark_scope, ", body[data-bs-theme=\"dark\"]")
+  }
   body <- switch(
     theme$mode,
-    light = block(":root", declare(light, theme$tokens)),
-    dark = block(":root", declare(dark, theme$tokens)),
+    light = block(scope, declare(light, theme$tokens)),
+    dark = block(scope, declare(dark, theme$tokens)),
     paste0(
-      block(":root, [data-bs-theme=\"light\"]", declare(light, theme$tokens)),
-      block("[data-bs-theme=\"dark\"]", declare(dark[differs])),
+      block(scope, declare(light, theme$tokens)),
+      block(dark_scope, declare(dark[differs])),
       if (length(differs)) {
         paste0(
           "@media (prefers-color-scheme: dark) {\n",
-          block(":root:not([data-bs-theme])", declare(dark[differs])),
+          block(paste0(":root:not([data-bs-theme]) ", scope), declare(dark[differs])),
           "}\n"
         )
       }

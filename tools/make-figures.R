@@ -53,8 +53,8 @@ shoot <- function(page, name, mode = "light", on = "#go", width = 420, height = 
 button <- function(text = "Runs the **check**") {
   tip_on(htmltools::tags$button(id = "go", class = "btn btn-primary", "Run"), text)
 }
-page <- function(..., theme = NULL) {
-  bslib::page_fluid(tip_dependency(theme = theme), htmltools::tags$div(style = "padding: 16px", ...))
+page <- function(..., style = NULL) {
+  bslib::page_fluid(tip_dependency(style = style), htmltools::tags$div(style = "padding: 16px", ...))
 }
 
 # 1. The page's own bslib variables, and the page turning dark.
@@ -68,7 +68,7 @@ brand <- tip_theme(
   dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
 )
 for (mode in c("light", "dark")) {
-  shoot(page(button(), theme = brand), paste0("theme-", mode), mode)
+  shoot(page(button(), style = brand), paste0("theme-", mode), mode)
 }
 
 # 3. A bslib theme, read through its variables.
@@ -82,7 +82,7 @@ warm <- bslib::bs_theme(
   "body-color-dark" = "#eee8d5"
 )
 for (mode in c("light", "dark")) {
-  shoot(page(button(), theme = warm), paste0("bs-theme-", mode), mode)
+  shoot(page(button(), style = warm), paste0("bs-theme-", mode), mode)
 }
 
 # 4. A template, filled from a record.
