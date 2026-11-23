@@ -38,6 +38,9 @@ variable, \code{"--team-blue"} or \code{"var(--team-blue)"}, is read by the brow
 it. A theme can also be a \code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_dependency]{tip_dependency()}}.
 
 A role set in \code{light} and not in \code{dark} is used in dark mode too, so a brand colour set once holds in both modes.
+
+The tip has a small arrow pointing at its tag. It takes the colour of the tip, so it is drawn only when the \code{bg} is
+opaque: with a translucent \code{bg} (\code{"rgba(0, 0, 0, 0.8)"}) the tip has no arrow.
 }
 \section{Contrast warnings}{
 

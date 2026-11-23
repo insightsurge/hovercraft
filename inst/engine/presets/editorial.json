@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "editorial",
+  "label": "Editorial margin",
+  "about": "Cream paper, a serif stack and a hard offset shadow. For reports that read like articles.",
+  "radius": 2,
+  "font": "\"Iowan Old Style\", \"Palatino Linotype\", Palatino, Georgia, serif",
+  "size": 1.15,
+  "delay": 300,
+  "light": { "bg": "#FFFCF4", "ink": "#1C1A17", "line": "#8A7F6C", "code_bg": "#F1EAD8", "shadow": "3px 3px 0 rgba(28, 26, 23, 0.14)" },
+  "dark": { "bg": "#26221C", "ink": "#ECE5D4", "line": "#8A806B", "code_bg": "#1F1C17", "shadow": "3px 3px 0 rgba(0, 0, 0, 0.5)" }
+}

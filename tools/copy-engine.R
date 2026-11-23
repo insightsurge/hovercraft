@@ -9,10 +9,12 @@
 # trace of the names it was built from, and copies tip.js and tip.css into inst/engine/www/ (the only folder a page is
 # ever given), and tip.json (the engine's page contract: attributes, events, placements, under this package's names),
 # tip.sha256 and the shared placeholder cases into inst/engine/, and the engine's presets/ folder (when it has one) into
-# inst/engine/presets/. It writes inst/engine/engine.json: version, commit, branch, files, sha256, the names the built
-# engine uses and its tooltip rules (read from the schema). engine.json stays outside www/, so a rendered page never
-# holds where the engine came from. Files under inst/engine/ are never edited by
-# hand: run this again instead. A release is copied from main; the release test fails when engine.json says otherwise.
+# inst/engine/presets/; the preset files are held to tip.sha256 and the old-name check like the other three. It writes
+# inst/engine/engine.json: version, commit, branch, files, sha256, the names the built engine uses and its tooltip
+# rules (read from the schema). engine.json stays outside www/, so a rendered page never holds where the engine came
+# from. Files under inst/engine/ are never edited by hand: run this again instead. A release is copied from main; the
+# release test fails when engine.json says otherwise. After every copy, run the tests: test-engine.R checks that the
+# engine still has every name this package relies on.
 
 args <- commandArgs(trailingOnly = TRUE)
 source_dir <- if (length(args) >= 1L) args[[1]] else Sys.getenv("ENGINE_DIR", unset = "")
@@ -69,7 +71,16 @@ sha256 <- function(path) {
 }
 listed <- strsplit(readLines(at("kit/tip/tip.sha256"), warn = FALSE), "  ", fixed = TRUE)
 listed <- stats::setNames(vapply(listed, `[[`, "", 1L), vapply(listed, `[[`, "", 2L))
-for (name in c("tip.js", "tip.css", "tip.json")) {
+# The files the engine's build records: the script, the stylesheet, the contract and every preset, each held to its line.
+preset_files <- function(dir) {
+  if (dir.exists(file.path(dir, "presets"))) {
+    file.path("presets", list.files(file.path(dir, "presets"), recursive = TRUE))
+  } else {
+    character()
+  }
+}
+checked <- c("tip.js", "tip.css", "tip.json", preset_files(at("kit/tip")))
+for (name in checked) {
   stop_if(!name %in% names(listed), "tip.sha256 has no line for ", name, ".")
   stop_if(!identical(sha256(at("kit/tip", name)), listed[[name]]), name, " does not match tip.sha256.")
 }
@@ -106,7 +117,11 @@ status <- system2(
 stop_if(!is.null(attr(status, "status")), "The engine's build with our names failed: ", paste(status, collapse = " "))
 built_sums <- strsplit(readLines(file.path(build, "tip.sha256"), warn = FALSE), "  ", fixed = TRUE)
 built_sums <- stats::setNames(vapply(built_sums, `[[`, "", 1L), vapply(built_sums, `[[`, "", 2L))
-for (name in c("tip.js", "tip.css", "tip.json")) {
+stop_if(
+  !setequal(preset_files(build), preset_files(at("kit/tip"))),
+  "The built presets/ folder does not hold the same files as the engine's."
+)
+for (name in c("tip.js", "tip.css", "tip.json", preset_files(build))) {
   stop_if(!name %in% names(built_sums), "The built tip.sha256 has no line for ", name, ".")
   stop_if(
     !identical(sha256(file.path(build, name)), built_sums[[name]]),
@@ -155,10 +170,11 @@ files <- c(
   "www/tip.css" = file.path(build, "tip.css"),
   "www/tip.js" = file.path(build, "tip.js")
 )
-# The engine's presets, when it has any: copied as they are, each file recorded below.
-presets <- if (dir.exists(at("kit/tip/presets"))) list.files(at("kit/tip/presets"), recursive = TRUE) else character()
+# The engine's presets, when it has any: each file recorded below.
+# They are taken from the build, the files that were checked above.
+presets <- preset_files(build)
 for (preset in presets) {
-  files[[file.path("presets", preset)]] <- at("kit/tip/presets", preset)
+  files[[preset]] <- file.path(build, preset)
 }
 for (name in names(files)) {
   dir.create(dirname(file.path(dest, name)), recursive = TRUE, showWarnings = FALSE)
@@ -169,7 +185,7 @@ recorded <- c(
   "tip.json",
   "www/tip.css",
   "www/tip.js",
-  file.path("presets", presets)[length(presets) > 0L]
+  presets
 )
 record <- list(
   engine = version,

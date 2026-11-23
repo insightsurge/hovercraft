@@ -1,0 +1,12 @@
+{
+  "format": 1,
+  "name": "sober",
+  "label": "Sober reviewer",
+  "about": "Paper that matches the page, a grey edge, a hard short shadow. For regulated review work.",
+  "radius": 2,
+  "font": "ui-sans-serif, system-ui, sans-serif",
+  "size": 1,
+  "delay": 300,
+  "light": { "bg": "#FBFAF6", "ink": "#1C2128", "line": "#59626D", "shadow": "2px 2px 0 rgba(28, 33, 40, 0.16)" },
+  "dark": { "bg": "#181C21", "ink": "#E8E5DD", "line": "#7F8994", "shadow": "2px 2px 0 rgba(0, 0, 0, 0.55)" }
+}

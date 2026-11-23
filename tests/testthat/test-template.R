@@ -44,6 +44,42 @@ describe("tip_template()", {
     expect_error(tip_template(list(type = "visual")), class = "hovercraft_error_later")
   })
 
+  it("refuses a block type the engine has and this package has no constructor for yet", {
+    expect_error(
+      tip_template(list(type = "group", id = "g")),
+      "comes with a later version",
+      class = "hovercraft_error_later"
+    )
+    expect_error(
+      tip_template(list(type = "host", id = "h")),
+      "comes with a later version",
+      class = "hovercraft_error_later"
+    )
+  })
+
+  it("refuses a field the engine takes and the constructor does not yet", {
+    expect_error(
+      tip_template(list(type = "text", text = "x", parent = "g")),
+      "later version",
+      class = "hovercraft_error_later"
+    )
+    expect_error(
+      tip_template(list(type = "title", text = "x", kicker = "k")),
+      "later version",
+      class = "hovercraft_error_later"
+    )
+    expect_error(
+      tip_template(list(type = "title", text = "x", meta = "m")),
+      "later version",
+      class = "hovercraft_error_later"
+    )
+    expect_error(
+      tip_template(list(type = "fields", fields = list(list(label = "a", value = "b")), parent = "g")),
+      "later version",
+      class = "hovercraft_error_later"
+    )
+  })
+
   it("checks the plain list through its constructor", {
     expect_error(tip_template(list(type = "text", text = "{{ a")), class = "hovercraft_error_placeholder")
   })
@@ -63,6 +99,16 @@ describe("tip_template_fields()", {
       tip_code("sql")
     )
     expect_identical(tip_template_fields(template), c("label", "a", "status", "records", "sql"))
+  })
+
+  it("reads every placeholder the engine lists, including a title's kicker and meta", {
+    rules <- tip_rules()
+    local_mocked_bindings(tip_rules = function() rules)
+    template <- tip_template(tip_title("{{ label }}"))
+    # A block carrying the title's optional fields, as a later version will make them.
+    template[[1]]$kicker <- "{{ kind }}"
+    template[[1]]$meta <- "{{ when | number:0 }}"
+    expect_identical(tip_template_fields(template), c("label", "kind", "when"))
   })
 })
 

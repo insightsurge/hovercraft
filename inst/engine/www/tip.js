@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.42.0, built from its source; do not edit.
+// hovercraft tip engine 0.48.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.42.0';
+  const VERSION = '0.48.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -169,7 +169,10 @@
   const MD_ESCAPABLE = '!"#$%&\'()*+,-./:;<=>?@[\\]^_`{|}~';
   const MD_LINK_PREFIXES = ['http://', 'https://', 'mailto:'];
   const MD_LINK_BLANK = ['http://', 'https://'];
+  const MD_LINK_SCHEMES = ['http', 'https', 'mailto'];
   const MD_LINK_REL = 'noopener noreferrer';
+  const MD_NOTE_EXCLUDED = ' \t\\`*[]^';
+  const MD_NOTE_ATTRIBUTE = 'data-hc-note';
   const MD_BULLET = /^[-*+] /;
   const MD_ORDERED = /^([0-9]{1,9})\. /;
   const MD_PICKABLE =
@@ -288,7 +291,14 @@
     return out;
   }
 
-  function mdInline(s, links = true) {
+  function mdNoteEnd(s, i) {
+    if (s[i + 1] !== '^') return -1;
+    let j = i + 2;
+    while (j < s.length && !MD_NOTE_EXCLUDED.includes(s[j])) j += 1;
+    return j > i + 2 && s[j] === ']' ? j : -1;
+  }
+
+  function mdInline(s, links = true, notes = true) {
     const tokens = [];
     let buf = '';
     const escaped = mdEscaped(s);
@@ -330,6 +340,11 @@
           buf += s.slice(i, j);
           i = j;
         }
+      } else if (c === '[' && links && notes && mdNoteEnd(s, i) !== -1) {
+        const end = mdNoteEnd(s, i);
+        flush();
+        tokens.push(['note', s.slice(i + 2, end)]);
+        i = end + 1;
       } else if (c === '[' && links && !(i > 0 && s[i - 1] === '!' && !escaped[i - 1]) && linkAt(i)) {
         const [j, k] = linkAt(i);
         const raw = s.slice(j + 2, k);
@@ -446,6 +461,24 @@
     return a;
   }
 
+  function mdScheme(href, words, at) {
+    const found = /^([a-z][a-z0-9]*):/.exec(mdLower(href));
+    if (!found || MD_LINK_SCHEMES.includes(found[1])) return null;
+    if (!at.schemes || !Object.hasOwn(at.schemes, found[1]) || typeof at.schemes[found[1]] !== 'function') return null;
+    try {
+      const node = at.schemes[found[1]]({
+        href,
+        rest: href.slice(found[1].length + 1),
+        words,
+        field: at.field,
+        id: at.id,
+      });
+      return node instanceof Node ? node : null;
+    } catch {
+      return null;
+    }
+  }
+
   function mdNodes(pieces, at) {
     const out = [];
     const open = [];
@@ -459,21 +492,32 @@
         add(el);
         open.push(el);
       } else if (p[0] === 'close') open.pop();
-      else if (p[3] && !at.words) {
+      else if (p[0] === 'note') {
+        const span = document.createElement('span');
+        span.setAttribute(MD_NOTE_ATTRIBUTE, p[1]);
+        span.textContent = `[^${p[1]}]`;
+        add(span);
+      } else if (p[3] && !at.words) {
         const a = mdLink(p[1], at);
         a.append(...mdNodes(p[2], at));
         add(a);
-      } else for (const node of mdNodes(p[2], at)) add(node);
+      } else {
+        const words = mdNodes(p[2], at);
+        const drawn = p[3] || at.words ? null : mdScheme(p[1], words, at);
+        for (const node of drawn ? [drawn] : words) add(node);
+      }
     }
     return out;
   }
 
-  function markdown(el, text, { inline = false, field = null, id = null } = {}) {
+  function markdown(el, text, { inline = false, field = null, id = null, notes = true, schemes = null } = {}) {
     const at = {
       field: field ?? null,
       id: id === null || id === undefined ? null : String(id),
       words: Boolean(el.closest?.(MD_PICKABLE)),
+      schemes: schemes !== null && typeof schemes === 'object' ? schemes : null,
     };
+    const read = notes !== false;
     el.classList.toggle('hc-md', !inline);
     el.classList.toggle('hc-md-inline', !!inline);
     if (text === null || text === undefined) {
@@ -488,7 +532,7 @@
         const lines = b[0] === 'p' ? [b[1]] : b[2].map((item, i) => `${marker(i)} ${item}`.replace(/ +$/, ''));
         for (const line of lines) {
           if (pieces.length) pieces.push(['text', ' ']);
-          for (const piece of mdInline(line)) pieces.push(piece);
+          for (const piece of mdInline(line, true, read)) pieces.push(piece);
         }
       }
       el.replaceChildren(...mdNodes(mdJoin(pieces), at));
@@ -497,14 +541,14 @@
     const nodes = parts.map((b) => {
       if (b[0] === 'p') {
         const p = document.createElement('p');
-        p.append(...mdNodes(mdInline(b[1]), at));
+        p.append(...mdNodes(mdInline(b[1], true, read), at));
         return p;
       }
       const list = document.createElement(b[0]);
       if (b[0] === 'ol' && b[1] !== 1) list.setAttribute('start', String(b[1]));
       for (const item of b[2]) {
         const li = document.createElement('li');
-        li.append(...mdNodes(mdInline(item), at));
+        li.append(...mdNodes(mdInline(item, true, read), at));
         list.append(li);
       }
       return list;
@@ -523,12 +567,12 @@
     return MD_BULLET.test(out) ? `\\${out}` : out;
   };
 
-  markdown.plain = (text) => {
+  markdown.plain = (text, { notes = true } = {}) => {
     if (text === null || text === undefined) return '';
     const words = [];
     for (const b of mdBlocks(String(text))) {
-      if (b[0] === 'p') words.push(mdPlain(mdInline(b[1])));
-      else for (const item of b[2]) words.push(mdPlain(mdInline(item)));
+      if (b[0] === 'p') words.push(mdPlain(mdInline(b[1], true, notes !== false)));
+      else for (const item of b[2]) words.push(mdPlain(mdInline(item, true, notes !== false)));
     }
     return words.join(' ');
   };
@@ -538,20 +582,52 @@
     css: 'hc-tip',
     who: 'Hovercraft',
     standalone: true,
+    skip: '',
   });
 
   function createTipEngine(env) {
     const NAMES = TIP_NAMES;
     const CSS = NAMES.css;
     const HINT_DELAY = 300;
-    const PLACEMENTS = ['auto', 'top', 'bottom', 'left', 'right']; // tooltip_placement: bslib's words
+    const PLACEMENTS = ['auto', 'top', 'bottom', 'left', 'right'];
+    const PRESET_TEXT = {
+      dense:
+        '{"radius":2,"font":"ui-sans-serif, system-ui, -apple-system, \\"Segoe UI\\", sans-serif","size":0.95,"delay":350,"light":{"bg":"#FBFAF4","ink":"#141A20","line":"#1C2530","code_bg":"#ECEBE2","shadow":"0 1px 0 rgba(20, 26, 32, 0.08), 0 6px 14px -6px rgba(20, 26, 32, 0.45)"},"dark":{"bg":"#1A2129","ink":"#E8EDF2","line":"#6C7E90","code_bg":"#10151A","shadow":"0 1px 0 rgba(0, 0, 0, 0.4), 0 8px 16px -6px rgba(0, 0, 0, 0.8)"}}',
+      editorial:
+        '{"radius":2,"font":"\\"Iowan Old Style\\", \\"Palatino Linotype\\", Palatino, Georgia, serif","size":1.15,"delay":300,"light":{"bg":"#FFFCF4","ink":"#1C1A17","line":"#8A7F6C","code_bg":"#F1EAD8","shadow":"3px 3px 0 rgba(28, 26, 23, 0.14)"},"dark":{"bg":"#26221C","ink":"#ECE5D4","line":"#8A806B","code_bg":"#1F1C17","shadow":"3px 3px 0 rgba(0, 0, 0, 0.5)"}}',
+      lively:
+        '{"radius":12,"font":"ui-rounded, \\"Hiragino Maru Gothic ProN\\", Nunito, system-ui, sans-serif","size":1.05,"delay":300,"light":{"bg":"#FFFFFF","ink":"#1B2234","line":"#8493B8","shadow":"0 14px 30px -10px rgba(27, 34, 52, 0.18), 0 4px 10px -3px rgba(27, 34, 52, 0.09)"},"dark":{"bg":"#222940","ink":"#F4F6FC","line":"#6B7DB3","shadow":"0 18px 36px -8px rgba(5, 8, 18, 0.62), 0 4px 12px -2px rgba(5, 8, 18, 0.45)"}}',
+      modern:
+        '{"radius":8,"font":"ui-sans-serif, system-ui, -apple-system, \\"Segoe UI\\", Roboto, sans-serif","size":1,"delay":300,"light":{"bg":"#FFFFFF","ink":"#14171F","line":"#8A92A3","shadow":"0 1px 2px rgba(15, 20, 30, 0.05), 0 8px 24px -6px rgba(15, 20, 30, 0.1)"},"dark":{"bg":"#171A22","ink":"#EEF1F6","line":"#6F7A90","shadow":"0 2px 6px rgba(0, 0, 0, 0.35), 0 12px 28px -6px rgba(0, 0, 0, 0.55)"}}',
+      sober:
+        '{"radius":2,"font":"ui-sans-serif, system-ui, sans-serif","size":1,"delay":300,"light":{"bg":"#FBFAF6","ink":"#1C2128","line":"#59626D","shadow":"2px 2px 0 rgba(28, 33, 40, 0.16)"},"dark":{"bg":"#181C21","ink":"#E8E5DD","line":"#7F8994","shadow":"2px 2px 0 rgba(0, 0, 0, 0.55)"}}',
+    };
     const PHONE = 600;
     const LEAVE_MS = 100;
     const GAP = 6;
+    const ARROW = 5;
     const CUT = 200;
-    const LATER = ['rows', 'steps', 'spark', 'actions', 'html', 'visual'];
+    const RESERVED = [
+      'title',
+      'text',
+      'badge',
+      'fields',
+      'code',
+      'group',
+      'host',
+      'html',
+      'visual',
+      'part',
+      'widget',
+      'rows',
+      'steps',
+      'spark',
+      'actions',
+      'compare',
+      'need',
+    ];
     const DASH = '–';
-    const MODAL = 'dialog[open], [aria-modal="true"]';
+    const MODAL = 'dialog[open], [aria-modal="true"], .modal.show, .modal.in';
     const MARKS = [
       'data-hovercraft-theme',
       'data-hovercraft-look',
@@ -584,17 +660,107 @@
           note(`blk|${name}|${i}`, `tooltip template "${name}" block ${i + 1} needs a "type"; it is left out.`);
           return false;
         }
-        if (!renderers.has(b.type)) {
-          const later = LATER.includes(b.type) ? ' (it comes with a later kit)' : '';
-          note(
-            `blk|${name}|${i}`,
-            `tooltip template "${name}" block ${i + 1}: "${b.type}" is not a block${later}; it takes ${[...renderers.keys()].join(', ')}.`,
-          );
-          return false;
-        }
         return true;
       });
     };
+    function usable(blocks, where) {
+      const slots = new Set();
+      return sound(
+        blocks.filter((b) => {
+          if (b.type === 'host') {
+            const id = slotId(b.id);
+            if (!id || slots.has(id)) {
+              note(
+                `host|${where}|${id}`,
+                `${where}: a host block needs an "id" that no other host block has; it is left out.`,
+              );
+              return false;
+            }
+            slots.add(id);
+          }
+          if (registry.has(b.type)) return true;
+          const later = RESERVED.includes(b.type) ? ' (it comes in a later version)' : '';
+          note(
+            `blk|${where}|${b.type}`,
+            `${where}: no block "${b.type}" is registered${later}; it is left out until one is. Registered: ${[...registry.keys()].join(', ')}.`,
+          );
+          return false;
+        }),
+        where,
+      );
+    }
+    const slotId = (v) => (tipText(v) || Number.isFinite(v) ? String(v) : '');
+    const GROUP_DEPTH = 2;
+    const hasParent = (b) => (typeof b.parent === 'string' && b.parent !== '') || Number.isFinite(b.parent);
+    function sound(blocks, where) {
+      if (!blocks.some((b) => b.type === 'group' || hasParent(b))) return blocks;
+      const said = (id, why) => note(`grp|${where}|${id}|${why}`, `${where}: ${why}; it is left out.`);
+      const groups = new Map();
+      for (const b of blocks) {
+        if (b.type !== 'group') continue;
+        const id = tipText(b.id) || Number.isFinite(b.id) ? String(b.id) : '';
+        if (!id) said('?', 'a group needs an "id" that its blocks name in "parent"');
+        else if (groups.has(id)) said(id, `a second group has the id "${id}" (an id is used once)`);
+        else groups.set(id, b);
+      }
+      const levels = new Map();
+      const levelOf = (b, chain) => {
+        if (levels.has(b)) return levels.get(b);
+        let n = 1;
+        if (hasParent(b)) {
+          const up = groups.get(String(b.parent));
+          const what = b.type === 'group' ? `the group "${b.id}"` : `a ${b.type} block`;
+          if (!up) {
+            said(`${b.type}|${b.id ?? ''}|${b.parent}`, `${what} names the parent "${b.parent}", which is no group`);
+            n = 0;
+          } else if (up === b || chain.includes(up)) {
+            said(`loop|${b.id}`, `the groups "${b.id}" and "${b.parent}" hold each other`);
+            n = 0;
+          } else if (levelOf(up, [...chain, b]) === 0) {
+            n = 0;
+          } else n = levelOf(up, []) + 1;
+        }
+        if (b.type === 'group' && n > GROUP_DEPTH) {
+          said(
+            `deep|${b.id}`,
+            `the group "${b.id}" is ${n} deep, and groups go ${GROUP_DEPTH} deep at most; give its blocks to the group above it, or move it to the top level`,
+          );
+          n = 0;
+        }
+        levels.set(b, n);
+        return n;
+      };
+      const stands = (b) => (b.type === 'group' && groups.get(String(b.id)) !== b ? false : levelOf(b, []) > 0);
+      let kept = blocks.filter(stands);
+      for (let more = true; more; ) {
+        more = false;
+        const used = new Set(kept.filter(hasParent).map((b) => String(b.parent)));
+        const next = kept.filter((b) => b.type !== 'group' || used.has(String(b.id)));
+        for (const b of kept) if (!next.includes(b)) said(String(b.id), `the group "${b.id}" holds no block`);
+        more = next.length !== kept.length;
+        kept = next;
+      }
+      return kept;
+    }
+    function treeOf(blocks) {
+      const nodes = blocks.map((b) => ({ b, kids: [] }));
+      const groups = new Map();
+      for (const n of nodes) if (n.b.type === 'group' && !groups.has(String(n.b.id))) groups.set(String(n.b.id), n);
+      const top = [];
+      for (const n of nodes) (hasParent(n.b) ? (groups.get(String(n.b.parent)) ?? { kids: top }).kids : top).push(n);
+      return top;
+    }
+    function slotsOf(content) {
+      const out = [];
+      const walk = (nodes) => {
+        for (const { b, kids } of nodes) {
+          if (b.type === 'host') out.push(slotId(b.id));
+          walk(kids);
+        }
+      };
+      walk(treeOf(headFirst(content.blocks)));
+      return out;
+    }
     function placementWord(v, where) {
       const word = typeof v === 'string' ? v.trim() : '';
       if (PLACEMENTS.includes(word)) return word;
@@ -604,13 +770,89 @@
       );
       return 'auto';
     }
+    const PRESET_NONE = 'none';
+    const PRESET_ATTR = `${NAMES.attr}-preset`;
+    const presetCache = new Map();
+    const presetData = (name) => {
+      if (!Object.hasOwn(PRESET_TEXT, name)) return null;
+      if (!presetCache.has(name)) presetCache.set(name, JSON.parse(PRESET_TEXT[name]));
+      return presetCache.get(name);
+    };
+    function presetWord(v, where) {
+      const word = typeof v === 'string' ? v.trim() : '';
+      if (word === PRESET_NONE || presetData(word)) return word;
+      note(
+        `preset|${String(v)}`,
+        `${where}: preset "${String(v)}" is not one of ${Object.keys(PRESET_TEXT).join(', ')} (or ${PRESET_NONE}); it reads as ${PRESET_NONE}.`,
+      );
+      return PRESET_NONE;
+    }
+    function presetAt(from) {
+      return presetFrom(from)?.name ?? null;
+    }
+    function presetFrom(from) {
+      for (let node = from; node?.nodeType === 1; node = node.parentElement) {
+        const attr = node.getAttribute(PRESET_ATTR);
+        const mine = own.get(node);
+        let word = null;
+        if (attr !== null) word = presetWord(attr, PRESET_ATTR);
+        else if (mine && tipOwn(mine, 'preset')) word = mine.preset;
+        if (word) return word === PRESET_NONE ? null : { name: word, node };
+      }
+      return null;
+    }
+    const CODE_FILL = 'color-mix(in srgb, var(--hc-tip-ink) 12%, transparent)';
+    const dressed = new WeakMap();
+    function dress(box, anchor, mode) {
+      const at = presetFrom(anchor);
+      const preset = at ? presetData(at.name) : null;
+      const set = preset ? presetValues(preset, mode) : {};
+      const root = anchor.ownerDocument.documentElement;
+      const above = preset ? (at.node === root ? root : at.node.parentElement) : box.parentElement;
+      for (const [prop, value] of declaredAt(anchor, above, CARRIED)) set[prop] = value;
+      for (const [prop, value] of declaredAt(anchor, box.parentElement, ['layer'])) set[prop] = value;
+      const made = Object.entries(set)
+        .filter(([, value]) => value !== undefined && value !== null)
+        .map(([prop, value]) => [prop, String(value)]);
+      const name = preset ? at.name : null;
+      if (box.getAttribute(PRESET_ATTR) !== name) {
+        if (name) box.setAttribute(PRESET_ATTR, name);
+        else box.removeAttribute(PRESET_ATTR);
+      }
+      const now = new Set(made.map(([prop]) => prop));
+      for (const prop of dressed.get(box) ?? []) if (!now.has(prop)) box.style.removeProperty(prop);
+      for (const [prop, value] of made)
+        if (box.style.getPropertyValue(prop) !== value) box.style.setProperty(prop, value);
+      if (now.size) dressed.set(box, [...now]);
+      else dressed.delete(box);
+    }
+    function presetValues(preset, mode) {
+      const side = preset[mode] ?? preset.light;
+      return {
+        '--hovercraft-tip-radius': `${preset.radius}px`,
+        '--hovercraft-tip-font': preset.font,
+        '--hovercraft-tip-size': preset.size,
+        '--hovercraft-tip-bg': side.bg,
+        '--hovercraft-tip-ink': side.ink,
+        '--hovercraft-tip-line': side.line,
+        '--hovercraft-tip-code-bg': side.code_bg ?? CODE_FILL,
+        '--hovercraft-tip-shadow': side.shadow ?? preset.light.shadow ?? 'var(--hovercraft-shadow-2)',
+      };
+    }
+    function delayAt(anchor) {
+      const name = presetAt(anchor);
+      if (name) return presetData(name).delay ?? HINT_DELAY;
+      const style = anchor.ownerDocument.defaultView?.getComputedStyle(anchor);
+      const ms = Number.parseFloat(style?.getPropertyValue('--hovercraft-tip-delay'));
+      return Number.isFinite(ms) && ms >= 0 && ms <= 800 ? ms : HINT_DELAY;
+    }
     function tooltip(settings, el) {
       const at = el ?? document.documentElement;
       if (settings !== undefined && settings !== null) {
         if (!tipObject(settings))
           note(
             'settings',
-            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement } (or nothing to read the setting).',
+            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_preset } (or nothing to read the setting).',
           );
         else {
           const mine = own.get(at) ?? {};
@@ -634,6 +876,17 @@
             const v = settings.tooltip_placement;
             if (v === null || v === undefined) delete mine.placement;
             else mine.placement = placementWord(v, 'tooltip');
+          }
+          if (tipOwn(settings, 'tooltip_arrow')) {
+            const v = settings.tooltip_arrow;
+            if (v === null || v === undefined) delete mine.arrow;
+            else if (typeof v === 'boolean') mine.arrow = v;
+            else note(`arrow|${String(v)}`, 'tooltip: "tooltip_arrow" must be true or false; kept the old value.');
+          }
+          if (tipOwn(settings, 'tooltip_preset')) {
+            const v = settings.tooltip_preset;
+            if (v === null || v === undefined) delete mine.preset;
+            else mine.preset = presetWord(v, 'tooltip');
           }
           if (tipOwn(settings, 'tooltip_templates')) {
             const v = settings.tooltip_templates;
@@ -664,6 +917,8 @@
         tooltip_template: got.tooltip_template,
         tooltip_templates: templates,
         tooltip_placement: got.placement,
+        tooltip_arrow: got.arrow,
+        tooltip_preset: presetAt(at),
       };
     }
     function settingsAt(el) {
@@ -671,10 +926,16 @@
       let name = null;
       let namedAt = null;
       let placed = null;
-      for (let node = el; node && (on === null || name === null || placed === null); node = node.parentElement) {
+      let arrow = null;
+      for (
+        let node = el;
+        node && (on === null || name === null || placed === null || arrow === null);
+        node = node.parentElement
+      ) {
         const mine = own.get(node);
         if (!mine) continue;
         if (placed === null && tipOwn(mine, 'placement')) placed = mine.placement;
+        if (arrow === null && tipOwn(mine, 'arrow')) arrow = mine.arrow;
         if (on === null && tipOwn(mine, 'tooltip')) on = mine.tooltip;
         if (name === null && tipOwn(mine, 'tooltip_template')) {
           name = mine.tooltip_template;
@@ -694,6 +955,7 @@
         named_at: namedAt,
         template,
         placement: placed ?? 'auto',
+        arrow: arrow !== false,
       };
     }
 
@@ -709,7 +971,7 @@
       let blocks = null;
       let literal = false;
       const templated = rec.row !== null;
-      if (at.tooltip && Array.isArray(over) && over.length) blocks = over;
+      if (at.tooltip && Array.isArray(over) && over.length) blocks = usable(over, "a part's tooltip");
       else if (at.tooltip && templated) {
         const t = row.tooltip;
         if (typeof t === 'string' && t.trim() !== '') {
@@ -721,13 +983,13 @@
         } else if (t !== null && t !== undefined && typeof t !== 'string' && typeof t !== 'number') {
           note(
             `row-tooltip|${rec.id}`,
-            `the tooltip of ${String(rec.id)} must be text (a list of blocks comes with a later kit); it has none.`,
+            `the tooltip of ${String(rec.id)} must be text (a list of blocks comes in a later version); it has none.`,
           );
         }
         const named = rec.own_template_only && !at.own_template ? null : at.tooltip_template;
         if (!blocks && named) {
           const found = at.template(named);
-          if (found) blocks = found;
+          if (found) blocks = usable(found, `tooltip template "${named}"`);
           else note(`no-template|${named}`, `tooltip template "${named}" is not defined; no tooltip is drawn from it.`);
         }
       }
@@ -817,45 +1079,71 @@
     const markdownOf = (content, text) =>
       content.literal ? String(text ?? '') : asMarkdown(expand(text ?? '', content.record));
 
-    function codeOf(content, block) {
+    function codeOf(record, block) {
       if (!tipText(block.field)) return null;
-      if (!tipOwn(content.record, block.field)) {
+      if (!tipOwn(record, block.field)) {
         note(
           `code|${block.field}`,
           `the tooltip code field "${block.field}" is not in the record; the block is left out.`,
         );
         return null;
       }
-      const v = content.record[block.field];
+      const v = record[block.field];
       return typeof v === 'string' && v !== '' ? v : null;
     }
 
+    const headFirst = (blocks) => {
+      const i = blocks.findIndex((b) => b.type === 'title' && !hasParent(b));
+      return i > 0 ? [blocks[i], ...blocks.slice(0, i), ...blocks.slice(i + 1)] : blocks;
+    };
     function plainOf(content, withReason = true) {
       const out = [content.label ?? ''];
-      const order = ['title', 'text', 'badge', 'fields', 'code'];
-      const blocks = [...content.blocks].sort((a, b) => order.indexOf(a.type) - order.indexOf(b.type));
-      for (const b of blocks) {
-        if (b.type === 'title' || b.type === 'badge') out.push(wordsOf(content, b.text));
-        else if (b.type === 'text') out.push(env.markdown.plain(markdownOf(content, b.text)));
-        else if (b.type === 'fields') {
-          for (const f of Array.isArray(b.fields) ? b.fields : []) {
-            if (tipObject(f)) out.push(`${wordsOf(content, f.label)} ${wordsOf(content, f.value)}`.trim());
+      const ctx = flatCtx(content);
+      const read = (nodes) => {
+        for (const { b, kids } of nodes) {
+          const def = registry.get(b.type);
+          if (!def) continue;
+          try {
+            const said = def.flatten(b, content.record, ctx);
+            if (typeof said === 'string') out.push(said);
+          } catch (e) {
+            note(`flatten|${b.type}`, `a tooltip ${b.type} block could not be read out: ${e?.message ?? e}`);
           }
-        } else if (b.type === 'code') {
-          const code = codeOf(content, b);
-          if (code !== null) {
-            const lines = code.split(/\r\n|\r|\n/);
-            const n = lines.length;
-            const said = (lines.find((l) => l.trim() !== '') ?? '').trim();
-            const first = said.length > 120 ? `${said.slice(0, 120).trimEnd()}…` : said;
-            if (n === 1) out.push(first ? `code: ${first}` : 'code, 1 line');
-            else out.push(`code, ${n} lines${first ? `, starting ${first}` : ''}`);
-          }
+          read(kids);
         }
-      }
+      };
+      read(treeOf(headFirst(content.blocks)));
       if (withReason && content.reason) out.push(reasonWords(content));
       return out.filter((w) => w !== '').join(' ');
     }
+    const stable = (v) => {
+      if (Array.isArray(v)) return `[${v.map(stable).join(',')}]`;
+      if (v !== null && typeof v === 'object')
+        return `{${Object.keys(v)
+          .sort()
+          .map((k) => `${JSON.stringify(k)}:${stable(v[k])}`)
+          .join(',')}}`;
+      return JSON.stringify(v) ?? 'null';
+    };
+    const keyOf = (c) => {
+      const { tip_index: _place, ...record } = c.record;
+      return stable({
+        name: String(c.rec.label ?? ''),
+        label: c.label,
+        reason: c.reason,
+        prefix: c.prefix,
+        literal: c.literal,
+        record,
+        blocks: c.blocks,
+        words: plainOf(c),
+      });
+    };
+    const flatCtx = (content) => ({
+      record: content.record,
+      cls: CSS,
+      words: (text) => wordsOf(content, text),
+      plain: (text) => env.markdown.plain(markdownOf(content, text), { notes: false }),
+    });
     const reasonWords = (content) =>
       !content.reason
         ? ''
@@ -863,9 +1151,11 @@
           ? `Not available: ${content.reason}`
           : content.reason;
     const titleOf = (content) => {
-      const t = content.blocks.find((b) => b.type === 'title');
+      const t = content.blocks.find((b) => b.type === 'title' && !hasParent(b));
       return t ? wordsOf(content, t.text) : '';
     };
+    const hostInfo = () => ({ reason: 'host', by: 'host', via: null });
+    const goneInfo = () => ({ reason: 'gone', by: 'data', via: null });
     const cut = (text) => (text.length > CUT ? `${text.slice(0, CUT)}…` : text);
 
     const el = (doc, tag, className, text) => {
@@ -879,7 +1169,7 @@
       if (boxes.has(doc)) return boxes.get(doc);
       const hint = el(doc, 'div', CSS);
       hint.setAttribute('role', 'tooltip');
-      hint.setAttribute('aria-hidden', 'true'); // its words are the item's description, made at draw
+      hint.setAttribute('aria-hidden', 'true');
       hint.setAttribute('data-hovercraft-keep', '');
       hint.hidden = true;
       const pin = el(doc, 'div', `${CSS} ${CSS}-pin`);
@@ -895,10 +1185,11 @@
       const view = doc.defaultView;
       const sizes =
         typeof view?.ResizeObserver === 'function'
-          ? new view.ResizeObserver(() => {
+          ? new view.ResizeObserver((entries) => {
               const page = pageOf(doc);
               page.hint?.place();
               page.pin?.place();
+              for (const { target } of entries) resizeLives(target);
             })
           : null;
       const made = {
@@ -906,14 +1197,17 @@
         pin,
         live,
         sizes,
-        hintMotion: env.motion(hint, { axis: 'fade', rise: 0, exit: 'none' }),
-        pinMotion: env.motion(pin, { axis: 'fade', rise: 0, exit: 'none' }),
+        hintMotion: lifted(hint, env.motion(hint, { axis: 'fade', rise: 0, exit: 'none' })),
+        pinMotion: lifted(pin, env.motion(pin, { axis: 'fade', rise: 0, exit: 'none' })),
       };
       boxes.set(doc, made);
       return made;
     }
     function modeOf(anchor) {
-      let mode = anchor.closest('[data-hovercraft-mode]')?.getAttribute('data-hovercraft-mode') ?? 'light';
+      const read = (attr) => anchor.closest(`[${attr}]`)?.getAttribute(attr);
+      const page = anchor.ownerDocument;
+      const root = (attr) => page.documentElement.getAttribute(attr) ?? page.body?.getAttribute(attr);
+      let mode = read('data-hovercraft-mode') ?? (NAMES.standalone ? root('data-bs-theme') : 'light');
       if (mode !== 'light' && mode !== 'dark') {
         mode = anchor.ownerDocument.defaultView?.matchMedia?.('(prefers-color-scheme: dark)').matches
           ? 'dark'
@@ -925,15 +1219,94 @@
       const doc = anchor.ownerDocument;
       const host = anchor.closest(MODAL) ?? doc.body;
       if (box.parentNode !== host) host.append(box);
-      copyMarks(box, anchor);
+      if (host !== doc.body && typeof box.showPopover === 'function') box.setAttribute('popover', 'manual');
+      else if (box.hasAttribute('popover')) {
+        drop(box);
+        box.removeAttribute('popover');
+      }
+      copyMarks(box, anchor, false);
     }
-    function copyMarks(box, anchor) {
+    const ESCAPE_OWN =
+      'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [role="combobox"], [contenteditable]:not([contenteditable="false"])';
+    function inModal(box, open, close, onKey) {
+      const doc = box.ownerDocument;
+      const host = box.parentElement;
+      const View = doc.defaultView;
+      if (!host || host === doc.body || host.localName === 'dialog' || !host.matches(MODAL)) return () => {};
+      const keys = (e) => {
+        if (e.key !== 'Escape' || e.isComposing || e.defaultPrevented || !open()) return;
+        const at = doc.activeElement;
+        if (box.contains(at) || at?.closest?.(ESCAPE_OWN)) return;
+        onKey(e);
+      };
+      host.addEventListener('keydown', keys, true);
+      const gone = () => {
+        if (!open()) return;
+        if (!host.isConnected || !host.matches(MODAL)) return close();
+        const style = View?.getComputedStyle(host);
+        if (style?.display === 'none' || style?.visibility === 'hidden') close();
+      };
+      const watch = typeof View?.MutationObserver === 'function' ? new View.MutationObserver(gone) : null;
+      watch?.observe(host, { attributes: true, attributeFilter: ['class', 'style', 'aria-modal', 'hidden'] });
+      watch?.observe(doc.body ?? doc.documentElement, { childList: true, subtree: true });
+      return () => {
+        host.removeEventListener('keydown', keys, true);
+        watch?.disconnect();
+      };
+    }
+    function lifted(box, shows) {
+      return {
+        set: (open) => {
+          if (open) {
+            shows.set(true);
+            lift(box);
+          } else {
+            drop(box);
+            shows.set(false);
+          }
+        },
+      };
+    }
+    const isLifted = (box) => typeof box.showPopover === 'function' && box.matches(':popover-open');
+    function lift(box) {
+      if (!box.hasAttribute('popover') || !box.isConnected || isLifted(box)) return;
+      try {
+        box.showPopover();
+      } catch {
+        box.removeAttribute('popover');
+      }
+    }
+    function drop(box) {
+      if (isLifted(box)) box.hidePopover();
+    }
+    const CARRIED = ['bg', 'ink', 'line', 'radius', 'shadow', 'code-bg', 'size', 'font'];
+    function declaredAt(anchor, above, keys) {
+      const found = new Map();
+      const view = anchor.ownerDocument.defaultView;
+      if ((above && !above.contains(anchor)) || typeof view?.getComputedStyle !== 'function') return found;
+      const at = view.getComputedStyle(anchor);
+      const over = above ? view.getComputedStyle(above) : null;
+      for (const key of keys) {
+        const prop = `--hovercraft-tip-${key}`;
+        const value = at.getPropertyValue(prop).trim();
+        const outer = over?.getPropertyValue(prop).trim() ?? '';
+        if (value !== outer) found.set(prop, value || 'initial');
+      }
+      return found;
+    }
+    function copyMarks(box, anchor, flip = true) {
       for (const mark of MARKS) {
         const from = anchor.closest(`[${mark}]`);
         if (from) box.setAttribute(mark, from.getAttribute(mark));
         else box.removeAttribute(mark);
       }
-      if (!NAMES.standalone) box.setAttribute('data-hovercraft-mode', modeOf(anchor));
+      const next = modeOf(anchor);
+      if (!NAMES.standalone) box.setAttribute('data-hovercraft-mode', next);
+      dress(box, anchor, next);
+      const was = modes.get(box);
+      modes.set(box, next);
+      anchors.set(box, anchor);
+      if (flip && was && was !== next) flipLives(box, next);
     }
     function say(doc, words, near = null) {
       const { live } = boxesOf(doc);
@@ -944,7 +1317,74 @@
         live.textContent = words;
       }, 50);
     }
-    function place(box, anchor, side, x = null, beside = null, line = null, isPin = false, placement = 'auto') {
+    function place(
+      box,
+      anchor,
+      side,
+      x = null,
+      beside = null,
+      line = null,
+      isPin = false,
+      placement = 'auto',
+      arrow = false,
+    ) {
+      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0);
+      if (point(box, arrow ? to : null)) return;
+      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0);
+    }
+    const EDGE = { below: 'top', above: 'bottom', right: 'left', left: 'right' };
+    const AT = '--hc-tip-arrow-at';
+    const BASE = 12;
+    const solid = (colour) => {
+      const alpha = /^rgba\(.*,\s*([\d.]+)\)$/.exec(colour) ?? /\/\s*([\d.]+)(%?)\)$/.exec(colour);
+      return alpha ? Number.parseFloat(alpha[1]) / (alpha[2] ? 100 : 1) >= 1 : colour !== 'transparent';
+    };
+    function point(box, to) {
+      if (box.style.visibility === 'hidden') return !!box.dataset.arrow;
+      const edge = to && EDGE[box.dataset.side];
+      const view = box.ownerDocument.defaultView;
+      const style = view.getComputedStyle(box);
+      if (edge && box.dataset.arrow !== edge) box.dataset.arrow = edge;
+      const across = edge === 'top' || edge === 'bottom';
+      const corner = Number.parseFloat(style.borderTopLeftRadius) || 0;
+      const len = across ? box.offsetWidth : box.offsetHeight;
+      const left = Number.parseFloat(box.style.left) || 0;
+      const top = Number.parseFloat(box.style.top) || 0;
+      const gap = !edge
+        ? 0
+        : {
+            top: top - to.b,
+            bottom: to.t - (top + box.offsetHeight),
+            left: left - to.r,
+            right: to.l - (left + box.offsetWidth),
+          }[edge];
+      const bridge = Math.max(0, -Number.parseFloat(view.getComputedStyle(box, '::before').right) || 0);
+      const tall = box.offsetHeight >= Number.parseFloat(style.maxHeight) - 1;
+      const none =
+        !edge ||
+        len - corner * 2 < BASE ||
+        gap < ARROW ||
+        !solid(style.backgroundColor) ||
+        tall ||
+        box.scrollWidth > box.clientWidth + bridge + 1;
+      if (none) {
+        if (box.hasAttribute('data-arrow')) box.removeAttribute('data-arrow');
+        if (box.style.getPropertyValue(AT)) box.style.removeProperty(AT);
+        return false;
+      }
+      const line = box.clientTop;
+      const near = corner + BASE / 2;
+      const from = across ? left : top;
+      const [lo, hi] = across ? [to.l, to.r] : [to.t, to.b];
+      const [from0, from1] = [Math.max(lo, from), Math.min(hi, from + len)];
+      const where = (from0 <= from1 ? (from0 + from1) / 2 : (lo + hi) / 2) - from;
+      const along = Math.max(near, Math.min(len - near, where)) - line - 4;
+      const at = `${along}px`;
+      if (box.style.getPropertyValue(AT) !== at) box.style.setProperty(AT, at);
+      return true;
+    }
+    function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow) {
+      const g = GAP + grow;
       const doc = anchor.ownerDocument;
       const r = anchor.getBoundingClientRect();
       const vw = doc.documentElement.clientWidth;
@@ -961,13 +1401,16 @@
         pr.left > vw;
       box.style.visibility = away ? 'hidden' : '';
       if (away) return;
-      if (placement !== 'auto' && vw >= PHONE && placeOn(box, anchor, placement, x, line, isPin)) return;
+      if (placement !== 'auto' && vw >= PHONE) {
+        const hit = placeOn(box, anchor, placement, x, line, isPin, grow);
+        if (hit) return hit;
+      }
       const w = box.offsetWidth;
       const h = box.offsetHeight;
       const part = beside?.getBoundingClientRect();
       const rtl = part && doc.defaultView?.getComputedStyle(beside).direction === 'rtl';
-      const fitsRight = part && part.right + GAP + w <= vw - 4;
-      const fitsLeft = part && part.left - GAP - w >= 4;
+      const fitsRight = part && part.right + g + w <= vw - 4;
+      const fitsLeft = part && part.left - g - w >= 4;
       const room = !part
         ? null
         : rtl
@@ -991,22 +1434,22 @@
         const row = (line ?? anchor).getBoundingClientRect();
         const edge = part ?? row;
         let left = rtl ? edge.left : edge.right - w;
-        let top = row.bottom + GAP;
+        let top = row.bottom + g;
         box.dataset.side = 'below';
         if (top + h > vh - 4) {
-          top = row.top - h - GAP;
+          top = row.top - h - g;
           box.dataset.side = 'above';
         }
         left = Math.max(4, Math.min(left, vw - w - 4));
         top = Math.max(4, Math.min(top, vh - h - 4));
         box.style.left = `${Math.round(left)}px`;
         box.style.top = `${Math.round(top)}px`;
-        return;
+        return { l: row.left, r: row.right, t: row.top, b: row.bottom };
       }
       if (line && !isPin && !room) {
         const row = line.getBoundingClientRect();
         const rtl = doc.defaultView?.getComputedStyle(line).direction === 'rtl';
-        const gap = x === null ? GAP : 14;
+        const gap = x === null ? g : 14 + grow;
         const from = x === null ? (rtl ? r.left : r.right) : x;
         const ends = rtl ? from - gap - w : from + gap;
         const starts = rtl ? from + gap : from - gap - w;
@@ -1016,37 +1459,38 @@
           box.dataset.side = at >= from ? 'right' : 'left';
           box.style.left = `${Math.round(at)}px`;
           box.style.top = `${Math.round(Math.max(4, Math.min(row.top, vh - h - 4)))}px`;
-          return;
+          return { l: from, r: from, t: row.top, b: row.bottom };
         }
       }
       const aside = side === 'right' || side === 'left';
       let left =
         side === 'right'
-          ? r.right + GAP + 2
+          ? r.right + g + 2
           : side === 'left'
-            ? r.left - GAP - 2 - w
+            ? r.left - g - 2 - w
             : room === 'right'
-              ? part.right + GAP
+              ? part.right + g
               : room === 'left'
-                ? part.left - GAP - w
+                ? part.left - g - w
                 : x === null
                   ? doc.defaultView?.getComputedStyle(anchor).direction === 'rtl'
                     ? r.right - w
                     : r.left
                   : x - w / 2;
-      let top = aside ? r.top + (r.height - h) / 2 : room ? r.top : r.bottom + GAP;
+      let top = aside ? r.top + (r.height - h) / 2 : room ? r.top : r.bottom + g;
       box.dataset.side = aside ? side : (room ?? 'below');
       if (!aside && !room && top + h > vh - 4) {
-        top = r.top - h - GAP;
+        top = r.top - h - g;
         box.dataset.side = 'above';
       }
       left = Math.max(4, Math.min(left, vw - w - 4));
       top = Math.max(4, Math.min(top, vh - h - 4));
       box.style.left = `${Math.round(left)}px`;
       box.style.top = `${Math.round(top)}px`;
+      return { l: x ?? r.left, r: x ?? r.right, t: r.top, b: r.bottom };
     }
 
-    function placeOn(box, anchor, want, x, line, isPin) {
+    function placeOn(box, anchor, want, x, line, isPin, grow) {
       const doc = anchor.ownerDocument;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
@@ -1067,12 +1511,13 @@
       const swap = { left: 'right', right: 'left' };
       const first = rtl && swap[want] ? swap[want] : want;
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
-      const gapX = at === null ? GAP + 2 : 14;
+      const g = GAP + grow;
+      const gapX = at === null ? g + 2 : 14 + grow;
       const midX = (t.left + t.right) / 2 - w / 2;
       const midY = (t.top + t.bottom) / 2 - h / 2;
       const spots = {
-        top: { left: midX, top: t.top - GAP - h, fits: t.top - GAP - h >= 4, side: 'above' },
-        bottom: { left: midX, top: t.bottom + GAP, fits: t.bottom + GAP + h <= vh - 4, side: 'below' },
+        top: { left: midX, top: t.top - g - h, fits: t.top - g - h >= 4, side: 'above' },
+        bottom: { left: midX, top: t.bottom + g, fits: t.bottom + g + h <= vh - 4, side: 'below' },
         left: { left: t.left - gapX - w, top: midY, fits: t.left - gapX - w >= 4, side: 'left' },
         right: { left: t.right + gapX, top: midY, fits: t.right + gapX + w <= vw - 4, side: 'right' },
       };
@@ -1082,7 +1527,7 @@
         box.dataset.side = at.side;
         box.style.left = `${Math.round(Math.max(4, Math.min(at.left, vw - w - 4)))}px`;
         box.style.top = `${Math.round(Math.max(4, Math.min(at.top, vh - h - 4)))}px`;
-        return true;
+        return { l: t.left, r: t.right, t: t.top, b: t.bottom };
       }
       return false;
     }
@@ -1134,133 +1579,499 @@
       item.style.scrollMarginBlockEnd = was;
     }
 
-    const renderers = new Map();
-    renderers.set('title', (b, _record, box, { content, pinned }) =>
-      pinned ? null : { node: el(box.ownerDocument, 'div', `${CSS}-title`, wordsOf(content, b.text)) },
+    const registry = new Map();
+    const drawn = new WeakMap();
+    const modes = new WeakMap();
+    const widths = new WeakMap();
+    const anchors = new WeakMap();
+    const watching = new WeakMap();
+    function register(type, def, native = false) {
+      const ok = tipText(type) && tipObject(def) && tipObject(def.shape);
+      if (!ok || typeof def.flatten !== 'function' || typeof def.render !== 'function') {
+        note(`register|${type}`, 'block(type, { shape, flatten, render }): a name, a shape object and two functions.');
+        return false;
+      }
+      if (registry.get(type)?.native) {
+        note(`register|${type}`, `block "${type}" is the engine's own and stays as it is.`);
+        return false;
+      }
+      registry.set(type, { shape: def.shape, flatten: def.flatten, render: def.render, native });
+      if (!native) for (const h of handles) h.redescribe();
+      return true;
+    }
+    function block(type, def) {
+      if (RESERVED.includes(type)) {
+        note(
+          `door|${type}`,
+          `block("${type}"): the name belongs to an hovercraft block; it is not registered. Choose another.`,
+        );
+        return false;
+      }
+      return register(type, def);
+    }
+    const heading = (doc, kicker, title, meta) => {
+      const node = el(doc, 'div', `${CSS}-title`, title);
+      if (!kicker && !meta) return node;
+      const wrap = el(doc, 'div', `${CSS}-heading`);
+      if (kicker) wrap.append(el(doc, 'div', `${CSS}-kicker`, kicker));
+      if (title) wrap.append(node);
+      if (meta) wrap.append(el(doc, 'div', `${CSS}-meta`, meta));
+      return wrap;
+    };
+    const native = (type, shape, flatten, render) =>
+      register(type, { shape: { ...shape, parent: { type: 'string', required: false } }, flatten, render }, true);
+    const joined = (...list) => list.filter((w) => w !== '').join(' ');
+    native(
+      'title',
+      {
+        text: { type: 'string', required: true },
+        kicker: { type: 'string', required: false },
+        meta: { type: 'string', required: false },
+      },
+      (b, _r, ctx) => joined(ctx.words(b.kicker), ctx.words(b.text), ctx.words(b.meta)),
+      (b, _r, ctx) => ({ node: heading(ctx.doc, ctx.words(b.kicker), ctx.words(b.text), ctx.words(b.meta)) }),
     );
-    renderers.set('text', (b, _record, box, { content }) => {
-      const words = box.appendChild(el(box.ownerDocument, 'div', `${CSS}-text`));
-      env.markdown(words, markdownOf(content, b.text), { field: 'tooltip', id: content.rec.id });
-      return { node: words };
-    });
-    renderers.set('badge', (b, _record, box, { content }) => {
-      const badge = el(box.ownerDocument, 'span', `${CSS}-badge`, wordsOf(content, b.text));
-      if (tipText(b.tone)) badge.dataset.tone = b.tone;
-      return { node: badge };
-    });
-    renderers.set('fields', (b, _record, box, { content }) => {
-      const doc = box.ownerDocument;
-      const dl = el(doc, 'dl', `${CSS}-fields`);
-      for (const f of Array.isArray(b.fields) ? b.fields : []) {
-        if (!tipObject(f)) continue;
-        const row = el(doc, 'div');
-        row.append(el(doc, 'dt', '', wordsOf(content, f.label)), el(doc, 'dd', '', wordsOf(content, f.value)));
-        dl.append(row);
-      }
-      return { node: dl };
-    });
-    renderers.set('code', (b, _record, box, { content, pinned, onCopy, code: at }) => {
-      const doc = box.ownerDocument;
-      const code = codeOf(content, b);
-      if (code === null) return null;
-      const wrap = el(doc, 'div', `${CSS}-code`);
-      const pre = el(doc, 'pre');
-      const inner = el(doc, 'code', '', code);
-      if (tipText(b.language)) inner.dataset.language = b.language;
-      pre.append(inner);
-      wrap.append(pre);
-      if (pinned) {
-        const cue = () => {
-          const room = pre.scrollWidth - pre.clientWidth;
-          const rtl = doc.defaultView?.getComputedStyle(pre).direction === 'rtl';
-          const left = pre.scrollLeft - (rtl ? -room : 0);
-          const right = (rtl ? 0 : room) - pre.scrollLeft;
-          wrap.classList.toggle(`${CSS}-code-more-right`, room > 1 && right > 1);
-          wrap.classList.toggle(`${CSS}-code-more-left`, room > 1 && left > 1);
-        };
-        pre.addEventListener('scroll', cue, { passive: true });
-        const View = doc.defaultView;
-        if (typeof View?.ResizeObserver === 'function') new View.ResizeObserver(cue).observe(pre);
-      }
-      if (pinned && b.copy === true) {
-        const bar = el(doc, 'div', `${CSS}-copybar`);
-        const button = el(doc, 'button', `${CSS}-copy`, 'Copy');
-        button.type = 'button';
-        const status = el(doc, 'span', `${CSS}-status`);
-        status.setAttribute('role', 'status');
-        button.addEventListener('click', (e) => onCopy(code, b.field, at, status, e.detail === 0 ? 'key' : 'click'));
-        bar.append(button, status);
-        wrap.append(bar);
-      }
-      return { node: wrap };
-    });
+    native(
+      'text',
+      { text: { type: 'string', required: true } },
+      (b, _r, ctx) => ctx.plain(b.text),
+      (b, _r, ctx) => ({ node: ctx.write(el(ctx.doc, 'div', `${CSS}-text`), b.text) }),
+    );
+    native(
+      'badge',
+      { text: { type: 'string', required: true }, tone: { type: 'string', required: false } },
+      (b, _r, ctx) => ctx.words(b.text),
+      (b, _r, ctx) => {
+        const badge = el(ctx.doc, 'span', `${CSS}-badge`, ctx.words(b.text));
+        if (tipText(b.tone)) badge.dataset.tone = b.tone;
+        return { node: badge };
+      },
+    );
+    native(
+      'fields',
+      {
+        fields: {
+          type: 'list',
+          required: true,
+          min: 1,
+          fields: { label: { type: 'string', required: true }, value: { type: 'scalar', required: true } },
+        },
+      },
+      (b, _r, ctx) =>
+        joined(
+          ...(Array.isArray(b.fields) ? b.fields : [])
+            .filter(tipObject)
+            .map((f) => `${ctx.words(f.label)} ${ctx.words(f.value)}`.trim()),
+        ),
+      (b, _r, ctx) => {
+        const dl = el(ctx.doc, 'dl', `${CSS}-fields`);
+        for (const f of Array.isArray(b.fields) ? b.fields : []) {
+          if (!tipObject(f)) continue;
+          const row = el(ctx.doc, 'div');
+          row.append(el(ctx.doc, 'dt', '', ctx.words(f.label)), el(ctx.doc, 'dd', '', ctx.words(f.value)));
+          dl.append(row);
+        }
+        return { node: dl };
+      },
+    );
+    native(
+      'code',
+      {
+        field: { type: 'string', required: true },
+        language: { type: 'string', required: false },
+        copy: { type: 'boolean', required: false },
+      },
+      (b, record) => {
+        const code = codeOf(record, b);
+        if (code === null) return '';
+        const lines = code.split(/\r\n|\r|\n/);
+        const said = (lines.find((l) => l.trim() !== '') ?? '').trim();
+        const first = said.length > 120 ? `${said.slice(0, 120).trimEnd()}…` : said;
+        if (lines.length === 1) return first ? `code: ${first}` : 'code, 1 line';
+        return `code, ${lines.length} lines${first ? `, starting ${first}` : ''}`;
+      },
+      (b, record, ctx, more) => {
+        const code = codeOf(record, b);
+        if (code === null) return null;
+        const { doc, pinned } = ctx;
+        const { onCopy, code: at } = more;
+        const wrap = el(doc, 'div', `${CSS}-code`);
+        const pre = el(doc, 'pre');
+        const inner = el(doc, 'code', '', code);
+        if (tipText(b.language)) inner.dataset.language = b.language;
+        pre.append(inner);
+        wrap.append(pre);
+        if (pinned) {
+          const cue = () => {
+            const room = pre.scrollWidth - pre.clientWidth;
+            const rtl = doc.defaultView?.getComputedStyle(pre).direction === 'rtl';
+            const left = pre.scrollLeft - (rtl ? -room : 0);
+            const right = (rtl ? 0 : room) - pre.scrollLeft;
+            wrap.classList.toggle(`${CSS}-code-more-right`, room > 1 && right > 1);
+            wrap.classList.toggle(`${CSS}-code-more-left`, room > 1 && left > 1);
+          };
+          pre.addEventListener('scroll', cue, { passive: true });
+          const View = doc.defaultView;
+          if (typeof View?.ResizeObserver === 'function') new View.ResizeObserver(cue).observe(pre);
+        }
+        if (pinned && b.copy === true) {
+          const bar = el(doc, 'div', `${CSS}-copybar`);
+          const button = el(doc, 'button', `${CSS}-copy`, 'Copy');
+          button.type = 'button';
+          const status = el(doc, 'span', `${CSS}-status`);
+          status.setAttribute('role', 'status');
+          button.addEventListener('click', (e) => onCopy(code, b.field, at, status, e.detail === 0 ? 'key' : 'click'));
+          bar.append(button, status);
+          wrap.append(bar);
+        }
+        return { node: wrap };
+      },
+    );
 
-    const lives = new WeakMap();
-    const tryCall = (fn, ...args) => {
+    native(
+      'group',
+      {
+        id: { type: 'string', required: true },
+        direction: { type: 'enum', required: false, values: ['row', 'column'] },
+        columns: { type: 'integer', required: false, min: 2, max: 4 },
+        gap: { type: 'enum', required: false, values: ['s', 'm', 'l'] },
+      },
+      () => '',
+      (b, _r, ctx) => {
+        const node = el(ctx.doc, 'div', `${CSS}-group`);
+        node.dataset.direction = b.direction === 'row' ? 'row' : 'column';
+        if (['s', 'm', 'l'].includes(b.gap)) node.dataset.gap = b.gap;
+        if (node.dataset.direction === 'row' && Number.isInteger(b.columns) && b.columns >= 2 && b.columns <= 4)
+          node.dataset.columns = String(b.columns);
+        return { node };
+      },
+    );
+
+    const hosts = new Map();
+    const LENGTH = /^(0|([0-9]+(\.[0-9]+)?|\.[0-9]+)(px|rem|em|vh|vw|%))$|^var\(--[A-Za-z0-9_-]+\)$/;
+    const lengthOf = (v) => {
+      if (typeof v === 'number') return Number.isFinite(v) && v >= 0 ? `${v}px` : null;
+      return typeof v === 'string' && LENGTH.test(v) ? v : null;
+    };
+    function host(slot, handler) {
+      const id = slotId(slot);
+      const ok = tipObject(handler) && typeof handler.mount === 'function' && typeof handler.destroy === 'function';
+      if (!id || !ok) {
+        note(
+          `host|door|${id}`,
+          'host(slot, { mount, destroy, resize?, mode? }): a slot id and a handler with mount and destroy.',
+        );
+        return false;
+      }
+      hosts.set(id, handler);
+      return true;
+    }
+    const jsonOf = (v) => {
       try {
-        fn?.(...args);
-      } catch (e) {
-        note(`life|${e?.message}`, `a tooltip block failed to draw or let go: ${e?.message ?? e}`);
+        return JSON.parse(JSON.stringify(v));
+      } catch {
+        return {};
       }
     };
-    function endLives(box, info) {
-      for (const h of lives.get(box) ?? []) {
-        tryCall(h.release, info);
-        tryCall(h.destroy);
-      }
-      lives.set(box, []);
-      box.classList.remove(`${CSS}-wide`);
+    function hostSlot(node, b) {
+      const slot = slotId(b.id);
+      node.setAttribute('data-hovercraft-host', slot);
+      const room = lengthOf(b.height);
+      if (room) node.style.minHeight = room;
+      else node.style.removeProperty('min-height');
+      if (!room && b.height !== undefined && b.height !== null)
+        note(
+          `host|height|${slot}`,
+          `the host block "${slot}": height must be a length such as 12rem or 240 (pixels); it is left out.`,
+        );
+      return node;
     }
-    function startLives(box) {
-      for (const h of lives.get(box) ?? []) {
-        if (h.mount && !h.mounted) {
-          h.mounted = true;
-          tryCall(h.mount);
+    native(
+      'host',
+      { id: { type: 'string', required: true }, height: { type: 'length', required: false } },
+      () => '',
+      (b, _r, ctx, more) => {
+        const slot = slotId(b.id);
+        if (!ctx.pinned) {
+          note(`host|hint|${slot}`, `the host block "${slot}" is drawn in a pinned tip only; a hint leaves it out.`);
+          return null;
         }
+        const node = hostSlot(el(ctx.doc, 'div', `${CSS}-host`), b);
+        let info = null;
+        const mount = (root, { mode }) => {
+          const h = hosts.get(slot);
+          if (!h) return undefined;
+          info = { slot, id: String(more.id), kind: more.kind, record: jsonOf(ctx.record), mode, pinned: true };
+          h.mount(root, info);
+          const life = {
+            destroy: () => h.destroy(root, info),
+            mode: (next) => {
+              info.mode = next;
+              if (typeof h.mode === 'function') h.mode(root, next);
+            },
+          };
+          if (typeof h.resize === 'function') life.resize = () => h.resize(root, info);
+          return life;
+        };
+        const renew = (record, id, kind, mode) => {
+          if (info) Object.assign(info, { record: jsonOf(record), id: String(id), kind, mode });
+        };
+        return { node, mount, renew };
+      },
+    );
+
+    const tryCall = (fn, ...args) => {
+      try {
+        return fn?.(...args);
+      } catch (e) {
+        note(`life|${e?.message}`, `a tooltip block failed to draw or let go: ${e?.message ?? e}`);
+        return undefined;
       }
+    };
+    const lifeCall = (h, name, ...args) => tryCall((...a) => h.handle?.[name]?.(...a), ...args);
+    function endLives(box, info) {
+      const ending = drawn.get(box) ?? [];
+      drawn.set(box, []);
+      box.classList.remove(`${CSS}-wide`);
+      if (info.reason !== 'redraw') watching.get(box)?.();
+      for (const h of ending) lifeCall(h, 'destroy', info);
+    }
+    const widthOf = (box) => box.getBoundingClientRect().width;
+    function startLives(box) {
+      for (const h of drawn.get(box) ?? []) {
+        if (h.mounted) continue;
+        h.mounted = true;
+        widths.set(box, widthOf(box));
+        const handle = tryCall(h.mount, h.node, { box, mode: modes.get(box) ?? 'light' });
+        if (tipObject(handle) || typeof handle === 'function') h.handle = handle;
+      }
+      watchMode(box);
+    }
+    function watchMode(box) {
+      const anchor = anchors.get(box);
+      const View = box.ownerDocument.defaultView;
+      const was = watching.get(box);
+      if (was && was.anchor === anchor) return;
+      was?.();
+      if (box.classList.contains(`${CSS}-pin`)) return;
+      if (!anchor || typeof View?.MutationObserver !== 'function') return;
+      const seen = new View.MutationObserver(() => copyMarks(box, anchors.get(box)));
+      for (let n = anchor; n?.nodeType === 1; n = n.parentElement)
+        seen.observe(n, { attributes: true, attributeFilter: ['data-hovercraft-mode', 'data-bs-theme'] });
+      const stop = () => {
+        seen.disconnect();
+        watching.set(box, null);
+      };
+      stop.anchor = anchor;
+      watching.set(box, stop);
+    }
+    const resizing = new WeakSet();
+    const forced = new WeakSet();
+    function resizeLives(box, force = false) {
+      if (!(drawn.get(box) ?? []).some((h) => h.handle)) return;
+      if (force) forced.add(box);
+      if (resizing.has(box)) return;
+      resizing.add(box);
+      const run = () => {
+        resizing.delete(box);
+        const now = widthOf(box);
+        if (!forced.delete(box) && now === widths.get(box)) return;
+        widths.set(box, now);
+        for (const h of drawn.get(box) ?? []) lifeCall(h, 'resize');
+      };
+      const view = box.ownerDocument.defaultView;
+      if (typeof view?.requestAnimationFrame === 'function') view.requestAnimationFrame(run);
+      else run();
+    }
+    function flipLives(box, next) {
+      for (const h of drawn.get(box) ?? []) lifeCall(h, 'mode', next);
+      resizeLives(box, true);
     }
     function fill(box, content, { pinned, onCopy }) {
       const doc = box.ownerDocument;
+      const want = pinned ? slotsOf(content) : [];
+      const carried = new Map(
+        (drawn.get(box) ?? []).filter((h) => h.mounted && want.includes(h.slot)).map((h) => [h.slot, h]),
+      );
+      drawn.set(
+        box,
+        (drawn.get(box) ?? []).filter((h) => !carried.has(h.slot)),
+      );
       endLives(box, { reason: 'redraw', by: 'data', via: null });
-      box.replaceChildren();
-      if (content.label) box.append(el(doc, 'div', `${CSS}-title`, content.label));
+      const stage = box.cloneNode(false);
+      const marks = new Map();
+      if (content.label) stage.append(el(doc, 'div', `${CSS}-title`, content.label));
       if (!content.blocks.length && content.reason) {
-        box.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+        stage.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+        box.replaceChildren(...stage.childNodes);
         return;
       }
+      const ordered = headFirst(content.blocks);
+      const first = ordered[0]?.type === 'title' && !hasParent(ordered[0]) ? ordered[0] : null;
       if (pinned) {
-        const title = titleOf(content);
+        const [kicker, title, meta] = ['kicker', 'text', 'meta'].map((k) => (first ? wordsOf(content, first[k]) : ''));
         const close = el(doc, 'button', `${CSS}-close`, '×');
         close.type = 'button';
         close.setAttribute('aria-label', 'Close');
-        if (title) {
+        if (title || kicker || meta) {
           const head = el(doc, 'div', `${CSS}-head`);
-          head.append(el(doc, 'div', `${CSS}-title`, title), close);
-          box.append(head);
+          head.append(heading(doc, kicker, title, meta), close);
+          stage.append(head);
         } else {
           close.classList.add(`${CSS}-corner`);
-          box.append(close);
+          stage.append(close);
         }
       }
       const kept = [];
+      const mode = modes.get(box) ?? 'light';
+      const ctx = {
+        ...flatCtx(content),
+        doc,
+        box,
+        pinned,
+        mode,
+        write: (node, text) => {
+          if (!node.parentNode) stage.append(node);
+          env.markdown(node, markdownOf(content, text), { field: 'tooltip', id: content.rec.id, notes: false });
+          return node;
+        },
+      };
       let code = -1;
-      for (const b of content.blocks) {
+      const draw = (n, into, top) => {
+        const b = n.b;
         if (b.type === 'code') code += 1;
-        const render = renderers.get(b.type);
-        if (!render) continue;
+        const def = registry.get(b.type);
+        if (!def || (top && pinned && b === first)) return;
         let h = null;
+        let again = null;
         try {
-          h = render(b, content.record, box, { content, pinned, onCopy, code });
+          if (b.type === 'host') again = carried.get(slotId(b.id)) ?? null;
+          if (again) {
+            const mark = doc.createComment('host slot');
+            marks.set(mark, again.node);
+            h = { node: mark };
+            hostSlot(again.node, b);
+          } else if (def.native)
+            h = def.render(b, content.record, ctx, {
+              onCopy,
+              code,
+              id: content.rec.id,
+              kind: content.rec.kind ?? 'row',
+            });
+          else h = def.render(b, content.record, ctx);
         } catch (e) {
           note(`render|${b.type}`, `a tooltip ${b.type} block could not be drawn: ${e?.message ?? e}`);
         }
-        if (!h) continue;
-        if (h.node && h.node.parentNode !== box) box.append(h.node);
-        if (h.mount || h.release || h.destroy) kept.push(h);
+        if (!h) return;
+        if (h.node && h.node.parentNode !== into) into.append(h.node);
+        if (n.kids.length && h.node) {
+          const before = kept.length;
+          for (const k of n.kids) draw(k, h.node, false);
+          if (!h.node.firstChild) {
+            note(`grp|empty|${b.id}`, `the group "${b.id}" drew no block; it is left out.`);
+            h.node.remove();
+            kept.length = before;
+            return;
+          }
+        }
+        if (again) {
+          again.renew?.(content.record, content.rec.id, content.rec.kind ?? 'row', mode);
+          kept.push(again);
+        } else if (typeof h.mount === 'function' && h.node)
+          kept.push({
+            type: b.type,
+            node: h.node,
+            mount: h.mount,
+            handle: null,
+            mounted: false,
+            slot: b.type === 'host' ? slotId(b.id) : undefined,
+            renew: h.renew,
+          });
+      };
+      for (const n of treeOf(ordered)) draw(n, stage, true);
+      drawn.set(box, kept);
+      if (content.reason) stage.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+      refill(box, stage, marks);
+      if (kept.length || box.querySelector(`.${CSS}-group[data-direction="row"]`)) box.classList.add(`${CSS}-wide`);
+    }
+    function refill(box, stage, marks) {
+      if (!marks.size) {
+        box.replaceChildren(...stage.childNodes);
+        return;
       }
-      lives.set(box, kept);
-      if (kept.some((h) => h.mount)) box.classList.add(`${CSS}-wide`);
-      if (content.reason) box.append(el(doc, 'div', `${CSS}-line`, reasonWords(content)));
+      const markIn = (n) => [...marks.keys()].find((m) => n.contains(m));
+      const sync = (to, from) => {
+        for (const a of [...to.attributes]) if (!from.hasAttribute(a.name)) to.removeAttribute(a.name);
+        for (const a of from.attributes) if (to.getAttribute(a.name) !== a.value) to.setAttribute(a.name, a.value);
+      };
+      const shift = (into, t, at) => {
+        let moved = false;
+        if (typeof into.moveBefore === 'function' && t.isConnected && into.isConnected) {
+          try {
+            into.moveBefore(t, at);
+            moved = true;
+          } catch {
+            moved = false;
+          }
+        }
+        if (!moved) into.insertBefore(t, at);
+      };
+      const merge = (into, from) => {
+        const stays = new Set();
+        const targets = [];
+        for (const c of [...from.childNodes]) {
+          if (marks.has(c)) {
+            targets.push(marks.get(c));
+            stays.add(marks.get(c));
+            continue;
+          }
+          const m = c.nodeType === 1 ? markIn(c) : null;
+          const old = m ? [...into.children].find((o) => o.contains(marks.get(m)) && o.tagName === c.tagName) : null;
+          if (old) {
+            sync(old, c);
+            merge(old, c);
+            targets.push(old);
+            stays.add(old);
+          } else targets.push(c);
+        }
+        let at = into.firstChild;
+        for (const t of targets) {
+          if (t === at) {
+            at = at.nextSibling;
+            continue;
+          }
+          if (stays.has(t)) {
+            while (at && at !== t && !stays.has(at)) {
+              const next = at.nextSibling;
+              at.remove();
+              at = next;
+            }
+            if (at === t) {
+              at = at.nextSibling;
+              continue;
+            }
+          }
+          shift(into, t, at);
+        }
+        while (at) {
+          const next = at.nextSibling;
+          if (!targets.includes(at)) at.remove();
+          at = next;
+        }
+      };
+      merge(box, stage);
+      for (const [m, slot] of marks) {
+        if (!m.isConnected) continue;
+        const parent = m.parentNode;
+        if (typeof parent.moveBefore === 'function' && slot.isConnected) {
+          try {
+            parent.moveBefore(slot, m);
+          } catch {
+            parent.insertBefore(slot, m);
+          }
+        } else parent.insertBefore(slot, m);
+        m.remove();
+      }
     }
 
     function copyText(doc, text, near, done) {
@@ -1344,7 +2155,7 @@
       const onKey = (e) => {
         if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape' && page.hint) {
-          page.hint.handle.hideHint();
+          page.hint.handle.hideHint(false, { reason: 'escape', by: 'reader', via: 'key' });
           e.preventDefault();
           e.stopPropagation();
         } else if (e.key === 'Tab' && e.shiftKey && page.pin && doc.activeElement === page.pin.after()) {
@@ -1356,8 +2167,14 @@
         }
       };
       const onMove = () => {
+        if (page.hint) page.hint.place(false);
+        if (page.pin) page.pin.place(false);
+      };
+      const onSize = () => {
         if (page.hint) page.hint.place();
         if (page.pin) page.pin.place();
+        if (page.hint) resizeLives(boxesOf(doc).hint);
+        if (page.pin) resizeLives(page.pin.box);
       };
       const onEscape = (e) => {
         if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || !page.pin) return;
@@ -1369,8 +2186,8 @@
       view.addEventListener('keydown', onKey, true);
       view.addEventListener('keydown', onEscape);
       doc.addEventListener('scroll', onMove, true);
-      view.addEventListener('resize', onMove);
-      doc.addEventListener('report:tab', () => page.pin?.check('reader'));
+      view.addEventListener('resize', onSize);
+      env.revealed?.(doc, () => page.pin?.check('reader'));
     }
 
     const reasonOf = (n) =>
@@ -1415,6 +2232,8 @@
       let leave = 0;
       let awayOff = null;
       let seenHint = null;
+      let stopHintWatch = null;
+      let stopPinWatch = null;
       let inHint = false;
       let lastPointer = 'mouse';
       let hovered = false;
@@ -1467,6 +2286,17 @@
         }
         const given = typeof placement === 'function' ? placement(n) : placement;
         return given === 'auto' || given === undefined || given === null ? 'auto' : placementWord(given, 'ui.tips');
+      };
+      const ARROW_ATTR = `${NAMES.attr}-arrow`;
+      const arrowOf = (n) => {
+        let on = null;
+        for (let node = n; node && node.nodeType === 1 && on === null; node = node.parentElement) {
+          const attr = node.getAttribute(ARROW_ATTR);
+          if (attr !== null) on = attr.trim().toLowerCase() !== 'false';
+          else if (own.get(node) && tipOwn(own.get(node), 'arrow')) on = own.get(node).arrow;
+        }
+        const name = presetAt(n);
+        return on !== false && !(name && presetData(name).arrow === false);
       };
       const rootEl = () => (owner === doc.documentElement ? doc.body : owner);
       const anchorOf = (n) => (typeof anchor === 'function' ? anchor(n) : null) ?? focusOf(n);
@@ -1531,25 +2361,46 @@
         const was = n.getAttribute('aria-describedby');
         const now = was ? (first ? `${d.id} ${was}` : `${was} ${d.id}`) : d.id;
         if (now !== was) n.setAttribute('aria-describedby', now);
+        return d.id;
       };
+      const madeFor = new WeakMap();
+      function describeItem(item) {
+        const n = focusOf(item);
+        if (!when(item)) return;
+        const c = contentFor(item);
+        if (!c) return;
+        const name = String(c.rec.label ?? '');
+        const blocks = c.blocks.map((b) =>
+          b.type === 'title' && name && wordsOf(c, b.text) === name ? { ...b, text: '' } : b,
+        );
+        const words = c.blocks.length ? plainOf({ ...c, label: '', blocks }, false) : '';
+        const why = c.prefix ? reasonWords(c) : c.reason;
+        const shared = sharedStop(item);
+        const own = [];
+        for (const at of shared ? [n, shared] : [n]) {
+          const said = describedAs(at);
+          if (words && !said.includes(words)) own.push({ at, id: addDesc(at, words, !!why && said.includes(why)) });
+          if (why && !said.includes(why)) own.push({ at, id: addDesc(at, why) });
+        }
+        madeFor.set(item, own);
+      }
       function describe() {
         for (const item of items()) {
-          const n = focusOf(item);
-          if (mine(n) || !when(item)) continue;
-          const c = contentFor(item);
-          if (!c) continue;
-          const name = String(c.rec.label ?? '');
-          const blocks = c.blocks.filter((b) => !(b.type === 'title' && name && wordsOf(c, b.text) === name));
-          const words = c.blocks.length ? plainOf({ ...c, label: '', blocks }, false) : '';
-          const why = c.prefix ? reasonWords(c) : c.reason;
-          const shared = sharedStop(item);
-          for (const at of shared ? [n, shared] : [n]) {
-            const said = describedAs(at);
-            if (words && !said.includes(words)) addDesc(at, words, !!why && said.includes(why));
-            if (why && !said.includes(why)) addDesc(at, why);
-          }
+          if (mine(focusOf(item))) continue;
+          describeItem(item);
         }
-        watch.takeRecords();
+        settle();
+      }
+      function redescribeItem(item) {
+        for (const { at, id } of madeFor.get(item) ?? []) {
+          doc.getElementById(id)?.remove();
+          const keep = (at.getAttribute('aria-describedby') ?? '').split(/\s+/).filter((d) => d && d !== id);
+          if (keep.length) at.setAttribute('aria-describedby', keep.join(' '));
+          else at.removeAttribute('aria-describedby');
+        }
+        madeFor.delete(item);
+        describeItem(item);
+        settle();
       }
       function undescribe() {
         for (const d of box.querySelectorAll(`.${DESC}`)) {
@@ -1564,19 +2415,24 @@
           d.remove();
         }
       }
+      const itemWatchers = new Set();
+      function settle() {
+        watch.takeRecords();
+        for (const w of itemWatchers) w.takeRecords();
+      }
       const watch = new MutationObserver((records) => {
         const ours = records.every(
           (r) => [...r.addedNodes].every((x) => x.classList?.contains(DESC)) && !r.removedNodes.length,
         );
         if (ours) return;
         describe();
-        if (page.hint?.handle === handle && !page.hint.anchor.isConnected) hideHint();
-        if (page.pin?.handle === handle) page.pin.check('data');
+        if (page.hint?.handle === handle && !page.hint.anchor.isConnected) hideHint(false, goneInfo());
+        checkOpen('data');
       });
       watch.observe(box, { childList: true, subtree: true });
       describe();
 
-      function hideHint(moved = false) {
+      function hideHint(moved = false, why = { reason: 'closed', by: 'reader', via: null }) {
         clearTimeout(timer);
         clearTimeout(leave);
         timer = 0;
@@ -1584,13 +2440,15 @@
         awayOff = null;
         seenHint?.disconnect();
         seenHint = null;
+        stopHintWatch?.();
+        stopHintWatch = null;
         inHint = false;
         if (page.hint?.handle !== handle) return;
         const delayed = page.hint.delayed;
         page.hint = null;
         if (moved !== true) closeSkip();
         kit.sizes?.unobserve(kit.hint);
-        endLives(kit.hint, { reason: 'closed', by: 'reader', via: null });
+        endLives(kit.hint, why);
         kit.hintMotion.set(false);
         if (moved === true && delayed) {
           page.skip = true;
@@ -1600,6 +2458,57 @@
           }, HINT_DELAY);
         }
       }
+      function hintCheck() {
+        const h = page.hint;
+        if (h?.handle !== handle) return;
+        const n = h.anchor;
+        const c = n.isConnected && n.getClientRects().length ? contentFor(n) : null;
+        if (!c) {
+          hideHint(false, goneInfo());
+          return;
+        }
+        const sig = keyOf(c);
+        if (sig === h.sig) return;
+        h.sig = sig;
+        fill(kit.hint, c, { pinned: false });
+        redescribeItem(n);
+        h.place();
+        startLives(kit.hint);
+      }
+      function checkOpen(by) {
+        if (page.hint?.handle === handle) {
+          if (page.hint.anchor.isConnected && page.hint.anchor.getClientRects().length) {
+            hintCheck();
+            if (page.hint?.handle === handle) page.hint.place();
+          } else hideHint(false, goneInfo());
+        }
+        if (page.pin?.handle === handle) page.pin.check(by);
+      }
+      function watchItem(n) {
+        const View = doc.defaultView;
+        if (!NAMES.standalone || typeof View?.MutationObserver !== 'function') return null;
+        const seen = new View.MutationObserver((records) => {
+          const ours = records.every(
+            (r) =>
+              r.type === 'childList' &&
+              !r.removedNodes.length &&
+              [...r.addedNodes].every((x) => x.classList?.contains(DESC)),
+          );
+          if (!ours) checkOpen('data');
+        });
+        seen.observe(n, {
+          attributes: true,
+          attributeFilter: [ATTR, `${ATTR}-template`, `${ATTR}-record`, `${ATTR}-reason`],
+          characterData: true,
+          childList: true,
+          subtree: true,
+        });
+        itemWatchers.add(seen);
+        return () => {
+          seen.disconnect();
+          itemWatchers.delete(seen);
+        };
+      }
       function closeSkip() {
         page.skip = false;
         clearTimeout(page.skipTimer);
@@ -1608,23 +2517,24 @@
         if (page.pin?.handle === handle && page.pin.anchor() === n) return;
         const c = contentFor(n);
         if (!c) return;
-        if (page.hint && page.hint.handle !== handle) page.hint.handle.hideHint();
-        const a = anchorOf(n);
-        mountNear(kit.hint, a);
-        looks(kit.hint, a);
+        if (page.hint && page.hint.handle !== handle)
+          page.hint.handle.hideHint(false, { reason: 'replaced', by: 'reader', via: null });
+        mountNear(kit.hint, n);
+        looks(kit.hint, n);
         fill(kit.hint, c, { pinned: false });
         const s = sideOf();
-        const x = how === 'pointer' || how === 'tap' ? xOf(n) : null; // a tip shown by the keyboard is not where the mouse last was
+        const x = how === 'pointer' || how === 'tap' ? xOf(n) : null;
         const by = besideOf(n);
         closeSkip();
         page.hint = {
           handle,
           anchor: n,
+          sig: keyOf(c),
           how,
           delayed: c.blocks.length > 0,
-          place: () => {
-            copyMarks(kit.hint, anchorOf(n));
-            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n));
+          place: (restyle = true) => {
+            if (restyle) copyMarks(kit.hint, n);
+            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n), arrowOf(n));
           },
         };
         kit.hintMotion.set(true);
@@ -1632,13 +2542,15 @@
         startLives(kit.hint);
         kit.sizes?.observe(kit.hint);
         listenPage(doc);
+        stopHintWatch?.();
+        stopHintWatch = watchItem(n);
         seenHint?.disconnect();
         const view = doc.defaultView;
         seenHint =
           typeof view?.IntersectionObserver === 'function'
             ? new view.IntersectionObserver(() => {
                 if (page.hint?.handle !== handle || page.hint.anchor !== n) return;
-                if (!n.isConnected || !n.getClientRects().length) hideHint();
+                if (!n.isConnected || !n.getClientRects().length) hideHint(false, goneInfo());
               })
             : null;
         seenHint?.observe(n);
@@ -1650,7 +2562,7 @@
         if (!c) return;
         if (page.hint?.handle === handle && page.hint.anchor === n) return;
         const open = page.hint?.delayed === true;
-        const wait = c.blocks.length && !page.skip && !open ? HINT_DELAY : 0;
+        const wait = c.blocks.length && !page.skip && !open ? delayAt(n) : 0;
         if (!wait) showHint(n, how);
         else timer = setTimeout(() => n.isConnected && showHint(n, how), wait);
       }
@@ -1680,7 +2592,7 @@
       };
       const hintOut = (e) => {
         if (page.hint?.handle !== handle || kit.hint.contains(e.relatedTarget)) return;
-        if (e.pointerType === 'touch' || page.hint.how === 'tap') return; // a tap's hint stays until a tap elsewhere
+        if (e.pointerType === 'touch' || page.hint.how === 'tap') return;
         const n = page.hint.anchor;
         if (n.contains(e.relatedTarget) || anchorOf(n).contains(e.relatedTarget)) return;
         inHint = false;
@@ -1710,7 +2622,7 @@
         clearTimeout(timer);
         if (page.hint?.handle !== handle) return;
         if (kit.hint.contains(e.relatedTarget) || inHint) return;
-        if (hovered && page.hint.how === 'pointer') return; // the pointer still rests on it
+        if (hovered && page.hint.how === 'pointer') return;
         hideHint(true);
       };
       const down = (e) => {
@@ -1740,7 +2652,7 @@
         if (!c) return;
         if (e.detail === 0) return;
         const reasonOnly = !c.blocks.length;
-        const touched = lastPointer !== 'mouse'; // a finger or a pen; a mouse has its hover
+        const touched = lastPointer !== 'mouse';
         if (!reasonOnly && (!touched || canPin(n))) return;
         tapOn(n, touched);
       };
@@ -1798,7 +2710,7 @@
         if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape') {
           if (page.hint?.handle === handle) {
-            hideHint();
+            hideHint(false, { reason: 'escape', by: 'reader', via: 'key' });
             used(e);
           } else if (page.pin?.handle === handle && itemAt(doc.activeElement)) {
             closePin({ reason: 'escape', by: 'reader', via: 'key' });
@@ -1827,13 +2739,14 @@
         } else if (e.key === 'Tab') {
           const stops = focusables(page.pin.box);
           const at = stops.indexOf(doc.activeElement) + (e.shiftKey ? -1 : 1);
-          const stop = () => owner.querySelector('[tabindex="0"]') ?? page.pin.focusAt();
+          const stop = () =>
+            (owner === doc.documentElement ? null : owner.querySelector('[tabindex="0"]')) ?? page.pin.focusAt();
           const to =
             at >= 0 && at < stops.length
               ? stops[at]
               : e.shiftKey
                 ? page.pin.focusAt()
-                : (page.pin.after() ?? (owner.closest(MODAL) ? stop() : null));
+                : (page.pin.after() ?? (page.pin.box.parentElement?.closest(MODAL) ? stop() : null));
           if (!to) return;
           to.focus();
           if (doc.activeElement === to) used(e);
@@ -1841,7 +2754,7 @@
       };
 
       const pinned = () => (page.pin?.handle === handle ? page.pin.id : null);
-      function emitTip(state, id, kind, reason, text, info, from, item = null) {
+      function emitTip(state, id, kind, reason, text, info, from, item = null, slots = []) {
         env.emit(
           host,
           'hovercraft:tip',
@@ -1849,28 +2762,46 @@
             state,
             id,
             kind,
-            ids: state === 'pinned' ? [id] : [],
+            ids: state === 'closed' ? [] : [id],
             reason,
             text,
-            by: info.by ?? 'reader',
+            by: info.by ?? 'host',
             from,
             via: info.via ?? null,
+            slots,
           },
           item,
         );
+      }
+      function announce(p) {
+        if (p.frame) return;
+        const send = () => {
+          p.frame = 0;
+          if (page.pin !== p) return;
+          emitTip('updated', p.id, p.kind, null, p.text, { by: 'data', via: null }, p.id, p.item(), p.slots);
+        };
+        const view = doc.defaultView;
+        if (typeof view?.requestAnimationFrame === 'function') p.frame = view.requestAnimationFrame(send);
+        else send();
+      }
+      function cancelFrame(p) {
+        if (p.frame) doc.defaultView?.cancelAnimationFrame?.(p.frame);
+        p.frame = 0;
       }
       function closePin(info = {}, refocus = false) {
         const p = page.pin;
         if (!p || p.handle !== handle) return false;
         const anchor = p.focusAt();
         page.pin = null;
+        cancelFrame(p);
         p.stop();
         const hadFocus = p.box.contains(doc.activeElement);
         kit.sizes?.unobserve(p.box);
         room(p.box, false);
-        endLives(p.box, { reason: info.reason ?? 'host', by: info.by ?? 'reader', via: info.via ?? null });
+        endLives(p.box, { reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null });
         kit.pinMotion.set(false);
-        emitTip('closed', p.id, p.kind, info.reason ?? 'host', p.text, info, p.id, p.item());
+        emitTip('closed', p.id, p.kind, info.reason ?? 'host', p.text, info, p.id, p.item(), p.slots);
+        for (const slot of p.box.querySelectorAll(`.${CSS}-host`)) slot.remove();
         if (refocus || hadFocus) {
           if (anchor?.isConnected) anchor.focus({ preventScroll: true });
           else if (hadFocus) {
@@ -1895,16 +2826,16 @@
         const from = pinned();
         const by = info.by ?? 'reader';
         if (page.pin) page.pin.handle.closePin({ reason: 'replaced', by, via: info.via ?? null });
-        if (page.hint) page.hint.handle.hideHint();
+        if (page.hint) page.hint.handle.hideHint(false, { reason: 'pinned', by, via: info.via ?? null });
         const rec = c.rec;
         const kind = rec.kind ?? 'row';
         const text = cut(plainOf(c));
         const name = titleOf(c) || String(rec.label ?? key);
         const s = sideOf();
-        const x = info.via === 'click' ? xOf(n) : null; // a pin by key or by the host is not where the mouse last was
+        const x = info.via === 'click' ? xOf(n) : null;
         const pbox = kit.pin;
-        mountNear(pbox, anchorOf(n));
-        looks(pbox, anchorOf(n));
+        mountNear(pbox, n);
+        looks(pbox, n);
         const onCopy = (code, field, block, status, via) =>
           copyText(doc, code, pbox, (ok) => {
             const item = page.pin?.item() ?? n;
@@ -1933,7 +2864,7 @@
         const inside = (e) => {
           const hit = itemAt(e.target);
           if (e === born || (hit && canPin(hit)) || pbox.contains(e.target)) return;
-          if (e.target.closest?.('[data-hovercraft-keep]')) return; // the part's own controls (a table's sort, search, paging)
+          if (e.target.closest?.('[data-hovercraft-keep]')) return;
           closePin({ reason: 'outside', by: 'reader', via: 'click' });
         };
         owner.addEventListener('click', inside);
@@ -1947,6 +2878,11 @@
         stack?.push(entry);
         const onAround = () => closePin({ reason: 'below', by: 'reader', via: null });
         around?.addEventListener('close', onAround);
+        const onModalEscape = (e) => {
+          used(e);
+          closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
+        };
+        const offModal = inModal(pbox, () => page.pin?.handle === handle, onAround, onModalEscape);
         let anchorEl = n;
         let clipped = false;
         const view = doc.defaultView;
@@ -1964,7 +2900,7 @@
               })
             : null;
         seen?.observe(n);
-        const WATCHED = [...MARKS, 'data-hovercraft-mode', 'class', 'style', 'hidden'];
+        const WATCHED = [...MARKS, 'data-hovercraft-mode', 'data-bs-theme', 'class', 'style', 'hidden'];
         const marks = new MutationObserver(() => page.pin?.handle === handle && page.pin.place());
         const watchLine = (a) => {
           marks.disconnect();
@@ -1978,6 +2914,9 @@
           id: key,
           kind,
           text,
+          sig: keyOf(c),
+          frame: 0,
+          slots: slotsOf(c),
           owner,
           box: pbox,
           anchor: () => {
@@ -1988,7 +2927,11 @@
                 if (was) seen.unobserve(was);
                 if (anchorEl) seen.observe(anchorEl);
               }
-              if (anchorEl && anchorEl !== was) watchLine(anchorEl);
+              if (anchorEl && anchorEl !== was) {
+                watchLine(anchorEl);
+                stopPinWatch?.();
+                stopPinWatch = watchItem(anchorEl);
+              }
             }
             return anchorEl;
           },
@@ -1999,14 +2942,14 @@
           item: () => (anchorEl?.isConnected ? anchorEl : n),
           after: () => {
             const stop = page.pin?.focusAt();
-            const perItem = typeof focusAt === 'function' || owner === doc.documentElement; // the standalone: the page
+            const perItem = typeof focusAt === 'function' || owner === doc.documentElement;
             return nextAfter(doc, perItem && stop ? stop : owner);
           },
-          place: () => {
+          place: (restyle = true) => {
             const a = page.pin?.anchor();
             if (!a) return;
-            copyMarks(pbox, anchorOf(a));
-            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a));
+            if (restyle) copyMarks(pbox, a);
+            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a));
             if (clipped) pbox.style.visibility = 'hidden';
             room(pbox, pbox.dataset.side === 'sheet' && pbox.style.visibility !== 'hidden');
             if (pbox.style.visibility === 'hidden' && pbox.contains(doc.activeElement)) {
@@ -2023,35 +2966,61 @@
                 closePin({ reason: 'gone', by: 'data', via: null });
                 return;
               }
-              if (cut(plainOf(fresh)) !== page.pin.text) {
-                page.pin.text = cut(plainOf(fresh));
+              const slots = slotsOf(fresh);
+              const old = page.pin.slots;
+              const same = slots.length === old.length && slots.every((id) => old.includes(id));
+              const sig = keyOf(fresh);
+              if (sig !== page.pin.sig || !same) {
+                const p = page.pin;
+                const data = { reason: 'redraw', by: 'data', via: null };
+                if (!same) {
+                  cancelFrame(p);
+                  endLives(pbox, data);
+                  emitTip('closed', key, kind, 'redraw', p.text, data, key, a, old);
+                  if (page.pin !== p) return;
+                }
+                p.sig = sig;
+                p.text = cut(plainOf(fresh));
+                p.slots = slots;
                 fill(pbox, fresh, { pinned: true, onCopy });
+                pbox.setAttribute('aria-label', titleOf(fresh) || String(fresh.rec.label ?? key));
                 pbox.querySelector(`.${CSS}-close`)?.addEventListener('click', onClose);
                 stopsOff(pbox);
-                place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a));
+                redescribeItem(a);
+                place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a));
                 startLives(pbox);
+                if (same && slots.length) resizeLives(pbox, true);
+                if (!same) {
+                  emitTip('pinned', key, kind, null, p.text, { by: 'data', via: null }, key, a, slots);
+                  if (page.pin !== p) return;
+                } else announce(p);
               }
-              page.pin.place();
+              page.pin?.place();
             }
           },
           stop: () => {
+            stopPinWatch?.();
+            stopPinWatch = null;
             seen?.disconnect();
             marks.disconnect();
             offOutside();
             owner.removeEventListener('click', inside);
             pbox.removeEventListener('keydown', tipKeys);
             around?.removeEventListener('close', onAround);
+            offModal();
             stack?.remove(entry);
           },
         };
         kit.pinMotion.set(true);
+        stopPinWatch?.();
+        stopPinWatch = watchItem(n);
         stopsOff(pbox);
         page.pin.place();
         if (pbox.dataset.side === 'sheet') reveal(n, pbox);
         startLives(pbox);
         kit.sizes?.observe(pbox);
         listenPage(doc);
-        emitTip('pinned', key, kind, null, text, { by, via: info.via ?? null }, from, n);
+        emitTip('pinned', key, kind, null, text, { by, via: info.via ?? null }, from, n, page.pin.slots);
         say(doc, `${name}: details pinned. Tab to reach them.`, n);
         return true;
       }
@@ -2089,23 +3058,18 @@
         redescribe() {
           undescribe();
           describe();
-          if (page.hint?.handle === handle) page.hint.place();
-          if (page.pin?.handle === handle) page.pin.check('data');
+          checkOpen('data');
         },
         refresh(info = {}) {
           describe();
-          if (page.hint?.handle === handle) {
-            if (page.hint.anchor.isConnected && page.hint.anchor.getClientRects().length) page.hint.place();
-            else hideHint();
-          }
-          if (page.pin?.handle === handle) page.pin.check(info.by ?? 'data');
+          checkOpen(info.by ?? 'data');
         },
-        hide: () => hideHint(),
+        hide: () => hideHint(false, hostInfo()),
         destroy() {
           if (gone) return;
           gone = true;
           handles.delete(handle);
-          hideHint();
+          hideHint(false, goneInfo());
           closePin({ reason: 'gone', by: 'data', via: null });
           watch.disconnect();
           undescribe();
@@ -2131,7 +3095,7 @@
         },
         element: handle.element,
         refresh: handle.refresh,
-        hide: () => hideHint(),
+        hide: () => hideHint(false, hostInfo()),
         destroy: handle.destroy,
       });
       inner.set(outward, handle);
@@ -2154,7 +3118,6 @@
     }
 
     const ATTR = NAMES.attr;
-    const KIT_ROOT = '[data-hovercraft-visual], .kit';
     const BSLIB = 'bslib-tooltip > *, bslib-popover > *, [data-bs-toggle="tooltip"], [data-bs-toggle="popover"]';
     const ROW = 'tr, li, [role="row"], [role="option"]';
     const ROWS = 'table, ul, ol, [role="table"], [role="grid"], [role="treegrid"], [role="list"], [role="listbox"]';
@@ -2179,7 +3142,7 @@
       const REASON = `${ATTR}-reason`;
       const GIVEN = '[data-reason][aria-disabled="true"]';
       const selector = `[${ATTR}], [${ATTR}-template], [${REASON}], ${GIVEN}, ${PIN}`;
-      const ours = (n) => !n.closest(KIT_ROOT) && !n.matches(BSLIB);
+      const ours = (n) => !(NAMES.skip && n.closest(NAMES.skip)) && !n.matches(BSLIB);
       const idOf = (n) => n.getAttribute(`${ATTR}-id`) || n.id || '';
       const kindOf = (n) => {
         const kind = n.getAttribute(`${ATTR}-kind`);
@@ -2318,9 +3281,6 @@
       return handle;
     }
 
-    const block = (type, render) => {
-      if (typeof type === 'string' && typeof render === 'function') renderers.set(type, render);
-    };
     return Object.freeze({
       tips,
       reasonTips,
@@ -2328,17 +3288,22 @@
       define,
       attach,
       block,
+      host,
+      register,
+      blocks: () => [...registry].map(([type, { shape, native }]) => ({ type, shape, native })),
       contentOf,
       plainOf,
+      groupDepth: GROUP_DEPTH,
       settingsAt,
       placements: [...PLACEMENTS],
+      presets: [...Object.keys(PRESET_TEXT), PRESET_NONE],
     });
   }
 
   const engine = createTipEngine({
     emit: (host, type, detail, item) => {
-      const at = item?.isConnected ? item : host.root;
-      at.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
+      const at = item?.isConnected ? item : host.root?.isConnected ? host.root : (item ?? host.root)?.ownerDocument;
+      at?.dispatchEvent(new CustomEvent(type, { bubbles: true, detail }));
     },
     markdown,
     num,
@@ -2360,5 +3325,7 @@
     define: engine.define,
     attach: engine.attach,
     tooltip: engine.tooltip,
+    block: engine.block,
+    host: engine.host,
   });
 })();

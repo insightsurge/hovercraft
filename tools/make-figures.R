@@ -113,6 +113,6 @@ for (mode in c("light", "dark")) {
     bslib::page_fluid(templates, htmltools::tags$div(style = "padding: 16px", templated)),
     paste0("template-", mode),
     mode,
-    height = 190
+    height = 200
   )
 }

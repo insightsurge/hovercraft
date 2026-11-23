@@ -9,10 +9,12 @@ tip_template_fields <- function(template) {
   for (block in template) {
     spec <- blocks[[block$type]]
     for (path in unlist(spec$placeholders)) {
-      texts <- if (path == "text") {
-        block$text
+      # "text" is a field of the block; "fields.value" is the `value` of each item in its `fields`.
+      parts <- strsplit(path, ".", fixed = TRUE)[[1]]
+      texts <- if (length(parts) == 1L) {
+        block[[parts]]
       } else {
-        vapply(block$fields, function(pair) pair$value, "")
+        vapply(block[[parts[[1]]]], function(item) item[[parts[[2]]]], "")
       }
       out <- c(out, unlist(lapply(texts, function(text) tip_parse(text)$fields)))
     }
@@ -22,6 +24,15 @@ tip_template_fields <- function(template) {
   }
   unique(out)
 }
+
+# The constructor of each block type this package can make. The engine may have more types (a group, a host): those wait
+# for a later version.
+tip_block_makers <- function() {
+  list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+}
+
+# The block types the engine has and this package can make: what a message may offer.
+tip_block_types <- function(rules) intersect(names(rules$blocks), names(tip_block_makers()))
 
 # A block given as a plain list, `list(type = "text", text = "...")`, made through its constructor so it is checked the
 # same way. `where` says which one it is, for the messages.
@@ -40,7 +51,9 @@ tip_as_block <- function(x, where, call) {
       call = call
     )
   }
-  if (x$type %in% unlist(rules$blocks_later)) {
+  # The engine's block types that have no constructor here yet (a group, a host) wait for a later version too.
+  makers <- tip_block_makers()
+  if (x$type %in% unlist(rules$blocks_later) || (x$type %in% names(rules$blocks) && is.null(makers[[x$type]]))) {
     tip_abort(
       "{where} is a {.val {x$type}} block, which comes with a later version.",
       class = "hovercraft_error_later",
@@ -49,21 +62,32 @@ tip_as_block <- function(x, where, call) {
   }
   if (!x$type %in% names(rules$blocks)) {
     tip_abort(
-      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {names(rules$blocks)}}.",
+      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {tip_block_types(rules)}}.",
       class = "hovercraft_error_block",
       call = call
     )
   }
+  maker <- makers[[x$type]]
   known <- names(rules$blocks[[x$type]]$fields)
+  # What the constructor takes now; a `fields` block's list of pairs is one engine field, `fields`.
+  takes <- intersect(known, c(names(formals(maker)), if (x$type == "fields") "fields"))
   unknown <- setdiff(names(x), c("type", known))
   if (length(unknown)) {
     tip_abort(
-      "{where} has fields a {.val {x$type}} block does not take: {.val {unknown}}. It takes {.val {known}}.",
+      "{where} has fields a {.val {x$type}} block does not take: {.val {unknown}}. It takes {.val {takes}}.",
       class = "hovercraft_error_block",
       call = call
     )
   }
-  maker <- switch(x$type, title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+  # A field the engine takes but the constructor does not yet (`kicker`, `meta`, `parent`) waits for a later version.
+  later <- setdiff(intersect(names(x), known), takes)
+  if (length(later)) {
+    tip_abort(
+      "{where} has {.val {later}}, which a {.val {x$type}} block takes in the engine but comes with a later version.",
+      class = "hovercraft_error_later",
+      call = call
+    )
+  }
   rest <- x[names(x) != "type"]
   if (x$type == "fields") {
     rest <- stats::setNames(
