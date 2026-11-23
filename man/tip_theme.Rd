@@ -20,7 +20,8 @@ the page says. A tip is drawn at the page level, so a \code{data-bs-theme} on a 
 reach it.}
 }
 \value{
-A \code{hovercraft_theme} object, to give to \code{\link[=tip_dependency]{tip_dependency()}}. Its fields are internal; pass the object on.
+A \code{hovercraft_theme} object, to give as \verb{style =} to \code{\link[=tip_dependency]{tip_dependency()}} or \code{\link[=tip_on]{tip_on()}}, or to
+\code{\link[=tip_style]{tip_style()}}. Its fields are internal; pass the object on.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
@@ -28,14 +29,14 @@ Sets how the tips look: the fill, words, border and code background, the corner,
 light and for dark. A role left out keeps what the page gives: the tip reads Bootstrap's variables where the page has
 them (bslib), so a page that already has a \code{bslib::bs_theme()} needs no theme, and its tips follow light and dark on
 their own. Use a theme when the tips must look different from the page, or when the page has no bslib. Give the
-result to \code{\link[=tip_dependency]{tip_dependency()}} once, in the page's UI.
+result to \code{\link[=tip_dependency]{tip_dependency()}} once, in the page's UI, or to \code{\link[=tip_on]{tip_on()}} for one tag, as \verb{style =}.
 }
 \details{
 The roles are \code{bg} (the tip's fill), \code{ink} (its words), \code{line} (its border, seen in forced-colours mode and in a tip
 that stays open), \code{code_bg} (behind code), \code{radius} (the corner), \code{shadow} and \code{font}. Colours may be names, hex,
 \code{\link[grDevices:rgb]{grDevices::rgb()}} output, \code{"rgba(0, 0, 0, 0.8)"} text or three numbers from 0 to 255. A value that is a CSS
 variable, \code{"--team-blue"} or \code{"var(--team-blue)"}, is read by the browser where the page defines it; R cannot check
-it. A theme can also be a \code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_dependency]{tip_dependency()}}.
+it. A theme can also be a \code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_style]{tip_style()}}.
 
 A role set in \code{light} and not in \code{dark} is used in dark mode too, so a brand colour set once holds in both modes.
 
@@ -77,6 +78,8 @@ Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_presets]{tip_presets()}},
+\code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}}
 }

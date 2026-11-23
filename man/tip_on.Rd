@@ -4,7 +4,7 @@
 \alias{tip_on}
 \title{Put a tip on a tag}
 \usage{
-tip_on(tag, text = NULL, ..., template = NULL, record = NULL)
+tip_on(tag, text = NULL, ..., template = NULL, record = NULL, style = NULL)
 }
 \arguments{
 \item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}.}
@@ -21,6 +21,12 @@ build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()
 factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen the template, only the columns it names are kept, so nothing
 else in a row is written into the page; for a template not seen here, every column goes, so choose them with
 \code{data[i, c("label", "n")]}.}
+
+\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How this tag's tip looks, or \code{NULL} (the default) to take the
+page's. A preset name from \code{\link[=tip_presets]{tip_presets()}} (\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a
+style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins,
+value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
+\code{\link[=tip_style]{tip_style()}}.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added.
@@ -54,6 +60,14 @@ name that has not been defined is left to the page, which says so once in the br
 \examples{
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
 
+# A look for this tag only
+tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = "sober")
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+)
+
 tip_define(diff = tip_template(
   tip_title("{{ label }}"),
   tip_text("{{ differences | number:0 }} differences")
@@ -75,6 +89,8 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_dependency]{tip_dependency()}},
+\code{\link[=tip_presets]{tip_presets()}},
+\code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}

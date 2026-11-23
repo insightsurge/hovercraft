@@ -159,27 +159,41 @@ describe("tip_theme_css()", {
     dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
   ))
 
-  it("writes light on :root, the dark roles that differ under data-bs-theme and the visitor's own setting", {
+  it("writes light on body, the dark roles that differ under data-bs-theme and the visitor's own setting", {
     css <- css_of(theme)
     expect_match(css, "^<style>")
     expect_match(css, "</style>$")
-    expect_match(css, ":root, [data-bs-theme=\"light\"] {", fixed = TRUE)
+    expect_match(css, "^<style>\nbody \\{")
     expect_match(css, sprintf("--%s-tip-bg: #1b3a6b;", prefix), fixed = TRUE)
-    expect_match(css, "[data-bs-theme=\"dark\"] {", fixed = TRUE)
+    expect_match(css, "[data-bs-theme=\"dark\"] body, body[data-bs-theme=\"dark\"] {", fixed = TRUE)
     expect_match(css, sprintf("--%s-tip-bg: #9ec5fe;", prefix), fixed = TRUE)
     expect_match(css, "@media (prefers-color-scheme: dark)", fixed = TRUE)
-    expect_match(css, ":root:not([data-bs-theme])", fixed = TRUE)
+    expect_match(css, ":root:not([data-bs-theme]) body {", fixed = TRUE)
+  })
+
+  it("never declares a variable on :root, where the engine would read it as inherited", {
+    # A page preset sits on the root; a variable on the root too is found equal there and the preset overwrites it.
+    expect_no_match(css_of(theme), "(^|\n):root \\{")
+    expect_no_match(css_of(quiet(tip_theme(light = list(bg = "#111111"), mode = "dark"))), "(^|\n):root \\{")
+  })
+
+  it("scopes a tag's theme to the selector it is given, with no body rule", {
+    css <- tip_theme_css(theme, "[data-hovercraft-theme=\"abc\"]")
+    expect_match(css, "^<style>\n\\[data-hovercraft-theme=\"abc\"\\] \\{")
+    expect_match(css, "[data-bs-theme=\"dark\"] [data-hovercraft-theme=\"abc\"] {", fixed = TRUE)
+    expect_match(css, ":root:not([data-bs-theme]) [data-hovercraft-theme=\"abc\"] {", fixed = TRUE)
+    expect_no_match(css, "body", fixed = TRUE)
   })
 
   it("leaves a role that is the same in dark out of the dark rules", {
     css <- css_of(theme)
-    dark <- sub(".*\\[data-bs-theme=\"dark\"\\] \\{", "", css)
+    dark <- sub(".*body\\[data-bs-theme=\"dark\"\\] \\{", "", css)
     expect_no_match(sub("@media.*", "", dark), "radius")
   })
 
   it("writes one rule for a fixed mode, whatever the page says", {
     light <- css_of(quiet(tip_theme(light = list(bg = "#111111"), dark = list(bg = "#eeeeee"), mode = "light")))
-    expect_match(light, "^<style>\n:root \\{")
+    expect_match(light, "^<style>\nbody \\{")
     expect_match(light, "#111111", fixed = TRUE)
     expect_no_match(light, "#eeeeee", fixed = TRUE)
     expect_no_match(light, "prefers-color-scheme", fixed = TRUE)
@@ -234,7 +248,7 @@ describe("tip_as_theme()", {
     expect_match(css, "--hovercraft-tip-bg: #123456;", fixed = TRUE)
     expect_match(css, "--x: 0 1px 2px rgba(0, 0, 0, 0.2);", fixed = TRUE)
     expect_no_match(css, "dark", fixed = TRUE)
-    expect_match(css_of(tip_as_theme(list("--a" = "1px"))), "[data-bs-theme=\"light\"]", fixed = TRUE)
+    expect_match(css_of(tip_as_theme(list("--a" = "1px"))), "^<style>\nbody \\{")
     expect_true(nzchar(prefix))
   })
 
@@ -417,9 +431,9 @@ describe("a bslib theme", {
   })
 
   it("goes into the dependency like any other theme", {
-    deps <- tip_dependency(theme = bslib::bs_theme(version = 5))
+    deps <- tip_dependency(style = bslib::bs_theme(version = 5))
     expect_length(deps, 2L)
-    expect_identical(deps[[2]]$name, "hovercraft-theme")
+    expect_identical(deps[[2]]$name, "hovercraft-style")
   })
 
   it("warns about a value it cannot read and keeps the role at the page's own", {
@@ -446,34 +460,38 @@ describe("a bslib theme", {
 })
 
 describe("tip_dependency()", {
-  it("is the engine alone with no theme, and for an empty theme", {
+  it("is the engine alone with no style, and for a style that sets nothing", {
     expect_s3_class(tip_dependency(), "html_dependency")
-    expect_s3_class(tip_dependency(theme = tip_theme()), "html_dependency")
-    expect_s3_class(tip_dependency(theme = list()), "html_dependency")
+    expect_s3_class(tip_dependency(style = tip_theme()), "html_dependency")
+    expect_s3_class(tip_dependency(style = tip_style()), "html_dependency")
   })
 
-  it("is the engine and a theme that holds only CSS, with a theme", {
-    deps <- tip_dependency(theme = tip_theme(light = list(radius = 6)))
+  it("is the engine and a style dependency, with a theme", {
+    deps <- tip_dependency(style = tip_theme(light = list(radius = 6)))
     expect_length(deps, 2L)
     expect_identical(deps[[1]]$name, "hovercraft")
-    expect_identical(deps[[2]]$name, "hovercraft-theme")
+    expect_identical(deps[[2]]$name, "hovercraft-style")
     expect_identical(deps[[2]]$version, deps[[1]]$version)
     expect_match(deps[[2]]$head, "radius: 6px", fixed = TRUE)
     expect_null(deps[[2]]$script)
     expect_null(deps[[2]]$stylesheet)
   })
 
-  it("lets the engine arrive once when tip_on() adds it as well", {
+  it("lets the engine arrive once when tip_on() adds it as well, and keeps the page's style", {
     deps <- htmltools::resolveDependencies(c(
       htmltools::findDependencies(tip_on(htmltools::tags$button("x"), "t")),
-      tip_dependency(theme = tip_theme(light = list(radius = 6)))
+      tip_dependency(style = tip_theme(light = list(radius = 6)))
     ))
-    expect_identical(vapply(deps, function(d) d$name, ""), c("hovercraft", "hovercraft-theme"))
+    expect_identical(vapply(deps, function(d) d$name, ""), c("hovercraft", "hovercraft-style"))
   })
 
-  it("takes a list of CSS variables as the theme", {
-    deps <- tip_dependency(theme = list("--hovercraft-tip-radius" = "8px"))
+  it("takes a list of CSS variables as the theme of a style", {
+    deps <- tip_dependency(style = tip_style(theme = list("--hovercraft-tip-radius" = "8px")))
     expect_match(deps[[2]]$head, "--hovercraft-tip-radius: 8px;", fixed = TRUE)
+  })
+
+  it("has no theme = argument any more", {
+    expect_error(tip_dependency(theme = tip_theme()), "unused argument")
   })
 })
 

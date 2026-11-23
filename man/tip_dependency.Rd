@@ -4,43 +4,49 @@
 \alias{tip_dependency}
 \title{The tip engine as an HTML dependency}
 \usage{
-tip_dependency(theme = NULL)
+tip_dependency(style = NULL)
 }
 \arguments{
-\item{theme}{How the tips look, or \code{NULL} (the default) to take the page's own bslib variables, so a page with
-a \code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
+\item{style}{How the tips look on the whole page, or \code{NULL} (the default) to take the page's own bslib variables,
+so a page with a \code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
 \itemize{
-\item a \code{\link[=tip_theme]{tip_theme()}};
-\item a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its variables (bslib 0.6.0 or later). The tip is a shade of the page: its
-fill is the theme's tertiary background and its words the theme's text colour, with the border colour, corner and
-font;
-\item a named list whose names are roles (\code{list(bg = "#1b3a6b", ink = "#ffffff")}), the same as
-\code{tip_theme(light = )}, so one set for both modes;
-\item a named list whose names all start with \verb{--}, CSS variables set as they are for both modes, such as
-\code{list("--hovercraft-tip-bg" = "#1b3a6b")}: the engine's own variables, or any variable the page's CSS reads.
-}}
+\item a preset name from \code{\link[=tip_presets]{tip_presets()}}, such as \code{"sober"};
+\item a \code{\link[=tip_style]{tip_style()}}, which bundles a preset, a theme and a class for the tip box;
+\item one part of a style, read as \verb{tip_style(<part>)}: a \code{\link[=tip_theme]{tip_theme()}}, or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}, read through its
+variables (bslib 0.6.0 or later). The tip is a shade of the page: its fill is the theme's tertiary background
+and its words the theme's text colour, with the border colour, corner and font.
+}
+
+A tag's own \code{style} (see \code{\link[=tip_on]{tip_on()}}) beats the page's, and a value set nearer wins, value by value. A named
+list is not taken: give \code{tip_theme()} the roles, or \code{tip_style(theme = list(...))} a list of roles or of CSS
+variables such as \code{list("--hovercraft-tip-bg" = "#1b3a6b")}. A string that holds \code{:} or \verb{;} is not a style: it
+looks like CSS, and \code{style} takes no CSS.}
 }
 \value{
-An \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}}; with a \code{theme}, a list of two: the engine and \code{hovercraft-theme}, which
-holds only the theme's CSS. Put it once in the page's UI, for example
-\code{bslib::page_fluid(tip_dependency(theme = my_theme), ...)}.
+An \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}}; with a \code{style} that sets something, a list of two: the engine and
+\code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as the engine's
+attributes on the page. Put it once in the page's UI, for example
+\code{bslib::page_fluid(tip_dependency(style = "sober"), ...)}.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 The engine's script and CSS, ready to add to a page. \code{\link[=tip_on]{tip_on()}} and \code{\link[=tip_define]{tip_define()}} attach it for you; use this when
-you build the page's head yourself, or to give the page a theme. The dependency is versioned with the engine, not
+you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
 with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
 }
 \examples{
 tip_dependency()
-tip_dependency(theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
-tip_dependency(theme = list("--hovercraft-tip-radius" = "8px"))
+tip_dependency(style = "modern")
+tip_dependency(style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
+tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 }
 \seealso{
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_presets]{tip_presets()}},
+\code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
 \code{\link[=tip_theme]{tip_theme()}}

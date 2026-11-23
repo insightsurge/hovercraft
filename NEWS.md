@@ -12,10 +12,13 @@
   dependency (#32).
 * `tip_table()` is an experimental spike that puts tips on the rows, cells and header cells of a `DT::datatable()` or `reactable::reactable()` table, drawn from each row's own values and following the data row through sorting, filtering and paging. It works by pointer only, with no keyboard reach yet, and its shape may change (#36).
 * `tip_dependency()` gives the tip engine's script and CSS as an HTML dependency.
-* `tip_theme()` and `tip_dependency(theme = )` set how the tips look: roles for light and dark (fill, words, border, code
-  background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables. The tip follows `data-bs-theme`, so it turns
+* `tip_theme()` and `tip_dependency(style = )` set how the tips look: roles for light and dark (fill, words, border, code
+  background, corner, shadow, typeface), a `bslib::bs_theme()`, or CSS variables (through `tip_style(theme = )`). The tip follows `data-bs-theme`, so it turns
   dark with `bslib::input_dark_mode()`. Words below 4.5:1 on their fill give a `hovercraft_contrast` warning.
-* The tip is now a shade of its page (Bootstrap's tertiary background with the page's text colour, in light and in dark), no longer the page inverted. A `bslib::bs_theme()` given to `tip_dependency()` is read the same way, and the contrast check measures a role you leave out against that default. The bundled engine is now 0.49.0 and ships `tip.json` and its five preset files.
+* The tip is now a shade of its page (Bootstrap's tertiary background with the page's text colour, in light and in dark), no longer the page inverted. A `bslib::bs_theme()` given to `tip_dependency(style = )` is read the same way, and the contrast check measures a role you leave out against that default. The bundled engine is now 0.49.0 and ships `tip.json` and its five preset files.
+* `tip_style()` bundles a preset, a theme and a class for the tip box, and `tip_presets()` lists the presets (both experimental). `tip_on()` and `tip_dependency()` take it as `style =` (experimental on `tip_on()`), which also takes a preset name, `"none"`, or one part of a style: a `tip_theme()` or a `bslib::bs_theme()`. A tag's style beats the page's, and a value set nearer wins, value by value. A bare list, or a string with `:` or `;` such as `"color: red"`, stops with an error that says what `style` takes (#34, #42).
+* `tip_dependency(theme = )` is now `tip_dependency(style = )`, with no old argument kept (#42).
+* A page's theme is written on `body` and no longer on `:root`, so a page preset no longer overwrites it; the page's preset and class are written on the page as the engine's own attributes (#42).
 * Two vignettes, "Get started with hovercraft" and "Themes".
 * The tip has a small arrow pointing at its tag, on by default and drawn when its fill is opaque (#31).
 * `tip_theme(font = )` now sets the engine's own tip font variable, so a theme's font beats the font of a preset (#31).

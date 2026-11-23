@@ -28,8 +28,10 @@ reference:
       - tip_define
       - tip_template
       - tip_blocks
-  - title: Themes
+  - title: Looks
     contents:
+      - tip_style
+      - tip_presets
       - tip_theme
   - title: The engine
     contents: tip_dependency

@@ -53,12 +53,12 @@ brand
 ```
 
 A role set in `light` and not in `dark` is used in dark mode too, so a brand colour set once holds in both modes.
-Colours may be names, hex, `rgb()` text or three numbers from 0 to 255. Give the theme to `tip_dependency()` once, in the
-page's UI:
+Colours may be names, hex, `rgb()` text or three numbers from 0 to 255. Give the theme to `tip_dependency()` as `style`
+once, in the page's UI:
 
 ```{r, eval = FALSE}
 ui <- bslib::page_fluid(
-  tip_dependency(theme = brand),
+  tip_dependency(style = brand),
   tip_on(actionButton("go", "Run"), "Runs the **check**")
 )
 ```
@@ -72,6 +72,32 @@ knitr::include_graphics(c("figures/theme-light.png", "figures/theme-dark.png"))
 `mode = "auto"` (the default) follows the page: the `data-bs-theme` attribute that `bslib::input_dark_mode()` sets on the
 page, and, when the page names none, the visitor's own setting. `"light"` and `"dark"` use that mode whatever the page says.
 A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not reach it.
+
+## Presets and styles
+
+A preset is a named look the engine ships: a corner, a font, colours for light and dark and a shadow. `tip_presets()` lists
+them, and a name is all `style` needs:
+
+```{r}
+tip_presets()[c("name", "label")]
+tip_dependency(style = "sober")[[2]]$name
+```
+
+`style` takes a preset name, `"none"` (clears a preset set further out), a `tip_style()`, or one part of a style, such as a
+`tip_theme()`. `tip_style()` bundles a preset, a theme and a class for the tip box: `tip_style("sober", theme = brand)` is
+sober with the roles of `brand` changed. A string that holds `:` or `;` is not a style: `style` takes no CSS, and a list
+goes to `tip_theme()` or `tip_style(theme = list(...))`.
+
+A tag can have its own look. `tip_on(btn, "Run", style = "dense")` beats the page's style for that tag, and a value set
+nearer wins, value by value: a tag whose theme sets only `bg` keeps the page's `ink`. A preset on a tag replaces the
+page's preset as a whole, and a theme beats a preset set at the same place or further out.
+
+`class` puts class names on the tip box, for your own CSS. The nearest class wins as a whole (a tag's `class = "wide"`
+replaces the page's `class = "brand"`), and `class = ""` clears one:
+
+```{r}
+tip_style("sober", class = c("wide", "audit-tip"))
+```
 
 ## A bslib theme
 
@@ -88,7 +114,7 @@ warm <- bslib::bs_theme(
   "body-bg-dark" = "#002b36",
   "body-color-dark" = "#eee8d5"
 )
-tip_dependency(theme = warm)[[2]]$name
+tip_dependency(style = warm)[[2]]$name
 ```
 
 ```{r, echo = FALSE, out.width = "48%", fig.alt = "A button with a tip below it in pale cream with dark teal words, rounded corners and a small arrow, then the same in dark mode with a muted teal tip.", fig.show = "hold"}
@@ -98,11 +124,14 @@ knitr::include_graphics(c("figures/bs-theme-light.png", "figures/bs-theme-dark.p
 ## CSS variables
 
 A named list whose names all start with `--` sets CSS variables as they are, for both modes: the engine's own variables, or
-any variable the page's CSS defines.
+any variable the page's CSS defines. Give it to `tip_style(theme = )`: a bare list is not taken as `style`, because a style
+has more parts than a theme.
 
 ```{r}
-tip_dependency(theme = list("--hovercraft-tip-radius" = "4px"))[[2]]$name
+tip_dependency(style = tip_style(theme = list("--hovercraft-tip-radius" = "4px")))[[2]]$name
 ```
+
+These variables reach the tips from the page only, not from one tag.
 
 A role can also read a variable: `tip_theme(light = list(bg = "--team-blue"))` reads `--team-blue` where the page defines
 it. R cannot check the value of a variable; the browser works it out.
