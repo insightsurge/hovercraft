@@ -4,7 +4,8 @@
 #   - inst/engine/engine.json says the engine was not copied from its main branch,
 #   - a vendored file does not match the sha256 engine.json recorded for it, or
 #   - the package's public text names the engine's project: README.md, DESCRIPTION, NEWS.md, _pkgdown.yml, R/, man/,
-#     and the files a page is given (inst/engine/www/ and inst/engine/engine.json), or
+#     and the files the engine ships (inst/engine/www/, inst/engine/presets/, inst/engine/tip.json and
+#     inst/engine/engine.json), or
 #   - the maintainer address in DESCRIPTION is a noreply address, or
 #   - DESCRIPTION has no URL or BugReports, _pkgdown.yml has no url, or one of those links does not load (the
 #     repository must be public before a CRAN release), or
@@ -50,7 +51,8 @@ public <- c(
   "NEWS.md",
   "_pkgdown.yml",
   list.files(c("R", "man"), recursive = TRUE, full.names = TRUE),
-  list.files("inst/engine/www", recursive = TRUE, full.names = TRUE),
+  list.files(c("inst/engine/www", "inst/engine/presets"), recursive = TRUE, full.names = TRUE),
+  "inst/engine/tip.json",
   "inst/engine/engine.json"
 )
 project <- paste0("atl", "as") # written in two pieces so this file does not name it in one

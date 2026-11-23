@@ -125,6 +125,8 @@ A button that holds only an icon has no name for a screen reader. When its tip i
 tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 ```
 
+The tip is then read once, as the button's name; the engine does not also add it as a description.
+
 ## In a Shiny app
 
 ```r

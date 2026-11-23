@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.48.0",
+  "version": "0.49.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -14,7 +14,8 @@
     "kind": "data-hovercraft-tip-kind",
     "placement": "data-hovercraft-tip-placement",
     "preset": "data-hovercraft-tip-preset",
-    "arrow": "data-hovercraft-tip-arrow"
+    "arrow": "data-hovercraft-tip-arrow",
+    "class": "data-hovercraft-tip-class"
   },
   "host": {
     "attribute": "data-hovercraft-host"
@@ -32,6 +33,9 @@
       "left",
       "right"
     ]
+  },
+  "class": {
+    "pattern": "^-?[_a-zA-Z][_a-zA-Z0-9-]*$"
   },
   "presets": [
     "dense",

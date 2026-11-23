@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.48.0, built from its source; do not edit.
+// hovercraft tip engine 0.49.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.48.0';
+  const VERSION = '0.49.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -801,6 +801,53 @@
       }
       return null;
     }
+    const CLASS_ATTR = `${NAMES.attr}-class`;
+    const CLASS_TOKEN = /^-?[_a-zA-Z][_a-zA-Z0-9-]*$/;
+    function classWord(v, where) {
+      const out = [];
+      for (const token of String(v).split(/\s+/).filter(Boolean)) {
+        if (!CLASS_TOKEN.test(token))
+          note(
+            `class|${token}`,
+            `${where}: "${token}" is not a class name (letters, digits, - and _, not starting with a digit); it is left out.`,
+          );
+        else if (token.startsWith(CSS))
+          note(
+            `class|${token}`,
+            `${where}: "${token}" starts with "${CSS}", which the tip's own classes use; it is left out.`,
+          );
+        else if (!out.includes(token)) out.push(token);
+      }
+      return out;
+    }
+    function classesAt(from) {
+      for (let node = from; node?.nodeType === 1; node = node.parentElement) {
+        const attr = node.getAttribute(CLASS_ATTR);
+        if (attr !== null) return classWord(attr, CLASS_ATTR);
+        const mine = own.get(node);
+        if (mine && tipOwn(mine, 'class')) return mine.class;
+      }
+      return [];
+    }
+    const classAdded = new WeakMap();
+    function classed(box, anchor) {
+      const want = classesAt(anchor);
+      const had = classAdded.get(box) ?? [];
+      for (const token of had) if (!want.includes(token)) box.classList.remove(token);
+      const added = [];
+      for (const token of want) {
+        if (had.includes(token) || !box.classList.contains(token)) {
+          box.classList.add(token);
+          added.push(token);
+        }
+      }
+      if (added.length) classAdded.set(box, added);
+      else classAdded.delete(box);
+    }
+    function unclass(box) {
+      for (const token of classAdded.get(box) ?? []) box.classList.remove(token);
+      classAdded.delete(box);
+    }
     const CODE_FILL = 'color-mix(in srgb, var(--hc-tip-ink) 12%, transparent)';
     const dressed = new WeakMap();
     function dress(box, anchor, mode) {
@@ -852,7 +899,7 @@
         if (!tipObject(settings))
           note(
             'settings',
-            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_preset } (or nothing to read the setting).',
+            'tooltip: give { tooltip, tooltip_template, tooltip_templates, tooltip_placement, tooltip_arrow, tooltip_class, tooltip_preset } (or nothing to read the setting).',
           );
         else {
           const mine = own.get(at) ?? {};
@@ -882,6 +929,13 @@
             if (v === null || v === undefined) delete mine.arrow;
             else if (typeof v === 'boolean') mine.arrow = v;
             else note(`arrow|${String(v)}`, 'tooltip: "tooltip_arrow" must be true or false; kept the old value.');
+          }
+          if (tipOwn(settings, 'tooltip_class')) {
+            const v = settings.tooltip_class;
+            if (v === null || v === undefined) delete mine.class;
+            else if (typeof v === 'string') mine.class = classWord(v, 'tooltip');
+            else
+              note(`classes|${String(v)}`, 'tooltip: "tooltip_class" must be class names as text; kept the old value.');
           }
           if (tipOwn(settings, 'tooltip_preset')) {
             const v = settings.tooltip_preset;
@@ -918,6 +972,7 @@
         tooltip_templates: templates,
         tooltip_placement: got.placement,
         tooltip_arrow: got.arrow,
+        tooltip_class: classesAt(at).join(' ') || null,
         tooltip_preset: presetAt(at),
       };
     }
@@ -1303,6 +1358,7 @@
       const next = modeOf(anchor);
       if (!NAMES.standalone) box.setAttribute('data-hovercraft-mode', next);
       dress(box, anchor, next);
+      classed(box, anchor);
       const was = modes.get(box);
       modes.set(box, next);
       anchors.set(box, anchor);
@@ -1857,7 +1913,7 @@
       if (!anchor || typeof View?.MutationObserver !== 'function') return;
       const seen = new View.MutationObserver(() => copyMarks(box, anchors.get(box)));
       for (let n = anchor; n?.nodeType === 1; n = n.parentElement)
-        seen.observe(n, { attributes: true, attributeFilter: ['data-hovercraft-mode', 'data-bs-theme'] });
+        seen.observe(n, { attributes: true, attributeFilter: ['data-hovercraft-mode', 'data-bs-theme', CLASS_ATTR] });
       const stop = () => {
         seen.disconnect();
         watching.set(box, null);
@@ -2364,6 +2420,26 @@
         return d.id;
       };
       const madeFor = new WeakMap();
+      const squash = (text) =>
+        String(text ?? '')
+          .replace(/\s+/g, ' ')
+          .trim()
+          .toLowerCase();
+      const NAMED_BY_WORDS =
+        'button, a[href], summary, h1, h2, h3, h4, h5, h6, [role="button"], [role="link"], [role="tab"], [role="menuitem"], [role="option"], [role="checkbox"], [role="radio"], [role="switch"], [role="treeitem"], [role="heading"]';
+      const wordsIn = (n) => {
+        const copy = n.cloneNode(true);
+        for (const d of copy.querySelectorAll(`.${DESC}, [hidden], [aria-hidden="true"]`)) d.remove();
+        return copy.textContent;
+      };
+      function nameOf(at) {
+        const ids = (at.getAttribute('aria-labelledby') ?? '').split(/\s+/).filter(Boolean);
+        const targets = ids.map((id) => doc.getElementById(id)).filter(Boolean);
+        const named = squash(targets.map(wordsIn).join(' '));
+        if (named) return named;
+        const labelled = squash(at.getAttribute('aria-label'));
+        return labelled || (at.matches(NAMED_BY_WORDS) ? squash(wordsIn(at)) : '');
+      }
       function describeItem(item) {
         const n = focusOf(item);
         if (!when(item)) return;
@@ -2379,7 +2455,8 @@
         const own = [];
         for (const at of shared ? [n, shared] : [n]) {
           const said = describedAs(at);
-          if (words && !said.includes(words)) own.push({ at, id: addDesc(at, words, !!why && said.includes(why)) });
+          if (words && !said.includes(words) && squash(words) !== nameOf(at))
+            own.push({ at, id: addDesc(at, words, !!why && said.includes(why)) });
           if (why && !said.includes(why)) own.push({ at, id: addDesc(at, why) });
         }
         madeFor.set(item, own);
@@ -2450,6 +2527,7 @@
         kit.sizes?.unobserve(kit.hint);
         endLives(kit.hint, why);
         kit.hintMotion.set(false);
+        unclass(kit.hint);
         if (moved === true && delayed) {
           page.skip = true;
           clearTimeout(page.skipTimer);
@@ -2800,6 +2878,7 @@
         room(p.box, false);
         endLives(p.box, { reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null });
         kit.pinMotion.set(false);
+        unclass(p.box);
         emitTip('closed', p.id, p.kind, info.reason ?? 'host', p.text, info, p.id, p.item(), p.slots);
         for (const slot of p.box.querySelectorAll(`.${CSS}-host`)) slot.remove();
         if (refocus || hadFocus) {
@@ -2900,7 +2979,7 @@
               })
             : null;
         seen?.observe(n);
-        const WATCHED = [...MARKS, 'data-hovercraft-mode', 'data-bs-theme', 'class', 'style', 'hidden'];
+        const WATCHED = [...MARKS, 'data-hovercraft-mode', 'data-bs-theme', CLASS_ATTR, 'class', 'style', 'hidden'];
         const marks = new MutationObserver(() => page.pin?.handle === handle && page.pin.place());
         const watchLine = (a) => {
           marks.disconnect();
@@ -3247,7 +3326,9 @@
         e.preventDefault();
         e.stopPropagation();
       };
+      const NAME_ATTRS = ['aria-label', 'aria-labelledby'];
       const reasons = new MutationObserver((records) => {
+        if (records.every((r) => NAME_ATTRS.includes(r.attributeName) && !h.itemAt(r.target))) return;
         for (const r of records) {
           const n = r.target;
           if (!tipText(n.getAttribute(REASON)) && marked.has(n)) {
@@ -3260,7 +3341,7 @@
       reasons.observe(at, {
         attributes: true,
         subtree: true,
-        attributeFilter: [REASON, 'data-reason', 'aria-disabled'],
+        attributeFilter: [REASON, 'data-reason', 'aria-disabled', ...NAME_ATTRS],
       });
       at.addEventListener('click', stopClick, true);
       at.addEventListener('keydown', stopKey, true);
