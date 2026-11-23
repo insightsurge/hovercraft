@@ -25,6 +25,15 @@ tip_template_fields <- function(template) {
   unique(out)
 }
 
+# The constructor of each block type this package can make. The engine may have more types (a group, a host): those wait
+# for a later version.
+tip_block_makers <- function() {
+  list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+}
+
+# The block types the engine has and this package can make: what a message may offer.
+tip_block_types <- function(rules) intersect(names(rules$blocks), names(tip_block_makers()))
+
 # A block given as a plain list, `list(type = "text", text = "...")`, made through its constructor so it is checked the
 # same way. `where` says which one it is, for the messages.
 tip_as_block <- function(x, where, call) {
@@ -43,7 +52,7 @@ tip_as_block <- function(x, where, call) {
     )
   }
   # The engine's block types that have no constructor here yet (a group, a host) wait for a later version too.
-  makers <- list(title = tip_title, text = tip_text, badge = tip_badge, fields = tip_fields, code = tip_code)
+  makers <- tip_block_makers()
   if (x$type %in% unlist(rules$blocks_later) || (x$type %in% names(rules$blocks) && is.null(makers[[x$type]]))) {
     tip_abort(
       "{where} is a {.val {x$type}} block, which comes with a later version.",
@@ -52,9 +61,8 @@ tip_as_block <- function(x, where, call) {
     )
   }
   if (!x$type %in% names(rules$blocks)) {
-    types <- intersect(names(rules$blocks), names(makers))
     tip_abort(
-      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {types}}.",
+      "{where} has the type {.val {x$type}}, which is not a block. The types are {.val {tip_block_types(rules)}}.",
       class = "hovercraft_error_block",
       call = call
     )
