@@ -47,6 +47,10 @@ are sent to the page; to change the template alone, leave \code{record} out and 
 from its tip keeps the old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn
 again, for example by \code{renderUI()}.
 
+On a control that has \code{when_disabled}, \code{tip_update()} changes the control's own tip, also while the control is
+disabled. A disabled control still says only "Not available:" and its reason, in the new \code{placement}; the new \code{text},
+\code{template} and \code{record} show once the control is enabled.
+
 Inside a module, give the id as the module's own (\code{"save"}); the call adds the module's namespace, as the \verb{update*()}
 functions of Shiny do. In the module's UI, give \code{\link[=tip_on]{tip_on()}} the id as \code{ns("save")}.
 }
