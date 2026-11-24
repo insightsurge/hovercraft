@@ -1,4 +1,4 @@
-/* hovercraft tip engine 0.52.0, built from its source; do not edit. */
+/* hovercraft tip engine 0.53.0, built from its source; do not edit. */
 :where(:root) {
   --hovercraft-ink: var(--bs-emphasis-color, #212529);
   --hovercraft-page: var(--bs-body-bg, #ffffff);
@@ -154,6 +154,19 @@
   max-width: min(var(--hovercraft-tip-pin-width, 420px), calc(100vw - 16px));
   max-height: calc(100vh - 8px);
   overflow: auto;
+}
+
+.hc-tip.hc-tip-pin[data-side="in"] {
+  position: static;
+  z-index: auto;
+  width: auto;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
+  box-shadow: none;
+}
+.hc-tip[data-side="in"]::before {
+  display: none;
 }
 
 .hc-tip-room {

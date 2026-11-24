@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.52.0, built from its source; do not edit.
+// hovercraft tip engine 0.53.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.52.0';
+  const VERSION = '0.53.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -1542,9 +1542,8 @@
     }
     const ESCAPE_OWN =
       'input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]), textarea, select, [role="combobox"], [contenteditable]:not([contenteditable="false"])';
-    function inModal(box, open, close, onKey) {
+    function inModal(box, open, close, onKey, host) {
       const doc = box.ownerDocument;
-      const host = box.parentElement;
       const View = doc.defaultView;
       if (!host || host === doc.body || host.localName === 'dialog' || !host.matches(MODAL)) return () => {};
       const keys = (e) => {
@@ -2651,6 +2650,7 @@
       const items = () => [...box.querySelectorAll(selector)].filter((n) => box.contains(n));
       const itemOf = (target) => {
         const n = target?.closest?.(selector);
+        if (n?.contains(target.closest(`[${NAMES.attr}-box]`))) return null;
         return n && box.contains(n) ? n : null;
       };
       const recOf = (n) => {
@@ -3311,6 +3311,16 @@
         }
         return true;
       }
+      const containerFor = (c) => {
+        if (c == null) return null;
+        const hit = c.nodeType === 1 ? itemAt(c) : null;
+        if (c.nodeType === 1 && c.isConnected && !(hit && canPin(hit)) && !c.closest(`[${NAMES.attr}-box]`)) return c;
+        note(
+          'pin|into',
+          'pin(el, { into }): into is not an element in the page outside every item that can pin and every tip; not pinned.',
+        );
+        return false;
+      };
       function pinTo(id, info = {}, at = null) {
         const key = String(id);
         const n = at && box.contains(at) ? at : byId(key);
@@ -3321,7 +3331,9 @@
           );
           return false;
         }
-        if (pinned() === key) return true;
+        let into = containerFor(info.into);
+        if (into === false) return null;
+        if (pinned() === key) return info.into === undefined || page.pin.move(into);
         const c = n ? contentFor(n) : null;
         if (!c?.blocks.length) return false;
         const from = pinned();
@@ -3335,7 +3347,22 @@
         const s = sideOf();
         const x = info.via === 'click' ? xOf(n) : null;
         const pbox = kit.pin;
-        mountNear(pbox, n);
+        const seat = (at = n) => {
+          pbox.setAttribute('role', into ? 'region' : 'dialog');
+          if (!into) {
+            pbox.removeAttribute('data-side');
+            return mountNear(pbox, at);
+          }
+          room(pbox, false);
+          drop(pbox);
+          pbox.removeAttribute('popover');
+          if (pbox.parentNode !== into) into.append(pbox);
+          copyMarks(pbox, at, false);
+          pbox.dataset.side = 'in';
+          pbox.removeAttribute('data-arrow');
+          for (const prop of ['left', 'top', 'visibility', AT]) pbox.style.removeProperty(prop);
+        };
+        seat();
         looks(pbox, n);
         const onCopy = (code, field, block, status, via) =>
           copyText(doc, code, pbox, (ok) => {
@@ -3359,12 +3386,12 @@
         close?.addEventListener('click', onClose);
         const offOutside = env.outside(owner, (e) => {
           const hit = itemAt(e.target);
-          if (e === born || pbox.contains(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
+          if (into || e === born || pbox.contains(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
           closePin({ reason: 'outside', by: 'reader', via: 'click' });
         });
         const inside = (e) => {
           const hit = itemAt(e.target);
-          if (e === born || (hit && canPin(hit)) || pbox.contains(e.target) || partOf(e.target)) return;
+          if (into || e === born || (hit && canPin(hit)) || pbox.contains(e.target) || partOf(e.target)) return;
           if (e.target.closest?.('[data-hovercraft-keep]')) return;
           closePin({ reason: 'outside', by: 'reader', via: 'click' });
         };
@@ -3383,7 +3410,7 @@
           used(e);
           closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
         };
-        const offModal = inModal(pbox, () => page.pin?.handle === handle, onAround, onModalEscape);
+        const offModal = inModal(pbox, () => page.pin?.handle === handle, onAround, onModalEscape, n.closest(MODAL));
         let anchorEl = n;
         let marked = n;
         let clipped = false;
@@ -3453,8 +3480,19 @@
             const a = page.pin?.anchor();
             return a ? focusOf(a) : null;
           },
+          get into() {
+            return into;
+          },
+          move: (to) => {
+            into = to;
+            seat(page.pin.anchor());
+            lift(pbox);
+            page.pin.place();
+            return true;
+          },
           item: () => (anchorEl?.isConnected ? anchorEl : n),
           after: () => {
+            if (into) return nextAfter(doc, pbox);
             const stop = page.pin?.focusAt();
             const perItem = typeof focusAt === 'function' || owner === doc.documentElement;
             return nextAfter(doc, perItem && stop ? stop : owner);
@@ -3463,6 +3501,7 @@
             const a = page.pin?.anchor();
             if (!a) return;
             if (restyle) copyMarks(pbox, a);
+            if (into) return;
             place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a), a);
             if (clipped) pbox.style.visibility = 'hidden';
             room(pbox, pbox.dataset.side === 'sheet' && pbox.style.visibility !== 'hidden');
@@ -3501,18 +3540,20 @@
                 pbox.querySelector(`.${CSS}-close`)?.addEventListener('click', onClose);
                 stopsOff(pbox);
                 redescribeItem(a);
-                place(
-                  pbox,
-                  anchorOf(a),
-                  s,
-                  x,
-                  pinBeside(a),
-                  atPointer(a) ? a : null,
-                  true,
-                  placementOf(a),
-                  arrowOf(a),
-                  a,
-                );
+                if (!into) {
+                  place(
+                    pbox,
+                    anchorOf(a),
+                    s,
+                    x,
+                    pinBeside(a),
+                    atPointer(a) ? a : null,
+                    true,
+                    placementOf(a),
+                    arrowOf(a),
+                    a,
+                  );
+                }
                 startLives(pbox);
                 if (same && slots.length) resizeLives(pbox, true);
                 if (!same) {
@@ -3639,6 +3680,9 @@
         close: (info = {}) => closePin({ reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null }),
         get pinned() {
           return pinned();
+        },
+        get inPlace() {
+          return page.pin?.handle === handle && !!page.pin.into;
         },
         element: (id) => byId(id),
         box,
@@ -3861,7 +3905,7 @@
       const stopClick = (e) => {
         const n = blocked(e.target);
         if (!n) return;
-        if (t.pinned !== null && !pinnable(n))
+        if (t.pinned !== null && !pinnable(n) && !h.inPlace)
           t.close({ reason: 'outside', by: 'reader', via: e.detail === 0 ? 'key' : 'click' });
         e.preventDefault();
         e.stopPropagation();
@@ -3959,11 +4003,11 @@
             note(`pin|${no}`, `pin(el): it cannot pin: ${no ?? "it is not one of this scope's tips"}.`);
             return false;
           }
-          if (t.pinned === idOf(n)) return true;
-          const ok = h.pinElement(n, pinWho(opts));
-          if (!ok && n.getAttribute('aria-disabled') !== 'true')
+          if (t.pinned === idOf(n) && opts?.into === undefined) return true;
+          const ok = h.pinElement(n, { ...pinWho(opts), into: opts?.into });
+          if (ok === false && n.getAttribute('aria-disabled') !== 'true')
             note('pin|tip', 'pin(el): its tip has no content to pin.');
-          return ok;
+          return !!ok;
         },
         close: () => t.close({ reason: 'host', by: 'host', via: 'command' }),
       });
