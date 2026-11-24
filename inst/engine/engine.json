@@ -1,6 +1,6 @@
 {
-  "engine": "0.55.0",
-  "commit": "df8603f237bdc3af6e0dcf49f9efc7d8bb3d7cfa",
+  "engine": "0.58.0",
+  "commit": "204caf61714ffd5058bfbe8ab66deaed4d545ac8",
   "branch": "hovercraft-engine-interim",
   "files": [
     "placeholders.json",
@@ -15,9 +15,9 @@
   ],
   "sha256": {
     "placeholders.json": "9fcdbb659edddf8664b0d8500814041b7cdd132235de71a085ab905a06f5dd05",
-    "tip.json": "4345d27e3eb199af219f499b84747bc0a26700c7cb50feb498cd83dc131ef2eb",
-    "www/tip.css": "c5f40b430718be6b9372a152a001d8776911454c239c801cd576a5e7f363b7f4",
-    "www/tip.js": "3a8edf1c1b4d6580be3cd3b6b731ed8620932dcd4cd85c5db2a99ba40a08a958",
+    "tip.json": "725c2af68e21d7767784e890ca90a0eb75f3ca024c77f8786cebf290b8f88fbf",
+    "www/tip.css": "ccd346fec11cd279a4bcdb4ece24abf1e921f7e874bf4ccadbb21eb64249fa7d",
+    "www/tip.js": "87e029ffe3b5a96573c2adb91c4a47b3bd1505fe9dce8bc3ba366d113110fc65",
     "presets/dense.json": "8447dd84b6f7f49c3588d5159da771fbe5f928ab6b8b6fe18a28c020622556a7",
     "presets/editorial.json": "a6a9136d30a697c19544a6b1b47b783dee1e6bdacaebafee137258a4d1ec4f24",
     "presets/lively.json": "204afca9a747f599c3fd319229159e9e28857c736e552bb12a4d4b1f0f6bb338",
