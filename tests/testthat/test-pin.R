@@ -81,6 +81,7 @@ describe("tip_on(pin = )", {
     first <- tip_on(button(), "One", id = "run_tip", pin = TRUE, events = "pin")
     rlang::reset_warning_verbosity("hovercraft-retip")
     expect_warning(again <- tip_on(first, "Two"), class = "hovercraft_warning_retip")
+    expect_warning(tip_on(first, "Three"), regexp = NA)
     expect_identical(attrs(again)[[tip_names()$attribute]], "Two")
     for (name in c("pin", "id")) {
       expect_false(tip_attribute(name) %in% names(again$attribs))
@@ -88,7 +89,6 @@ describe("tip_on(pin = )", {
     expect_false(tip_shiny_attribute() %in% names(again$attribs))
     expect_false("aria-keyshortcuts" %in% names(again$attribs))
     # A call that names an id, events or a pin again does not warn, and neither does pin = FALSE.
-    rlang::reset_warning_verbosity("hovercraft-retip")
     expect_no_warning(tip_on(first, "Two", id = "other_tip", pin = TRUE))
     expect_no_warning(tip_on(first, "Two", pin = FALSE))
     expect_no_warning(tip_on(first, "Two", events = "hint"))

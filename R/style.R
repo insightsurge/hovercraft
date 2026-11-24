@@ -368,15 +368,9 @@ tip_style_page <- function(style) {
   tip_gen_dependency("hovercraft-style", css, if (length(set)) list(list(op = "page", attributes = set)))
 }
 
-# A tag's style: the attributes to write on the tag, and the dependencies they need. The preset and class are the
-# engine's attributes; a theme is a marker on the tag, named by a hash of the theme, with its CSS in a dependency of
-# that name, so two tags with one theme share it.
-tip_style_tag <- function(style, call = rlang::caller_env()) {
-  attribs <- list()
-  deps <- list()
-  if (is.null(style)) {
-    return(list(attribs = attribs, deps = deps))
-  }
+# A style given to one tag, one tip or one table target cannot hold a list of CSS variables: a tip is drawn away from
+# its tag, so only the page's variables reach it.
+tip_check_style_tokens <- function(style, call = rlang::caller_env()) {
   if (length(style$theme$tokens)) {
     tip_abort(
       c(
@@ -388,6 +382,19 @@ tip_style_tag <- function(style, call = rlang::caller_env()) {
       call = call
     )
   }
+  invisible()
+}
+
+# A tag's style: the attributes to write on the tag, and the dependencies they need. The preset and class are the
+# engine's attributes; a theme is a marker on the tag, named by a hash of the theme, with its CSS in a dependency of
+# that name, so two tags with one theme share it.
+tip_style_tag <- function(style, call = rlang::caller_env()) {
+  attribs <- list()
+  deps <- list()
+  if (is.null(style)) {
+    return(list(attribs = attribs, deps = deps))
+  }
+  tip_check_style_tokens(style, call)
   attribs[[tip_attribute("preset")]] <- style$preset
   attribs[[tip_attribute("class")]] <- style$class
   # A tag's theme and its size and motion settings share one marker, named by a hash of them all.

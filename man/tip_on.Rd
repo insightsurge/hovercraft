@@ -28,15 +28,16 @@ text stops with an error. To tip a tab, put the tip on the tag that is its title
 into the tab's value.}
 
 \item{text}{One string of markdown (strong, emphasis, code, links, short lists), or \code{NULL}. It is shown as written:
-build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back as it was. When \code{record}
-is given, the \code{{{ field }}} placeholders in the text are filled from it (as in a template, with one filter at
-most, \code{number:n} or \code{percent:n}); without a record, braces stay as written. Words with placeholders give the tag
-no \code{aria-label}, because they depend on the record.}
+build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back without a tip. When
+\code{record} is given, the \code{{{ field }}} placeholders in the text are filled from it, also when a \code{template} is given
+(as in a template, with one filter at most, \code{number:n} or \code{percent:n}); without a record, braces stay as written.
+Words with placeholders give the tag no \code{aria-label}, because they depend on the record.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
 \item{template}{The name of a template defined with \code{\link[=tip_define]{tip_define()}}, a \code{\link[=tip_template]{tip_template()}} made here, or \code{NULL}. A
-\code{tip_template()} travels with the tag, so it needs no \code{tip_define()}; its fields are checked against \code{record}.}
+\code{tip_template()} travels with the tag, so it needs no \code{tip_define()}; its fields are checked against \code{record}.
+If \code{text} is given too, the text is the tip (see \code{text}).}
 
 \item{record}{A named list, or a data frame of one row: the values the template's placeholders read, one value each.
 \code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as \code{YYYY-MM-DDTHH:MM:SSZ} and
@@ -105,8 +106,9 @@ control's label, so a screen reader still says what the field is. The wrapper is
 control is enabled. A control that has the focus when it is switched off hands it to the wrapper, and takes it
 back when it is switched on. The tip's \code{id} and \code{events} stay on the control, and the wrapper answers to them
 while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way. The value
-returned is the wrapper; calling \code{tip_on()} on it again changes the control's tip and keeps one wrapper, with
-the reason it had unless a new one is given.
+returned is the wrapper; calling \code{tip_on()} on it again replaces the tip whole, the reason
+included, and keeps one wrapper when a new \code{when_disabled} is given; without one you get the bare control back,
+with the layout it had before it was wrapped.
 
 The wrapper takes the control's place in a layout: a width, a share of a flex row and a side written in its
 \code{style}, or as the classes \code{w-25}, \code{w-50}, \code{w-75}, \code{w-100}, \code{flex-fill}, \verb{flex-grow-*}, \verb{col-*}, \verb{order-*},

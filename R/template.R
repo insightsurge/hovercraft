@@ -198,9 +198,9 @@ tip_as_block <- function(x, where, call) {
 #' A template: the blocks a tip is drawn from
 #'
 #' `r lifecycle::badge("experimental")`
-#' A template is a list of blocks, shown in order. Name it with [tip_define()], then use it on a tag with [tip_on()]. A
-#' block can be made with [tip_title()] and the other block functions, or written as a plain list such as
-#' `list(type = "text", text = "...")`; both are checked in the same way.
+#' A template is a list of blocks, shown in order. Name it with [tip_define()] and use the name in [tip_on()], or give
+#' the template itself to `template =` of [tip_on()]. A block can be made with [tip_title()] and the other block
+#' functions, or written as a plain list such as `list(type = "text", text = "...")`; both are checked in the same way.
 #'
 #' Blocks can be given in order through `...`, or placed into the named slots `head`, `body` and `foot`. Each slot
 #' takes one block or a list of blocks; `foot` is drawn below a thin divider in muted text, suited for a source line or
@@ -212,7 +212,7 @@ tip_as_block <- function(x, where, call) {
 #' @param body Optional block or list of blocks drawn in the middle of the tip. Cannot be combined with `...`.
 #' @param foot Optional block or list of blocks drawn at the bottom of the tip below a subtle divider.
 #'
-#' @returns A template, to give to [tip_define()].
+#' @returns A template, to give to [tip_define()] or to `template =` of [tip_on()].
 #' @family tooltips
 #' @examples
 #' tip_template(

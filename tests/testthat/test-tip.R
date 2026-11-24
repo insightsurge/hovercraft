@@ -505,6 +505,7 @@ describe("tip_on() rules", {
     titled <- htmltools::tags$button("Run", title = "Native")
     expect_warning(got <- tip_on(titled, "Runs"), class = "hovercraft_warning_title")
     expect_identical(htmltools::tagGetAttribute(got, "title"), "Native")
+    expect_warning(tip_on(titled, "Runs"), regexp = NA)
     rlang::reset_warning_verbosity("hovercraft-title")
     expect_warning(tip_on(titled, "Runs"), "title")
     expect_no_warning(tip_on(button(), "Runs"))
@@ -523,7 +524,10 @@ describe("tip_on() rules", {
     expect_error(tip_on(around, "x", pin = "click"), "holds a control")
     expect_error(tip_on(around, "x", pin = "click"), "pin = TRUE")
     expect_no_error(suppressWarnings(tip_on(around, "x", pin = TRUE)))
-    # Where no pin works at all, the message says that and does not offer one.
+    link <- htmltools::tags$div(id = "l", htmltools::tags$a("Go", href = "#"))
+    expect_error(tip_on(link, "x", pin = "click"), "holds a control")
+    expect_no_error(suppressWarnings(tip_on(link, "x", pin = TRUE)))
+    # Where no pin works at all, the message says that and says what to wrap it in.
     expect_error(tip_on(htmltools::tags$input(id = "a"), "x", pin = "click"), "cannot pin")
     expect_error(tip_on(htmltools::tags$input(id = "a"), "x", pin = "click"), "pin = TRUE")
     expect_error(tip_on(htmltools::tags$a("Go", href = "#", id = "a"), "x", pin = "click"), "cannot pin")
@@ -568,7 +572,82 @@ describe("tip_on() rules", {
     expect_null(htmltools::tagGetAttribute(plain, tip_attribute("template")))
     expect_error(tip_on(button(), "Hello {{ name }}", record = list(other = 1)), class = "hovercraft_error_field")
     expect_error(tip_on(button(), "Hello {{ name", record = list(name = "Ada")), class = "hovercraft_error_placeholder")
+    expect_error(tip_on(button(), "Hello {{ name", record = list(name = "Ada")), "The words of `text`", fixed = TRUE)
+    # With a named template and a record, the text is the tip and its placeholders are filled too.
+    both <- tip_on(button(), "Hi {{ name }}", template = "card", record = list(name = "Ada"))
+    expect_match(htmltools::tagGetAttribute(both, tip_attribute("template")), "^inline_")
     # Text with no placeholder has nothing to fill: the record is ignored, as before.
     expect_warning(tip_on(button(), "Hello", record = list(name = "Ada")), class = "hovercraft_warning_record")
+  })
+})
+
+describe("tip_on() replacing a tip", {
+  withr::defer(tip_reset())
+  tip_reset()
+  dep_names <- function(tag) vapply(htmltools::findDependencies(tag), function(d) d$name, "")
+
+  it("takes the old tip off when the new text is empty", {
+    tipped <- tip_on(button(), "One", id = "a", pin = TRUE, events = "pin", marker = "underline")
+    for (empty in list(NA_character_, "")) {
+      got <- tip_on(tipped, empty)
+      expect_false(any(startsWith(names(got$attribs), tip_names()$attribute)))
+      expect_false(tip_shiny_attribute() %in% names(got$attribs))
+      expect_false("aria-keyshortcuts" %in% names(got$attribs))
+      expect_false(any(startsWith(dep_names(got), "hovercraft")))
+    }
+    wrapped <- tip_on(htmltools::tags$button("Run"), "One", when_disabled = "why")
+    got <- tip_on(wrapped, NA)
+    expect_identical(got$name, "button")
+    expect_null(htmltools::tagGetAttribute(got, tip_names()$attribute))
+    expect_null(htmltools::tagGetAttribute(got, tip_disabled_attribute()))
+    # A tag that had no tip comes back as it was, and no text at all is still an error.
+    expect_identical(tip_on(button(), NA), button())
+    expect_error(tip_on(button(), NULL), class = "hovercraft_error_tip")
+  })
+
+  it("takes the old tip's dependencies off with it, and keeps the page's own", {
+    other <- htmltools::htmlDependency("other", "1.0", src = tempdir())
+    first <- htmltools::attachDependencies(
+      tip_on(button(), "One", id = "a", pin = TRUE, events = "pin"),
+      other,
+      append = TRUE
+    )
+    expect_true("hovercraft-pin" %in% dep_names(first))
+    again <- suppressWarnings(tip_on(first, "Two"))
+    expect_false("hovercraft-pin" %in% dep_names(again))
+    expect_identical(sum(dep_names(again) == "hovercraft"), 1L)
+    expect_identical(sum(dep_names(again) == "hovercraft-runtime"), 1L)
+    expect_true("other" %in% dep_names(again))
+    styled <- tip_on(button(), "One", style = tip_style(theme = list(radius = 9)))
+    expect_true(any(startsWith(dep_names(styled), "hovercraft-theme")))
+    expect_false(any(startsWith(dep_names(tip_on(styled, "Two")), "hovercraft-theme")))
+  })
+
+  it("gives back the control as it was when a wrapper goes", {
+    control <- htmltools::tags$button("Go", class = "btn w-50 d-block", style = "width: 50%; color: red", disabled = NA)
+    wrapped <- tip_on(control, "One", when_disabled = "why")
+    expect_true(tip_disabled_attribute("fill") %in% names(wrapped$children[[1]]$attribs))
+    again <- tip_on(wrapped, "Two")
+    expect_identical(again$name, "button")
+    expect_false(tip_disabled_attribute("fill") %in% names(again$attribs))
+    expect_match(htmltools::tagGetAttribute(again, "style"), "width: 50%;", fixed = TRUE)
+    expect_match(htmltools::tagGetAttribute(again, "style"), "color: red;", fixed = TRUE)
+    expect_setequal(strsplit(htmltools::tagGetAttribute(again, "class"), " ")[[1]], c("btn", "w-50", "d-block"))
+    expect_false("hovercraft-disabled" %in% dep_names(again))
+    # With a new reason, one wrapper stays and carries the new tip.
+    rewrapped <- tip_on(wrapped, "Two", when_disabled = "new why")
+    expect_identical(rewrapped$name, "span")
+    expect_identical(htmltools::tagGetAttribute(rewrapped, tip_disabled_attribute()), "new why")
+    expect_identical(sum(dep_names(rewrapped) == "hovercraft-disabled"), 1L)
+  })
+
+  it("refuses CSS variables in a style given to a spec or a table, from the call that was written", {
+    css <- tip_style(theme = list("--hovercraft-tip-radius" = "9px"))
+    call_of <- function(code) tryCatch(code, error = function(e) rlang::call_name(e$call))
+    expect_identical(call_of(tip_spec("x", style = css)), "tip_spec")
+    skip_if_not_installed("DT")
+    scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5))
+    expect_identical(call_of(tip_table(DT::datatable(scores), rows = "{{ team }}", style = css)), "tip_table")
+    expect_error(tip_spec("x", style = css), class = "hovercraft_error_style")
   })
 })
