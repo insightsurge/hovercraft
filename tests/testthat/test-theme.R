@@ -12,6 +12,8 @@ describe("tip_theme()", {
     expect_error(tip_theme(light = list(ink = "#ffffff")), "text")
     expect_error(tip_theme(dark = list(line = "#ffffff")), "border")
     expect_error(tip_theme(light = list(bg = "#fff", ink = "#000", line = "#111")), "text.*border")
+    expect_error(tip_theme(light = list(ink = "#000")), "is no longer a role")
+    expect_error(tip_theme(light = list(ink = "#000", line = "#111")), "are no longer roles")
   })
 
   it("writes `text` and `border` as the engine's own variables", {

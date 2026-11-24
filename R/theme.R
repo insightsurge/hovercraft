@@ -72,7 +72,7 @@ tip_roles_clean <- function(x, where, call) {
   if (length(old)) {
     tip_theme_abort(
       c(
-        "{.arg {where}} has {.val {old}}, which {?is/are} no longer a role.",
+        "{.arg {where}} has {.val {old}}, which {?is no longer a role/are no longer roles}.",
         i = paste0("Use ", paste0("{.val ", renamed[old], "}", collapse = " and "), " instead.")
       ),
       call = call

@@ -293,7 +293,7 @@ server <- function(input, output, session) {
   # A pinned row sends input$<id>/row/<n>_pin: read the inputs that exist, whichever rows have been pinned.
   output$pins <- shiny::renderPrint({
     inputs <- shiny::reactiveValuesToList(input)
-    inputs <- inputs[grepl("^sites_(dt|rt)/row/[0-9]+_tip$", names(inputs))]
+    inputs <- inputs[grepl("^sites_(dt|rt)/row/[0-9]+_pin$", names(inputs))]
     cat("Pin inputs (state, by row):\n")
     for (name in names(inputs)) {
       cat(" ", name, "->", inputs[[name]]$state, "\n")
