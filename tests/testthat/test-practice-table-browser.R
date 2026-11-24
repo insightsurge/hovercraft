@@ -66,14 +66,7 @@ describe("table proxies and updates in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
   hover_in_view <- function(selector) {
@@ -81,7 +74,7 @@ describe("table proxies and updates in a Shiny app", {
       "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     ))
-    Sys.sleep(0.1)
+    page$settle(0.1)
     page$hover(selector)
   }
 
@@ -371,6 +364,9 @@ describe("tip_table() leaves DT's inputs as they are without it", {
       jsonlite::toJSON(want, auto_unbox = TRUE)
     ))
     expect_true(ok, info = paste(id, report(id)))
+    # The two tables send their inputs one after the other, so the line can agree for a moment before the last one
+    # arrives: read it again once the page is quiet.
+    page$settle()
     expect_false(grepl("=FALSE", report(id), fixed = TRUE), info = paste(id, report(id)))
   }
   # A call on every table's DataTable; `%s` is the position of the wins column, which row names move by one.

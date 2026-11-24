@@ -205,14 +205,7 @@ describe("Shiny practices in a running app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
   hover_in_view <- function(selector) {
@@ -220,7 +213,7 @@ describe("Shiny practices in a running app", {
       "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     ))
-    Sys.sleep(0.1)
+    page$settle(0.1)
     page$hover(selector)
   }
   seen <- function(id, pattern) {
@@ -313,14 +306,14 @@ describe("Shiny practices in a running app", {
     expect_true(page$wait_until(
       "document.getElementById('sb_btn')?.getBoundingClientRect().width > 0"
     ))
-    Sys.sleep(0.4)
+    page$settle()
     expect_identical(hover_in_view("#sb_btn"), "Sidebar tip")
   })
 
   it("shows a tip inside showModal() above the modal backdrop", {
     press_button("open_modal")
     expect_true(page$wait_until("document.getElementById('modal_btn') !== null"))
-    Sys.sleep(0.4)
+    page$settle()
     expect_identical(page$hover("#modal_btn"), "Modal tip")
     tip_above <- page$evaluate(sprintf(
       "(() => {
@@ -341,7 +334,7 @@ describe("Shiny practices in a running app", {
   it("shows a tip inside a bslib full-screen card", {
     page$evaluate("document.querySelector('#fs_card .bslib-full-screen-enter').click()")
     expect_true(page$wait_until("document.getElementById('fs_card')?.dataset.fullScreen === 'true'"))
-    Sys.sleep(0.3)
+    page$settle()
     expect_identical(page$hover("#fs_btn"), "Card tip")
     tip_above <- page$evaluate(sprintf(
       "(() => {
@@ -407,7 +400,7 @@ describe("Shiny practices in a running app", {
     expect_identical(server_html(page), server_html(page2))
     expect_identical(hover_in_view("#cached_btn"), "Cached tip")
     page2$evaluate("document.querySelector('#cached_btn')?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0")
-    Sys.sleep(0.1)
+    page2$settle(0.1)
     expect_identical(page2$hover("#cached_btn"), "Cached tip")
 
     # Clear tip in page2, trigger tip_show in page1, verify page2 stays closed.
@@ -418,7 +411,7 @@ describe("Shiny practices in a running app", {
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Isolated tip'",
       tip_names()$css
     )))
-    Sys.sleep(0.3)
+    page2$hold(0.3) # nothing may open in the other page: no signal for that
     expect_length(page2$shown(), 0L)
     expect_identical(page2$problems(), character())
   })

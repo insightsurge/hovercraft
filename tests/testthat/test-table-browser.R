@@ -291,7 +291,8 @@ owned_stops <- "document.querySelectorAll('tbody [data-hovercraft-tip-kind][tabi
 described <- "[...document.querySelectorAll('[data-hovercraft-tip-template]')].every((n) => (n.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).some((id) => document.getElementById(id)))"
 focus <- function(page, selector) {
   page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-  Sys.sleep(0.8)
+  page$wait_open() # a tag with no tip shows none: no signal for that, so the wait ends at its limit
+  page$settle(0.1)
   page$shown()
 }
 
@@ -331,7 +332,7 @@ describe("tip_table() with the keyboard, on a DT table", {
     expect_identical(page$press("ArrowUp"), "Games won")
     page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
     page$evaluate("$('table').DataTable().page(1).draw(false)")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, "tbody tr:first-child"), "Foxes: 5 wins")
     expect_identical(page$evaluate(described), TRUE)
@@ -367,7 +368,7 @@ describe("tip_table() with the keyboard, on a reactable table", {
     page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
     page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$evaluate(described), TRUE)
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, ".rt-tbody [role=row]"), "Foxes: 5 wins")
@@ -472,7 +473,7 @@ describe("tip_table() with DT's ColReorder, in a browser", {
   it("keeps a column's header and cell tips with the column after it moves", {
     dt_ready(page)
     page$evaluate("$('table').DataTable().colReorder.move(3, 0); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$hover("thead th:first-child"), "About")
     expect_identical(page$hover("tbody tr:first-child td:first-child"), "Note: Note 1")
     expect_identical(page$hover("tbody tr:first-child td:nth-child(2)"), "Team 01: 7 wins")
@@ -517,7 +518,7 @@ describe("tip_table() descriptions on a reactable table that reuses its rows", {
     expect_true(page$wait_until("document.querySelectorAll('[role=row][aria-describedby]').length >= 5"))
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
     page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
-    Sys.sleep(0.5)
+    page$settle()
     got <- jsonlite::fromJSON(page$evaluate(described_by), simplifyVector = FALSE)
     expect_length(got, 5L)
     for (row in got) {
@@ -605,7 +606,7 @@ describe("tip_table(id =) and the keyboard with DT's copies of the header", {
     page <- local_page(file, environment())
     dt_ready(page)
     page$evaluate("$('.dataTables_scrollBody table').DataTable().order([1, 'desc']).draw(); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
     focus(page, ".dataTables_scrollBody tbody tr:first-child")
     expect_identical(page$press("ArrowUp"), "Games won")
@@ -803,7 +804,7 @@ describe("tip_table() with a filter row, in a browser", {
     expect_length(page$hover(".rt-td-filter:nth-child(2)"), 0L)
     # A sort re-marks the table; the filter cell stays free, and the header and the rows keep their tips.
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
     expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
     expect_match(page$hover(".rt-tbody .rt-tr:first-child .rt-td:first-child"), "wins$")

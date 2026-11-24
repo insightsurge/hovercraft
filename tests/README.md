@@ -11,7 +11,7 @@ they go in a file whose name ends in a kind. The examples next to each are in `t
 | File name ends in | What it holds | Example | Runs in |
 | --- | --- | --- | --- |
 | `.R` (plain) | Quick tests that run everywhere | `test-say_hello.R` | `r-cmd-check`, `coverage`, `full-tests`, `r-cmd-check-extended` |
-| `-browser.R` | Tests that drive a browser (chromote); start them with `options(chromote.timeout = 60)`, as Chrome can start slowly on CI | `test-demo-browser.R` | `full-tests` |
+| `-browser.R` | Tests that drive a browser (chromote); `local_page()` opens a tab in one shared Chrome (see "Browser tests" below) | `test-demo-browser.R` | `full-tests` |
 | `-snap.R` | Snapshot tests (`expect_snapshot()`): the output is saved in `_snaps/` and compared on later runs | `test-say_hello-snap.R` | `full-tests` |
 | `-extended.R` | Slow or detailed tests | `test-say_hello-extended.R` | `coverage`, `full-tests`, `r-cmd-check-extended` |
 
@@ -38,3 +38,11 @@ devtools::test()
 When a snapshot changes on purpose, accept the new one with `testthat::snapshot_accept()`, or look first with
 `testthat::snapshot_review()`. Commit the files in `tests/testthat/_snaps/`: CI compares with them, and refuses to
 create a missing one.
+
+## Browser tests
+
+`helper-browser.R` starts one headless Chrome per test process and `local_page()` opens a tab in it, so a test never
+waits for a Chrome to start. A Chrome that has died is replaced (twice at most per run). Every wait uses one limit,
+`browser_timeout` (30 seconds): wait for a signal (`page$wait_until()`, `page$settle()`) and never for a fixed time
+(`page$hold()` is the exception; its comment says why). Apps under test start with `start_app()` and are stopped when
+the test ends. Each test file must run on its own, as files run in parallel and in any order.

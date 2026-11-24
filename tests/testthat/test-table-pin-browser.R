@@ -141,13 +141,15 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
       "document.querySelector(%s).scrollIntoView({ block: 'center' })",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     ))
-    Sys.sleep(0.3)
+    page$settle()
   }
   reset <- function() {
     page$press("Escape", wait = 0.2)
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    page$wait_closed()
+    # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
+    page$hold(0.4)
   }
   # Opens the row's hint with the pointer, then presses the handle in the hint's corner with the mouse.
   pin_by_handle <- function(row) {
@@ -198,7 +200,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
   it("does not pin on a click of the row, and the click still selects it", {
     reset()
     page$click(rows_dt("dtc")[[1]])
-    Sys.sleep(0.3)
+    page$settle()
     expect_identical(pins(), character())
     expect_true(page$wait_until("document.querySelector('#dtc tbody tr.selected') !== null"))
   })
@@ -379,7 +381,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
       "document.querySelector('%s').textContent.includes('7 wins this season')",
       pinned_box
     )))
-    Sys.sleep(1)
+    page$settle(0.5)
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
     expect_true(seen_has("dtq/row/1_copy", "sql"))
     expect_equal(page$evaluate("window.copyFired"), 1)
@@ -435,7 +437,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
         page$evaluate(sprintf("parseFloat(getComputedStyle(document.querySelector('%s')).fontSize)", hint_sel)),
         11
       )
-      Sys.sleep(0.5)
+      page$settle()
       background <- rgb(sprintf("getComputedStyle(document.querySelector('%s')).backgroundColor", hint_sel))
       glyph <- rgb("getComputedStyle(document.querySelector('.hovercraft-pin-strip-pin'), '::before').backgroundColor")
       expect_length(background, 3L + (length(background) == 4L))

@@ -57,14 +57,7 @@ serve_page <- function(build, policy = csp, env = parent.frame()) {
   )
   withr::defer(app$kill(), envir = env)
   url <- paste0("http://127.0.0.1:", port, "/")
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   list(url = url, up = up, error = function() paste(app$read_error(), collapse = "\n"))
 }
 
@@ -277,14 +270,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port, "/")
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   # What Shiny alone reports under the policy, to hold the page with tips to.
   plain <- local_page(paste0(url, "?plain"), environment(), init = watch)
   plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true")
@@ -309,7 +295,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("shows a tip when the server asks, and draws the pin button", {
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    expect_true(page$wait_closed())
     page$evaluate("document.getElementById('show').click()")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
@@ -339,7 +325,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("draws them when they arrive through insertUI() too", {
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    expect_true(page$wait_closed())
     page$evaluate("document.getElementById('insert').click()")
     expect_true(page$wait_until("document.getElementById('inserted_btn') !== null"))
     expect_match(paste(page$hover("#inserted_btn"), collapse = " "), "inserted.*Late: 7")

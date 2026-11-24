@@ -154,7 +154,7 @@ describe("tip_output() in a live Shiny app", {
         }
 
         output$spin_out <- shiny::renderText({
-          Sys.sleep(0.25)
+          Sys.sleep(0.25) # a slow render on purpose: the output must stay busy for a moment (this sleeps in the app, not the test)
           "spin-ready"
         })
 
@@ -210,14 +210,7 @@ describe("tip_output() in a live Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   css <- tip_names()$css
 
@@ -275,7 +268,7 @@ describe("tip_output() in a live Shiny app", {
     close_tip()
     # Change reactive input while parked, then reopen: must refresh to v2!
     page$evaluate("document.getElementById('bump').click()")
-    Sys.sleep(0.3)
+    page$settle()
     page$hover("#btn_alive")
     expect_true(page$wait_until(
       "document.querySelector('.hc-tip:not([hidden]) #alive_out')?.textContent === 'alive-v2-n2'"
@@ -420,7 +413,7 @@ describe("tip_output() in ordinary use", {
         }
         output$shared_out <- shiny::renderText({
           item <- open_item()
-          Sys.sleep(0.4)
+          Sys.sleep(0.4) # a slow render on purpose: the output must stay busy for a moment (this sleeps in the app, not the test)
           paste0("shows-item-", item)
         })
         # A render that fails and never reads `input$quiet_out_retry`: Retry cannot make it run again.

@@ -114,14 +114,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   reason <- tip_attribute("reason")
   wrapper <- function(id) {
@@ -236,7 +229,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   # Brings the element into view, so the pointer can reach it on a page that is taller than the window.
   view <- function(id) {
     page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({block: 'center'})", id))
-    Sys.sleep(0.2)
+    page$settle(0.1)
   }
   aria <- function(id) {
     jsonlite::fromJSON(page$evaluate(sprintf(
@@ -267,7 +260,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   it("keeps the reason open on Enter and Space, which do nothing on the wrapper, and closes it on Escape", {
     view("built")
     page$evaluate(sprintf("%s.focus()", wrapper("built")))
-    Sys.sleep(0.8)
+    expect_true(page$wait_open())
     expect_identical(page$shown(), "Not available: Disabled at build")
     expect_identical(page$press("Enter"), "Not available: Disabled at build")
     expect_identical(page$press(" "), "Not available: Disabled at build")
@@ -354,14 +347,7 @@ describe("tip_on(when_disabled = ) on a Bootstrap 3 page", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   tabbed <- function(js) page$evaluate(js)
 

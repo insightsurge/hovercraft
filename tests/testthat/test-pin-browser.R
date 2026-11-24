@@ -135,14 +135,7 @@ describe("pins in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   css <- tip_names()$css
   seen <- function(id, pattern) {
@@ -155,7 +148,7 @@ describe("pins in a Shiny app", {
   read <- function(id) page$evaluate(sprintf("document.getElementById('%s').textContent", id))
   view <- function(id) {
     page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({ block: 'center' })", id))
-    Sys.sleep(0.3)
+    page$settle()
   }
   strip <- ".hovercraft-pin-strip-button"
   pinned_box <- sprintf(".%s-pin:not([hidden])", css)
@@ -181,7 +174,9 @@ describe("pins in a Shiny app", {
   reset <- function() {
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    page$wait_closed()
+    # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
+    page$hold(0.4)
   }
 
   it("starts and connects", {
@@ -233,7 +228,7 @@ describe("pins in a Shiny app", {
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(1)
+    page$hold(1) # the hint must still be open after the engine's close delay: no signal for that
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     expect_true(page$evaluate("document.querySelector('.hovercraft-pin-strip') !== null"))
   })
@@ -288,7 +283,7 @@ describe("pins in a Shiny app", {
     reset()
     page$hover("#row_c")
     page$click("#row_c")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(read("seen_c"), "{\"hint\":null,\"pin\":null,\"copy\":null}")
     reset()
     page$hover("#row_a")
@@ -339,7 +334,7 @@ describe("pins in a Shiny app", {
     view("row_f")
     page$hover("#row_f")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.6)
+    expect_true(page$wait_until("window.follow.length >= 30"))
     got <- followed()
     expect_gt(nrow(got), 5)
     # The corner never moves against the hint, on the first frame or the last.
@@ -358,7 +353,7 @@ describe("pins in a Shiny app", {
     view("row_f")
     page$hover("#row_f")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("window.follow.length >= 30"))
     got <- followed()
     expect_gt(nrow(got), 5)
     expect_gte(min(got[, 4]), 0.99)
@@ -371,11 +366,11 @@ describe("pins in a Shiny app", {
     reset()
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.6)
+    page$settle()
     page$evaluate(
       "window.writes = 0; new MutationObserver((records) => { window.writes += records.length; }).observe(document.querySelector('.hovercraft-pin-strip'), { attributes: true }); 0"
     )
-    Sys.sleep(0.8)
+    page$hold(0.8) # watch for writes while the hint stands still: nothing happening has no signal
     expect_equal(page$evaluate("window.writes"), 0)
   })
 
@@ -384,7 +379,7 @@ describe("pins in a Shiny app", {
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(0.4)
+    page$hold(0.4) # the hint must stay open past the engine's close delay
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     page$mouse(690, 520, FALSE)
     expect_true(seen("seen_a", "\"hint\":\"hidden\",\"hint_by\":\"reader\",\"hint_reason\":\"leave\""))
@@ -398,9 +393,9 @@ describe("pins in a Shiny app", {
     press_button("show_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(0.3)
+    page$hold(0.3) # the pointer rests on the button for a moment, as a reader's does
     page$mouse(690, 520, FALSE)
-    Sys.sleep(1)
+    page$hold(1) # then leaves it: the hint must still be open after the engine's close delay
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     expect_true(seen("seen_a", "\"hint\":\"shown\",\"hint_by\":\"host\""))
     page$press("Escape")
@@ -437,7 +432,7 @@ describe("pins in a Shiny app", {
     expect_true(page$wait_until(
       "document.getElementById('row_modal') !== null && document.getElementById('row_modal').getBoundingClientRect().width > 0"
     ))
-    Sys.sleep(0.6)
+    page$settle()
     page$hover("#row_modal")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     button <- rect(strip)
@@ -451,7 +446,8 @@ describe("pins in a Shiny app", {
     expect_true(seen("seen_modal", "pinned"))
     page$press("Escape")
     page$evaluate("document.querySelector('.modal.show .btn-close, [data-bs-dismiss=\"modal\"]')?.click(); 0")
-    Sys.sleep(0.6)
+    expect_true(page$wait_until("document.querySelector('.modal.show') === null"))
+    page$settle()
   })
 
   it("puts the button in the left corner, and the room beside it, on a right-to-left page", {
