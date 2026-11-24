@@ -17,13 +17,13 @@ tip_template(..., head = NULL, body = NULL, foot = NULL)
 \item{foot}{Optional block or list of blocks drawn at the bottom of the tip below a subtle divider.}
 }
 \value{
-A template, to give to \code{\link[=tip_define]{tip_define()}}.
+A template, to give to \code{\link[=tip_define]{tip_define()}} or to \verb{template =} of \code{\link[=tip_on]{tip_on()}}.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-A template is a list of blocks, shown in order. Name it with \code{\link[=tip_define]{tip_define()}}, then use it on a tag with \code{\link[=tip_on]{tip_on()}}. A
-block can be made with \code{\link[=tip_title]{tip_title()}} and the other block functions, or written as a plain list such as
-\code{list(type = "text", text = "...")}; both are checked in the same way.
+A template is a list of blocks, shown in order. Name it with \code{\link[=tip_define]{tip_define()}} and use the name in \code{\link[=tip_on]{tip_on()}}, or give
+the template itself to \verb{template =} of \code{\link[=tip_on]{tip_on()}}. A block can be made with \code{\link[=tip_title]{tip_title()}} and the other block
+functions, or written as a plain list such as \code{list(type = "text", text = "...")}; both are checked in the same way.
 }
 \details{
 Blocks can be given in order through \code{...}, or placed into the named slots \code{head}, \code{body} and \code{foot}. Each slot

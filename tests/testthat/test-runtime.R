@@ -8,7 +8,7 @@ describe("the dependencies of a tag", {
       tip_on(
         htmltools::tags$button("Go", id = "go"),
         "Short",
-        style = tip_style(theme = list("--hovercraft-tip-radius" = "9px"), gap = 3),
+        style = tip_style(theme = list(radius = 9), gap = 3),
         more = tip_template(tip_text("The long form")),
         more_on = "hover",
         events = "hint",

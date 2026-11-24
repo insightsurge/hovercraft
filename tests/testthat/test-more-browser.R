@@ -14,10 +14,9 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
   has_dt <- requireNamespace("DT", quietly = TRUE)
   path <- find.package("hovercraft")
   port <- httpuv::randomPort()
-  pin_attr <- tip_attribute("pin")
 
   app <- callr::r_bg(
-    function(port, path, has_dt, pin_attr) {
+    function(port, path, has_dt) {
       if (dir.exists(file.path(path, "inst"))) {
         pkgload::load_all(path, quiet = TRUE)
       } else {
@@ -30,8 +29,9 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
         stringsAsFactors = FALSE
       )
 
-      make_pinnable <- function(tag) {
-        htmltools::tagAppendAttributes(tag, !!pin_attr := "")
+      # A span that looks like a button: `pin = "click"` is for a tag with no control of its own to click.
+      pinnable_span <- function(id, label) {
+        htmltools::tags$span(id = id, class = "btn btn-default", tabindex = "0", role = "button", label)
       }
 
       long_tpl <- tip_template(
@@ -46,7 +46,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
         shiny::tags$div(
           style = "padding: 40px 24px; display: flex; flex-wrap: wrap; gap: 16px; align-items: center;",
           tip_on(
-            make_pinnable(shiny::actionButton("pin_btn", "Pin me")),
+            pinnable_span("pin_btn", "Pin me"),
             template = "short_tpl",
             record = list(
               label = "ADAE",
@@ -57,6 +57,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
             ),
             more = long_tpl,
             id = "pin_tip",
+            pin = "click",
             style = "modern"
           ),
           tip_on(
@@ -69,10 +70,11 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
             style = "sober"
           ),
           tip_on(
-            make_pinnable(shiny::actionButton("edge_btn", "Edge")),
+            pinnable_span("edge_btn", "Edge"),
             "Near edge short",
             more = "Much longer detail block that must stay inside the viewport without covering the button.",
             id = "edge_tip",
+            pin = "click",
             style = "lively",
             placement = "bottom"
           ) |>
@@ -107,7 +109,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
 
       shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
     },
-    args = list(port = port, path = path, has_dt = has_dt, pin_attr = pin_attr),
+    args = list(port = port, path = path, has_dt = has_dt),
     supervise = TRUE
   )
   withr::defer(app$kill())

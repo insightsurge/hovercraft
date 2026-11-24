@@ -64,7 +64,7 @@ describe("app frameworks and reverse-proxy dependency structure", {
     generated <- tip_on(
       htmltools::tags$button("Go"),
       "Short",
-      style = tip_style(theme = list("--hovercraft-tip-radius" = "9px")),
+      style = tip_style(theme = list(radius = 9)),
       more = tip_template(tip_text("Long")),
       more_on = "hover"
     )

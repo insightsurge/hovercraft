@@ -206,7 +206,8 @@ describe("tip_on(events = )", {
 
   it("replaces the events of an earlier tip_on() on the same tag", {
     first <- tip_on(button(), "Runs", events = "hint")
-    again <- tip_on(first, "Runs again")
+    rlang::reset_warning_verbosity("hovercraft-retip")
+    expect_warning(again <- tip_on(first, "Runs again"), class = "hovercraft_warning_retip")
     expect_false(tip_shiny_attribute() %in% names(again$attribs))
   })
 
@@ -221,9 +222,19 @@ describe("tip_on(events = )", {
   })
 
   it("takes pin and copy too, in the order given and once each", {
-    got <- tip_on(button(), "Runs", events = c("hint", "pin", "copy", "pin"))
+    got <- tip_on(button(), "Runs", events = c("hint", "pin", "copy", "pin"), pin = TRUE)
     expect_identical(attrs(got)[[tip_shiny_attribute()]], "hint pin copy")
-    expect_identical(attrs(tip_on(button(), "Runs", events = "copy"))[[tip_shiny_attribute()]], "copy")
+    expect_identical(attrs(tip_on(button(), "Runs", events = "copy", pin = TRUE))[[tip_shiny_attribute()]], "copy")
+  })
+
+  it("stops on pin or copy without a pin, and says what to give", {
+    for (events in list("pin", "copy", c("hint", "pin"))) {
+      expect_error(tip_on(button(), "Runs", events = events), class = "hovercraft_error_events")
+    }
+    expect_error(tip_on(button(), "Runs", events = "pin", pin = FALSE), "no pin")
+    expect_error(tip_on(button(), "Runs", events = "copy"), "TRUE")
+    expect_no_error(tip_on(button(), "Runs", events = "hint"))
+    expect_no_error(tip_on(htmltools::tags$span("x", id = "x", tabindex = "0"), "Runs", events = "pin", pin = "click"))
   })
 
   it("writes the layer's names from the engine's contract, not its own", {

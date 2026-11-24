@@ -741,6 +741,7 @@ tip_table <- function(
   tip_check_id(id)
   held <- tip_table_check_pin(pin, events, rows, id, call)
   style <- tip_as_style(style, call = call)
+  tip_check_style_tokens(style, call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
