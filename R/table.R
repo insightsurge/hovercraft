@@ -634,8 +634,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   `responsive`. With `responsive`, a column folded into the details row has no tip there; the row's tip is
 #'   unchanged.
 #' * `reactable`, with sorting, filtering, paging, row selection (a click selects the row and its tip stays),
-#'   `groupBy` (the rows inside a group have tips, the group's own row has none) and `details` (the details panel has
-#'   none).
+#'   `groupBy` (the rows inside a group have tips, the group's own row has none), `details` (the details panel has
+#'   none) and `filterable = TRUE` (the tip of a header cell stays on the header cell; the filter box under it has no
+#'   tip and is not described twice). `DT`'s filter row has none either.
 #' * An `id` made by [shiny::NS()] inside a module.
 #' * Tables that Shiny updates with new data: `DT::replaceData()` (it works in server mode) with the user's own data
 #'   frame, and `reactable::updateReactable(data = )`. The tips follow the new rows, as they do after sorting,

@@ -770,3 +770,58 @@ describe("tip_table() on a DT table with a header of more than one row, in a bro
     expect_identical(page$problems(), character())
   })
 })
+
+# A filter box under a header (#86): the header cell has the tip, the filter cell under it has none. reactable puts a
+# column's `headerClassName` on both, and the layer used to mark both, so the header's tip opened over the filter box.
+describe("tip_table() with a filter row, in a browser", {
+  tipped <- "[data-hovercraft-tip-template], [data-hovercraft-tip-kind], [aria-describedby]"
+  # How many of the elements the selector names hold a tip, a tip kind or a description.
+  count <- function(page, selector) {
+    page$evaluate(sprintf(
+      "[...document.querySelectorAll(%s)].filter((n) => n.matches(%s)).length",
+      jsonlite::toJSON(selector, auto_unbox = TRUE),
+      jsonlite::toJSON(tipped, auto_unbox = TRUE)
+    ))
+  }
+
+  it("gives a reactable header cell the tip and its filter cell none", {
+    file <- save_page(
+      tip_table(
+        reactable::reactable(scores, filterable = TRUE, defaultPageSize = 5),
+        rows = rows,
+        cells = cells,
+        headers = c(wins = "Wins so far")
+      )
+    )
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("document.querySelectorAll('.rt-tbody [data-hovercraft-tip-template]').length >= 5"))
+    expect_identical(page$evaluate("document.querySelectorAll('.rt-td-filter').length"), 3L)
+    expect_identical(page$evaluate("document.querySelectorAll('.rt-th[data-hovercraft-tip-template]').length"), 1L)
+    expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
+    expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
+    # The filter box under the tipped header is free: no tip opens over it.
+    expect_length(page$hover(".rt-td-filter:nth-child(2)"), 0L)
+    # A sort re-marks the table; the filter cell stays free, and the header and the rows keep their tips.
+    page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
+    Sys.sleep(0.5)
+    expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
+    expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
+    expect_match(page$hover(".rt-tbody .rt-tr:first-child .rt-td:first-child"), "wins$")
+    expect_identical(page$problems(), character())
+  })
+
+  it("leaves DT's filter row as it was: no tip on it", {
+    file <- save_page(
+      tip_table(
+        DT::datatable(scores, rownames = FALSE, filter = "top", options = list(pageLength = 5)),
+        rows = rows,
+        headers = c(wins = "Wins so far")
+      )
+    )
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("document.querySelectorAll('tbody tr[data-hovercraft-tip-template]').length === 5"))
+    expect_identical(page$evaluate("document.querySelectorAll('thead th[data-hovercraft-tip-template]').length"), 1L)
+    expect_identical(count(page, "thead tr:nth-child(2) td, thead tr:nth-child(2) th"), 0L)
+    expect_identical(page$hover("thead tr:first-child th:nth-child(2)"), "Wins so far")
+  })
+})

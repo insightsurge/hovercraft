@@ -114,8 +114,9 @@ What works, each checked in a browser:
 \code{responsive}. With \code{responsive}, a column folded into the details row has no tip there; the row's tip is
 unchanged.
 \item \code{reactable}, with sorting, filtering, paging, row selection (a click selects the row and its tip stays),
-\code{groupBy} (the rows inside a group have tips, the group's own row has none) and \code{details} (the details panel has
-none).
+\code{groupBy} (the rows inside a group have tips, the group's own row has none), \code{details} (the details panel has
+none) and \code{filterable = TRUE} (the tip of a header cell stays on the header cell; the filter box under it has no
+tip and is not described twice). \code{DT}'s filter row has none either.
 \item An \code{id} made by \code{\link[shiny:NS]{shiny::NS()}} inside a module.
 \item Tables that Shiny updates with new data: \code{DT::replaceData()} (it works in server mode) with the user's own data
 frame, and \code{reactable::updateReactable(data = )}. The tips follow the new rows, as they do after sorting,
