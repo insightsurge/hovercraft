@@ -404,14 +404,15 @@ describe("tip_on(more =, more_on =)", {
       id = "run_out"
     )
     dep <- Filter(function(d) startsWith(d$name, "hovercraft-more-"), htmltools::findDependencies(tag))[[1]]
-    expect_match(dep$head, "HovercraftShiny.park(\"mod1-more_plot\")", fixed = TRUE)
-    # The output tag goes to the script as a string, and the script puts it in the body: a `<div>` written into a
-    # dependency's head would end the head where the parser meets it, so the head holds one script and nothing else.
-    expect_match(dep$head, "HovercraftShiny.parkHtml(", fixed = TRUE)
-    expect_match(dep$head, "id=\\\"mod1-more_plot\\\"", fixed = TRUE)
-    expect_match(dep$head, "^<script>.*</script>$")
-    # Only the script's own end tag has "</": the output's closing tags are escaped inside the string.
-    expect_identical(lengths(gregexpr("</", dep$head, fixed = TRUE)), 1L)
+    # The runtime script reads the operations from a <meta>, as data: the output is parked, and its tag goes to the script as
+    # a string that it puts in the body, since a `<div>` written into a head would end the head.
+    expect_null(dep$head)
+    ops <- dep_ops(dep)
+    expect_match(ops, "{\"op\":\"park\",\"id\":\"mod1-more_plot\"}", fixed = TRUE)
+    expect_match(ops, "\"op\":\"parkHtml\"", fixed = TRUE)
+    expect_match(ops, "id=\\\"mod1-more_plot\\\"", fixed = TRUE)
+    # Nothing in it can end the block that holds it.
+    expect_no_match(ops, "</", fixed = TRUE)
   })
 
   it("warns once when more_on is given without more, in tip_on() and tip_spec()", {

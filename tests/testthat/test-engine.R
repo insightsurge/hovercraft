@@ -100,7 +100,9 @@ describe("the vendored engine, after a copy", {
 })
 
 describe("tip_dependency()", {
-  dep <- tip_dependency()
+  deps <- tip_dependency()
+  dep <- deps[[1]]
+  runtime <- deps[[length(deps)]]
 
   it("is versioned with the engine, not the package", {
     expect_s3_class(dep, "html_dependency")
@@ -121,12 +123,21 @@ describe("tip_dependency()", {
     dir <- withr::local_tempdir()
     htmltools::save_html(tip_on(htmltools::tags$button("Run"), "Runs"), file.path(dir, "page.html"))
     copied <- list.files(dir, recursive = TRUE)
-    expect_setequal(basename(copied[grepl("hovercraft", copied)]), c("tip.js", "tip.css"))
+    # The engine's two files, and the runtime's: the start script, the Shiny layer and the badge colours.
+    expect_setequal(
+      basename(copied[grepl("hovercraft", copied)]),
+      c("tip.js", "tip.css", "runtime.js", "shiny.js", "shiny.css", "status.css")
+    )
     expect_false(any(grepl("engine.json|placeholders.json|tip.sha256", copied)))
   })
 
-  it("starts the engine once the page has it, under the engine's own name", {
-    expect_match(dep$head, paste0(tip_names()$global, ".attach(document)"), fixed = TRUE)
+  it("starts the engine from a file of the runtime dependency, under the engine's own name, with nothing inline", {
+    expect_identical(runtime$name, "hovercraft-runtime")
+    expect_identical(runtime$script, c("shiny.js", "runtime.js"))
+    expect_identical(dep_config(runtime)$global, tip_names()$global)
+    script <- paste(readLines(system.file("runtime", "runtime.js", package = "hovercraft")), collapse = "\n")
+    expect_match(script, ".attach(document)", fixed = TRUE)
+    expect_false(any(vapply(deps, function(d) !is.null(d$head), NA)))
   })
 })
 
@@ -137,6 +148,22 @@ describe("tip_reset()", {
     tip_define(demo = tip_template(tip_text("x")))
     expect_named(tip_known(), "demo")
     tip_reset()
+    expect_identical(tip_known(), list())
+  })
+
+  it("forgets the templates of the running Shiny session as well as the process's own", {
+    skip_if_not_installed("shiny")
+    skip_if_not_installed("withr")
+    withr::defer(tip_reset())
+    tip_reset()
+    tip_define(page_wide = tip_template(tip_text("{{ x }}")))
+    session <- shiny::MockShinySession$new()
+    shiny::withReactiveDomain(session, {
+      tip_define(own = tip_template(tip_text("{{ y }}")))
+      expect_setequal(names(tip_known()), c("page_wide", "own"))
+      tip_reset()
+      expect_identical(tip_known(), list())
+    })
     expect_identical(tip_known(), list())
   })
 })

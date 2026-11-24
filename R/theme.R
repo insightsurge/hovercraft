@@ -235,7 +235,7 @@ tip_theme_contrast <- function(theme, call) {
   invisible()
 }
 
-# The theme as <style> text, for the tags under `scope`: the light roles on `scope`, and the dark roles that differ
+# The theme as CSS text, for the tags under `scope`: the light roles on `scope`, and the dark roles that differ
 # under data-bs-theme="dark" (and under the visitor's own dark setting when the page names no theme). A page's theme is
 # scoped to `body`, never `:root`: the engine takes a variable it finds on the page's root as inherited, so a page
 # preset would overwrite a theme written there. A tag's theme is scoped to the tag's own marker.
@@ -274,7 +274,7 @@ tip_theme_css <- function(theme, scope = "body") {
       }
     )
   )
-  if (nzchar(body)) paste0("<style>\n", body, "</style>") else ""
+  body
 }
 
 # A font that is a bslib variable (a Bootswatch theme's `var(--bs-font-sans-serif)`) gets a fallback: a page with no

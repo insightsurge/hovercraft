@@ -263,70 +263,76 @@ describe("printing a style", {
 })
 
 describe("the page's style, from tip_dependency(style =)", {
-  it("is the engine alone for NULL and for a style that sets nothing", {
-    expect_s3_class(tip_dependency(style = NULL), "html_dependency")
-    expect_s3_class(tip_dependency(style = tip_style()), "html_dependency")
+  it("is the engine and the runtime alone for NULL and for a style that sets nothing", {
+    for (style in list(NULL, tip_style())) {
+      deps <- tip_dependency(style = style)
+      expect_identical(vapply(deps, function(d) d$name, ""), c("hovercraft", "hovercraft-runtime"))
+    }
     expect_null(tip_style_page(tip_style()))
   })
 
-  it("writes the page preset as the engine's attribute on the page, in a script in the head", {
+  it("writes the page preset as the engine's attribute on the page, as data the runtime script reads", {
     deps <- tip_dependency(style = "lively")
-    expect_length(deps, 2L)
+    expect_length(deps, 3L)
     expect_identical(deps[[2]]$name, "hovercraft-style")
-    expect_match(deps[[2]]$head, "^<script>")
-    expect_match(deps[[2]]$head, sprintf("\"%s\":\"lively\"", tip_attribute("preset")), fixed = TRUE)
-    expect_match(deps[[2]]$head, "document.documentElement.setAttribute", fixed = TRUE)
-    expect_no_match(deps[[2]]$head, "<style>", fixed = TRUE)
+    expect_identical(deps[[3]]$name, "hovercraft-runtime")
+    expect_match(dep_ops(deps[[2]]), "\"op\":\"page\"", fixed = TRUE)
+    expect_match(dep_ops(deps[[2]]), sprintf("\"%s\":\"lively\"", tip_attribute("preset")), fixed = TRUE)
+    expect_null(deps[[2]]$stylesheet)
+    expect_null(deps[[2]]$head)
+    expect_identical(dep_css(deps[[2]]), "")
   })
 
   it("writes the page class the same way, and an empty class as the empty string", {
     deps <- tip_dependency(style = tip_style(class = "wide audit-tip"))
-    expect_match(deps[[2]]$head, sprintf("\"%s\":\"wide audit-tip\"", tip_attribute("class")), fixed = TRUE)
-    expect_no_match(deps[[2]]$head, tip_attribute("preset"), fixed = TRUE)
+    expect_match(dep_ops(deps[[2]]), sprintf("\"%s\":\"wide audit-tip\"", tip_attribute("class")), fixed = TRUE)
+    expect_no_match(dep_ops(deps[[2]]), tip_attribute("preset"), fixed = TRUE)
     cleared <- tip_dependency(style = tip_style(class = ""))
-    expect_match(cleared[[2]]$head, sprintf("\"%s\":\"\"", tip_attribute("class")), fixed = TRUE)
+    expect_match(dep_ops(cleared[[2]]), sprintf("\"%s\":\"\"", tip_attribute("class")), fixed = TRUE)
   })
 
   it("writes the theme as CSS on body and the preset as an attribute, in one dependency", {
     deps <- tip_dependency(style = tip_style("sober", theme = navy()))
-    expect_length(deps, 2L)
-    expect_match(deps[[2]]$head, "^<style>\nbody \\{")
-    expect_match(deps[[2]]$head, "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "\"sober\"", fixed = TRUE)
-    expect_no_match(deps[[2]]$head, ":root {", fixed = TRUE)
+    expect_length(deps, 3L)
+    expect_match(dep_css(deps[[2]]), "^body \\{")
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
+    expect_match(dep_ops(deps[[2]]), "\"sober\"", fixed = TRUE)
+    expect_no_match(dep_css(deps[[2]]), ":root {", fixed = TRUE)
   })
 
-  it("writes the size and motion settings as the engine's variables on body, with no script", {
+  it("writes the size and motion settings as the engine's variables on body, with no operation", {
     deps <- tip_dependency(style = tip_style(motion = "slide", gap = 12, max_width = 280, pin_width = 500))
-    expect_length(deps, 2L)
-    expect_match(deps[[2]]$head, "^<style>\nbody \\{")
-    expect_match(deps[[2]]$head, "--hovercraft-tip-motion: slide;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-gap: 12px;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-max-width: 280px;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-pin-width: 500px;", fixed = TRUE)
-    expect_no_match(deps[[2]]$head, "<script>", fixed = TRUE)
+    expect_length(deps, 3L)
+    expect_match(dep_css(deps[[2]]), "^body \\{")
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-motion: slide;", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-gap: 12px;", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-max-width: 280px;", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-pin-width: 500px;", fixed = TRUE)
+    expect_no_match(dep_ops(deps[[2]]), "\"op\":\"page\"", fixed = TRUE)
   })
 
   it("writes only the settings that were given, next to a theme and a preset", {
     deps <- tip_dependency(style = tip_style("sober", theme = navy(), gap = 0))
-    expect_match(deps[[2]]$head, "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-gap: 0px;", fixed = TRUE)
-    expect_no_match(deps[[2]]$head, "motion", fixed = TRUE)
-    expect_no_match(deps[[2]]$head, "max-width", fixed = TRUE)
-    expect_match(deps[[2]]$head, "\"sober\"", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-gap: 0px;", fixed = TRUE)
+    expect_no_match(dep_css(deps[[2]]), "motion", fixed = TRUE)
+    expect_no_match(dep_css(deps[[2]]), "max-width", fixed = TRUE)
+    expect_match(dep_ops(deps[[2]]), "\"sober\"", fixed = TRUE)
   })
 
-  it("writes a theme alone with no script", {
+  it("writes a theme alone with no operation", {
     deps <- tip_dependency(style = navy())
-    expect_no_match(deps[[2]]$head, "<script>", fixed = TRUE)
+    expect_no_match(dep_ops(deps[[2]]), "\"op\":\"page\"", fixed = TRUE)
   })
 
   it("keeps the style when tip_on() adds the plain engine dependency, in either order", {
     page <- tip_dependency(style = "sober")
     tag <- tip_on(button(), "t")
     names_of <- function(deps) vapply(htmltools::resolveDependencies(deps), function(d) d$name, "")
-    expect_identical(names_of(c(htmltools::findDependencies(tag), page)), c("hovercraft", "hovercraft-style"))
-    expect_identical(names_of(c(page, htmltools::findDependencies(tag))), c("hovercraft", "hovercraft-style"))
+    wanted <- c("hovercraft", "hovercraft-style", "hovercraft-runtime")
+    expect_setequal(names_of(c(htmltools::findDependencies(tag), page)), wanted)
+    expect_setequal(names_of(c(page, htmltools::findDependencies(tag))), wanted)
+    expect_length(names_of(c(page, htmltools::findDependencies(tag))), 3L)
   })
 
   it("stops on CSS and on a bare list, as style = does everywhere", {
@@ -363,8 +369,11 @@ describe("tip_on(style =)", {
     hash <- attr_of(tag, tip_theme_attribute())
     expect_match(hash, "^[0-9a-f]{12}$")
     deps <- htmltools::findDependencies(tag)
-    expect_identical(vapply(deps, function(d) d$name, ""), c("hovercraft", paste0("hovercraft-theme-", hash)))
-    css <- deps[[2]]$head
+    expect_identical(
+      vapply(deps, function(d) d$name, ""),
+      c("hovercraft", paste0("hovercraft-theme-", hash), "hovercraft-runtime")
+    )
+    css <- dep_css(deps[[2]])
     expect_match(css, sprintf("[%s=\"%s\"] {", tip_theme_attribute(), hash), fixed = TRUE)
     expect_match(css, "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
     expect_no_match(css, "body", fixed = TRUE)
@@ -378,7 +387,7 @@ describe("tip_on(style =)", {
     expect_identical(attr_of(one, tip_theme_attribute()), attr_of(two, tip_theme_attribute()))
     expect_false(identical(attr_of(one, tip_theme_attribute()), attr_of(other, tip_theme_attribute())))
     deps <- htmltools::resolveDependencies(htmltools::findDependencies(list(one, two, other)))
-    expect_length(deps, 3L)
+    expect_length(deps, 4L)
   })
 
   it("writes the preset, theme and class of a tip_style() together", {
@@ -393,8 +402,11 @@ describe("tip_on(style =)", {
     hash <- attr_of(tag, tip_theme_attribute())
     expect_match(hash, "^[0-9a-f]{12}$")
     deps <- htmltools::findDependencies(tag)
-    expect_identical(vapply(deps, function(d) d$name, ""), c("hovercraft", paste0("hovercraft-theme-", hash)))
-    css <- deps[[2]]$head
+    expect_identical(
+      vapply(deps, function(d) d$name, ""),
+      c("hovercraft", paste0("hovercraft-theme-", hash), "hovercraft-runtime")
+    )
+    css <- dep_css(deps[[2]])
     expect_match(css, sprintf("[%s=\"%s\"] {", tip_theme_attribute(), hash), fixed = TRUE)
     expect_match(css, "--hovercraft-tip-motion: none;", fixed = TRUE)
     expect_match(css, "--hovercraft-tip-gap: 2px;", fixed = TRUE)
@@ -405,7 +417,7 @@ describe("tip_on(style =)", {
 
   it("writes only the settings the tag sets, so the page's others still apply", {
     tag <- tip_on(button(), "t", style = tip_style(gap = 2))
-    css <- htmltools::findDependencies(tag)[[2]]$head
+    css <- dep_css(htmltools::findDependencies(tag)[[2]])
     expect_match(css, "--hovercraft-tip-gap: 2px;", fixed = TRUE)
     expect_no_match(css, "motion", fixed = TRUE)
   })
@@ -421,9 +433,9 @@ describe("tip_on(style =)", {
   it("puts a theme and the settings of one tip_style() under one marker and one dependency", {
     tag <- tip_on(button(), "t", style = tip_style(theme = navy(), gap = 2))
     deps <- htmltools::findDependencies(tag)
-    expect_length(deps, 2L)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
-    expect_match(deps[[2]]$head, "--hovercraft-tip-gap: 2px;", fixed = TRUE)
+    expect_length(deps, 3L)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-bg: #1b3a6b;", fixed = TRUE)
+    expect_match(dep_css(deps[[2]]), "--hovercraft-tip-gap: 2px;", fixed = TRUE)
     expect_false(
       identical(
         attr_of(tag, tip_theme_attribute()),
@@ -441,7 +453,11 @@ describe("tip_on(style =)", {
   it("writes no theme marker for a theme that sets nothing", {
     tag <- tip_on(button(), "t", style = tip_style("sober", theme = tip_theme()))
     expect_null(attr_of(tag, tip_theme_attribute()))
-    expect_length(htmltools::findDependencies(tag), 1L)
+    # The engine and the runtime only: no dependency of a theme.
+    expect_identical(
+      vapply(htmltools::findDependencies(tag), function(d) d$name, ""),
+      c("hovercraft", "hovercraft-runtime")
+    )
   })
 
   it("replaces the look of an earlier tip, and never joins two values in one attribute", {

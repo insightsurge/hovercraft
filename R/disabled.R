@@ -11,7 +11,8 @@
 # inst/disabled/disabled.css spells the same class; test-disabled.R holds the two to each other.
 tip_disabled_class <- function() paste0(tip_names()$prefix, "-when-disabled")
 
-tip_disabled_attribute <- function() paste0("data-", tip_disabled_class())
+# The attribute that holds the reason, and with a `part`, the ones beside it: `style` (the wrapper's layout) and `fill`.
+tip_disabled_attribute <- function(part = NULL) paste(c(paste0("data-", tip_disabled_class()), part), collapse = "-")
 
 # The tags that can be switched off by `disabled`, which is what Shiny's `update*(disabled = )` and the other packages
 # that toggle a control use.
@@ -21,9 +22,11 @@ tip_disabled_dependency <- function() {
   config <- list(
     reason = tip_attribute("reason"),
     own = tip_disabled_attribute(),
+    style = tip_disabled_attribute("style"),
     id = tip_attribute("id"),
     events = tip_shiny_attribute()
   )
+  # The names are data in a <meta>, which inst/disabled/disabled.js reads when it loads; no inline script starts it.
   htmltools::htmlDependency(
     name = "hovercraft-disabled",
     version = as.character(getNamespaceVersion("hovercraft")),
@@ -31,11 +34,7 @@ tip_disabled_dependency <- function() {
     package = "hovercraft",
     script = "disabled.js",
     stylesheet = "disabled.css",
-    head = sprintf(
-      "<script>%sDisabled.start(%s);</script>",
-      tip_names()$global,
-      jsonlite::toJSON(config, auto_unbox = TRUE)
-    ),
+    meta = list("hovercraft-disabled-config" = tip_meta_value(config)),
     all_files = FALSE
   )
 }
@@ -116,15 +115,17 @@ tip_disabled_split <- function(tag) {
   # What makes the wrapper wider than its content makes the control fill the wrapper.
   stretches <- any(property %in% c("width", "min-width", "flex", "flex-grow", "flex-basis"))
   stretch_class <- any(grepl("^(w-|col|flex-(fill|grow|(sm|md|lg|xl|xxl)-(fill|grow)))", classes[to_wrapper]))
-  keep_style <- c(style[!moved], if (stretches) "width: 100%")
-  keep_class <- c(classes[!to_wrapper], if (stretch_class) "w-100")
+  keep_style <- style[!moved]
+  keep_class <- classes[!to_wrapper]
   tag$attribs[names(tag$attribs) %in% c("style", "class")] <- NULL
   tag <- do.call(
     htmltools::tagAppendAttributes,
     c(
       list(tag),
       list(style = if (length(keep_style)) paste0(paste(keep_style, collapse = "; "), ";")),
-      list(class = if (length(keep_class)) paste(keep_class, collapse = " "))
+      list(class = if (length(keep_class)) paste(keep_class, collapse = " ")),
+      # The control fills its wrapper: a mark the stylesheet reads, since a style written here would be inline.
+      stats::setNames(list(if (stretches || stretch_class) ""), tip_disabled_attribute("fill"))
     )
   )
   list(
@@ -152,7 +153,12 @@ tip_disabled_wrap <- function(tag, when_disabled, attribs = list(), wrapper = NU
         )
       )
     )
-    wrapper <- htmltools::tagAppendAttributes(wrapper, style = layout$style)
+    # The control's layout (a width, a flex share) as data: the layer applies it from script, which a policy that allows
+    # no inline style also allows, where a `style` attribute written here would be blocked.
+    wrapper <- do.call(
+      htmltools::tagAppendAttributes,
+      c(list(wrapper), stats::setNames(list(layout$style), tip_disabled_attribute("style")))
+    )
   }
   wrapper$children <- list(tag)
   own <- c(

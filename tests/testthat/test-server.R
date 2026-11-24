@@ -142,13 +142,60 @@ describe("tip_update()", {
   })
 })
 
+describe("tip_update() and the template registry of a session", {
+  withr::defer(tip_reset())
+  tip_reset()
+
+  # What a session that a call is given looks like to tip_update(), with the registry of a real mock session.
+  proxy_of <- function(mock) {
+    sent <- list()
+    list(
+      sendCustomMessage = function(type, message) sent[[length(sent) + 1L]] <<- message,
+      ns = function(id) id,
+      userData = mock$userData,
+      sent = function() sent
+    )
+  }
+
+  it("checks and trims a record against the templates of the session it is given, outside the default domain", {
+    skip_if_not_installed("shiny")
+    mock <- shiny::MockShinySession$new()
+    shiny::withReactiveDomain(mock, tip_define(card = tip_template(tip_text("{{ a }}"))))
+    # Outside the domain, as in a later::later() callback, the process knows no "card"; the given session does.
+    expect_null(tip_known()[["card"]])
+    session <- proxy_of(mock)
+    tip_update("x", template = "card", record = list(a = 1, secret = "S"), session = session)
+    set <- session$sent()[[1]]$set
+    expect_equal(jsonlite::fromJSON(set[[tip_attributes()[["record"]]]]), list(a = 1))
+    expect_error(
+      tip_update("x", template = "card", record = list(other = 1), session = session),
+      class = "hovercraft_error_field"
+    )
+  })
+
+  it("does not take another session's templates", {
+    skip_if_not_installed("shiny")
+    one <- shiny::MockShinySession$new()
+    two <- shiny::MockShinySession$new()
+    shiny::withReactiveDomain(one, tip_define(only_one = tip_template(tip_text("{{ a }}"))))
+    session <- proxy_of(two)
+    expect_no_error(
+      suppressWarnings(tip_update("x", template = "only_one", record = list(a = 1, extra = "e"), session = session))
+    )
+    # Session two does not know the template of session one, so it cannot trim the record to the template's fields.
+    expect_named(jsonlite::fromJSON(session$sent()[[1]]$set[[tip_attributes()[["record"]]]]), c("a", "extra"))
+  })
+})
+
 describe("tip_on(events = )", {
   attrs <- function(tag) unlist(tag$attribs)
 
-  it("writes the events attribute only when asked, and the engine's dependency carries the Shiny layer", {
+  it("writes the events attribute only when asked, and the runtime dependency carries the Shiny layer", {
     got <- tip_on(button(), "Runs", id = "run_tip", events = "hint")
     expect_identical(attrs(got)[[tip_shiny_attribute()]], "hint")
-    expect_match(htmltools::findDependencies(got)[[1]]$head, "HovercraftShiny.start", fixed = TRUE)
+    runtime <- Filter(function(d) d$name == "hovercraft-runtime", htmltools::findDependencies(got))[[1]]
+    expect_true("shiny.js" %in% runtime$script)
+    expect_null(runtime$head)
     plain <- tip_on(button(), "Runs", id = "run_tip")
     expect_false(tip_shiny_attribute() %in% names(plain$attribs))
   })
@@ -180,7 +227,7 @@ describe("tip_on(events = )", {
   })
 
   it("writes the layer's names from the engine's contract, not its own", {
-    config <- jsonlite::fromJSON(sub("^.*Shiny\\.start\\(([^\n]*)\\);</script>.*$", "\\1", tip_shiny_head()))
+    config <- jsonlite::fromJSON(jsonlite::toJSON(tip_runtime_config(), auto_unbox = TRUE))
     expect_identical(config$attributes$id, tip_attribute("id"))
     expect_identical(config$attributes$open, tip_contract()$attributes$open)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)

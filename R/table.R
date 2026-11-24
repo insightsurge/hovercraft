@@ -327,16 +327,18 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
 tip_table_dependencies <- function(widget, marker = FALSE, looks = list()) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
-    version = tip_engine_version(),
+    version = tip_package_version(),
     src = "table",
     package = "hovercraft",
     script = "table.js"
   )
-  engine <- tip_dependency()
-  if (inherits(engine, "html_dependency")) {
-    engine <- list(engine)
-  }
-  widget$dependencies <- c(widget$dependencies, engine, list(table), if (marker) list(tip_marker_dependency()), looks)
+  widget$dependencies <- c(
+    widget$dependencies,
+    tip_base_dependencies(),
+    list(table),
+    if (marker) list(tip_marker_dependency()),
+    looks
+  )
   widget
 }
 

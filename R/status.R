@@ -42,7 +42,8 @@ tip_check_status <- function(status, call = rlang::caller_env()) {
   invisible(status)
 }
 
-# hovercraft's own stylesheet, a small one on top of the engine: it colours a badge by its `tone` from the page's
+# hovercraft's own stylesheet (inst/runtime/status.css, which test-status.R holds to this function), a small one on top
+# of the engine: it colours a badge by its `tone` from the page's
 # Bootstrap colours (5.3 and later; bslib pages have them, dark mode included). Where a page has no Bootstrap the
 # colours after the commas are used, a light set, and a dark set under `data-bs-theme="dark"`. It only names the
 # engine's own public door, the badge's class and its `data-tone` attribute, and the class prefix comes from the
@@ -82,5 +83,5 @@ tip_status_css <- function() {
     vapply(tip_statuses, function(status) rule(status, light[[status]]), ""),
     vapply(tip_statuses, function(status) rule(status, dark[[status]], "[data-bs-theme=\"dark\"] "), "")
   )
-  paste0("<style>", paste(rules, collapse = "\n"), "</style>")
+  paste(rules, collapse = "\n")
 }

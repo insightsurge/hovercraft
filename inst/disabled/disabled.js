@@ -5,11 +5,14 @@
 // tab stop (a button's role for a button, a named group for a field), because a disabled control can take neither focus
 // nor, under Bootstrap, the pointer.
 // When the control is enabled it takes all of that away: the engine keeps saying "Not available", and blocks the
-// control's clicks, for as long as its reason attribute stays. R passes the attribute names in `start()`.
+// control's clicks, for as long as its reason attribute stays. R gives the attribute names as data in a <meta name="hovercraft-disabled-config">, which this file reads when it loads, so nothing is inline.
 (() => {
   if (window.HovercraftDisabled) return;
 
   let names = null;
+  // A <meta>'s content is base64 of JSON (see tip_meta_value() in R/runtime.R).
+  const decode = (content) =>
+    JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(content), (c) => c.charCodeAt(0))));
   let wrappers = '';
   const CONTROLS = 'button, input, select, textarea, fieldset';
 
@@ -32,7 +35,17 @@
   // While the control is disabled, the wrapper holds the reason, answers to the control's id and events, and is a tab stop.
   // When the control is enabled it holds none of that. Focus follows the control: a control that is focused when it is
   // switched off (a button that disables itself) hands the focus to the wrapper, and back when it is switched on.
+  // What layout was last applied to each wrapper, so a still wrapper is not written again.
+  const laid = new WeakMap();
+
   const sync = (wrapper) => {
+    // The control's layout (a width, a flex share) arrives as data and is set from script: a policy that allows no inline
+    // style allows this, and would block a `style` attribute in the markup.
+    const layout = wrapper.getAttribute(names.style);
+    if (layout !== null && laid.get(wrapper) !== layout) {
+      wrapper.style.cssText = layout;
+      laid.set(wrapper, layout);
+    }
     const control = wrapper.querySelector(CONTROLS);
     const reason = wrapper.getAttribute(names.own)?.trim();
     const active = wrapper.ownerDocument.activeElement;
@@ -82,11 +95,13 @@
         subtree: true,
         childList: true,
         attributes: true,
-        attributeFilter: ['disabled', names.own],
+        attributeFilter: ['disabled', names.own, names.style],
       });
       // Wrappers already on the page, and those a parser adds before the first change.
       syncAround(document.documentElement);
       document.addEventListener('DOMContentLoaded', () => syncAround(document.documentElement));
     },
   });
+  const meta = document.querySelector('meta[name="hovercraft-disabled-config"]');
+  if (meta) window.HovercraftDisabled.start(decode(meta.content));
 })();

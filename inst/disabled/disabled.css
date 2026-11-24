@@ -15,6 +15,7 @@
   display: block;
 }
 /* The wrapper has the control's width and place, so a control that fills a block or a grid cell fills its wrapper. */
+.hovercraft-when-disabled > [data-hovercraft-when-disabled-fill],
 .d-grid > .hovercraft-when-disabled > .btn,
 .hovercraft-when-disabled.d-block > .btn {
   width: 100%;

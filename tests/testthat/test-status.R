@@ -3,7 +3,7 @@ describe("the badge status stylesheet", {
   badge <- paste0(".", tip_names()$css, "-badge")
 
   it("colours each of the four statuses from Bootstrap's variables, with a fallback, light and dark", {
-    expect_match(css, "^<style>.*</style>$")
+    expect_no_match(css, "<style", fixed = TRUE)
     for (status in tip_statuses) {
       rule <- sprintf("%s[data-tone=\"%s\"]", badge, status)
       expect_match(css, rule, fixed = TRUE)
@@ -13,10 +13,18 @@ describe("the badge status stylesheet", {
     expect_equal(lengths(regmatches(css, gregexpr("[data-tone=", css, fixed = TRUE))), 2L * length(tip_statuses))
   })
 
-  it("comes with the engine's dependency, on every page that has a tip", {
-    expect_match(tip_dependency()$head, css, fixed = TRUE)
-    expect_match(tip_dependency()$head, paste0(tip_names()$global, ".attach(document)"), fixed = TRUE)
+  it("is the file status.css of the runtime dependency, which the generator holds to", {
+    file <- system.file("runtime", "status.css", package = "hovercraft")
+    # The file is formatted by Biome like the package's other CSS; the rules are the same.
+    squash <- function(x) gsub(";}", "}", gsub("[[:space:]]+", "", paste(x, collapse = "")), fixed = TRUE)
+    expect_identical(squash(readLines(file, warn = FALSE)), squash(css))
+  })
+
+  it("comes with the runtime dependency, on every page that has a tip", {
+    runtime <- tip_dependency()[[2]]
+    expect_true("status.css" %in% runtime$stylesheet)
     got <- tip_on(htmltools::tags$button("Run"), "Runs")
-    expect_match(htmltools::findDependencies(got)[[1]]$head, "data-tone", fixed = TRUE)
+    deps <- htmltools::findDependencies(got)
+    expect_true("status.css" %in% deps[[length(deps)]]$stylesheet)
   })
 })

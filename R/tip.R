@@ -89,8 +89,8 @@ tip_plain_text <- function(text) {
 # Whether tip_define() has seen this template in this session. A name it has not seen is the page's to report (a UI is
 # often written before the templates it uses), so it warns once and says FALSE; with no template defined at all there is
 # nothing to compare with and the answer is FALSE without a word.
-tip_template_seen <- function(template, call) {
-  known <- tip_known()
+tip_template_seen <- function(template, call, session = tip_session()) {
+  known <- tip_known(session)
   if (!length(known)) {
     return(FALSE)
   }
@@ -116,11 +116,11 @@ tip_template_seen <- function(template, call) {
 # the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can
 # be checked; any other name is the page's to report (a UI is often written before the templates it uses). This page
 # has no list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
-tip_check_use <- function(template, held, id, call) {
-  if (!tip_template_seen(template, call)) {
+tip_check_use <- function(template, held, id, call, session = tip_session()) {
+  if (!tip_template_seen(template, call, session)) {
     return(invisible())
   }
-  known <- tip_known()
+  known <- tip_known(session)
   fields <- known[[template]]$fields
   engine <- unlist(tip_rules()$engine_fields)
   if ("tip_index" %in% fields && !"tip_index" %in% held) {
@@ -224,28 +224,20 @@ tip_warn_more_on <- function(more, more_on, call = rlang::caller_env()) {
 
 # Deterministic HTML dependency defining an inline `more` template (no random or per-session ids, safe for bindCache()).
 tip_more_template_dep <- function(template) {
-  body <- tip_json(tip_blocks_plain(template))
-  hash <- substr(rlang::hash(body), 1L, 12L)
+  body <- tip_blocks_plain(template)
+  hash <- substr(rlang::hash(tip_json(body)), 1L, 12L)
   name <- paste0("more_", hash)
-  js <- sprintf("%s.define(%s, %s);", tip_names()$global, tip_json(name), body)
+  ops <- list(list(op = "define", name = name, blocks = body))
   for (out_id in tip_output_ids(list(template))) {
-    js <- c(js, sprintf("%sShiny.park(%s);", tip_names()$global, tip_json(out_id)))
+    ops <- c(ops, list(list(op = "park", id = out_id)))
   }
   park_tags <- tip_output_tags(list(template))
-  # The output tags are handed to the script as one string, which puts them in the page's park holder once there is a
-  # body: a `<div>` in a dependency's `head` would end the head where the parser meets it.
+  # The output tags are handed to the runtime script as one string, which puts them in the page's park holder once there
+  # is a body: a `<div>` in a dependency's `<meta>` is data, and cannot end the head.
   if (length(park_tags)) {
-    html <- jsonlite::toJSON(as.character(htmltools::tagList(park_tags)), auto_unbox = TRUE)
-    js <- c(js, sprintf("%sShiny.parkHtml(%s);", tip_names()$global, gsub("</", "<\\/", html, fixed = TRUE)))
+    ops <- c(ops, list(list(op = "parkHtml", html = as.character(htmltools::tagList(park_tags)))))
   }
-  dep <- htmltools::htmlDependency(
-    name = paste0("hovercraft-more-", hash),
-    version = tip_engine_version(),
-    src = "engine/www",
-    package = "hovercraft",
-    head = paste0("<script>", paste(js, collapse = "\n"), "</script>"),
-    all_files = FALSE
-  )
+  dep <- tip_gen_dependency(paste0("hovercraft-more-", hash), ops = ops)
   extra_deps <- if (length(park_tags)) htmltools::findDependencies(park_tags) else list()
   list(name = name, deps = c(list(dep), extra_deps))
 }
@@ -704,7 +696,7 @@ tip_on <- function(
   }
   tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values, look$attribs))
   tag <- tip_marker_apply(tag, marker, rlang::current_env())
-  deps <- c(list(tip_dependency()), look$deps, more_deps)
+  deps <- c(list(tip_engine_dependency()), look$deps, more_deps)
   if (!is.null(pin_value) || !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))) {
     deps <- c(deps, list(tip_pin_dependency()))
   }
@@ -713,5 +705,5 @@ tip_on <- function(
     tag <- tip_disabled_wrap(tag, when_disabled, c(look$attribs, place), wrapper)
     deps <- c(deps, list(tip_disabled_dependency()))
   }
-  htmltools::attachDependencies(tag, deps, append = TRUE)
+  htmltools::attachDependencies(tag, c(deps, list(tip_runtime_dependency())), append = TRUE)
 }

@@ -348,13 +348,13 @@ tip_size_css <- function(style, scope) {
     },
     ""
   )
-  sprintf("<style>\n%s {\n%s\n}\n</style>", scope, paste(lines, collapse = "\n"))
+  sprintf("%s {\n%s\n}\n", scope, paste(lines, collapse = "\n"))
 }
 
-# A page's style: its theme as CSS on `body`, and its preset and class as the engine's own attributes on the page. The
-# engine reads a preset from the attribute before its settings, and a script in the head does not depend on the engine
-# having loaded. Its own dependency, not part of the engine's, so that the plain engine dependency every tag attaches
-# can never replace it. NULL when the style sets nothing.
+# A page's style: its theme as CSS on `body`, and its preset and class as the engine's own attributes on the page,
+# set by the runtime script from data. The engine reads a preset from the attribute before its settings. Its own
+# dependency, not part of the engine's, so that the plain engine dependency every tag attaches can never replace it.
+# NULL when the style sets nothing.
 tip_style_page <- function(style) {
   css <- paste0(if (is.null(style$theme)) "" else tip_theme_css(style$theme, "body"), tip_size_css(style, "body"))
   set <- c(
@@ -362,28 +362,10 @@ tip_style_page <- function(style) {
     stats::setNames(list(style$class), tip_attribute("class"))
   )
   set <- Filter(Negate(is.null), set)
-  script <- if (length(set)) {
-    sprintf(
-      paste0(
-        "<script>(function () { var set = %s; ",
-        "for (var name in set) document.documentElement.setAttribute(name, set[name]); })();</script>"
-      ),
-      tip_json(set)
-    )
-  } else {
-    ""
-  }
-  if (!nzchar(css) && !nzchar(script)) {
+  if (!nzchar(css) && !length(set)) {
     return(NULL)
   }
-  htmltools::htmlDependency(
-    name = "hovercraft-style",
-    version = tip_engine_version(),
-    src = "engine/www",
-    package = "hovercraft",
-    head = paste0(css, script),
-    all_files = FALSE
-  )
+  tip_gen_dependency("hovercraft-style", css, if (length(set)) list(list(op = "page", attributes = set)))
 }
 
 # A tag's style: the attributes to write on the tag, and the dependencies they need. The preset and class are the
@@ -406,14 +388,7 @@ tip_style_tag <- function(style) {
     css <- paste0(if (is.null(style$theme)) "" else tip_theme_css(style$theme, scope), tip_size_css(style, scope))
     if (nzchar(css)) {
       attribs[[marker]] <- hash
-      deps <- list(htmltools::htmlDependency(
-        name = paste0("hovercraft-theme-", hash),
-        version = tip_engine_version(),
-        src = "engine/www",
-        package = "hovercraft",
-        head = css,
-        all_files = FALSE
-      ))
+      deps <- list(tip_gen_dependency(paste0("hovercraft-theme-", hash), css))
     }
   }
   list(attribs = attribs, deps = deps)

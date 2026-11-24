@@ -61,36 +61,92 @@ describe("module template names and ids", {
 
 describe("app frameworks and reverse-proxy dependency structure", {
   it("ships tip_dependency() as a package-relative htmlDependency with no absolute paths", {
-    dep <- tip_dependency()
-    expect_s3_class(dep, "html_dependency")
-    expect_identical(dep$package, "hovercraft")
-    expect_identical(dep$src$file, "engine/www")
-    expect_false(startsWith(dep$script, "/"))
-    expect_false(startsWith(dep$stylesheet, "/"))
+    generated <- tip_on(
+      htmltools::tags$button("Go"),
+      "Short",
+      style = tip_style(theme = list("--hovercraft-tip-radius" = "9px")),
+      more = tip_template(tip_text("Long")),
+      more_on = "hover"
+    )
+    deps <- c(
+      tip_dependency(),
+      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))),
+      htmltools::findDependencies(generated)
+    )
+    for (dep in deps) {
+      expect_s3_class(dep, "html_dependency")
+      expect_identical(dep$package, "hovercraft", info = dep$name)
+      expect_false(startsWith(dep$src$file, "/"), info = dep$name)
+      expect_false(any(startsWith(dep$script %||% "", "/")))
+      expect_false(any(startsWith(dep$stylesheet %||% "", "/")))
+    }
+    expect_identical(tip_dependency()[[1]]$src$file, "engine/www")
   })
 })
 
 describe("production checks (strict CSP and multi-session R state)", {
   it("emits no inline <script> or <style> tags under a strict Content-Security-Policy", {
-    testthat::skip("known: tip_dependency() and tip_define() emit inline <script> and <style> blocks")
-    dep <- tip_dependency()
-    expect_false(grepl("<script|<style", dep$head %||% "", ignore.case = TRUE))
     tip_reset()
     withr::defer(tip_reset())
+    # No dependency carries markup in its head: files and data only. (test-csp-browser.R serves a page under the policy.)
+    deps <- c(
+      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "9px"), gap = 3)),
+      tip_on(
+        htmltools::tags$button("A"),
+        "a",
+        style = tip_style(gap = 2),
+        more = tip_template(tip_text("b")),
+        pin = TRUE,
+        id = "a"
+      ) |>
+        htmltools::findDependencies(),
+      tip_on(htmltools::tags$button("B", disabled = NA), "b", when_disabled = "why") |> htmltools::findDependencies()
+    )
+    for (dep in deps) {
+      expect_false(grepl("<script|<style", dep$head %||% "", ignore.case = TRUE), info = dep$name)
+    }
     def_html <- as.character(htmltools::renderTags(tip_define(csp_card = tip_template(tip_text("x"))))$html)
-    expect_false(grepl("<script", def_html, ignore.case = TRUE))
+    expect_false(grepl("<style", def_html, ignore.case = TRUE))
+    # The one script is a JSON data block, which a browser does not run.
+    scripts <- regmatches(def_html, gregexpr("<script[^>]*>", def_html))[[1]]
+    expect_true(all(grepl("type=\"application/json\"", scripts, fixed = TRUE)))
   })
 
   it("isolates tip_define() template registries across separate Shiny sessions in one R process", {
-    testthat::skip("known: tip_state$templates is a process-global env shared across Shiny sessions")
     skip_if_not_installed("shiny")
     tip_reset()
     withr::defer(tip_reset())
-    # Session A defines "shared" with field `a`; Session B defines "shared" with field `b`.
-    tip_define(shared = tip_template(tip_text("A: {{ a }}")))
-    expect_no_warning(tip_define(shared = tip_template(tip_text("B: {{ b }}"))))
-    # Session A later renders a tip using its own field `a`.
-    expect_no_error(tip_on(htmltools::tags$button("A"), template = "shared", record = list(a = 1L)))
+    one <- shiny::MockShinySession$new()
+    two <- shiny::MockShinySession$new()
+    # Session one defines "shared" with field `a`; session two defines "shared" with field `b`.
+    shiny::withReactiveDomain(one, tip_define(shared = tip_template(tip_text("A: {{ a }}"))))
+    shiny::withReactiveDomain(two, expect_no_warning(tip_define(shared = tip_template(tip_text("B: {{ b }}")))))
+    button <- function() htmltools::tags$button("Go")
+    # Each session is checked against its own definition, not the other's.
+    shiny::withReactiveDomain(one, {
+      expect_no_error(tip_on(button(), template = "shared", record = list(a = 1L)))
+      expect_error(tip_on(button(), template = "shared", record = list(b = 1L)), class = "hovercraft_error_field")
+    })
+    shiny::withReactiveDomain(two, {
+      expect_no_error(tip_on(button(), template = "shared", record = list(b = 1L)))
+      expect_error(tip_on(button(), template = "shared", record = list(a = 1L)), class = "hovercraft_error_field")
+    })
+    # A template defined outside a session (the page's UI) is known to every session, which may replace it for itself.
+    tip_define(page_wide = tip_template(tip_text("{{ x }}")))
+    shiny::withReactiveDomain(one, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    shiny::withReactiveDomain(two, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    # A session that defines a page-wide name again for itself replaces it for itself only, and says nothing.
+    shiny::withReactiveDomain(
+      one,
+      expect_no_warning(tip_define(page_wide = tip_template(tip_text("{{ y }}"))))
+    )
+    shiny::withReactiveDomain(
+      one,
+      expect_error(tip_on(button(), template = "page_wide", record = list(x = 1L)), class = "hovercraft_error_field")
+    )
+    shiny::withReactiveDomain(two, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    # The page-wide registry did not take the sessions' definitions.
+    expect_identical(names(tip_known()), "page_wide")
   })
 })
 
