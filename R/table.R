@@ -1,10 +1,10 @@
 # tip_table(): tips on the rows, cells and header cells of a DT or reactable table (an experimental spike, built on
-# top of the tip engine). R reads the table's own data, and the layer in inst/table/table.js writes each row's record
-# and the tip's template name onto the row (or cell) as the engine's attributes, and defines the template. Both widgets
-# draw their rows in the browser, so the attributes are written there: DT through callbacks in its options, reactable
-# through a class on each row. A DT row's record is read from the row's own data in the browser, so no data is added to
-# the table and a table that is given new data keeps tips that follow it; a reactable row's record is written by R. The
-# layer uses only the engine's public attributes and `Hovercraft.define()`.
+# top of the tip engine). R reads the table's own data to check the tips, and the layer in inst/table/table.js writes
+# each row's record and the tip's template name onto the row (or cell) as the engine's attributes, and defines the
+# template. Both widgets draw their rows in the browser, so the attributes are written there: DT through callbacks in
+# its options, reactable through a class on each row. The record is read from the row's own data in the browser, so no
+# data is added to the table and a table that is given new data keeps tips that follow it. The layer uses only the
+# engine's public attributes and `Hovercraft.define()`.
 
 # JavaScript as DT and reactable read it: `JS()` of htmlwidgets (which both re-export) is this class on a string.
 tip_js <- function(code) structure(code, class = "JS_EVAL")
@@ -288,15 +288,6 @@ tip_table_check_values <- function(data, fields, call) {
   invisible(data)
 }
 
-# One record per row as JSON text, holding only `fields`, written the way tip_on() writes a record.
-tip_table_records <- function(data, fields, call) {
-  if (!length(fields)) {
-    return(rep("", nrow(data)))
-  }
-  tip_check_columns(data[fields], call)
-  vapply(seq_len(nrow(data)), function(i) tip_json(tip_record(data[i, fields, drop = FALSE], call = call)), "")
-}
-
 # What an element carries for one content: its template, the fixed kind of its target, the placement when there is
 # one, and, for a cell or a header cell, the anchor `content`, so the tip points at the text and not at the whole cell
 # (a right-aligned header would point at empty space). A row keeps the engine's pointer alignment. With a table `id`,
@@ -445,10 +436,13 @@ tip_table_reactable <- function(widget, plan, call) {
   ids <- vapply(columns, function(column) column$id, "")
   data <- tip_table_data(widget, "reactable")
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
-  if (!is.null(plan$rows)) {
+  tip_table_check_values(data, fields, call)
+  # A row's class says its data row and holds its record, read from reactable's own row values each time the row is
+  # drawn, so a table that `reactable::updateReactable()` gives new data keeps tips that follow it.
+  if (!is.null(plan$rows) || length(fields)) {
     tag$attribs$rowClassName <- tip_table_class(
       tag$attribs$rowClassName,
-      "(rowInfo && !rowInfo.aggregated ? 'hovercraft-row-' + rowInfo.index : '')",
+      sprintf("HovercraftTable.rowClass(rowInfo, %s)", tip_json(as.list(fields))),
       "rowInfo, state"
     )
   }
@@ -488,7 +482,6 @@ tip_table_reactable <- function(widget, plan, call) {
     rows = plan$specs$rows,
     cells = cells,
     headers = heads,
-    records = as.list(tip_table_records(data, fields, call)),
     defines = plan$defines,
     kind = tip_attribute("kind"),
     desc = tip_description_class(),
@@ -541,21 +534,22 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   `groupBy` (the rows inside a group have tips, the group's own row has none) and `details` (the details panel has
 #'   none).
 #' * An `id` made by [shiny::NS()] inside a module.
-#' * A `DT` table that Shiny updates with `DT::replaceData()` (it works in server mode) and the user's own data frame:
-#'   the tips follow the new rows, as they do after sorting, filtering and paging.
+#' * Tables that Shiny updates with new data: `DT::replaceData()` (it works in server mode) with the user's own data
+#'   frame, and `reactable::updateReactable(data = )`. The tips follow the new rows, as they do after sorting,
+#'   filtering and paging.
 #'
 #' Not supported: a `DT` table with its own `createdRow` or `initComplete` option; a `reactable` column whose
 #' `headerClass` is a JavaScript function; any other widget.
 #'
-#' Large tables: a `DT` table gets nothing added to its data, since each tip reads its values from the table's own data in
-#' the browser; a `reactable` table adds about 70 bytes per row to the page and takes about 0.2 seconds per 1,000 rows
-#' to build in R. A table with every row drawn at once is slow in `DT` when cells or headers have tips (thousands
+#' Large tables: `tip_table()` adds nothing to the data of the page, since each tip reads its values from the table's own
+#' data in the browser. A table with every row drawn at once is slow in `DT` when cells or headers have tips (thousands
 #' of rows take seconds); page it, or tip its rows only.
 #'
 #' Give `tip_table()` the finished widget, last in the pipe or at least after the columns are settled.
 #' `DT::datatable()` keeps its columns and its inputs as they are: `tip_table()` adds no column and changes no event
 #' (a table with its own `createdRow` or `initComplete` option is refused for now). `reactable::reactable()` gets its
-#' own `rowClass`, `class` and `headerClass` added to yours. Only the columns a tip names are written to the page.
+#' own `rowClass`, `class` and `headerClass` added to yours; the class of a row holds the values its tips read, so it
+#' changes with the data.
 #'
 #' @param widget A table made by `DT::datatable()` or by `reactable::reactable()`.
 #' @param ... Must be empty. It makes a misspelt argument an error.

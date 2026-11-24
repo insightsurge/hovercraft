@@ -189,15 +189,14 @@ describe("tip_table() on a DT table", {
 })
 
 describe("tip_table() on a reactable table", {
-  it("puts a class on the rows, the cells and the header cells, and hands the layer each row's record", {
+  it("puts a class on the rows, the cells and the header cells, and has the row's class carry its record", {
     got <- tip_table(rt(), rows = "{{ team }}", cells = c(wins = "{{ wins }}"), headers = c(losses = "Games lost"))
     attribs <- got$x$tag$attribs
-    expect_match(js(attribs$rowClassName), "hovercraft-row-", fixed = TRUE)
+    expect_match(js(attribs$rowClassName), "HovercraftTable.rowClass(rowInfo, [\"team\",\"wins\"])", fixed = TRUE)
     expect_match(js(attribs$columns[[2]]$className), "hovercraft-cell-1-", fixed = TRUE)
     expect_identical(attribs$columns[[3]]$headerClassName, "hovercraft-head-2")
     cfg <- got$jsHooks$render[[1]]$data
-    expect_length(cfg$records, 3L)
-    expect_identical(jsonlite::fromJSON(cfg$records[[1]]), list(team = "Owls", wins = 7L))
+    expect_null(cfg$records)
     expect_named(cfg$cells, "1")
     expect_named(cfg$headers, "2")
     expect_identical(cfg$rows$record, tip_attribute("record"))
@@ -232,9 +231,15 @@ describe("tip_table() on a reactable table", {
     )
   })
 
-  it("hands the layer empty records when no tip reads the row", {
+  it("asks for no record in the row's class when no tip reads the row", {
     got <- tip_table(rt(), rows = "A fixed note")
-    expect_identical(unlist(got$jsHooks$render[[1]]$data$records), rep("", 3L))
+    expect_match(js(got$x$tag$attribs$rowClassName), "HovercraftTable.rowClass(rowInfo, [])", fixed = TRUE)
+    expect_null(got$jsHooks$render[[1]]$data$records)
+  })
+
+  it("puts the class on the rows when only the cells read the row, since the cells take its record", {
+    got <- tip_table(rt(), cells = c(wins = "{{ wins }} of {{ team }}"))
+    expect_match(js(got$x$tag$attribs$rowClassName), "rowClass(rowInfo, [\"wins\",\"team\"])", fixed = TRUE)
   })
 
   it("hands the layer the table id and each target's data column for the derived tip ids", {

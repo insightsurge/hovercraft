@@ -1,8 +1,9 @@
 // hovercraft's own layer for tip_table() (experimental spike). It only writes the tip engine's public attributes onto
 // the rows, cells and header cells of a DT or reactable table, and defines the templates the tips use. The attribute
-// names and the values come from R (see R/table.R); a DT row's record is read from the row's own data in the browser
-// (DT hands it to its row callbacks), so a table that DT updates with new data (`DT::replaceData()`) keeps tips that
-// follow the data. Nothing here is the engine's own state.
+// names and the values come from R (see R/table.R); the record of a row is read from the row's own data in the browser
+// (DT hands it to its row callbacks, reactable to its class functions), so a table that its widget updates with new
+// data (`DT::replaceData()`, `reactable::updateReactable()`) keeps tips that follow the data. Nothing here is the
+// engine's own state.
 (() => {
   // `spec` is { attrs: { name: value }, record: name of the record attribute, needs: [fields the tip reads] }; `record`
   // is the row's JSON, or null. A tip whose own fields are all blank in this record (an NA cell) has no tip.
@@ -133,10 +134,35 @@
   };
 
   // reactable keeps no row data in the page, so R puts a class on each row, cell and header cell (its own `rowClass`,
-  // `class` and `headerClass`) that says which data row it shows; this reads the class and marks the element. React
-  // reuses the elements when the table is sorted, filtered or paged, which changes the class, so a change of class
-  // marks again. `cfg.records[i]` is the JSON record of data row i.
+  // `class` and `headerClass`) that says which data row it shows, and the row's class also holds its record (see
+  // `rowClass`); this reads the classes and marks the element. React reuses the elements when the table is sorted,
+  // filtered, paged or given new data, which changes the class, so a change of class marks again.
+  // reactable: the class of a row. `rowInfo` is reactable's own (`index` is the row's place in the current data, `values`
+  // its values by column id). The class says the data row and carries the record as base64url of its UTF-8 JSON, so it
+  // changes with the data and nothing is kept in the page.
+  const toBase64Url = (text) =>
+    btoa(unescape(encodeURIComponent(text)))
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+  const fromBase64Url = (code) => {
+    const padded = code.replace(/-/g, '+').replace(/_/g, '/');
+    return decodeURIComponent(escape(atob(padded + '='.repeat((4 - (padded.length % 4)) % 4))));
+  };
+  const rowClass = (rowInfo, fields) => {
+    if (!rowInfo || rowInfo.aggregated) return '';
+    const own = `hovercraft-row-${rowInfo.index}`;
+    if (!fields?.length) return own;
+    return `${own} hovercraft-rec-${toBase64Url(recordFrom(fields, (field) => rowInfo.values?.[field]))}`;
+  };
+
   const reactable = (el, cfg) => {
+    // The record a row's class holds, or null: a cell reads its row's.
+    const recordOf = (node) => {
+      const row = node.matches('[class*="hovercraft-rec-"]') ? node : node.closest('[class*="hovercraft-rec-"]');
+      const hit = /(?:^|\s)hovercraft-rec-([A-Za-z0-9_-]+)(?:\s|$)/.exec(row?.getAttribute('class') ?? '');
+      return hit ? fromBase64Url(hit[1]) : null;
+    };
     const pick = (node, prefix) => {
       const hit = new RegExp(`(?:^|\\s)hovercraft-${prefix}-(\\d+)(?:-(\\d+))?(?:\\s|$)`).exec(
         node.getAttribute('class') ?? '',
@@ -147,12 +173,12 @@
       let changed = false;
       for (const node of el.querySelectorAll('[class*="hovercraft-row-"]')) {
         const at = pick(node, 'row');
-        if (at && cfg.rows) changed = mark(node, cfg.rows, cfg.records[at[0]] ?? null, at[0] + 1) || changed;
+        if (at && cfg.rows) changed = mark(node, cfg.rows, recordOf(node), at[0] + 1) || changed;
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-cell-"]')) {
         const at = pick(node, 'cell');
         const spec = at && cfg.cells[at[0]];
-        if (spec) changed = mark(node, spec, cfg.records[at[1]] ?? null, at[1] + 1) || changed;
+        if (spec) changed = mark(node, spec, recordOf(node), at[1] + 1) || changed;
       }
       for (const node of el.querySelectorAll('[class*="hovercraft-head-"]')) {
         const at = pick(node, 'head');
@@ -256,5 +282,5 @@
     settle();
   };
 
-  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard, dtRecord, dtRow });
+  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard, dtRecord, dtRow, rowClass });
 })();

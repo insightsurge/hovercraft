@@ -106,7 +106,6 @@ describe("table proxies and updates in a Shiny app", {
   })
 
   it("updates reactable tips after reactable::updateReactable()", {
-    testthat::skip("known: tip_table() closes over initial cfg.records in JS so updateReactable() shows stale tips")
     expect_true(page$wait_until("document.querySelectorAll('#rt .rt-tbody .rt-tr-group [role=row]').length >= 2"))
     press_button("update_rt")
     expect_true(page$wait_until("document.querySelector('#rt .rt-tbody')?.textContent?.includes('Eagles')"))
@@ -142,15 +141,18 @@ describe("tip_table() follows the data when the table is updated", {
       DT::DTOutput("dt_server"),
       DT::DTOutput("dt_client"),
       DT::DTOutput("dt_plain"),
+      reactable::reactableOutput("rt"),
       shiny::verbatimTextOutput("parity")
     )
     server <- function(input, output, session) {
       output$dt_server <- DT::renderDT(tips(dt(scores), "dts"), server = TRUE)
       output$dt_client <- DT::renderDT(tips(dt(scores), "dtc"), server = FALSE)
       output$dt_plain <- DT::renderDT(dt(scores), server = TRUE)
+      output$rt <- reactable::renderReactable(tips(reactable::reactable(scores, defaultPageSize = 3), "rt"))
       shiny::observeEvent(input$replace, {
         DT::replaceData(DT::dataTableProxy("dt_server"), updated, rownames = FALSE)
         DT::replaceData(DT::dataTableProxy("dt_plain"), updated, rownames = FALSE)
+        reactable::updateReactable("rt", data = updated)
       })
       # DT's own inputs, with and without tips, after the same actions.
       output$parity <- shiny::renderText({
@@ -188,6 +190,7 @@ describe("tip_table() follows the data when the table is updated", {
         info = table
       )
     }
+    expect_true(page$wait_until("document.querySelectorAll('#rt .rt-tbody [role=row]').length === 3"))
   })
 
   it("keeps DT's own inputs what they are without tips, after sorting, searching and selecting", {
@@ -260,6 +263,20 @@ describe("tip_table() follows the data when the table is updated", {
     expect_true(page$evaluate(
       "!document.querySelector('#dt_client tbody tr:first-child').children[2].hasAttribute('data-hovercraft-tip-template')"
     ))
+  })
+
+  it("follows reactable::updateReactable(), though reactable reuses its row nodes", {
+    expect_true(page$wait_until("document.querySelector('#rt .rt-tbody')?.textContent?.includes('Hawks')"))
+    expect_identical(hover_in_view("#rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(1)"), "Zürich ✓: 12 wins")
+    expect_identical(hover_in_view("#rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(3)"), "Note: n1")
+    expect_identical(id_of("#rt .rt-tbody .rt-tr-group:first-child [role=row]"), "rt/row/1")
+    # The new data has one more row than the old: the next page holds the fourth and the fifth.
+    page$evaluate("[...document.querySelectorAll('#rt button')].find((b) => /next/i.test(b.textContent)).click(); 0")
+    expect_true(page$wait_until("document.querySelector('#rt .rt-tbody')?.textContent?.includes('Extra')"))
+    expect_identical(hover_in_view("#rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(1)"), "Kites: 15 wins")
+    expect_identical(id_of("#rt .rt-tbody .rt-tr-group:first-child [role=row]"), "rt/row/4")
+    expect_identical(hover_in_view("#rt .rt-tbody .rt-tr-group:nth-child(2) .rt-td:nth-child(1)"), "Extra: 3 wins")
+    expect_identical(id_of("#rt .rt-tbody .rt-tr-group:nth-child(2) [role=row]"), "rt/row/5")
   })
 
   it("leaves the console without errors", {
