@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.53.0",
+  "version": "0.55.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -19,6 +19,7 @@
     "open": "data-hovercraft-tip-open",
     "anchor": "data-hovercraft-tip-anchor",
     "part": "data-hovercraft-tip-part",
+    "pins": "data-hovercraft-tip-pins",
     "more": "data-hovercraft-tip-more",
     "more_template": "data-hovercraft-tip-more-template",
     "more_on": "data-hovercraft-tip-more-on",
@@ -296,7 +297,7 @@
         },
         "ids": {
           "type": "json",
-          "about": "The ids pinned after this event: [id] after a pin, [] after a close."
+          "about": "The ids pinned after this event, oldest first: [id] after a pin and [] after a close while the page keeps one pin (the default), up to ten when data-<prefix>-tip-pins says so. The pin a \"closed\" event closes is not in the list."
         },
         "reason": {
           "type": "enum",
@@ -311,7 +312,7 @@
             "host",
             "redraw"
           ],
-          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin, the element left the page, a layer around it closed (not sent by this build), a host command closed it, or the tip was drawn again with another set of host slots (\"redraw\", by \"data\": a \"pinned\" follows at once); null on a pin."
+          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin took its place (the oldest, when the page keeps several), the element left the page, a layer around it closed (not sent by this build), a host command closed it, or the tip was drawn again with another set of host slots (\"redraw\", by \"data\": a \"pinned\" follows at once); null on a pin."
         },
         "text": {
           "type": "string",
@@ -328,7 +329,7 @@
         },
         "from": {
           "type": "id",
-          "about": "The id pinned before this step, or null."
+          "about": "The id pinned before this step, or null. With several pins: the id this pin replaced, when it is the same part's, else null."
         },
         "via": {
           "type": "enum",
