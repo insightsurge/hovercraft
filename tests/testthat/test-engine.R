@@ -92,6 +92,15 @@ describe("the vendored engine, after a copy", {
     expect_true(grepl("const { by = 'host', via = 'command' }", js, fixed = TRUE), info = "pin(el, { by, via })")
   })
 
+  it("has the names the engine added in 0.53.0 (pin(el, { into }), a pinned tip drawn in place)", {
+    expect_true(grepl("pin(el, { into })", js, fixed = TRUE), info = "the into option's message")
+    expect_true(grepl("dataset.side = 'in'", js, fixed = TRUE), info = "the side value in")
+    expect_true(
+      grepl(paste0(".", names$css, ".", names$css, "-pin[data-side=\"in\"]"), css, fixed = TRUE),
+      info = "the in-place pin rule"
+    )
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))
