@@ -166,3 +166,32 @@ local_page <- function(html_file, env = parent.frame()) {
     problems = function() problems
   )
 }
+
+# Start a Shiny app made by `make()` (a function that gives the app, run in the background R) and wait until it answers.
+start_app <- function(make, env = parent.frame(), ...) {
+  environment(make) <- globalenv()
+  path <- find.package("hovercraft")
+  port <- httpuv::randomPort()
+  proc <- callr::r_bg(
+    function(make, port, path, ...) {
+      if (dir.exists(file.path(path, "inst"))) {
+        pkgload::load_all(path, quiet = TRUE)
+      } else {
+        library(hovercraft)
+      }
+      shiny::runApp(make(...), port = port, host = "127.0.0.1", launch.browser = FALSE)
+    },
+    args = list(make = make, port = port, path = path, ...),
+    supervise = TRUE
+  )
+  withr::defer(proc$kill(), envir = env)
+  url <- paste0("http://127.0.0.1:", port)
+  for (i in 1:100) {
+    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
+    if (up || !proc$is_alive()) {
+      break
+    }
+    Sys.sleep(0.1)
+  }
+  list(url = url, proc = proc)
+}

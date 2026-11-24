@@ -1,6 +1,8 @@
 // hovercraft's own layer for tip_table() (experimental spike). It only writes the tip engine's public attributes onto
 // the rows, cells and header cells of a DT or reactable table, and defines the templates the tips use. The attribute
-// names, the values and the records all come from R (see R/table.R); nothing here is the engine's own state.
+// names and the values come from R (see R/table.R); a DT row's record is read from the row's own data in the browser
+// (DT hands it to its row callbacks), so a table that DT updates with new data (`DT::replaceData()`) keeps tips that
+// follow the data. Nothing here is the engine's own state.
 (() => {
   // `spec` is { attrs: { name: value }, record: name of the record attribute, needs: [fields the tip reads] }; `record`
   // is the row's JSON, or null. A tip whose own fields are all blank in this record (an NA cell) has no tip.
@@ -8,6 +10,32 @@
     if (!spec.needs?.length || typeof record !== 'string' || record === '') return false;
     const row = JSON.parse(record);
     return spec.needs.every((field) => row[field] === null || row[field] === undefined || row[field] === '');
+  };
+
+  // The JSON record of one row: the values of `fields` (names, in the order R gives them) taken from `values`, a
+  // function of a field name. A missing or non-finite value is `null`, as in a record R writes.
+  const recordFrom = (fields, valueOf) => {
+    const record = {};
+    for (const field of fields) {
+      const value = valueOf(field);
+      record[field] = value === undefined || (typeof value === 'number' && !Number.isFinite(value)) ? null : value;
+    }
+    return JSON.stringify(record);
+  };
+
+  // DT: `fieldAt` maps each field to the position of its column in the row's data (an array).
+  const dtRecord = (data, fieldAt) => {
+    const fields = Object.keys(fieldAt ?? {});
+    return fields.length ? recordFrom(fields, (field) => data?.[fieldAt[field]]) : null;
+  };
+
+  // DT: the 1-based data row of the row DT is drawing, or null. In client mode DT's own row index is the data row. In
+  // server mode DT holds one page, and the server says which data rows it sent (`DT_rows_current`).
+  const dtRow = (table, index) => {
+    const settings = table?.fnSettings?.();
+    if (!settings?.oFeatures?.bServerSide) return typeof index === 'number' ? index + 1 : null;
+    const row = settings.json?.DT_rows_current?.[index];
+    return typeof row === 'number' ? row : null;
   };
 
   // The derived tip id of one element, or null: R sends the base `id`, the target and the data column in `spec.id`
@@ -228,5 +256,5 @@
     settle();
   };
 
-  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard });
+  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard, dtRecord, dtRow });
 })();

@@ -745,3 +745,28 @@ describe("tip_on(placement =) in a browser", {
     expect_identical(page$problems(), character())
   })
 })
+
+describe("tip_table() on a DT table with a header of more than one row, in a browser", {
+  two <- DT::datatable(
+    scores,
+    rownames = FALSE,
+    container = htmltools::tags$table(
+      htmltools::tags$thead(
+        htmltools::tags$tr(htmltools::tags$th(colspan = 2, "Team"), htmltools::tags$th(colspan = 1, "Notes")),
+        htmltools::tags$tr(lapply(names(scores), htmltools::tags$th))
+      )
+    )
+  )
+  page <- local_page(
+    save_page(tip_table(two, rows = rows, cells = cells, headers = c(wins = "Games won"))),
+    environment()
+  )
+
+  it("shows the header tip on the cell of the column, and the row's and cell's tips", {
+    expect_true(page$wait_until("document.querySelectorAll('tbody tr[data-hovercraft-tip-template]').length === 5"))
+    expect_identical(page$hover("thead tr:nth-child(2) th:nth-child(2)"), "Games won")
+    expect_identical(page$hover("tbody tr:first-child td:first-child"), "Owls: 7 wins")
+    expect_identical(page$hover("tbody tr:first-child td:last-child"), "Note: Top")
+    expect_identical(page$problems(), character())
+  })
+})

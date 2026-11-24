@@ -43,23 +43,23 @@ rt <- function(...) reactable::reactable(scores, ...)
 js <- function(x) as.character(x)
 
 describe("tip_table() on a DT table", {
-  it("adds a hidden column with each row's record, holding only the columns the tips name", {
+  it("adds no column to the data, so DT::replaceData() with the user's own data frame still fits", {
     got <- tip_table(dt(), rows = "**{{ team }}**: {{ wins | number:0 }} wins")
-    records <- got$x$data[[".hovercraft"]]
-    expect_length(records, 3L)
-    expect_identical(jsonlite::fromJSON(records[[1]]), list(team = "Owls", wins = 7L))
-    expect_identical(unname(attr(got$x, "colnames")), c("team", "wins", "losses", "note", ".hovercraft"))
-    expect_match(got$x$container, "<th>.hovercraft</th></tr>", fixed = TRUE)
-    hidden <- Filter(function(def) isTRUE(def$visible == FALSE), got$x$options$columnDefs)[[1]]
-    expect_identical(hidden$targets, 4L)
-    expect_identical(hidden$name, ".hovercraft")
-    expect_false(hidden$searchable)
+    expect_identical(names(got$x$data), names(scores))
+    expect_identical(unname(attr(got$x, "colnames")), names(scores))
+    expect_identical(got$x$container, dt()$x$container)
+    expect_false(any(vapply(got$x$options$columnDefs, function(def) isFALSE(def$visible), NA)))
+  })
+
+  it("tells the layer at which position of a row's data each field the tips name sits", {
+    got <- tip_table(dt(), rows = "**{{ team }}**: {{ wins | number:0 }} wins")
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1})", fixed = TRUE)
   })
 
   it("marks rows through the engine's own attribute names", {
     got <- tip_table(dt(), rows = "{{ team }}")
     expect_match(js(got$x$options$createdRow), tip_attribute("template"), fixed = TRUE)
-    expect_match(js(got$x$options$createdRow), "data[4]", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "HovercraftTable.mark(row, ", fixed = TRUE)
     expect_match(js(got$x$options$createdRow), tip_attribute("record"), fixed = TRUE)
   })
 
@@ -71,10 +71,9 @@ describe("tip_table() on a DT table", {
     expect_match(js(got$x$options$initComplete), "\"2\":{\"attrs\"", fixed = TRUE)
   })
 
-  it("writes no record column when no tip reads the row", {
+  it("asks for no record when no tip reads the row", {
     got <- tip_table(dt(), rows = "A fixed note")
-    expect_null(got$x$data[[".hovercraft"]])
-    expect_match(js(got$x$options$createdRow), "null", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, null)", fixed = TRUE)
   })
 
   it("counts the row names column in the positions when the table has one", {
@@ -82,7 +81,7 @@ describe("tip_table() on a DT table", {
     defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
     expect_identical(defs[[1]]$targets, 2L)
     expect_identical(names(got$x$data)[[1]], " ")
-    expect_identical(got$x$data[[".hovercraft"]][[1]], "{\"wins\":7}")
+    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"wins\":2})", fixed = TRUE)
   })
 
   it("writes the placement and the fixed kind as the engine's attributes", {
@@ -102,7 +101,7 @@ describe("tip_table() on a DT table", {
     expect_no_match(js(got$x$options$createdRow), tip_attribute("id"), fixed = TRUE)
   })
 
-  it("with an id adds a hidden column of 1-based data row numbers and tells the layer how to build each tip id", {
+  it("with an id asks the layer for the data row, and tells it how to build each tip id", {
     got <- tip_table(
       dt(),
       rows = "{{ team }}",
@@ -110,28 +109,19 @@ describe("tip_table() on a DT table", {
       headers = c(losses = "Games lost"),
       id = "mod1-league_tips"
     )
-    expect_identical(
-      unname(attr(got$x, "colnames")),
-      c("team", "wins", "losses", "note", ".hovercraft", ".hovercraft_row")
-    )
-    expect_identical(got$x$data[[".hovercraft_row"]], 1:3)
-    expect_match(got$x$container, "<th>.hovercraft_row</th></tr>", fixed = TRUE)
-    hidden <- Filter(function(def) identical(def$name, ".hovercraft_row"), got$x$options$columnDefs)[[1]]
-    expect_identical(hidden$targets, 5L)
-    expect_false(hidden$visible)
+    expect_identical(names(got$x$data), names(scores))
     expect_match(js(got$x$options$createdRow), "HovercraftTable.mark(row, ", fixed = TRUE)
-    expect_match(js(got$x$options$createdRow), ", data[4], data[5]);", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), ", HovercraftTable.dtRow(this, index));", fixed = TRUE)
     expect_match(js(got$x$options$createdRow), "\"base\":\"mod1-league_tips\",\"target\":\"row\"}", fixed = TRUE)
     cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
     expect_match(js(cells[[1]]$createdCell), "\"target\":\"cell\",\"column\":2}", fixed = TRUE)
     expect_match(js(got$x$options$initComplete), "\"target\":\"header\",\"column\":3}", fixed = TRUE)
   })
 
-  it("with an id adds the row column even when no tip reads the row, and not the record column", {
+  it("with an id asks for the data row even when no tip reads the row, and for no record", {
     got <- tip_table(dt(), rows = "A fixed note", id = "league")
-    expect_null(got$x$data[[".hovercraft"]])
-    expect_identical(got$x$data[[".hovercraft_row"]], 1:3)
-    expect_match(js(got$x$options$createdRow), ", null, data[4]);", fixed = TRUE)
+    expect_identical(names(got$x$data), names(scores))
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, null), HovercraftTable.dtRow(this, index)", fixed = TRUE)
   })
 
   it("counts the column of a cell's tip id from the data, not the row names column", {
@@ -139,11 +129,6 @@ describe("tip_table() on a DT table", {
     cells <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
     expect_identical(cells[[1]]$targets, 2L)
     expect_match(js(cells[[1]]$createdCell), "\"column\":2}", fixed = TRUE)
-  })
-
-  it("writes no id column when there is no id", {
-    got <- tip_table(dt(), rows = "{{ team }}")
-    expect_null(got$x$data[[".hovercraft_row"]])
   })
 
   it("defines the templates and attaches the engine and the layer", {
@@ -173,7 +158,7 @@ describe("tip_table() on a DT table", {
 
   it("accepts a tip_template()", {
     got <- tip_table(dt(), rows = tip_template(tip_title("{{ team }}"), tip_text("{{ wins | number:0 }} wins")))
-    expect_identical(jsonlite::fromJSON(got$x$data[[".hovercraft"]][[2]]), list(team = "Foxes", wins = 5L))
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1})", fixed = TRUE)
   })
 
   it("leaves out a cell or a row whose words are NA or empty", {
@@ -182,11 +167,14 @@ describe("tip_table() on a DT table", {
     expect_length(Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs), 1L)
   })
 
-  it("refuses options it would overwrite and a header of more than one row", {
+  it("refuses options it would overwrite", {
     expect_error(
       tip_table(dt(options = list(createdRow = DT::JS("function() {}"))), rows = "{{ team }}"),
       class = "hovercraft_error_widget"
     )
+  })
+
+  it("takes a header of more than one row, since it adds no header cell", {
     two <- dt(
       container = htmltools::tags$table(
         htmltools::tags$thead(
@@ -195,7 +183,8 @@ describe("tip_table() on a DT table", {
         )
       )
     )
-    expect_error(tip_table(two, rows = "{{ team }}"), class = "hovercraft_error_widget")
+    got <- tip_table(two, rows = "{{ team }}", headers = c(wins = "Games won"))
+    expect_identical(got$x$container, two$x$container)
   })
 })
 
@@ -702,9 +691,8 @@ describe("tip_spec(more =, more_on =) in tip_table()", {
       dt(),
       cells = list(team = tip_spec("{{ team }}", more = "{{ note }} ({{ wins }})", more_on = "hover"))
     )
-    rec1 <- jsonlite::fromJSON(got_dt$x$data[[".hovercraft"]][[1]])
-    expect_named(rec1, c("team", "note", "wins"))
     defs <- Filter(function(def) !is.null(def$createdCell), got_dt$x$options$columnDefs)
+    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"team\":0,\"note\":3,\"wins\":1})", fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), tip_attribute("more_template"), fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), tip_attribute("more_on"), fixed = TRUE)
     expect_length(got_dt$jsHooks$render[[1]]$data$defines, 2L)
