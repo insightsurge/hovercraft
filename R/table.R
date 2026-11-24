@@ -324,11 +324,11 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, pin = NULL
   }
   # A row that pins takes the engine's manual pin, so a click on it (which selects it) never pins; the pin handle in the
   # tip's corner and the pin key do (inst/pin/pin.js). The row announces the key, as tip_on() does.
-  if (identical(target, "row") && !is.null(pin)) {
+  if (!is.null(pin)) {
     attrs[[tip_attribute("pin")]] <- pin
     attrs[["aria-keyshortcuts"]] <- toupper(tip_pin_key())
   }
-  if (identical(target, "row") && !is.null(events)) {
+  if (!is.null(events)) {
     attrs[[tip_shiny_attribute()]] <- events
   }
   # The marker layer's attributes (inst/marker/marker.css draws the corner on a table's cell with a background, because
@@ -571,9 +571,7 @@ tip_table_check_pin <- function(pin, events, rows, id, call) {
     if (is.null(id)) {
       tip_abort(
         c(
-          paste0(
-            "{.arg {arg}} needs an {.arg id}: it names the pin and the Shiny inputs after each row's tip id."
-          ),
+          "{.arg {arg}} needs an {.arg id}: it names the pin and the Shiny inputs after each row's tip id.",
           i = "Give {.fn tip_table} an {.arg id}, such as {.code id = \"scores_tips\"}."
         ),
         class = if (arg == "pin") "hovercraft_error_pin" else "hovercraft_error_events",
@@ -622,10 +620,14 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
 #' stop and its columns; keyboard readers use the key, which each row that can pin announces as `aria-keyshortcuts`. A
 #' pinned tip is named by the row's tip id (see `id`), so `events` sends `input$<id>/row/<n>_tip` for the pin, as
-#' [tip_on()] does for its own id. A pin stays on its row while the table sorts (`DT`), and follows that row number
-#' when the table is drawn again or given new data (`DT::replaceData()`, `reactable::updateReactable(data = )`), with
-#' the new values in its tip. It closes when its row leaves the page (a filter or another page, in both widgets, and a
-#' sort in `reactable`, which gives its row nodes other rows), when the table goes, and when a click lands elsewhere.
+#' [tip_on()] does for its own id. A pin follows its row's tip id. It stays on a row when `DT` sorts (client and
+#' server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
+#' `reactable::updateReactable(data = )` give it new data, with the new values in its tip. It closes when its row leaves
+#' the page (a filter or another page in `DT`, another page in `reactable`), when `reactable` shows another row in the
+#' row's place, when the table goes, and when a click lands elsewhere. The input then says why: `DT` closes a pin of a
+#' row that left the page itself (`reason` `"gone"`, `by` `"data"`); `reactable` keeps its row nodes and gives them
+#' other rows, so the layer closes the pin through the tip engine's host command (`reason` `"host"`, `by` `"host"`,
+#' `via` `"command"`). A server that acts on `by == "data"` sees the two widgets differently.
 #'
 #' What works, each checked in a browser:
 #' * `DT`, in client mode and in server mode under Shiny, with `scrollX`, `scrollY`, `fixedHeader`, `colReorder` and

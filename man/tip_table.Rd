@@ -99,10 +99,14 @@ or of the row a focused cell belongs to; a cell or a header cell has no pin of i
 tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
 stop and its columns; keyboard readers use the key, which each row that can pin announces as \code{aria-keyshortcuts}. A
 pinned tip is named by the row's tip id (see \code{id}), so \code{events} sends \verb{input$<id>/row/<n>_tip} for the pin, as
-\code{\link[=tip_on]{tip_on()}} does for its own id. A pin stays on its row while the table sorts (\code{DT}), and follows that row number
-when the table is drawn again or given new data (\code{DT::replaceData()}, \code{reactable::updateReactable(data = )}), with
-the new values in its tip. It closes when its row leaves the page (a filter or another page, in both widgets, and a
-sort in \code{reactable}, which gives its row nodes other rows), when the table goes, and when a click lands elsewhere.
+\code{\link[=tip_on]{tip_on()}} does for its own id. A pin follows its row's tip id. It stays on a row when \code{DT} sorts (client and
+server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
+\code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row leaves
+the page (a filter or another page in \code{DT}, another page in \code{reactable}), when \code{reactable} shows another row in the
+row's place, when the table goes, and when a click lands elsewhere. The input then says why: \code{DT} closes a pin of a
+row that left the page itself (\code{reason} \code{"gone"}, \code{by} \code{"data"}); \code{reactable} keeps its row nodes and gives them
+other rows, so the layer closes the pin through the tip engine's host command (\code{reason} \code{"host"}, \code{by} \code{"host"},
+\code{via} \code{"command"}). A server that acts on \code{by == "data"} sees the two widgets differently.
 
 What works, each checked in a browser:
 \itemize{
