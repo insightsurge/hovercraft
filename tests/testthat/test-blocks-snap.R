@@ -10,9 +10,6 @@ describe("the block errors", {
   it("say which statuses a badge takes", {
     expect_snapshot(tip_badge("a", status = "ok"), error = TRUE)
   })
-  it("say Copy comes later", {
-    expect_snapshot(tip_code("sql", copy = TRUE), error = TRUE)
-  })
   it("warn about a placeholder in a label", {
     expect_snapshot(tip_fields(`{{ a }}` = "b"))
   })

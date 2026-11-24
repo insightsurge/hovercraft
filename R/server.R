@@ -3,8 +3,8 @@
 # (`Hovercraft.show()` and `Hovercraft.hide()`) and its public attributes. A tag asks for an input with the attribute
 # this file writes (`events =` on tip_on()); the same file names the message, so R and the script agree.
 
-# The events a tag can ask for. Only "hint" has an input in this version: the shape of the pin and copy inputs is
-# settled with the pin work, so they are named here and refused with a message that says so.
+# The events a tag can ask for: "hint" sends `input$<id>_hint`, "pin" sends `input$<id>_tip` and "copy" sends
+# `input$<id>_copy`.
 tip_event_names <- function() c("hint", "pin", "copy")
 
 # The attribute that lists the inputs a tag sends, named after the engine's own prefix like the marker's.
@@ -32,7 +32,11 @@ tip_shiny_head <- function() {
       statuses = as.list(tip_statuses),
       # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
       states = list(hint = tip_rules()$open$values[[1]], pin = tip_rules()$open$values[[2]]),
-      events = list(hint = tip_contract()$events$hint$name, tip = tip_contract()$events$tip$name),
+      events = list(
+        hint = tip_contract()$events$hint$name,
+        tip = tip_contract()$events$tip$name,
+        copy = tip_contract()$events$copy$name
+      ),
       messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
     )
     code <- paste(readLines(system.file("shiny", "shiny.js", package = "hovercraft"), warn = FALSE), collapse = "\n")
@@ -48,7 +52,7 @@ tip_shiny_head <- function() {
   tip_state$shiny_head
 }
 
-# `events` as the attribute value, or NULL: a subset of "hint", "pin" and "copy" (only "hint" has an input yet).
+# `events` as the attribute value, or NULL: a subset of "hint", "pin" and "copy".
 tip_check_events <- function(events, call = rlang::caller_env()) {
   if (is.null(events)) {
     return(NULL)
@@ -60,17 +64,6 @@ tip_check_events <- function(events, call = rlang::caller_env()) {
     paste0("Give one or more of ", paste0("\"", all, "\"", collapse = ", "), ", or {.code NULL}."),
     call
   )
-  later <- setdiff(events, "hint")
-  if (length(later)) {
-    tip_abort(
-      c(
-        "{.arg events} cannot take {.val {later}} yet.",
-        i = "The pin and copy inputs arrive with the pin work; for now ask for {.code \"hint\"}."
-      ),
-      class = "hovercraft_error_events",
-      call = call
-    )
-  }
   paste(unique(events), collapse = " ")
 }
 

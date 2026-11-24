@@ -39,8 +39,11 @@ and never filled in by placeholders.}
 
 \item{language}{One string naming the code's language, or \code{NULL}.}
 
-\item{copy}{\code{TRUE} asks for a Copy button, which lives in a tip that stays open. That comes in a later version, so
-for now only \code{FALSE} is accepted.}
+\item{copy}{\code{TRUE} asks for a Copy button under the code, which lives in a tip that stays open: give the tag that has
+this template \code{pin = TRUE} or \code{pin = "click"} in \code{\link[=tip_on]{tip_on()}}, or the button never shows. The button copies the code
+as text, also on a page that is not served over https (where the browser's clipboard is closed to a page, the
+copy is done the older way), and says "Copied" or "Copy failed" beside the button. With \code{events = "copy"} in
+\code{\link[=tip_on]{tip_on()}}, the server reads each press as \verb{input$<id>_copy}.}
 }
 \value{
 A block, to give to \code{\link[=tip_template]{tip_template()}}.

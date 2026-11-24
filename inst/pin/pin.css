@@ -1,0 +1,70 @@
+/* hovercraft's pins: the strip of buttons over a hint's top-right corner, and the room kept for it. This is hovercraft's
+   own layer, on top of the tip engine; it never changes the engine. The class names are spelt as inst/pin/pin.js writes
+   them (hovercraft-pin-strip) and the hint box is the engine's own (hc-tip); test-pin.R holds both. */
+
+/* The strip sits in the hint's corner, as part of its box: the hint's own words and colour. */
+.hovercraft-pin-strip {
+  position: fixed;
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 1);
+  display: flex;
+  gap: 2px;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  inset: auto;
+  overflow: visible;
+}
+.hovercraft-pin-strip-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  inline-size: 20px;
+  block-size: 20px;
+  margin: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.75;
+}
+.hovercraft-pin-strip-button:hover,
+.hovercraft-pin-strip-button:focus-visible {
+  opacity: 1;
+  background: color-mix(in srgb, currentcolor 14%, transparent);
+  border-color: color-mix(in srgb, currentcolor 45%, transparent);
+}
+.hovercraft-pin-strip-button:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 1px;
+}
+/* The pin: a mask in the words' own colour, so it follows every preset, light and dark, and forced colours. */
+.hovercraft-pin-strip-pin::before {
+  --hovercraft-pin-icon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M9.5 1.5l5 5-1.4 1.4-.9-.9-2.6 2.6a3 3 0 0 1-.4 3.1l-.7.7-2.9-2.9-3.4 3.4-1-1 3.4-3.4-2.9-2.9.7-.7a3 3 0 0 1 3.1-.4l2.6-2.6-.9-.9z' fill='black'/%3E%3C/svg%3E");
+  content: "";
+  display: block;
+  inline-size: 14px;
+  block-size: 14px;
+  background-color: currentcolor;
+  -webkit-mask: var(--hovercraft-pin-icon) no-repeat center / contain;
+  mask: var(--hovercraft-pin-icon) no-repeat center / contain;
+}
+@media (forced-colors: active) {
+  .hovercraft-pin-strip-button {
+    border-color: ButtonText;
+    forced-color-adjust: none;
+    color: CanvasText;
+    background: Canvas;
+  }
+  .hovercraft-pin-strip-pin::before {
+    background-color: CanvasText;
+  }
+}
+
+/* Room for the strip on the first line of the hint, so the first line's words never run under it. */
+.hc-tip[data-hovercraft-pin-room] > :first-child {
+  padding-inline-end: 22px;
+}

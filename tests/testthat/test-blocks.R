@@ -73,8 +73,10 @@ describe("the block functions", {
     expect_warning(tip_fields(`{{ a }}` = "b"), class = "hovercraft_warning_label")
   })
 
-  it("refuse Copy until the tip can stay open", {
-    expect_error(tip_code("a", copy = TRUE), class = "hovercraft_error_pin")
+  it("take Copy, which the engine draws in a tip that stays open, and write nothing for no Copy", {
+    expect_true(tip_code("a", copy = TRUE)$copy)
+    expect_false("copy" %in% names(tip_code("a")))
+    expect_error(tip_code("a", copy = "yes"), class = "hovercraft_error_argument")
   })
 
   it("print one line", {

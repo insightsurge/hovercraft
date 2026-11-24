@@ -1,0 +1,331 @@
+skip_on_cran()
+skip_if_not_installed("chromote")
+skip_if_not_installed("shiny")
+skip_if_not_installed("bslib")
+skip_if_not_installed("callr")
+skip_if_not_installed("httpuv")
+skip_if_not_installed("pkgload")
+skip_if_not_installed("withr")
+skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+
+# tip_on(pin = ) and the pin and copy inputs in a running Shiny app: the button in the hint's corner, the pin key, a
+# pin that the item's own click never makes, a pin by click, a Copy button, the inputs, a module and a narrow window.
+describe("pins in a Shiny app", {
+  path <- find.package("hovercraft")
+  port <- httpuv::randomPort()
+  app <- callr::r_bg(
+    function(port, path) {
+      if (dir.exists(file.path(path, "inst"))) {
+        pkgload::load_all(path, quiet = TRUE)
+      } else {
+        library(hovercraft)
+      }
+      snippet <- tip_define(
+        snippet = tip_template(
+          tip_title("{{ label }}"),
+          tip_text("Query used"),
+          tip_code("sql", language = "sql", copy = TRUE)
+        )
+      )
+      row <- function(id, label, ...) {
+        htmltools::tags$div(label, id = id, tabindex = "0", class = "p-2 border", style = "width: 18rem", ...)
+      }
+      show <- function(x) jsonlite::toJSON(x, auto_unbox = TRUE, null = "null")
+      module_ui <- function(id) {
+        ns <- shiny::NS(id)
+        shiny::tagList(
+          tip_on(row(ns("row"), "Module row"), "Module tip", id = ns("m_tip"), pin = TRUE, events = c("hint", "pin")),
+          shiny::verbatimTextOutput(ns("seen"))
+        )
+      }
+      module_server <- function(id) {
+        shiny::moduleServer(id, function(input, output, session) {
+          output$seen <- shiny::renderText(show(list(hint = input$m_tip_hint$state, pin = input$m_tip_tip$state)))
+        })
+      }
+      ui <- bslib::page_fluid(
+        snippet,
+        htmltools::tags$div(
+          style = "padding: 70px 20px; display: flex; flex-direction: column; gap: 26px; align-items: flex-start",
+          tip_on(
+            row(
+              "row_a",
+              "Row A",
+              onclick = "window.rowClicks = (window.rowClicks || 0) + 1; Shiny.setInputValue('row_click', Date.now())"
+            ),
+            "Row A says something short.",
+            id = "a_tip",
+            pin = TRUE,
+            events = c("hint", "pin")
+          ),
+          tip_on(row("row_b", "Row B"), "Row B pins on a click.", id = "b_tip", pin = "click", events = "pin"),
+          tip_on(
+            row("row_c", "Row C"),
+            "Row C is a hint only, with a longer sentence that wraps onto a second line so the corner shows.",
+            id = "c_tip"
+          ),
+          tip_on(
+            row("row_d", "Row D"),
+            paste(
+              "Row D is pinnable and its sentence is long enough to wrap onto more than one line in the hint box,",
+              "so the button sits by the first line only."
+            ),
+            id = "d_tip",
+            pin = TRUE
+          ),
+          tip_on(
+            row("row_e", "Row E"),
+            template = "snippet",
+            record = list(label = "Query", sql = "SELECT 1;"),
+            id = "e_tip",
+            pin = TRUE,
+            events = c("pin", "copy")
+          ),
+          htmltools::tags$input(id = "field", type = "text", placeholder = "type here"),
+          module_ui("m"),
+          shiny::verbatimTextOutput("seen_a"),
+          shiny::verbatimTextOutput("seen_b"),
+          shiny::verbatimTextOutput("seen_c"),
+          shiny::verbatimTextOutput("seen_e")
+        )
+      )
+      server <- function(input, output, session) {
+        output$seen_a <- shiny::renderText(show(list(
+          hint = input$a_tip_hint$state,
+          pin = input$a_tip_tip,
+          click = !is.null(input$row_click)
+        )))
+        output$seen_b <- shiny::renderText(show(input$b_tip_tip))
+        output$seen_c <- shiny::renderText(show(list(
+          hint = input$c_tip_hint,
+          pin = input$c_tip_tip,
+          copy = input$c_tip_copy
+        )))
+        output$seen_e <- shiny::renderText(show(list(pin = input$e_tip_tip$state, copy = input$e_tip_copy)))
+        module_server("m")
+      }
+      shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
+    },
+    args = list(port = port, path = path),
+    supervise = TRUE
+  )
+  withr::defer(app$kill())
+  url <- paste0("http://127.0.0.1:", port)
+  up <- FALSE
+  for (i in 1:100) {
+    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
+    if (up || !app$is_alive()) {
+      break
+    }
+    Sys.sleep(0.1)
+  }
+  page <- local_page(url, environment())
+  css <- tip_names()$css
+  seen <- function(id, pattern) {
+    page$wait_until(sprintf(
+      "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
+      jsonlite::toJSON(pattern, auto_unbox = TRUE),
+      jsonlite::toJSON(id, auto_unbox = TRUE)
+    ))
+  }
+  read <- function(id) page$evaluate(sprintf("document.getElementById('%s').textContent", id))
+  view <- function(id) {
+    page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({ block: 'center' })", id))
+    Sys.sleep(0.3)
+  }
+  strip <- ".hovercraft-pin-strip-button"
+  pinned_box <- sprintf(".%s-pin:not([hidden])", css)
+  hint_box <- sprintf(".%s:not(.%s-pin):not([hidden])", css, css)
+  rect <- function(selector) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }); })()",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    )))
+  }
+  # Real mouse on the centre of an element, then a press and release: what a reader does.
+  mouse_at <- function(selector, click = FALSE) {
+    box <- rect(selector)
+    page$mouse((box$left + box$right) / 2, (box$top + box$bottom) / 2, click)
+  }
+  # The first line of the hint's words, as a rectangle, and the second line's top (or NA): where the strip must not be.
+  lines <- function() {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => { const hint = document.querySelector('%s'); const rows = new Map(); const walk = document.createTreeWalker(hint, NodeFilter.SHOW_TEXT); for (let n = walk.nextNode(); n; n = walk.nextNode()) { const range = document.createRange(); range.selectNodeContents(n); for (const r of range.getClientRects()) { const key = Math.round(r.top); rows.set(key, Math.max(rows.get(key) ?? 0, r.right)); } } const tops = [...rows.keys()].sort((a, b) => a - b); return JSON.stringify({ first_right: rows.get(tops[0]), second_top: tops[1] ?? null, count: tops.length }); })()",
+      hint_box
+    )))
+  }
+  reset <- function() {
+    page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
+    page$mouse(5, 5, FALSE)
+    Sys.sleep(0.4)
+  }
+
+  it("starts and connects", {
+    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
+    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+  })
+
+  it("draws a button in the corner of the hint of an item that can pin, and none on a hint with no pin", {
+    reset()
+    page$hover("#row_c")
+    expect_true(page$evaluate("document.querySelector('.hovercraft-pin-strip') === null"))
+    reset()
+    expect_identical(page$hover("#row_a"), "Row A says something short.")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') !== null"))
+    hint <- rect(hint_box)
+    button <- rect(strip)
+    expect_gte(button$left, hint$left)
+    expect_lte(button$right, hint$right)
+    expect_gte(button$top, hint$top)
+    expect_lte(button$bottom, hint$bottom)
+    expect_lt(hint$right - button$right, 8)
+    expect_lt(button$top - hint$top, 8)
+    expect_lt(lines()$first_right, button$left)
+  })
+
+  it("keeps the button beside the first line of a tip of several lines, and clear of the second", {
+    reset()
+    page$hover("#row_d")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') !== null"))
+    expect_gt(lines()$count, 1)
+    button <- rect(strip)
+    expect_lt(lines()$first_right, button$left)
+    expect_lte(button$bottom, lines()$second_top + 1)
+  })
+
+  it("does not pin when the item itself is clicked: its own click runs and a tap shows the hint", {
+    reset()
+    before <- page$evaluate("window.rowClicks || 0")
+    page$click("#row_a")
+    expect_equal(page$evaluate("window.rowClicks || 0"), before + 1)
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
+  })
+
+  it("keeps the hint open while the pointer is on the button", {
+    reset()
+    page$hover("#row_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip)
+    Sys.sleep(1)
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
+    expect_true(page$evaluate("document.querySelector('.hovercraft-pin-strip') !== null"))
+  })
+
+  it("pins when the button is pressed, without a click on the item, and tells the server who and how", {
+    reset()
+    page$hover("#row_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    before <- page$evaluate("window.rowClicks || 0")
+    mouse_at(strip, click = TRUE)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_equal(page$evaluate("window.rowClicks || 0"), before)
+    expect_true(seen(
+      "seen_a",
+      "\"pin\":\\{\"state\":\"pinned\",\"text\":\"Row A says something short.\",\"by\":\"reader\",\"via\":\"click\""
+    ))
+    # The pinned tip keeps the engine's own close button; the strip belongs to the hint.
+    expect_true(page$evaluate("document.querySelector('.hovercraft-pin-strip') === null"))
+    expect_true(page$evaluate(sprintf("document.querySelector('%s .%s-close') !== null", pinned_box, css)))
+    page$press("Escape")
+    expect_true(seen("seen_a", "\"state\":\"closed\""))
+  })
+
+  it("pins by the pin key while the focus is on the item, and nowhere else", {
+    reset()
+    page$evaluate("document.getElementById('row_c').focus()")
+    page$press("p")
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
+    page$evaluate("document.getElementById('field').focus()")
+    page$press("p")
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
+    page$evaluate("document.activeElement.blur()")
+    page$press("p")
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
+    page$evaluate("document.getElementById('row_a').focus()")
+    page$press("p")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_true(seen("seen_a", "\"by\":\"reader\",\"via\":\"key\""))
+    page$press("Escape")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", pinned_box)))
+  })
+
+  it("pins on a click of the item when pin is \"click\"", {
+    reset()
+    page$click("#row_b")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_true(seen("seen_b", "\"state\":\"pinned\".*\"by\":\"reader\",\"via\":\"click\""))
+    page$press("Escape")
+  })
+
+  it("sends an input only to a tag that asked for it", {
+    reset()
+    page$hover("#row_c")
+    page$click("#row_c")
+    Sys.sleep(0.5)
+    expect_identical(read("seen_c"), "{\"hint\":null,\"pin\":null,\"copy\":null}")
+    reset()
+    page$hover("#row_a")
+    expect_true(seen("seen_a", "\"hint\":\"shown\""))
+  })
+
+  it("copies the code of a pinned tip, and tells the server, also where the clipboard is closed to a page", {
+    reset()
+    page$evaluate(
+      "Object.defineProperty(window, 'isSecureContext', { value: false }); window.copyFired = 0; document.addEventListener('copy', () => { window.copyFired += 1; }, true)"
+    )
+    view("row_e")
+    page$hover("#row_e")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip, click = TRUE)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s .%s-copy') !== null", pinned_box, css)))
+    mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
+    expect_true(seen(
+      "seen_e",
+      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\"\\}"
+    ))
+    expect_equal(page$evaluate("window.copyFired"), 1)
+    expect_true(seen("seen_e", "\"pin\":\"pinned\""))
+    page$press("Escape")
+  })
+
+  it("works inside a module, with the id as the module's own", {
+    reset()
+    view("m-row")
+    page$hover("#m-row")
+    expect_true(seen("m-seen", "\"hint\":\"shown\""))
+    mouse_at(strip, click = TRUE)
+    expect_true(seen("m-seen", "\"pin\":\"pinned\""))
+    page$press("Escape")
+  })
+
+  it("draws the button the same with reduced motion, and moves nothing", {
+    reset()
+    page$emulate("prefers-reduced-motion", "reduce")
+    page$hover("#row_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_equal(
+      page$evaluate("document.querySelector('.hovercraft-pin-strip').getAnimations({ subtree: true }).length"),
+      0
+    )
+    page$emulate("prefers-reduced-motion", "no-preference")
+  })
+
+  it("keeps the button inside the hint and the window at 320 px", {
+    page$viewport(320, 640)
+    reset()
+    page$hover("#row_d")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    hint <- rect(hint_box)
+    button <- rect(strip)
+    expect_gte(hint$left, 0)
+    expect_lte(hint$right, 320)
+    expect_gte(button$left, hint$left)
+    expect_lte(button$right, min(hint$right, 320))
+    expect_lt(lines()$first_right, button$left)
+    page$viewport(900, 700)
+  })
+
+  it("leaves the console without errors", {
+    expect_identical(page$problems(), character())
+  })
+})

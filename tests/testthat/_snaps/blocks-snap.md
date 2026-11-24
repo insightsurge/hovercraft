@@ -45,15 +45,6 @@
       ! `status` is "ok", which is not a status.
       i Give one of "success", "warning", "danger", and "info", a placeholder such as `"{{ status }}"`, or leave it out for a plain badge.
 
-# the block errors / say Copy comes later
-
-    Code
-      tip_code("sql", copy = TRUE)
-    Condition
-      Error in `tip_code()`:
-      ! `copy` is `TRUE`, but a Copy button lives in a tip that stays open.
-      i That comes in a later version; leave `copy` out for now.
-
 # the block errors / warn about a placeholder in a label
 
     Code

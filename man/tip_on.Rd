@@ -17,7 +17,9 @@ tip_on(
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  more_on = NULL
+  more_on = NULL,
+  pin = FALSE,
+  kind = NULL
 )
 }
 \arguments{
@@ -57,15 +59,22 @@ non-empty string with no whitespace, so \code{ns("baseline_tip")} works in a mod
 other tip source on the page. \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} find the tip by it, and \code{events} names
 the inputs after it.}
 
-\item{events}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Which Shiny inputs this tag's tip sends, or \code{NULL} (the default)
-for none. Only \code{"hint"} is taken in this version: it sends \verb{input$<id>_hint} each time the tip opens or closes,
-a list of \code{state} (\code{"shown"} or \code{"hidden"}), \code{text} (the tip's plain words, cut at 200 characters), \code{by}
-(\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}} and \code{\link[=tip_hide]{tip_hide()}}, or \code{"data"} when the tag left the page), \code{via}
-(\code{"pointer"}, \code{"focus"}, \code{"tap"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason} (why it
-closed, \code{NULL} on \code{"shown"}). It is off unless asked for, because it sends a message to the server every time any
-reader hovers the tag. It needs an \code{id}, or a tag with
-an \code{id} of its own; in a module the input is read as \verb{input$<id>_hint}, without the namespace. \code{"pin"} and
-\code{"copy"} are named but stop with an error until the pin inputs arrive.}
+\item{events}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Which Shiny inputs this tag's tip sends, or \code{NULL} (the
+default) for none; one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}. All are off unless asked for, because
+they send a message to the server every time a reader meets the tag. They need an \code{id}, or a tag with an
+\code{id} of its own; in a module the input is read without the namespace.
+
+\code{"hint"} sends \verb{input$<id>_hint} each time the tip opens or closes: a list of \code{state} (\code{"shown"} or
+\code{"hidden"}), \code{text} (the tip's plain words, cut at 200 characters), \code{by} (\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}}
+and \code{\link[=tip_hide]{tip_hide()}}, or \code{"data"} when the tag left the page), \code{via} (\code{"pointer"}, \code{"focus"}, \code{"tap"}, \code{"key"},
+\code{"command"}, or \code{NULL}) and \code{reason} (why it closed, \code{NULL} on \code{"shown"}). \code{"pin"} sends \verb{input$<id>_tip} each
+time the tip is pinned, closed or drawn again while pinned: a list of \code{state} (\code{"pinned"}, \code{"closed"} or
+\code{"updated"}), \code{text}, \code{by} (\code{"reader"}, \code{"host"} or \code{"data"}), \code{via} (\code{"click"}, \code{"key"}, \code{"command"}, or
+\code{NULL}) and \code{reason} (why it closed: \code{"select"}, \code{"escape"}, \code{"button"}, \code{"outside"}, \code{"replaced"}, \code{"gone"} or
+\code{"host"}, \code{NULL} on \code{"pinned"}). \code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in
+the pinned tip is pressed: a list of \code{field} (the record field the code came from), \code{block} (the code block's
+place among the tip's code blocks, from 0), \code{ok} (\code{TRUE} when the browser let the copy happen), \code{by}
+(\code{"reader"}) and \code{via} (\code{"click"} or \code{"key"}).}
 
 \item{when_disabled}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The reason the control is switched off, as one
 string of plain text with a word in it, or \code{NULL} (the default) for none. While the control is disabled,
@@ -105,6 +114,27 @@ for none: words (markdown, optionally with \code{{{ field }}} placeholders fille
 \item{more_on}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} When the long form (\code{more}) opens: \code{"pin"} (the default, shows a
 short hint on hover and expands to the long form when pinned) or \code{"hover"} (shows the long form on hover too), or
 \code{NULL} to use the engine's default (\code{"pin"}).}
+
+\item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Whether a reader can keep this tip open: \code{FALSE} (the default)
+for a tip that only shows on hover or focus, \code{TRUE} for a tip that is pinned by the small pin button in the
+corner of the tip, or by the pin key, and \code{"click"} for a tip that a click on the tagged item also pins.
+With \code{TRUE}, a click, a key or a tap on the item never pins, so an item that does something when it is
+clicked, such as a row that selects itself, keeps doing it; a tap shows the tip. A tip that is pinned stays
+open, with the engine's own close button, until it is closed (the button, Escape, or a click elsewhere),
+and a code block with \code{tip_code(copy = TRUE)} shows its Copy button there. A pin needs an \code{id} (the \code{id}
+argument or the tag's own), which names the tip in \code{events}, and a tag that the engine can pin: not a link,
+a submit or reset button, an \code{input}, \code{select}, \code{textarea}, \code{summary}, \code{label} or editable tag; put the tip
+on a \verb{<div>} or \verb{<span>} around it.
+
+The pin button is drawn over the corner of the tip as a separate element, so a screen reader still gets a tip
+that it only reads; the first line of the tip keeps room for it. The pin key is \code{P}: it pins the tagged item
+while the focus is on the item or inside it, and does nothing while the focus is in a field or anywhere else on
+the page. \code{Escape} closes a pinned tip. When a pointer leaves the tip through the pin button, the tip closes a
+moment later, as it does when it leaves any other way; the \code{"hint"} input then says \code{by = "host"}.}
+
+\item{kind}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The tip's kind, as one string of lower-case words joined with
+\verb{_}, such as \code{"review_item"}, or \code{NULL} (the default) for the engine's own kind, \code{"element"}. The events
+and the inputs of \code{\link[=tip_on]{tip_on()}} carry it as \code{kind}; \code{\link[=tip_table]{tip_table()}} sets the kind of its own tips.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
@@ -144,6 +174,15 @@ tip_on(
   htmltools::tags$button("Run", disabled = NA),
   "Runs the **check**",
   when_disabled = "Pick a dataset first"
+)
+
+# A tip that a reader can pin, by the button in its corner or by the P key
+tip_on(
+  htmltools::tags$button("Run", id = "run"),
+  "Runs the **check**",
+  id = "run_tip",
+  pin = TRUE,
+  events = c("hint", "pin")
 )
 
 # Short tip on hover with extra detail
