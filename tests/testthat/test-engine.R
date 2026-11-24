@@ -101,6 +101,14 @@ describe("the vendored engine, after a copy", {
     )
   })
 
+  it("has the names the engine added in 0.55.0 (several pinned tips at once, a page cap of 10)", {
+    contract <- jsonlite::read_json(tip_path("tip.json"))
+    expect_identical(contract$attributes$pins, paste0("data-", names$prefix, "-tip-pins"))
+    expect_true(grepl(paste0("`${NAMES.attr}-pins`"), js, fixed = TRUE), info = "the page attribute that sets the cap")
+    expect_true(grepl("Math.min(n, 10)", js, fixed = TRUE), info = "the cap of ten")
+    expect_true(grepl("close: (el) => {", js, fixed = TRUE), info = "close(el) closes one chosen pin")
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))
