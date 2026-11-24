@@ -87,20 +87,23 @@ unchanged.
 \code{groupBy} (the rows inside a group have tips, the group's own row has none) and \code{details} (the details panel has
 none).
 \item An \code{id} made by \code{\link[shiny:NS]{shiny::NS()}} inside a module.
+\item Tables that Shiny updates with new data: \code{DT::replaceData()} (it works in server mode) with the user's own data
+frame, and \code{reactable::updateReactable(data = )}. The tips follow the new rows, as they do after sorting,
+filtering and paging.
 }
 
-Not supported: a \code{DT} table with its own \code{createdRow} or \code{initComplete} option, or with a header of more than one
-row; a \code{reactable} column whose \code{headerClass} is a JavaScript function; any other widget.
+Not supported: a \code{DT} table with its own \code{createdRow} or \code{initComplete} option; a \code{reactable} column whose
+\code{headerClass} is a JavaScript function; any other widget.
 
-Large tables: the tips of a table of thousands of rows take about 0.2 seconds per 1,000 rows to build in R, and add
-about 70 bytes per row to the page. A paged table barely notices. A table with every row drawn at once is slow in
-\code{DT} when cells or headers have tips (thousands of rows take seconds); page it, or tip its rows only.
+Large tables: \code{tip_table()} adds nothing to the data of the page, since each tip reads its values from the table's
+own data in the browser. A table with every row drawn at once is slow in \code{DT} when cells or headers have tips
+(thousands of rows take seconds); page it, or tip its rows only.
 
 Give \code{tip_table()} the finished widget, last in the pipe or at least after the columns are settled.
-\code{DT::datatable()} gets one hidden column that holds each row's record, and with an \code{id} a second one for its data
-row number (a table with a header of more than one row, or with its own \code{createdRow} or \code{initComplete} option, is
-refused for now). \code{reactable::reactable()} gets its own \code{rowClass}, \code{class} and \code{headerClass} added to yours.
-Only the columns a tip names are written to the page.
+\code{DT::datatable()} keeps its columns and its inputs as they are: \code{tip_table()} adds no column and changes no event
+(a table with its own \code{createdRow} or \code{initComplete} option is refused for now). \code{reactable::reactable()} gets its
+own \code{rowClass}, \code{class} and \code{headerClass} added to yours; the class of a row holds the values its tips read, so it
+changes with the data.
 }
 \examples{
 \dontshow{if (requireNamespace("DT", quietly = TRUE)) withAutoprint(\{ # examplesIf}

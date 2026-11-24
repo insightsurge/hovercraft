@@ -1,8 +1,10 @@
 # tip_table(): tips on the rows, cells and header cells of a DT or reactable table (an experimental spike, built on
-# top of the tip engine). R reads the table's own data, writes each row's record and the tip's template name onto the
-# row (or cell) as the engine's attributes, and defines the template. Both widgets draw their rows in the browser, so
-# the attributes are written there: DT through callbacks in its options, reactable through a class on each row that
-# the layer in inst/table/table.js reads. The layer uses only the engine's public attributes and `Hovercraft.define()`.
+# top of the tip engine). R reads the table's own data to check the tips, and the layer in inst/table/table.js writes
+# each row's record and the tip's template name onto the row (or cell) as the engine's attributes, and defines the
+# template. Both widgets draw their rows in the browser, so the attributes are written there: DT through callbacks in
+# its options, reactable through a class on each row. The record is read from the row's own data in the browser, so no
+# data is added to the table and a table that is given new data keeps tips that follow it. The layer uses only the
+# engine's public attributes and `Hovercraft.define()`.
 
 # JavaScript as DT and reactable read it: `JS()` of htmlwidgets (which both re-export) is this class on a string.
 tip_js <- function(code) structure(code, class = "JS_EVAL")
@@ -272,13 +274,18 @@ tip_table_named <- function(x, arg, columns, header, placement, call, marker = N
   out[!vapply(out, is.null, NA)]
 }
 
-# One record per row as JSON text, holding only `fields`, written the way tip_on() writes a record.
-tip_table_records <- function(data, fields, call) {
+# The values a tip reads are taken from the table's own data in the browser, so none is written to the page. What R can
+# still check is that the columns a tip names hold one value per row: no data frame or matrix column, and values a tip
+# can show (looked at in the first row, as the kinds are the same all down a column).
+tip_table_check_values <- function(data, fields, call) {
   if (!length(fields)) {
-    return(rep("", nrow(data)))
+    return(invisible(data))
   }
   tip_check_columns(data[fields], call)
-  vapply(seq_len(nrow(data)), function(i) tip_json(tip_record(data[i, fields, drop = FALSE], call = call)), "")
+  if (nrow(data)) {
+    tip_record(data[1L, fields, drop = FALSE], call = call)
+  }
+  invisible(data)
 }
 
 # What an element carries for one content: its template, the fixed kind of its target, the placement when there is
@@ -343,37 +350,7 @@ tip_table_defines <- function(contents) {
   stats::setNames(lapply(parts, function(part) part$body), names)[!duplicated(names)]
 }
 
-# DT's header is drawn from the table's own HTML (`container`), so a column added to the data needs a header cell too.
-tip_table_add_header_cell <- function(container, name, call) {
-  head <- regmatches(container, regexpr("(?s)<thead>.*?</thead>", container, perl = TRUE))
-  if (length(head) != 1L || lengths(regmatches(head, gregexpr("<tr", head, fixed = TRUE))) != 1L) {
-    tip_abort(
-      c(
-        "The table has a header with more than one row, which {.fn tip_table} cannot add its record column to.",
-        i = "Use a one-row header for now."
-      ),
-      class = "hovercraft_error_widget",
-      call = call
-    )
-  }
-  sub("</tr>", paste0("<th>", name, "</th></tr>"), container, fixed = TRUE)
-}
-
-# A hidden, unsearchable column added to a DT table's data; `name` is needed by DT's server mode, and the header comes
-# from the table's HTML, so it needs a header cell too. `at` is the column's 0-based position.
-tip_table_dt_hidden <- function(x, name, values, call) {
-  at <- ncol(x$data)
-  x$data[[name]] <- values
-  x$container <- tip_table_add_header_cell(x$container, name, call)
-  attr(x, "colnames") <- c(attr(x, "colnames"), name)
-  x$options$columnDefs <- c(
-    x$options$columnDefs,
-    list(list(targets = at, name = name, visible = FALSE, searchable = FALSE, orderable = FALSE))
-  )
-  list(x = x, at = at)
-}
-
-tip_table_dt <- function(widget, plan, id, call) {
+tip_table_dt <- function(widget, plan, call) {
   x <- widget$x
   taken <- intersect(c("createdRow", "initComplete"), names(x$options))
   if (length(taken)) {
@@ -389,24 +366,18 @@ tip_table_dt <- function(widget, plan, id, call) {
   data <- tip_table_data(widget, "dt")
   position <- function(column) match(column, names(x$data)) - 1L
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
-  # The record of each row, and (with an `id`) its 1-based data row, which DT's own row index cannot give in
-  # server mode.
-  record_at <- row_at <- "null"
-  if (length(fields)) {
-    hidden <- tip_table_dt_hidden(x, ".hovercraft", tip_table_records(data, fields, call), call)
-    x <- hidden$x
-    record_at <- sprintf("data[%d]", hidden$at)
-  }
-  if (!is.null(id)) {
-    hidden <- tip_table_dt_hidden(x, ".hovercraft_row", seq_len(nrow(data)), call)
-    x <- hidden$x
-    row_at <- sprintf("data[%d]", hidden$at)
-  }
+  tip_table_check_values(data, fields, call)
+  # DT hands its row callbacks the row's own data, so the layer reads the record from it: `field_at` says at which
+  # position of the row each field sits. A table that DT updates with new data (`DT::replaceData()`) keeps its tips,
+  # and no column is added to the data.
+  field_at <- if (length(fields)) tip_json(stats::setNames(as.list(vapply(fields, position, 0L)), fields)) else "null"
+  record <- sprintf("HovercraftTable.dtRecord(data, %s)", field_at)
+  row_at <- "HovercraftTable.dtRow(this, index)"
   if (!is.null(plan$rows)) {
     x$options$createdRow <- tip_js(sprintf(
-      "function(row, data) { HovercraftTable.mark(row, %s, %s, %s); }",
+      "function(row, data, index) { HovercraftTable.mark(row, %s, %s, %s); }",
       tip_json(plan$specs$rows),
-      record_at,
+      record,
       row_at
     ))
   }
@@ -414,9 +385,9 @@ tip_table_dt <- function(widget, plan, id, call) {
     def <- list(
       targets = position(column),
       createdCell = tip_js(sprintf(
-        "function(td, cell, data) { HovercraftTable.mark(td, %s, %s, %s); }",
+        "function(td, cell, data, index) { HovercraftTable.mark(td, %s, %s, %s); }",
         tip_json(plan$specs$cells[[column]]),
-        record_at,
+        record,
         row_at
       ))
     )
@@ -465,10 +436,13 @@ tip_table_reactable <- function(widget, plan, call) {
   ids <- vapply(columns, function(column) column$id, "")
   data <- tip_table_data(widget, "reactable")
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
-  if (!is.null(plan$rows)) {
+  tip_table_check_values(data, fields, call)
+  # A row's class says its data row and holds its record, read from reactable's own row values each time the row is
+  # drawn, so a table that `reactable::updateReactable()` gives new data keeps tips that follow it.
+  if (!is.null(plan$rows) || length(fields)) {
     tag$attribs$rowClassName <- tip_table_class(
       tag$attribs$rowClassName,
-      "(rowInfo && !rowInfo.aggregated ? 'hovercraft-row-' + rowInfo.index : '')",
+      sprintf("HovercraftTable.rowClass(rowInfo, %s)", tip_json(as.list(fields))),
       "rowInfo, state"
     )
   }
@@ -508,7 +482,6 @@ tip_table_reactable <- function(widget, plan, call) {
     rows = plan$specs$rows,
     cells = cells,
     headers = heads,
-    records = as.list(tip_table_records(data, fields, call)),
     defines = plan$defines,
     kind = tip_attribute("kind"),
     desc = tip_description_class(),
@@ -561,19 +534,22 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   `groupBy` (the rows inside a group have tips, the group's own row has none) and `details` (the details panel has
 #'   none).
 #' * An `id` made by [shiny::NS()] inside a module.
+#' * Tables that Shiny updates with new data: `DT::replaceData()` (it works in server mode) with the user's own data
+#'   frame, and `reactable::updateReactable(data = )`. The tips follow the new rows, as they do after sorting,
+#'   filtering and paging.
 #'
-#' Not supported: a `DT` table with its own `createdRow` or `initComplete` option, or with a header of more than one
-#' row; a `reactable` column whose `headerClass` is a JavaScript function; any other widget.
+#' Not supported: a `DT` table with its own `createdRow` or `initComplete` option; a `reactable` column whose
+#' `headerClass` is a JavaScript function; any other widget.
 #'
-#' Large tables: the tips of a table of thousands of rows take about 0.2 seconds per 1,000 rows to build in R, and add
-#' about 70 bytes per row to the page. A paged table barely notices. A table with every row drawn at once is slow in
-#' `DT` when cells or headers have tips (thousands of rows take seconds); page it, or tip its rows only.
+#' Large tables: `tip_table()` adds nothing to the data of the page, since each tip reads its values from the table's
+#' own data in the browser. A table with every row drawn at once is slow in `DT` when cells or headers have tips
+#' (thousands of rows take seconds); page it, or tip its rows only.
 #'
 #' Give `tip_table()` the finished widget, last in the pipe or at least after the columns are settled.
-#' `DT::datatable()` gets one hidden column that holds each row's record, and with an `id` a second one for its data
-#' row number (a table with a header of more than one row, or with its own `createdRow` or `initComplete` option, is
-#' refused for now). `reactable::reactable()` gets its own `rowClass`, `class` and `headerClass` added to yours.
-#' Only the columns a tip names are written to the page.
+#' `DT::datatable()` keeps its columns and its inputs as they are: `tip_table()` adds no column and changes no event
+#' (a table with its own `createdRow` or `initComplete` option is refused for now). `reactable::reactable()` gets its
+#' own `rowClass`, `class` and `headerClass` added to yours; the class of a row holds the values its tips read, so it
+#' changes with the data.
 #'
 #' @param widget A table made by `DT::datatable()` or by `reactable::reactable()`.
 #' @param ... Must be empty. It makes a misspelt argument an error.
@@ -694,7 +670,7 @@ tip_table <- function(
       call = call
     )
   }
-  widget <- if (kind == "dt") tip_table_dt(widget, plan, id, call) else tip_table_reactable(widget, plan, call)
+  widget <- if (kind == "dt") tip_table_dt(widget, plan, call) else tip_table_reactable(widget, plan, call)
   looks <- unlist(
     lapply(c(list(plan$rows), plan$cells, plan$headers), function(content) tip_style_tag(content$style)$deps),
     recursive = FALSE
