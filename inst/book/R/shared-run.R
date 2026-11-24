@@ -2,7 +2,7 @@
 
 # An environment that holds hovercraft's exported functions and nothing else, as `library(hovercraft)` gives a reader.
 # The code a plate shows runs here, so it can't lean on anything a reader's own app would not have.
-studio_exports <- function() {
+book_exports <- function() {
   env <- new.env(parent = baseenv())
   for (name in getNamespaceExports("hovercraft")) {
     assign(name, getExportedValue("hovercraft", name), envir = env)
@@ -10,12 +10,12 @@ studio_exports <- function() {
   env
 }
 
-# Runs the UI part of a plate's code: every top-level expression, in a fresh child of `studio_exports()`, and keeps
+# Runs the UI part of a plate's code: every top-level expression, in a fresh child of `book_exports()`, and keeps
 # the visible results that are UI (tags, tag lists, HTML dependencies). The first line, `library(hovercraft)`, is
 # skipped: the exports are there already. Warnings are kept beside the result, so a plate can say what the package
 # warned about; a template defined again with other blocks (every control change does that) is expected and not
 # kept. An error becomes a message, not a crash.
-run_code <- function(code, exports = studio_exports()) {
+run_code <- function(code, exports = book_exports()) {
   state <- new.env()
   state$warnings <- character()
   state$error <- NULL
@@ -62,7 +62,7 @@ as_ui <- function(x) {
 
 # Runs a plate's server code as it is shown: every expression, with hovercraft's exports, the session and its inputs in
 # reach, as in a reader's own server function.
-run_server_code <- function(code, input, session, ..., exports = studio_exports()) {
+run_server_code <- function(code, input, session, ..., exports = book_exports()) {
   env <- new.env(parent = exports)
   env$input <- input
   env$session <- session

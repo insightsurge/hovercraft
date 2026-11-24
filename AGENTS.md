@@ -22,14 +22,16 @@ How to contribute is in `.github/CONTRIBUTING.md`; launchR's checks: <https://la
 ## Always
 
 - Never edit the vendored engine in `inst/engine/`; `tools/copy-engine.R` writes it.
-- Every export starts with `tip_`. Names are snake_case.
+- Every export starts with `tip_`, except `hovercraft_book()`, which opens the package's own book rather than making
+  a tip. Names are snake_case.
 - Public text never names the project the engine is built from; call it "the tip engine".
 - Check arguments with checkmate, send messages through cli, call other packages as `pkg::fn()`.
 - `man/` and `NAMESPACE` come from `devtools::document()`, never from hand edits.
 - Every change starts from an issue and lands by pull request; never push to `main`, force-push or skip a check.
-- **Keep the studio up to date:** a pull request that adds, removes or changes an export or an argument (its name,
-  values, default or behaviour) also updates hovercraft studio (`inst/studio/`, opened by `tip_studio()`) in the same
-  pull request. How the studio is built: "The studio" in `.github/CONTRIBUTING.md`.
+- **Every feature goes in the book:** a pull request that adds, removes or changes an export or an argument (its
+  name, values, default or behaviour) also updates hovercraft book (`inst/book/`, opened by `hovercraft_book()`) in
+  the same pull request; `test-book.R` fails while an export or argument is in no section. How the book is built:
+  "The book" in `.github/CONTRIBUTING.md`.
 - Change only what the task needs. Ask before adding a dependency, changing a check or deleting a file.
 - Keep secrets, private data and machine paths out of code, tests, examples and commits.
 - Report what you ran and what it printed, failures and skipped steps included.

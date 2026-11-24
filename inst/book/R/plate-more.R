@@ -66,6 +66,16 @@ more_code <- function(settings) {
   )
 }
 
+more_covers <- c(
+  "tip_on(tag)",
+  "tip_on(text)",
+  "tip_on(more)",
+  "tip_on(more_on)",
+  "tip_on(pin)",
+  "tip_on(id)",
+  "tip_on(events)"
+)
+
 more_steps <- function() {
   on <- function(value) function(input) identical(input$more_on %||% "pin", value)
   list(
@@ -102,8 +112,6 @@ more_steps <- function() {
 plate_more_ui <- function() {
   plate(
     "more",
-    4,
-    "Short and long",
     lede = htmltools::tagList(
       "A tip can say one line on a glance and the whole method on request.",
       htmltools::tags$code("more ="),

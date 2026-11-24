@@ -104,6 +104,12 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     Sys.sleep(wait)
     shown()
   }
+  # Types text into the focused field, as a keyboard's text does: the page gets its input events.
+  type <- function(text) {
+    session$Input$insertText(text = text)
+    Sys.sleep(0.2)
+    invisible()
+  }
   # Rests the pointer on the element (so its tip opens), then clicks it with the mouse; returns the tips on show.
   click <- function(selector) {
     hover(selector)
@@ -166,6 +172,7 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     hover = hover,
     click = click,
     press = press,
+    type = type,
     shown = shown,
     screenshot = screenshot,
     problems = function() problems

@@ -1,6 +1,6 @@
-// The studio's own page: the index that follows the reader, the compact bar, plate sheet and margin drawer of a
-// phone, and Guide me, an opt-in layer that shows one test step at a time with a leader to its target. Which steps are
-// done comes from the server (shared.js draws the ticks); this file keeps only where the guide is.
+// The book's own page: the index that follows the reader, the compact bar, plate sheet and margin drawer of a
+// phone, and Checklist, an opt-in layer that shows one test step at a time with a leader to its target. Which steps are
+// done comes from the server (shared.js draws the ticks); this file keeps only where the checklist is.
 (() => {
   const $ = (s, r = document) => r.querySelector(s);
   const $$ = (s, r = document) => [...r.querySelectorAll(s)];
@@ -9,7 +9,7 @@
   const compact = matchMedia('(max-width: 1099px)');
 
   const start = () => {
-    const boot = JSON.parse($('#studio-boot')?.textContent ?? '{}');
+    const boot = JSON.parse($('#book-boot')?.textContent ?? '{}');
     // The engine's names, which the server read from its page contract.
     const N = boot.names ?? { css: '', events: {} };
     const TIP = `.${N.css}-tip`;
@@ -30,9 +30,23 @@
       current = at;
       at.classList.add('is-current');
       for (const a of $$('.toc a')) a.setAttribute('aria-current', String(a.dataset.plate === at.id));
+      // The index opens only the part being read; the others show their titles.
+      for (const part of $$('.toc .part')) {
+        part.classList.toggle('is-open', !!part.querySelector(`a[data-plate="${at.id}"]`));
+      }
+      // The index's list scrolls on a short screen: keep the current section in its view. Its own scroll only, so
+      // the page never moves.
+      const list = $('#toc');
+      const link = list?.querySelector('a[aria-current="true"]');
+      if (link && list.scrollHeight > list.clientHeight) {
+        const top = link.offsetTop - list.offsetTop;
+        if (top < list.scrollTop || top + link.offsetHeight > list.scrollTop + list.clientHeight) {
+          list.scrollTop = top - list.clientHeight / 2;
+        }
+      }
       $('#where-n').textContent = at.dataset.n;
       $('#where-t').textContent = at.dataset.title;
-      $('#pull').setAttribute('aria-label', `Margin of plate ${at.dataset.n}, ${at.dataset.title}`);
+      $('#pull').setAttribute('aria-label', `Margin of section ${at.dataset.n}, ${at.dataset.title}`);
       if (root.classList.contains('drawer-open')) syncInert();
     };
 
@@ -53,7 +67,7 @@
       $('#pull').setAttribute('aria-expanded', String(open));
       if (open) setToc(false);
       syncInert();
-      document.dispatchEvent(new CustomEvent('studio:drawer', { detail: { open } }));
+      document.dispatchEvent(new CustomEvent('book:drawer', { detail: { open } }));
       if (open) $('.margin-head button', current)?.focus({ preventScroll: true });
       else if (compact.matches) $('#pull').focus({ preventScroll: true });
     };
@@ -90,7 +104,7 @@
       setToc(false);
     });
 
-    /* ---- Guide me: one step at a time, ticked by the server from real inputs ---------------------------------- */
+    /* ---- Checklist: one step at a time, ticked by the server from real inputs ---------------------------------- */
     const G = { on: false, last: null, pending: null, plates: {} };
     for (const p of plates) {
       G.plates[p.id] = {
@@ -125,7 +139,7 @@
       return span?.textContent.trim() ?? '';
     };
     const targetOf = (g) => (g.targets[g.at] ? $(g.targets[g.at]) : null);
-    // The plate the guide is on: the one the reader is reading, or the one Next is scrolling to.
+    // The section the checklist is on: the one the reader is reading, or the one Next is scrolling to.
     const act = () =>
       G.plates[(G.pending && performance.now() - G.pending.t < 1600 ? G.pending.p : (current ?? plates[0])).id];
 
@@ -133,15 +147,15 @@
       button.setAttribute('aria-pressed', String(g.done.has(i)));
       button.replaceChildren(
         g.done.has(i)
-          ? window.StudioShared.tickSvg()
+          ? window.BookShared.tickSvg()
           : Object.assign(document.createElement('span'), { textContent: i + 1 }),
       );
     };
     const render = () => {
       // The plate in view now: a scroll's own event may not have arrived yet.
       track();
-      root.classList.toggle('guide-on', G.on);
-      for (const b of $$('.js-guide')) b.setAttribute('aria-pressed', String(G.on));
+      root.classList.toggle('checklist-on', G.on);
+      for (const b of $$('.js-checklist')) b.setAttribute('aria-pressed', String(G.on));
       for (const g of all()) {
         g.lis.forEach((li, i) => {
           li.classList.toggle('g-current', i === g.at);
@@ -158,7 +172,7 @@
         const mark = $('.g-mark', link);
         if (finished(g)) {
           mark.replaceChildren(
-            window.StudioShared.tickSvg(),
+            window.BookShared.tickSvg(),
             Object.assign(document.createElement('span'), { className: 'vh', textContent: ', all steps ticked' }),
           );
         } else {
@@ -167,9 +181,9 @@
       }
       const r = G.plates[G.last ?? a.p.id];
       $('#g-resume').textContent =
-        `Resume: plate ${r.p.dataset.n}, ${r.p.dataset.title}, step ${r.at + 1} of ${r.lis.length}`;
+        `Resume: section ${r.p.dataset.n}, ${r.p.dataset.title}, step ${r.at + 1} of ${r.lis.length}`;
       $('.w', cuebar).textContent =
-        `Plate ${a.p.dataset.n}, step ${a.at + 1} of ${a.lis.length}${finished(a) ? ', all ticked' : ''}`;
+        `Section ${a.p.dataset.n}, step ${a.at + 1} of ${a.lis.length}${finished(a) ? ', all ticked' : ''}`;
       $('.x', cuebar).textContent = stepText(a.lis[a.at]);
       box($('.g-tick', cuebar), a, a.at);
       const t = G.on ? targetOf(a) : null;
@@ -185,14 +199,14 @@
       void t.offsetWidth;
       t.classList.add('g-pulse');
     };
-    const setGuide = (on) => {
+    const setChecklist = (on) => {
       G.on = on;
       render();
       pulse();
     };
 
-    // The server's ticks: a step that ticks while it is the current one moves the guide to the next open step.
-    document.addEventListener('studio:ticks', (e) => {
+    // The server's ticks: a step that ticks while it is the current one moves the checklist to the next open step.
+    document.addEventListener('book:ticks', (e) => {
       const g = G.plates[e.detail.plate];
       if (!g) return;
       const was = new Set(g.done);
@@ -239,9 +253,9 @@
     document.addEventListener(
       'click',
       (e) => {
-        const b = e.target.closest?.('[data-g], .js-guide, #g-resume');
+        const b = e.target.closest?.('[data-g], .js-checklist, #g-resume');
         if (!b) return;
-        if (b.matches('.js-guide')) return setGuide(!G.on);
+        if (b.matches('.js-checklist')) return setChecklist(!G.on);
         if (b.id === 'g-resume') {
           G.plates[G.last ?? act().p.id].p.scrollIntoView({ behavior: behaviour() });
           return;
@@ -252,7 +266,7 @@
         if (what === 'open') return $('#pull').click();
         if (what === 'tick') {
           const i = b.dataset.i !== undefined ? Number(b.dataset.i) : g.at;
-          window.StudioShared.toggle(g.p.id, i, !g.done.has(i));
+          window.BookShared.toggle(g.p.id, i, !g.done.has(i));
           if (g.said) g.said.textContent = '';
         }
       },
@@ -260,14 +274,15 @@
     );
     document.addEventListener('keydown', (e) => {
       if (e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey || e.isComposing) return;
-      // The letters act only while the focus is on the page itself or on the guide's own controls, so they never
+      // The letters act only while the focus is on the page itself or on the checklist's own controls, so they never
       // take a key from a control, a tip, the code or a table.
       const where = e.target;
-      if (where !== document.body && where !== root && !where.closest?.('.js-guide, .g-head, .g-fold, .cuebar')) return;
+      if (where !== document.body && where !== root && !where.closest?.('.js-checklist, .g-head, .g-fold, .cuebar'))
+        return;
       const k = e.key.length === 1 ? e.key.toLowerCase() : e.key;
-      if (k === 'g') {
+      if (k === 'c') {
         e.preventDefault();
-        setGuide(!G.on);
+        setChecklist(!G.on);
       } else if (G.on && k === 'n') {
         e.preventDefault();
         move(1);
@@ -292,7 +307,7 @@
         const b = t.getBoundingClientRect();
         const seen = (r) => r.height && r.bottom > 0 && r.top < innerHeight;
         if (!seen(a) || !seen(b)) return;
-        // In the one-plate view the margin scrolls: the step must be in sight inside it.
+        // A margin taller than its box may scroll on its own: the step must be in sight inside it.
         const box = li.closest('.margin')?.getBoundingClientRect();
         if (box && (a.bottom < box.top || a.top > box.bottom)) return;
         const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
@@ -338,8 +353,8 @@
     }
     for (const n of ['tip', 'hint']) if (N.events[n]) document.addEventListener(N.events[n], watchSheets);
 
-    // The page's scroll, and in the one-plate view a margin's own scroll: scroll events do not bubble, so the
-    // listener is on the document in the capture phase.
+    // The page's scroll, and a column's own scroll: scroll events do not bubble, so the listener is on the document
+    // in the capture phase.
     document.addEventListener(
       'scroll',
       () => {
@@ -353,69 +368,69 @@
       if (G.on) render();
     });
 
-    /* ---- One plate at a time: each plate fills the screen, and the page snaps from plate to plate ----------- */
-    const setPaged = (on) => {
-      const at = current;
-      root.classList.toggle('paged', on);
-      for (const b of $$('.js-paged')) b.setAttribute('aria-pressed', String(on));
-      // Stay on the plate the reader was on, now aligned to the top of the screen.
-      at?.scrollIntoView({ behavior: 'instant', block: 'start' });
-      track();
-      if (G.on) render();
-    };
-    // In the capture phase: the index stops its clicks from bubbling, so a pinned tip stays open.
-    document.addEventListener(
-      'click',
-      (e) => {
-        if (e.target.closest?.('.js-paged')) setPaged(!root.classList.contains('paged'));
-      },
-      true,
-    );
-    // One scroll, one plate: a wheel or trackpad gesture moves to the next or previous plate, unless the column under
-    // the pointer (the margin, or a tall figure) can still scroll that way; then that column scrolls, and the gesture
-    // after it reaches its end moves the page. A gesture's trailing events are ignored, so one flick is one plate.
-    let quietUntil = 0;
-    const canScroll = (el, down) => {
-      for (let n = el; n && n !== root; n = n.parentElement) {
-        const style = getComputedStyle(n);
-        if (!/(auto|scroll)/.test(style.overflowY) || n.scrollHeight <= n.clientHeight) continue;
-        if (down ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return true;
-      }
-      return false;
-    };
-    document.addEventListener(
-      'wheel',
-      (e) => {
-        if (!root.classList.contains('paged') || compact.matches || e.ctrlKey || Math.abs(e.deltaY) < 2) return;
-        if (e.target.closest?.(TIP)) return;
-        const down = e.deltaY > 0;
-        if (canScroll(e.target, down)) return;
-        e.preventDefault();
-        const now = performance.now();
-        if (now < quietUntil) {
-          quietUntil = Math.max(quietUntil, now + 200);
-          return;
-        }
-        quietUntil = now + 900;
-        track();
-        const j = plates.indexOf(current) + (down ? 1 : -1);
-        if (j >= 0 && j < plates.length) plates[j].scrollIntoView({ behavior: behaviour(), block: 'start' });
-      },
-      { passive: false },
-    );
-
     // The switches' boxes: a tick that shows while a switch is on.
-    for (const b of $$('.g-switch .box')) b.append(window.StudioShared.tickSvg());
+    for (const b of $$('.g-switch .box')) b.append(window.BookShared.tickSvg());
 
-    /* ---- Start: the plate, the view and the guide the address asks for -------------------------------------- */
-    if (boot.paged) setPaged(true);
+    /* ---- Search: the index keeps the sections whose words hold every word typed ------------------------------- */
+    // Each section's words (number, title, part, the functions and arguments it shows) are in its link's
+    // data-search, written by the server. The index and the phone's sheet each have a box; both show the same search.
+    const search = (q) => {
+      const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+      let any = false;
+      for (const box of $$('.js-toc-search')) if (box.value !== q) box.value = q;
+      for (const part of $$('.toc .part')) {
+        let shown = 0;
+        for (const a of part.querySelectorAll('a[data-search]')) {
+          const ok = words.every((w) => a.dataset.search.includes(w));
+          a.parentElement.hidden = !ok;
+          if (ok) shown++;
+        }
+        part.hidden = shown === 0;
+        if (shown) any = true;
+      }
+      for (const none of $$('.toc-none')) none.hidden = any;
+      // While searching, every part with a match shows its sections, not only the part being read.
+      root.classList.toggle('toc-searching', words.length > 0);
+    };
+    for (const box of $$('.js-toc-search')) {
+      box.addEventListener('input', () => search(box.value));
+      box.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && box.value) {
+          e.preventDefault();
+          e.stopPropagation();
+          search('');
+        } else if (e.key === 'Enter') {
+          // Enter opens the first section left in this box's own index.
+          const first = [...box.closest('nav').querySelectorAll('.toc a[data-search]')].find(
+            (a) => !a.parentElement.hidden && !a.closest('.part').hidden,
+          );
+          if (first) {
+            e.preventDefault();
+            first.click();
+          }
+        }
+      });
+    }
+
+    /* ---- Start: the section, the view and the checklist the address asks for ---------------------------------- */
     track();
     syncInert();
-    if (boot.plate) {
-      document.getElementById(boot.plate)?.scrollIntoView();
-      track();
+    if (boot.section) {
+      // An instant jump: the page's smooth scroll would be cut short while the server draws the figures above. They
+      // change the heights above the section, so it is aligned again once Shiny is first idle, unless the reader has
+      // scrolled by then.
+      const go = () => {
+        document.getElementById(boot.section)?.scrollIntoView({ behavior: 'instant' });
+        track();
+      };
+      let moved = false;
+      for (const type of ['wheel', 'keydown', 'touchstart', 'pointerdown']) {
+        addEventListener(type, () => (moved = true), { once: true, passive: true });
+      }
+      go();
+      window.jQuery?.(document).one('shiny:idle', () => moved || go());
     }
-    if (boot.guide) setGuide(true);
+    if (boot.checklist) setChecklist(true);
     else render();
   };
 

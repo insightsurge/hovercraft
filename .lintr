@@ -29,8 +29,8 @@ exclusions: list(
     "tests" = list(object_usage_linter = Inf, undesirable_function_linter = Inf),
     # A vignette opens with library(), as a reader's own code does; the rule is for code in R/.
     "vignettes" = list(undesirable_function_linter = Inf),
-    # Shiny loads every file of the studio's R/ together; lintr reads one at a time, so helpers from another file look
+    # Shiny loads every file of the book's R/ together; lintr reads one at a time, so helpers from another file look
     # undefined. Every other linter still runs there.
-    "inst/studio" = list(object_usage_linter = Inf)
+    "inst/book" = list(object_usage_linter = Inf)
   )
 encoding: "UTF-8"

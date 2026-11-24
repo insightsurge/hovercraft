@@ -9,10 +9,10 @@ skip_if_not_installed("pkgload")
 skip_if_not_installed("withr")
 skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 
-# hovercraft studio in Chrome, one session from start to end: real pointer and keys, the server's answers, the ticks,
-# the look of the page, Copy right after a change, the guide, and a phone's layout.
-describe("hovercraft studio in a browser", {
-  app <- start_app(function() tip_studio(run = FALSE))
+# hovercraft book in Chrome, one session from start to end: real pointer and keys, the server's answers, the ticks,
+# the look of the page, Copy right after a change, the search, the checklist, and a phone's layout.
+describe("hovercraft book in a browser", {
+  app <- start_app(function() hovercraft_book(run = FALSE))
   page <- local_page(app$url)
   page$resize(1440, 900)
   js <- function(code) page$evaluate(code)
@@ -32,12 +32,12 @@ describe("hovercraft studio in a browser", {
     js(sprintf("document.querySelector(%s).focus()", jsonlite::toJSON(selector, auto_unbox = TRUE)))
   }
 
-  it("starts with every plate's code from the server and nothing in the console", {
+  it("starts with every section's code from the server and nothing in the console", {
     expect_true(page$wait_until(
       "!!window.Shiny?.shinyapp?.isConnected() && [...document.querySelectorAll('[data-code]')].every((p) => p.dataset.raw)",
       30
     ))
-    expect_identical(js("document.querySelectorAll('.plate').length"), 9L)
+    expect_identical(js("document.querySelectorAll('.plate').length"), length(book_section_ids))
     # The page's colours reach the server with no click: the dark-mode steps can tick on a dark system.
     expect_true(page$wait_until("['light', 'dark'].includes(window.Shiny.shinyapp.$inputValues.page_mode)"))
     expect_identical(page$problems(), character())
@@ -51,17 +51,41 @@ describe("hovercraft studio in a browser", {
     ))
     expect_length(page$hover(tip("visits")), 1L)
     expect_true(page$wait_until(logged("start", "input$visits_hint")))
-    expect_true(page$wait_until(ticked("start", 0L)))
+    expect_true(page$wait_until(ticked("start", 2L)))
     expect_match(js("document.querySelector('#start .g-said').textContent"), "ticked itself")
   })
 
+  it("opens the title's tip in its own look, and logs it", {
+    js("window.scrollTo({ top: 0, behavior: 'instant' })")
+    expect_length(page$hover(tip("hero")), 1L)
+    expect_true(page$wait_until(logged("start", "input$hero_hint")))
+    expect_true(page$wait_until(ticked("start", 0L)))
+    page$mouse(5, 5)
+  })
+
+  it("finds sections by the functions and arguments they show, and Escape clears the search", {
+    visible <- "[...document.querySelectorAll('#toc a[data-plate]')].filter((a) => a.offsetParent).map((a) => a.dataset.plate)"
+    focus("#toc-q")
+    page$type("keep_alive")
+    # A search opens every part with a match, not only the part being read.
+    expect_true(page$wait_until(sprintf("JSON.stringify(%s) === '[\"output\"]'", visible)))
+    page$type(" zzz")
+    expect_true(page$wait_until("!document.querySelector('.index .toc-none').hidden"))
+    page$press("Escape", wait = 0.2)
+    # Every section is back in the index, and only the part being read is open again.
+    expect_true(js("[...document.querySelectorAll('#toc li')].every((li) => !li.hidden)"))
+    expect_false(js("document.documentElement.classList.contains('toc-searching')"))
+    expect_true(js("document.querySelector('.index .toc-none').hidden"))
+    js("document.activeElement.blur()")
+  })
+
   it("changes the look of every tip on the page, from the server, without a reload", {
-    js("window.studioLoaded = true; document.querySelector('#start_preset input[value=editorial]').click()")
+    js("window.bookLoaded = true; document.querySelector('#looks_preset input[value=editorial]').click()")
     attribute <- paste0(tip_names()$attribute, "-preset")
     expect_true(page$wait_until(sprintf("document.documentElement.getAttribute('%s') === 'editorial'", attribute)))
-    expect_true(js("window.studioLoaded === true"))
+    expect_true(js("window.bookLoaded === true"))
     expect_match(
-      js("document.querySelector('[data-code=\"start\"]').dataset.raw"),
+      js("document.querySelector('[data-code=\"looks\"]').dataset.raw"),
       "tip_style(\"editorial\"",
       fixed = TRUE
     )
@@ -71,22 +95,22 @@ describe("hovercraft studio in a browser", {
     js(paste(
       "window.copied = null;",
       "navigator.clipboard.writeText = async (text) => { window.copied = text; };",
-      "document.querySelector('#basics_placement input[value=top]').click();",
-      "document.querySelector('#basics .js-copy').click();"
+      "document.querySelector('#placement_side input[value=top]').click();",
+      "document.querySelector('#placement .js-copy').click();"
     ))
     expect_true(page$wait_until("typeof window.copied === 'string'"))
     expect_match(js("window.copied"), "placement = \"top\"", fixed = TRUE)
-    # The page colours in the Start sentence are not a choice of its code: Copy right after one still copies.
+    # The page colours in the looks sentence are not a choice of its code: Copy right after one still copies.
     js(paste(
       "window.copied = null;",
-      "document.querySelector('#start .theme-set input[value=dark]').click();",
-      "document.querySelector('#start .js-copy').click();"
+      "document.querySelector('#looks .theme-set input[value=dark]').click();",
+      "document.querySelector('#looks .js-copy').click();"
     ))
     expect_true(page$wait_until("typeof window.copied === 'string'"))
     expect_match(js("window.copied"), "tip_dependency(", fixed = TRUE)
     expect_identical(js("document.documentElement.getAttribute('data-bs-theme')"), "dark")
     expect_true(page$wait_until("window.Shiny.shinyapp.$inputValues.page_mode === 'dark'"))
-    js("document.querySelector('#start .theme-set input[value=light]').click()")
+    js("document.querySelector('#looks .theme-set input[value=light]').click()")
   })
 
   it("draws a plot in a pinned tip, keeps it when the tip closes, and says so", {
@@ -109,13 +133,13 @@ describe("hovercraft studio in a browser", {
     scroll_to("output")
     # Every log line the server sends from now on (the page keeps only the newest 14, so they are counted here).
     js(paste(
-      "window.studioSeen = [];",
+      "window.bookSeen = [];",
       "window.jQuery(document).on('shiny:message', (e) => {",
-      "  const m = e.message?.custom?.['studio-log'];",
-      "  if (m) window.studioSeen.push(m.value);",
+      "  const m = e.message?.custom?.['book-log'];",
+      "  if (m) window.bookSeen.push(m.value);",
       "})"
     ))
-    count <- function(words) sprintf("window.studioSeen.filter((v) => v.includes('%s')).length", words)
+    count <- function(words) sprintf("window.bookSeen.filter((v) => v.includes('%s')).length", words)
     # Coast first, so North's plot is drawn anew when North is pinned.
     focus(tip("region_coast"))
     page$press("p", wait = 0.2)
@@ -155,7 +179,7 @@ describe("hovercraft studio in a browser", {
     page$press("Escape", wait = 0.4)
   })
 
-  it("loads every plate in light and dark, at 1440 and 375 px, with nothing in the console", {
+  it("loads every section in light and dark, at 1440 and 375 px, with nothing in the console", {
     figure <- function(id) {
       sprintf(
         "(() => { const f = document.getElementById('%s_figure'); return !!f && f.innerHTML.includes('%s'); })()",
@@ -170,7 +194,7 @@ describe("hovercraft studio in a browser", {
       for (scheme in c("light", "dark")) {
         page$emulate("prefers-color-scheme", scheme)
         expect_true(page$wait_until(sprintf("document.documentElement.getAttribute('data-bs-theme') === '%s'", scheme)))
-        for (id in c("start", "basics", "templates", "more", "pins", "disabled", "output", "tables", "server")) {
+        for (id in book_section_ids) {
           scroll_to(id)
           expect_true(page$wait_until(figure(id), 15), info = paste(id, width, scheme))
           expect_lte(js("document.documentElement.scrollWidth"), width)
@@ -188,7 +212,7 @@ describe("hovercraft studio in a browser", {
     page$press("p", wait = 0.2)
     expect_true(page$wait_until(ticked("pins", 1L)))
     # A new look closes the pinned tip and pins it again, both by the page: no close step ticks.
-    js("document.querySelector('#start_preset input[value=dense]').click()")
+    js("document.querySelector('#looks_preset input[value=dense]').click()")
     expect_true(page$wait_until(logged("pins", "\"host\"")))
     expect_false(js(ticked("pins", 4L)))
     expect_false(js(ticked("pins", 2L)))
@@ -210,63 +234,29 @@ describe("hovercraft studio in a browser", {
     expect_true(page$wait_until(ticked("server", 1L)))
   })
 
-  it("guides one step at a time, with keys", {
+  it("shows the checklist one step at a time, with keys", {
     scroll_to("pins")
     # The letter keys act while the focus is on the page, not on a control or a tip.
     js("document.activeElement.blur()")
-    page$press("g", wait = 0.3)
-    expect_true(js("document.documentElement.classList.contains('guide-on')"))
+    page$press("c", wait = 0.3)
+    expect_true(js("document.documentElement.classList.contains('checklist-on')"))
     expect_false(js("document.getElementById('g-leader').hasAttribute('hidden')"))
     expect_true(js("!!document.querySelector('#pins .g-target')"))
     before <- js("document.querySelector('#pins .tests > li.g-current').dataset.i")
     page$press("n", wait = 0.3)
     expect_false(identical(js("document.querySelector('#pins .tests > li.g-current').dataset.i"), before))
-    page$press("g", wait = 0.3)
-    expect_false(js("document.documentElement.classList.contains('guide-on')"))
+    page$press("c", wait = 0.3)
+    expect_false(js("document.documentElement.classList.contains('checklist-on')"))
   })
 
-  it("shows one plate at a time when asked: a scroll moves one plate, and the margin scrolls inside it", {
-    js("window.scrollTo({ top: 0, behavior: 'instant' }); document.querySelector('.js-paged').click()")
-    expect_true(js("document.documentElement.classList.contains('paged')"))
-    expect_identical(js("document.querySelector('.js-paged').getAttribute('aria-pressed')"), "true")
-    expect_true(js("[...document.querySelectorAll('.plate')].every((p) => Math.abs(p.offsetHeight - innerHeight) < 1)"))
-    # Pins' margin is taller than the screen: it scrolls inside its own column.
-    expect_true(js(paste(
-      "(() => { const m = document.querySelector('#pins .margin');",
-      "return getComputedStyle(m).overflowY === 'auto' && m.scrollHeight > m.clientHeight; })()"
-    )))
-    wheel <- function(selector, dy) {
-      js(sprintf(
-        "document.querySelector(%s).dispatchEvent(new WheelEvent('wheel', { deltaY: %d, bubbles: true, cancelable: true }))",
-        jsonlite::toJSON(selector, auto_unbox = TRUE),
-        dy
-      ))
-    }
-    top_of <- function(id) sprintf("Math.abs(document.getElementById('%s').getBoundingClientRect().top) < 2", id)
-    # A scroll over the figure moves to the next plate, and back.
-    js("document.getElementById('basics').scrollIntoView({ behavior: 'instant' })")
-    expect_true(page$wait_until(top_of("basics")))
-    wheel("#basics .specimen", 120)
-    expect_true(page$wait_until(top_of("templates")))
-    Sys.sleep(1)
-    wheel("#templates .specimen", -120)
-    expect_true(page$wait_until(top_of("basics")))
-    # Over a margin that can still scroll, the page stays on its plate.
-    js("document.getElementById('pins').scrollIntoView({ behavior: 'instant' })")
-    Sys.sleep(1)
-    wheel("#pins .margin .note", 120)
-    Sys.sleep(1)
-    expect_true(js(top_of("pins")))
-    # At the margin's end, the scroll goes back to the page: the next plate.
-    js("const m = document.querySelector('#pins .margin'); m.scrollTop = m.scrollHeight")
-    wheel("#pins .margin .note", 120)
-    expect_true(page$wait_until(top_of("disabled")))
-    # Page Down scrolls most of a screen, and the page snaps to the next plate.
-    Sys.sleep(1)
-    js("window.scrollBy({ top: innerHeight * 0.875, behavior: 'instant' })")
-    expect_true(page$wait_until(top_of("output")))
-    js("document.querySelector('.js-paged').click()")
-    expect_false(js("document.documentElement.classList.contains('paged')"))
+  it("opens only the part being read in the index, and a click on a part's title goes to its first section", {
+    open_parts <- "[...document.querySelectorAll('#toc .part.is-open .part-t .pn')].map((n) => n.textContent).join()"
+    scroll_to("pins")
+    expect_true(page$wait_until(sprintf("%s === '3'", open_parts)))
+    expect_false(js("!!document.querySelector('#toc a[data-plate=\"start\"]').offsetParent"))
+    js("document.querySelector('#toc .part:nth-child(6) .part-t').click()")
+    expect_true(page$wait_until(sprintf("%s === '6'", open_parts), 10))
+    expect_true(page$wait_until("Math.abs(document.getElementById('tables').getBoundingClientRect().top) < 60", 10))
   })
 
   it("fits a phone: no sideways scroll, the margin opens as a drawer and Escape closes it", {
@@ -284,5 +274,14 @@ describe("hovercraft studio in a browser", {
     expect_false(js("document.documentElement.classList.contains('drawer-open')"))
     page$resize(1440, 900)
     expect_identical(page$problems(), character())
+  })
+
+  it("opens at the section its address names, once the server has drawn the figures above it", {
+    js("location.search = '?section=table_pins'")
+    expect_true(page$wait_until("location.search === '?section=table_pins'", 10))
+    expect_true(page$wait_until("!!window.Shiny?.shinyapp?.isConnected()", 30))
+    Sys.sleep(3)
+    expect_lt(abs(js("document.getElementById('table_pins').getBoundingClientRect().top")), 60)
+    expect_identical(js("document.querySelector('#toc a[aria-current=\"true\"]').dataset.plate"), "table_pins")
   })
 })

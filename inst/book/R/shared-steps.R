@@ -1,21 +1,21 @@
 # Shared helpers: the What to test steps and the proofs that tick them. A step is ticked by the server, from inputs it
-# really received, Guide me on or off; the page only draws the ticks. A step without a proof is ticked by hand.
+# really received, Checklist on or off; the page only draws the ticks. A step without a proof is ticked by hand.
 
-# The engine's page contract (attribute names, events, presets), from a file every install has, so the studio never
+# The engine's page contract (attribute names, events, presets), from a file every install has, so the book never
 # writes one of the engine's names itself.
-studio_cache <- new.env()
-studio_contract <- function() {
-  if (is.null(studio_cache$contract)) {
-    studio_cache$contract <- jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
+book_cache <- new.env()
+book_contract <- function() {
+  if (is.null(book_cache$contract)) {
+    book_cache$contract <- jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
   }
-  studio_cache$contract
+  book_cache$contract
 }
 
 # A CSS selector for the tag whose tip has the id `id` (the id given to tip_on(id =)).
-tip_target <- function(id) sprintf("[%s=\"%s\"]", studio_contract()$attributes$id, id)
+tip_target <- function(id) sprintf("[%s=\"%s\"]", book_contract()$attributes$id, id)
 
 # One step: what to do (with what should happen), what would be a bug, where in the figure it points (a CSS selector
-# for Guide me's ring and leader) and its proof, or NULL.
+# for Checklist's ring and leader) and its proof, or NULL.
 step <- function(text, bug = NULL, target, proof = NULL) {
   list(text = text, bug = bug, target = target, proof = proof)
 }
@@ -72,21 +72,21 @@ proof_says <- function(name, value) {
       )
     )
   }
-  if (startsWith(name, "studio:")) {
+  if (startsWith(name, "book:")) {
     return(as.character(value))
   }
-  paste(c(paste0("input$", name), unlist(bits)), collapse = ", ")
+  paste(c(input_ref(name), unlist(bits)), collapse = ", ")
 }
 
 # The server side of a plate's steps. Watches every input a proof names, ticks the steps they prove and sends the
-# ticked set to the page. A click on a step's box (`input$studio_tick`) ticks a step without a proof, and unticks any
+# ticked set to the page. A click on a step's box (`input$book_tick`) ticks a step without a proof, and unticks any
 # step, so it can be tried again; a step with a proof is ticked only by its proof, so a tick means the server saw it.
 # Returns
 # `check(name, value)`, so a plate can prove a step from something the server saw itself (an output drawn or kept).
 steps_server <- function(input, session, plate, steps) {
   done <- shiny::reactiveVal(integer())
   send <- function(said = NULL) {
-    session$sendCustomMessage("studio-ticks", list(plate = plate, done = as.list(done()), said = said))
+    session$sendCustomMessage("book-ticks", list(plate = plate, done = as.list(done()), said = said))
   }
   tick <- function(i, on = TRUE, said = NULL) {
     now <- if (on) union(done(), i) else setdiff(done(), i)
@@ -107,14 +107,14 @@ steps_server <- function(input, session, plate, steps) {
     }
   }
   names <- as.character(unique(unlist(lapply(steps, function(s) s$proof$inputs))))
-  for (name in names[!startsWith(names, "studio:")]) {
+  for (name in names[!startsWith(names, "book:")]) {
     local({
       name <- name
       shiny::observeEvent(input[[name]], check(name, input[[name]]), ignoreInit = TRUE)
     })
   }
-  shiny::observeEvent(input$studio_tick, {
-    t <- input$studio_tick
+  shiny::observeEvent(input$book_tick, {
+    t <- input$book_tick
     if (!identical(t$plate, plate) || !checkmate::test_int(t$i, lower = 0, upper = length(steps) - 1)) {
       return()
     }
@@ -125,6 +125,6 @@ steps_server <- function(input, session, plate, steps) {
     }
     tick(i, isTRUE(t$on))
   })
-  shiny::observeEvent(input$studio_ready, send(), ignoreInit = TRUE)
+  shiny::observeEvent(input$book_ready, send(), ignoreInit = TRUE)
   list(check = check, done = done)
 }

@@ -1,5 +1,5 @@
-/* The studio's own page: the book (index and plates), each plate's figure, the phone's bar, sheet and drawer, and
-   Guide me's pencil marks. Shared parts are in shared.css. */
+/* The book's own page: the book (index and plates), each plate's figure, the phone's bar, sheet and drawer, and
+   Checklist's pencil marks. Shared parts are in shared.css. */
 /* ==== The book: index margin + pages ============================================================================ */
 .book {
   display: grid;
@@ -49,7 +49,7 @@
 }
 .toc a {
   display: grid;
-  grid-template-columns: 1.4em 1fr;
+  grid-template-columns: 2.2em 1fr;
   align-items: baseline;
   padding: 5px 0;
   text-decoration: none;
@@ -92,6 +92,56 @@
 }
 .index-foot {
   margin-top: auto;
+}
+/* Sixteen sections in six parts: the list scrolls inside the index when the screen is short. */
+.index .toc {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.toc .part + .part {
+  margin-top: 6px;
+}
+/* Only the part being read shows its sections; a search shows every part with a match. */
+.toc .part:not(.is-open) > ol {
+  display: none;
+}
+.toc-searching .toc .part > ol {
+  display: block;
+}
+.toc .part-t {
+  display: block;
+  margin: 0;
+  font-weight: 600;
+  color: var(--ink);
+  font-size: 0.74rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.toc .part-t .pn {
+  color: var(--blue);
+  margin-right: 0.5em;
+}
+.toc-search {
+  margin: 0 0 14px;
+}
+.toc-search input {
+  width: 100%;
+  padding: 6px 10px;
+  font: inherit;
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+}
+.toc-search input:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+.toc-none {
+  margin: 8px 0 0;
+  color: var(--ink-2);
 }
 .index-foot .legend {
   margin: 14px 0 0;
@@ -141,7 +191,7 @@ main {
 .plate-kicker {
   display: none;
 } /* the hanging numeral says it on desktop; the phone shows it inline */
-.plate h2 {
+.plate-head h3 {
   font: 400 var(--s4) / 1.08 var(--serif);
   letter-spacing: -0.012em;
   margin: 0;
@@ -236,6 +286,12 @@ main {
 }
 .hero > span {
   display: inline-block;
+}
+/* The title's icon marker is sized from the title's font: at display size it would be as tall as the word, so it is
+   drawn as a small superscript instead. */
+.hero > span::after {
+  font-size: 0.22em;
+  vertical-align: 2.4em;
 }
 .hero-sub {
   font: 500 var(--s1) / 1.4 var(--sans);
@@ -667,7 +723,7 @@ main {
   .plate-kicker {
     display: inline;
   }
-  .plate-head h2 {
+  .plate-head h3 {
     margin-top: 6px;
   }
   /* Under the phone's fixed bar, with less room above. */
@@ -844,7 +900,7 @@ main {
     font-size: var(--s2);
     gap: 4px 18px;
   }
-  .plate h2 {
+  .plate-head h3 {
     font-size: var(--s3);
   }
   .plate .lede {
@@ -877,9 +933,9 @@ main {
   }
 }
 
-/* ==== Guide me: an opt-in layer of pencil marks on the proof ===================================================
+/* ==== Checklist: an opt-in layer of pencil marks on the proof ===================================================
    Off, none of it shows: every .g-ui piece is display none, so it adds no pixels and no tab stops. */
-:root:not(.guide-on) .g-ui {
+:root:not(.checklist-on) .g-ui {
   display: none;
 }
 .g-switch {
@@ -935,10 +991,10 @@ main {
 }
 
 /* The test steps: the counter becomes a box the reader (or the engine) ticks. */
-.guide-on .tests li {
+.checklist-on .tests li {
   grid-template-columns: 30px 1fr;
 }
-.guide-on .tests li::before {
+.checklist-on .tests li::before {
   display: none;
 }
 .g-tick {
@@ -993,11 +1049,12 @@ main {
   font: 500 0.78rem / 1 var(--sans);
   color: var(--blue);
   background: none;
-  border: 1px solid transparent;
+  /* Boxed like a chosen word in a sentence, so it reads as a button. */
+  border: 1px solid var(--blue);
   border-radius: 3px;
 }
 .g-btn:hover {
-  border-color: var(--blue-soft);
+  background: var(--wash);
 }
 .g-said {
   flex-basis: 100%;
@@ -1039,7 +1096,7 @@ main {
   top: 12px;
 }
 
-/* The guide's icons, least specific first. */
+/* The checklist's icons, least specific first. */
 .g-tick svg {
   width: 15px;
   height: 15px;
@@ -1102,21 +1159,21 @@ main {
 
 /* Desktop: one cue at a time, set large; the other steps fold into the count. */
 @media (min-width: 1100px) {
-  .guide-on .margin:not(.wide-margin) {
+  .checklist-on .margin:not(.wide-margin) {
     display: flex;
     flex-direction: column;
   }
-  .guide-on .note.tests-note {
+  .checklist-on .note.tests-note {
     order: -1;
   } /* the cue comes first in the margin, level with the figure */
-  .guide-on .tests li:not(.g-current) {
+  .checklist-on .tests li:not(.g-current) {
     display: none;
   }
-  .guide-on .tests li.g-current {
+  .checklist-on .tests li.g-current {
     font: 500 1rem / 1.45 var(--sans);
     padding-bottom: 6px;
   }
-  .guide-on .tests li.g-current .bug {
+  .checklist-on .tests li.g-current .bug {
     font-size: 0.82rem;
     font-weight: 400;
     margin-top: 6px;
@@ -1132,7 +1189,7 @@ main {
     display: inline;
     margin-left: 10px;
   }
-  .guide-on .tests li.g-current {
+  .checklist-on .tests li.g-current {
     border-left: 2px solid var(--blue);
     margin-left: -10px;
     padding-left: 8px;
@@ -1150,7 +1207,7 @@ main {
     border-top: 1px solid var(--blue);
     font-family: var(--sans);
   }
-  .guide-on:not(.drawer-open):not(.toc-open) .cuebar {
+  .checklist-on:not(.drawer-open):not(.toc-open) .cuebar {
     display: flex;
   }
   .cuebar .g-tick {
@@ -1187,7 +1244,7 @@ main {
   .cuebar .g-btn kbd {
     display: none;
   }
-  .guide-on main {
+  .checklist-on main {
     padding-bottom: 200px;
   }
   .bar .g-switch {
@@ -1211,12 +1268,12 @@ main {
   }
 }
 
-/* The studio on bslib: Bootstrap's own body colours give way to the sheet's tokens. */
+/* The book on bslib: Bootstrap's own body colours give way to the sheet's tokens. */
 body {
   background: var(--paper);
   color: var(--ink);
 }
-.plate h2,
+.plate-head h3,
 .hero {
   color: var(--ink);
 }
@@ -1248,7 +1305,7 @@ body {
 .regions {
   max-width: 520px;
 }
-/* A phone: the bar's wordmark, plate button and Guide switch fit in 375 px. */
+/* A phone: the bar's wordmark, section button and Checklist switch fit in 375 px. */
 @media (max-width: 480px) {
   .bar {
     padding: 0 10px;
@@ -1277,80 +1334,24 @@ body {
   --bs-table-hover-color: var(--ink);
 }
 
-/* ==== One plate at a time (desktop): each plate fills the screen, and the page snaps from plate to plate. The
-   margin scrolls inside its own column and hands the scroll back to the page at its end. ==================== */
-@media (min-width: 1100px) {
-  html.paged {
-    scroll-snap-type: y mandatory;
-    scroll-padding-top: 0;
-  }
-  .paged .plate {
-    display: flex;
-    flex-direction: column;
-    height: 100vh;
-    padding-top: 0;
-    scroll-snap-align: start;
-    scroll-snap-stop: always;
-  }
-  .paged .plate + .plate {
-    margin-top: 0;
-  }
-  .paged .plate-head {
-    position: static;
-    flex: none;
-  }
-  .paged .plate .lede {
-    flex: none;
-    margin-bottom: 20px;
-  }
-  .paged .hero {
-    margin-top: 24px;
-    font-size: clamp(2.6rem, 5vw, 4.4rem);
-  }
-  .paged .specimen {
-    padding: 24px 32px 20px;
-  }
-  .paged .specimen figcaption {
-    margin-top: 16px;
-  }
-  .paged .hero-sub {
-    margin-bottom: 0;
-  }
-  .paged .plate-body {
-    flex: 1 1 auto;
-    min-height: 0;
-    padding-bottom: 24px;
-  }
-  .paged .plate-body > .specimen {
-    position: static;
-    max-height: 100%;
-    overflow-y: auto;
-  }
-  /* The margin's scroll box starts at the leaders, so the hairlines and their dots stay inside it. */
-  .paged .margin {
-    max-height: 100%;
-    overflow-y: auto;
-    margin-left: calc(-1 * var(--leader) - 16px);
-    padding: 0 8px 0 calc(var(--leader) + 16px);
-  }
-  .paged .plate.wide .plate-body {
-    display: grid;
-    grid-template-rows: auto minmax(0, 1fr);
-  }
-  .paged .plate.wide .plate-body > .specimen {
-    max-height: none;
-    overflow: visible;
-  }
-  .paged .wide-margin {
-    margin: 0;
-    padding: 56px 8px 0 0;
-  }
-  .paged .colophon {
-    scroll-snap-align: end;
-  }
+/* A part's own heading, on its first section: a small kicker over the section, as a book's part title. */
+.part-head {
+  padding: 8px 0 0;
+  font-family: var(--sans);
 }
-@media (min-width: 1100px) and (prefers-reduced-motion: reduce) {
-  html.paged {
-    scroll-behavior: auto;
-  }
+.part-head .part-no {
+  margin: 0;
+  font: 500 var(--s-1) / 1.4 var(--sans);
+  color: var(--blue);
+}
+.part-head h2 {
+  margin: 2px 0 4px;
+  font: 400 var(--s3) / 1.15 var(--serif);
+  color: var(--ink);
+}
+.part-head .part-lede {
+  margin: 0;
+  max-width: 40em;
+  color: var(--ink-2);
+  font-size: var(--s0);
 }

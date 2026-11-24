@@ -41,6 +41,14 @@ reason_shown <- function(shown) {
   function(input) identical(startsWith(input$export_csv_tip_hint$text %||% "", "Not available"), shown)
 }
 
+disabled_covers <- c(
+  "tip_on(tag)",
+  "tip_on(text)",
+  "tip_on(when_disabled)",
+  "tip_on(id)",
+  "tip_on(events)"
+)
+
 disabled_steps <- function() {
   list(
     step(
@@ -67,8 +75,6 @@ disabled_steps <- function() {
 plate_disabled_ui <- function() {
   plate(
     "disabled",
-    6,
-    "Disabled",
     lede = paste(
       "A control that is switched off says why: \"Not available: ...\" with a small lock, at once and without a",
       "wait."

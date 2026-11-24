@@ -11,9 +11,9 @@ pins_code <- function(settings) {
     "columns <- data.frame(\n",
     paste0(
       "  ",
-      names(studio_columns),
+      names(book_columns),
       " = ",
-      vapply(studio_columns, code_chr, ""),
+      vapply(book_columns, code_chr, ""),
       collapse = ",\n"
     ),
     "\n)"
@@ -77,6 +77,26 @@ pins_code <- function(settings) {
   paste(c(data, "", "# Once in the page's UI", define, "", "# A pinnable chip per column", chips), collapse = "\n")
 }
 
+pins_covers <- c(
+  "tip_define",
+  "tip_template(head)",
+  "tip_template(body)",
+  "tip_title(text)",
+  "tip_text(text)",
+  "tip_fields",
+  "tip_code(field)",
+  "tip_code(language)",
+  "tip_code(copy)",
+  "tip_on(tag)",
+  "tip_on(text)",
+  "tip_on(template)",
+  "tip_on(record)",
+  "tip_on(placement)",
+  "tip_on(pin)",
+  "tip_on(id)",
+  "tip_on(events)"
+)
+
 pins_steps <- function() {
   cols <- c("col_visit_date", "col_region", "col_wait_min", "col_booked")
   list(
@@ -119,8 +139,6 @@ pins_steps <- function() {
 plate_pins_ui <- function() {
   plate(
     "pins",
-    5,
-    "Pins",
     lede = paste(
       "A pinned tip stays open, so a reader can select its text, copy its code and act on it. One pin per page:",
       "pinning another closes the first."

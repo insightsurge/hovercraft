@@ -1,23 +1,63 @@
-# The studio's made-up data: a support desk and its visits table. Nothing here is real.
+# The book's made-up data: a support desk and its visits table. Nothing here is real.
 
-# The plates, in the order of the sheet: id, number, title. tip_studio(plate =) takes the ids.
-studio_plates <- data.frame(
-  id = c("start", "basics", "templates", "more", "pins", "disabled", "output", "tables", "server"),
+# The book's parts, in teaching order: number, title and a line about each.
+book_parts <- data.frame(
+  n = as.character(1:6),
+  title = c("Getting started", "Content", "Interaction", "Look", "From Shiny", "Tables"),
+  lede = c(
+    "One tip, and where it opens.",
+    "What a tip says: words, templates, and the reason a control is off.",
+    "What a reader does with a tip, and what your server hears.",
+    "How tips look: presets, size, your own colours and the marks that show a tip is there.",
+    "Tips your server opens, changes and fills with live outputs.",
+    "Tips on the rows, cells and headers of DT and reactable tables."
+  )
+)
+
+# The book's sections, in order: each is one plate. hovercraft_book(section =) takes the ids.
+book_sections <- data.frame(
+  id = c(
+    "start",
+    "placement",
+    "templates",
+    "disabled",
+    "pins",
+    "more",
+    "inputs",
+    "looks",
+    "size",
+    "colours",
+    "markers",
+    "server",
+    "output",
+    "tables",
+    "columns",
+    "table_pins"
+  ),
+  part = c("1", "1", "2", "2", "3", "3", "3", "4", "4", "4", "4", "5", "5", "6", "6", "6"),
+  n = c("1.1", "1.2", "2.1", "2.2", "3.1", "3.2", "3.3", "4.1", "4.2", "4.3", "4.4", "5.1", "5.2", "6.1", "6.2", "6.3"),
   title = c(
-    "Start",
-    "Basics",
+    "Your first tip",
+    "Where it opens",
     "Templates",
-    "Short and long",
+    "Switched-off controls",
     "Pins",
-    "Disabled",
+    "Short and long",
+    "What your server hears",
+    "Presets and the page's look",
+    "Size and spacing",
+    "Your own colours",
+    "Markers",
+    "From the server",
     "Live output",
-    "Tables",
-    "From the server"
+    "Rows, cells and headers",
+    "One column its own way",
+    "Pins and inputs on tables"
   )
 )
 
 # The columns of the visits table, with what a tip says about each (plate 5).
-studio_columns <- data.frame(
+book_columns <- data.frame(
   name = c("visit_date", "region", "wait_min"),
   type = c("date", "factor, 3 levels", "double"),
   missing = c("0", "0", "214 (1.7%)"),
@@ -35,20 +75,20 @@ studio_columns <- data.frame(
 )
 
 # Visits a week by region, weeks 39 to 46 (plate 7).
-studio_regions <- data.frame(
+book_regions <- data.frame(
   region = c("North", "Coast", "Hills"),
   total = c(4751, 2586, 1027),
   latest = c(688, 362, 151),
   change = c("+34%", "+20%", "+26%")
 )
-studio_weeks <- list(
+book_weeks <- list(
   North = c(512, 548, 530, 601, 577, 640, 655, 688),
   Coast = c(301, 288, 315, 297, 342, 330, 351, 362),
   Hills = c(120, 98, 131, 140, 127, 133, 127, 151)
 )
 
 # Two support tickets; the second has no owner yet (plate 3).
-studio_tickets <- list(
+book_tickets <- list(
   "SUP-2291" = list(
     key = "SUP-2291",
     title = "Booking page times out",
@@ -70,7 +110,7 @@ studio_tickets <- list(
 )
 
 # Three branches and their week (plate 8).
-studio_branches <- data.frame(
+book_branches <- data.frame(
   branch = c("Harbour Street", "Mill Lane", "Station Road"),
   visits = c(1204, 866, 1512),
   wait_min = c(212, 301, 188),

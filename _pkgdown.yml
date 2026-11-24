@@ -41,5 +41,5 @@ reference:
       - tip_marker
   - title: The engine
     contents: tip_dependency
-  - title: The studio (experimental)
-    contents: tip_studio
+  - title: The book (experimental)
+    contents: hovercraft_book

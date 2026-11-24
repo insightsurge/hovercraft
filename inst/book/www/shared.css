@@ -1,4 +1,4 @@
-/* Shared styles of the studio's pages: the tokens (light, and dark as a cyanotype), the base, the choices set as a
+/* Shared styles of the book's pages: the tokens (light, and dark as a cyanotype), the base, the choices set as a
    sentence, and the margin notes (R code, What to test, Inputs sent). Plain CSS; no inline styles, so a strict
    Content-Security-Policy allows the page. */
 /* ==== Tokens ==================================================================================================
@@ -212,7 +212,7 @@ p {
   border: 1px solid var(--blue);
   background: var(--paper);
 }
-.note h3 {
+.note h4 {
   font: 600 0.82rem / 1.45 var(--sans);
   color: var(--blue);
   margin: 0 0 8px;
@@ -226,13 +226,13 @@ p {
   gap: 10px;
   margin: 0 0 8px;
 }
-.note-head h3 {
+.note-head h4 {
   margin: 0;
 }
 .note-head button {
   margin-left: auto;
 }
-.note h3 .aside {
+.note h4 .aside {
   font-weight: 400;
   color: var(--ink-2);
   margin-left: auto;
@@ -274,14 +274,14 @@ p {
   font: 500 0.76rem / 1 var(--sans);
   color: var(--blue);
   background: none;
-  border: 1px solid var(--blue-soft);
+  border: 1px solid var(--blue);
   border-radius: 3px;
   min-height: 24px;
   padding: 4px 8px;
   cursor: pointer;
 }
 .btn-quiet:hover {
-  border-color: var(--blue);
+  background: var(--wash);
 }
 .btn-quiet[data-done] {
   background: var(--blue);
@@ -367,7 +367,7 @@ p {
   margin: 0;
 }
 
-/* A step the server ticked: its number becomes a tick, guide on or off. */
+/* A step the server ticked: its number becomes a tick, checklist on or off. */
 .tests li.g-done::before {
   content: "\2713";
 }

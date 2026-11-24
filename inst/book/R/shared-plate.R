@@ -2,12 +2,11 @@
 # sentence. Each returns tags; the server fills the parts it owns by custom messages (see shared-log.R and
 # shared-steps.R) or by outputs named after the plate (`<plate>_figure`, `<plate>_notes`).
 
-# One plate: the head (number, title, a line about it), the figure with its sentence of choices and caption, and the
-# margin. `figure` is what goes on the stage; by default the plate's own output, `<plate>_figure`.
+# One plate, a section of the book: the head (number and title, and the part's title on the part's first section),
+# the figure with its sentence of choices and caption, and the margin. Its number, title and part come from
+# `book_sections`. `figure` is what goes on the stage; by default the plate's own output, `<plate>_figure`.
 plate <- function(
   id,
-  n,
-  title,
   lede,
   caption,
   steps,
@@ -17,23 +16,25 @@ plate <- function(
   log_empty = "Nothing yet.",
   log_title = "Inputs sent",
   wide = FALSE,
-  head = NULL
+  before = NULL
 ) {
+  at <- book_sections[book_sections$id == id, ]
   heading <- paste0(id, "-h")
   caption_id <- paste0(id, "-cap")
   htmltools::tags$section(
     class = paste(c("plate", if (wide) "wide"), collapse = " "),
     id = id,
-    `data-n` = n,
-    `data-title` = title,
+    `data-n` = at$n,
+    `data-title` = at$title,
+    `data-part` = at$part,
     `aria-labelledby` = heading,
-    head %||%
-      htmltools::tags$header(
-        class = "plate-head",
-        htmltools::p(class = "plate-no", `aria-hidden` = "true", n),
-        htmltools::p(class = "plate-kicker", paste("Plate", n)),
-        htmltools::h2(id = heading, title)
-      ),
+    before,
+    part_head(at),
+    htmltools::tags$header(
+      class = "plate-head",
+      htmltools::p(class = "plate-no", `aria-hidden` = "true", at$n),
+      htmltools::h3(id = heading, title_text(at))
+    ),
     if (!is.null(lede)) htmltools::p(class = "lede", lede),
     htmltools::div(
       class = "plate-body",
@@ -43,14 +44,14 @@ plate <- function(
         htmltools::div(class = "stage", figure),
         shiny::uiOutput(paste0(id, "_notes"), class = "figure-notes"),
         if (!is.null(controls)) htmltools::div(class = "legend-line controls", controls),
-        htmltools::tags$figcaption(id = caption_id, htmltools::tags$b(paste0("Plate ", n, ".")), caption)
+        htmltools::tags$figcaption(id = caption_id, htmltools::tags$b(paste0(at$n, ".")), caption)
       ),
       htmltools::tags$aside(
         class = paste(c("margin", if (wide) "wide-margin"), collapse = " "),
-        `aria-label` = paste("Margin of plate", n),
+        `aria-label` = paste("Margin of section", at$n),
         htmltools::div(
           class = "margin-head",
-          htmltools::p(htmltools::span(paste("Margin of plate", n)), title),
+          htmltools::p(htmltools::span(paste("Margin of section", at$n)), at$title),
           htmltools::tags$button(type = "button", class = "btn-quiet js-close-drawer", "Close")
         ),
         code_note(id, code),
@@ -58,6 +59,27 @@ plate <- function(
         log_note(id, log_empty, log_title)
       )
     )
+  )
+}
+
+# The title of a section as its heading reads: a hidden number first, for a screen reader.
+title_text <- function(at) {
+  htmltools::tagList(htmltools::span(class = "vh", paste0(at$n, " ")), at$title)
+}
+
+# On a part's first section, the part's own heading: its number, title and a line about it.
+part_head <- function(at) {
+  first <- book_sections$id[book_sections$part == at$part][[1]]
+  if (!identical(first, at$id)) {
+    return(NULL)
+  }
+  part <- book_parts[book_parts$n == at$part, ]
+  htmltools::div(
+    class = "part-head",
+    id = paste0("part-", part$n),
+    htmltools::p(class = "part-no", paste("Part", part$n)),
+    htmltools::h2(part$title),
+    htmltools::p(class = "part-lede", part$lede)
   )
 }
 
@@ -69,18 +91,18 @@ code_note <- function(id, code) {
     # The button sits beside the heading, not inside it, so the heading reads "R code".
     htmltools::div(
       class = "note-head",
-      htmltools::h3("R code"),
+      htmltools::h4("R code"),
       htmltools::tags$button(type = "button", class = "btn-quiet js-copy", `aria-label` = "Copy the R code", "Copy")
     ),
     htmltools::tags$pre(class = "code", `data-code` = id, `data-rev` = "0", tabindex = "0", code)
   )
 }
 
-# The What to test note: each step, with the box Guide me ticks and a line that says when a step ticked itself.
+# The What to test note: each step, with the box Checklist ticks and a line that says when a step ticked itself.
 steps_note <- function(id, steps) {
   htmltools::tags$section(
     class = "note tests-note",
-    htmltools::h3("What to test", htmltools::span(class = "aside g-count-h", `data-count` = id)),
+    htmltools::h4("What to test", htmltools::span(class = "aside g-count-h", `data-count` = id)),
     htmltools::tags$ol(
       class = "tests",
       role = "list",
@@ -120,7 +142,7 @@ steps_note <- function(id, steps) {
 log_note <- function(id, empty, title = "Inputs sent") {
   htmltools::tags$section(
     class = "note",
-    htmltools::h3(title),
+    htmltools::h4(title),
     htmltools::tags$ol(class = "log", `data-log` = id, `aria-live` = "polite"),
     htmltools::p(class = "log-empty", `data-empty` = id, empty)
   )

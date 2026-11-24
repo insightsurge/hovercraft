@@ -1,4 +1,4 @@
-// Shared helpers of the studio's pages: the code note and its Copy button, the inputs log, the ticks of the test
+// Shared helpers of the book's pages: the code note and its Copy button, the inputs log, the ticks of the test
 // steps, the page colours, the page's look, and a figure drawn again. Everything from data is written with
 // textContent, never as HTML. The server owns the truth (the code, the ticks); this file only draws it.
 (() => {
@@ -18,7 +18,7 @@
   // the server read from the engine's page contract. Read when first needed: this script runs in the head.
   let engineNames;
   const names = () => {
-    engineNames ??= JSON.parse($('#studio-boot')?.textContent ?? '{}').names ?? {};
+    engineNames ??= JSON.parse($('#book-boot')?.textContent ?? '{}').names ?? {};
     return engineNames;
   };
   const engine = () => window[names().global];
@@ -64,7 +64,7 @@
     if (!e.target.closest?.('.plate .controls .shiny-input-radiogroup')) return;
     const plate = e.target.closest('.plate');
     revs[plate.id] = (revs[plate.id] ?? 0) + 1;
-    send('studio_rev', { ...revs });
+    send('book_rev', { ...revs });
   });
 
   const copyText = async (text) => {
@@ -154,7 +154,7 @@
       count.hidden = false;
     }
   };
-  document.addEventListener('studio:drawer', (e) => {
+  document.addEventListener('book:drawer', (e) => {
     if (!e.detail.open) return;
     unseen = 0;
     const count = $('#pull-cnt');
@@ -178,12 +178,12 @@
     if (count) count.textContent = done.size ? `${done.size} of ${items.length} ticked` : '';
     const said = $('.g-said', list.closest('.note'));
     if (said && msg.said) said.textContent = msg.said;
-    document.dispatchEvent(new CustomEvent('studio:ticks', { detail: { plate: msg.plate, done: [...done] } }));
+    document.dispatchEvent(new CustomEvent('book:ticks', { detail: { plate: msg.plate, done: [...done] } }));
   };
   // A click on a step's box asks the server to tick or untick it.
-  window.StudioShared = {
+  window.BookShared = {
     tickSvg,
-    toggle: (plate, i, on) => send('studio_tick', { plate, i, on, at: Date.now() }, true),
+    toggle: (plate, i, on) => send('book_tick', { plate, i, on, at: Date.now() }, true),
   };
 
   /* ---- Page colours: auto, light or dark, the same in every copy of the switch ------------------------------- */
@@ -194,7 +194,7 @@
     for (const input of $$('[data-sync="theme"] input')) input.checked = input.value === value;
     const mode = value === 'auto' ? (dark.matches ? 'dark' : 'light') : value;
     root.setAttribute('data-bs-theme', mode);
-    root.dataset.studioTheme = value;
+    root.dataset.bookTheme = value;
     send('page_mode', mode);
   };
   document.addEventListener('change', (e) => {
@@ -259,7 +259,7 @@
   // Messages: Shiny takes their handlers as soon as it loads.
   if (window.Shiny?.addCustomMessageHandler) {
     const Shiny = window.Shiny;
-    Shiny.addCustomMessageHandler('studio-code', (msg) => {
+    Shiny.addCustomMessageHandler('book-code', (msg) => {
       const pre = $(`[data-code="${CSS.escape(msg.plate)}"]`);
       if (!pre) return;
       paint(pre, msg.code);
@@ -270,11 +270,11 @@
         copyNow(button, pre);
       }
     });
-    Shiny.addCustomMessageHandler('studio-log', addLog);
-    Shiny.addCustomMessageHandler('studio-ticks', drawTicks);
+    Shiny.addCustomMessageHandler('book-log', addLog);
+    Shiny.addCustomMessageHandler('book-ticks', drawTicks);
     // The page's look: written the way the look's own operation writes it, with the names the server read from the
     // engine's page contract.
-    Shiny.addCustomMessageHandler('studio-look', (msg) => {
+    Shiny.addCustomMessageHandler('book-look', (msg) => {
       root.setAttribute(msg.attribute, msg.preset);
       document.body.style.setProperty(msg.variable, msg.motion);
       repin();
@@ -286,6 +286,6 @@
     connected = true;
     for (const [name, [value, event]] of queued) send(name, value, event);
     queued.clear();
-    send('studio_ready', Date.now(), true);
+    send('book_ready', Date.now(), true);
   });
 })();

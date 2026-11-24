@@ -4,19 +4,19 @@
 # One line in a plate's log: the input's name and its value as R would print it.
 log_line <- function(session, plate, name, value, kind = "input") {
   session$sendCustomMessage(
-    "studio-log",
+    "book-log",
     list(plate = plate, name = name, value = r_value(value), kind = kind, time = format(Sys.time(), "%H:%M:%S"))
   )
 }
 
-# Every change of the inputs `names` goes to the plate's log, as `input$<name>`.
+# Every change of the inputs `names` goes to the plate's log, as `input$<name>` (see `input_ref()`).
 log_inputs <- function(input, session, plate, names) {
   for (name in names) {
     local({
       name <- name
       shiny::observeEvent(
         input[[name]],
-        log_line(session, plate, paste0("input$", name), input[[name]]),
+        log_line(session, plate, input_ref(name), input[[name]]),
         ignoreInit = TRUE
       )
     })
@@ -55,4 +55,10 @@ r_value <- function(x) {
     )
   }
   paste(format(x, scientific = FALSE, trim = TRUE), collapse = ", ")
+}
+
+# An input as R code reads it: `input$visits_hint`, or `input[["table_pins_rows/row/1_tip"]]` for a name that is not a
+# syntactic R name, such as a table row's.
+input_ref <- function(name) {
+  if (identical(make.names(name), name)) paste0("input$", name) else paste0("input[[", code_str(name), "]]")
 }

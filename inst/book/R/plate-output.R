@@ -3,15 +3,18 @@
 
 output_modes <- c("a plot" = "plot", "a slow plot" = "slow", "an error" = "error", "no rows" = "empty")
 
-output_ui_code <- function() {
+output_keep_alives <- c("kept when it closes" = "true", "destroyed when it closes" = "false")
+
+output_ui_code <- function(keep_alive = "true") {
+  keep_alive <- if (identical(choice(keep_alive, output_keep_alives, "true"), "false")) "FALSE" else "TRUE"
   data <- paste0(
     "regions <- data.frame(\n",
     paste0(
       "  ",
-      names(studio_regions),
+      names(book_regions),
       " = ",
       vapply(
-        studio_regions,
+        book_regions,
         function(x) {
           if (is.character(x)) code_chr(x) else paste0("c(", paste(x, collapse = ", "), ")")
         },
@@ -33,7 +36,7 @@ output_ui_code <- function() {
           Total = code_str("{{ total | number:0 }}"),
           "Week 46" = code_str("{{ latest | number:0 }}")
         ),
-        code_call("tip_output", code_str("region_trend"))
+        code_call("tip_output", code_str("region_trend"), keep_alive = keep_alive)
       )
     )
   )
@@ -107,7 +110,7 @@ output_render_body <- function(mode) {
 output_observer_code <- function() {
   weeks <- paste0(
     "weeks <- list(\n",
-    paste0("  ", names(studio_weeks), " = c(", vapply(studio_weeks, paste, "", collapse = ", "), ")", collapse = ",\n"),
+    paste0("  ", names(book_weeks), " = c(", vapply(book_weeks, paste, "", collapse = ", "), ")", collapse = ",\n"),
     "\n)"
   )
   paste(
@@ -148,6 +151,22 @@ output_server_code <- function(mode) {
   )
 }
 
+output_covers <- c(
+  "tip_define",
+  "tip_template(head)",
+  "tip_template(body)",
+  "tip_title(text)",
+  "tip_fields",
+  "tip_output(output)",
+  "tip_output(keep_alive)",
+  "tip_on(tag)",
+  "tip_on(template)",
+  "tip_on(record)",
+  "tip_on(pin)",
+  "tip_on(id)",
+  "tip_on(events)"
+)
+
 output_steps <- function() {
   list(
     step(
@@ -157,10 +176,13 @@ output_steps <- function() {
       on_pin("region_north")
     ),
     step(
-      "Close the tip and pin *North* again: the same plot is back, and the log says *kept*, not *drawn*.",
-      "the plot is drawn again.",
+      paste(
+        "Close the tip and pin *North* again: the same plot is back, and the log says *kept*, not *drawn*. Choose",
+        "*destroyed when it closes* and the plot is built again instead: no *kept*."
+      ),
+      "the plot is drawn again while it is kept, or a destroyed plot is still there.",
       tip_target("region_north"),
-      proof("studio:kept", function(value, input) TRUE)
+      proof("book:kept", function(value, input) TRUE)
     ),
     step(
       "Pin *Coast*: the one output is drawn again for Coast; title and bars agree.",
@@ -178,7 +200,7 @@ output_steps <- function() {
       "Choose *no rows*, then pin a region: the tip says there is nothing to show.",
       "empty axes or a blank box.",
       "#output_mode",
-      proof("studio:empty", function(value, input) TRUE)
+      proof("book:empty", function(value, input) TRUE)
     )
   )
 }
@@ -186,8 +208,6 @@ output_steps <- function() {
 plate_output_ui <- function() {
   plate(
     "output",
-    7,
-    "Live output",
     lede = paste(
       "A pinned tip can hold a Shiny output: a plot or a table drawn by the server for the record under the pointer.",
       "The output is kept alive when the tip closes, and several rows share it."
@@ -200,7 +220,9 @@ plate_output_ui <- function() {
     wide = TRUE,
     controls = htmltools::tagList(
       "The server answers with",
-      choice_set("output_mode", "Server answer", output_modes)
+      choice_set("output_mode", "Server answer", output_modes),
+      "and the plot is",
+      choice_set("output_keep_alive", "When the tip closes", output_keep_alives)
     )
   )
 }
@@ -212,12 +234,12 @@ plate_output_server <- function(input, output, session) {
     output,
     session,
     "output",
-    ui_code = shiny::reactive(output_ui_code()),
+    ui_code = shiny::reactive(output_ui_code(input$output_keep_alive)),
     server_code = shiny::reactive(output_server_code(input$output_mode))
   )
   # The shown code, run as it is shown: the observers from their text, then a render whose body is run from its
-  # text. Around them, and outside the shown code, the studio counts the plot's draws and tells the log what it drew.
-  env <- run_server_code(output_observer_code(), input, session, regions = studio_regions)
+  # text. Around them, and outside the shown code, the book counts the plot's draws and tells the log what it drew.
+  env <- run_server_code(output_observer_code(), input, session, regions = book_regions)
   seen <- new.env()
   seen$draws <- 0L
   seen$drawn_for <- NULL
@@ -228,7 +250,7 @@ plate_output_server <- function(input, output, session) {
     body <- parse(text = paste(c("{", output_render_body(mode), "}"), collapse = "\n"), keep.source = FALSE)[[1]]
     if (mode == "empty") {
       log_line(session, "output", "output$region_trend", paste("no rows for", region), "out")
-      ticks$check("studio:empty", paste0("the server had no rows for ", region))
+      ticks$check("book:empty", paste0("the server had no rows for ", region))
     } else if (mode == "error" && !isTRUE(input$region_trend_retry > 0)) {
       log_line(session, "output", "output$region_trend", paste("error for", region), "out")
     } else {
@@ -242,7 +264,7 @@ plate_output_server <- function(input, output, session) {
   # closed (not even by the hint that opens as the reader comes back) and is still the one drawn for that region.
   # Decided from the draws counted above, after Shiny has had time to draw.
   pending <- shiny::reactiveVal(NULL)
-  for (region in studio_regions$region) {
+  for (region in book_regions$region) {
     local({
       region <- region
       name <- paste0("region_", tolower(region), "_tip")
@@ -273,13 +295,14 @@ plate_output_server <- function(input, output, session) {
     pending(NULL)
     kept <- seen$draws == p$draws &&
       identical(seen$drawn_for, p$region) &&
-      identical(shiny::isolate(choice(input$output_mode, output_modes, "plot")), "plot")
+      identical(shiny::isolate(choice(input$output_mode, output_modes, "plot")), "plot") &&
+      identical(shiny::isolate(choice(input$output_keep_alive, output_keep_alives, "true")), "true")
     if (kept) {
       log_line(session, "output", "output$region_trend", paste("kept for", p$region, "(not drawn again)"), "out")
-      ticks$check("studio:kept", paste0("the server kept the plot for ", p$region))
+      ticks$check("book:kept", paste0("the server kept the plot for ", p$region))
     }
   })
-  ids <- paste0("region_", tolower(studio_regions$region))
+  ids <- paste0("region_", tolower(book_regions$region))
   log_inputs(input, session, "output", c(paste0(ids, "_tip"), "region_trend_retry"))
   ticks
 }
