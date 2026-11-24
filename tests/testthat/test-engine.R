@@ -69,7 +69,7 @@ describe("the vendored engine, after a copy", {
   it("still has the class and the global the package's tests and pages reach the engine by", {
     expect_true(grepl(paste0(".", names$css), css, fixed = TRUE), info = names$css)
     expect_true(grepl(paste0("window.", names$global), js, fixed = TRUE), info = names$global)
-    # The methods the package calls on it: tip_dependency() attaches, tip_define() defines.
+    # The methods the package calls on it: use_hovercraft() attaches, tip_define() defines.
     for (method in c("attach", "define")) {
       expect_true(grepl(paste0("\\b", method, "\\s*[(:]"), js), info = paste0(names$global, ".", method))
     }
@@ -116,8 +116,8 @@ describe("the vendored engine, after a copy", {
   })
 })
 
-describe("tip_dependency()", {
-  deps <- tip_dependency()
+describe("use_hovercraft()", {
+  deps <- use_hovercraft()
   dep <- deps[[1]]
   runtime <- deps[[length(deps)]]
 

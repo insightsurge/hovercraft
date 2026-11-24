@@ -7,9 +7,12 @@
 # The attribute value for the argument, or NULL for no pin: TRUE is the engine's `manual`; "click" is the classic pin,
 # which the engine takes for any other value.
 tip_check_pin <- function(pin, call = rlang::caller_env()) {
+  if (is.null(pin)) {
+    return(NULL)
+  }
   ok <- checkmate::test_flag(pin) || checkmate::test_string(pin, pattern = "^click$")
   tip_arg(
-    if (ok) TRUE else "Must be `FALSE`, `TRUE` or \"click\".",
+    if (ok) TRUE else "Must be `NULL`, `FALSE`, `TRUE` or \"click\".",
     "pin",
     "Give {.code FALSE} for no pin, {.code TRUE} to pin by the corner button and the pin key, or {.code \"click\"}.",
     call
@@ -65,22 +68,6 @@ tip_check_pin_tag <- function(tag, call = rlang::caller_env()) {
         i = "Put the tip on a button that does not submit a form, or on a {.code <div>} or {.code <span>} around it."
       ),
       class = "hovercraft_error_pin",
-      call = call
-    )
-  }
-  invisible()
-}
-
-# The tip's kind, for the events and the inputs: lower-case words joined with _ (the engine's pattern).
-tip_check_kind <- function(kind, call = rlang::caller_env()) {
-  tip_arg_string(kind, "kind", null_ok = TRUE, call = call)
-  if (!is.null(kind) && !grepl(tip_contract()$kind$pattern, kind)) {
-    tip_abort(
-      c(
-        "{.arg kind} is not right: {.val {kind}}.",
-        i = "Give lower-case words joined with {.code _}, such as {.code \"review_item\"}."
-      ),
-      class = "hovercraft_error_argument",
       call = call
     )
   }

@@ -40,7 +40,7 @@ describe("pins in a Shiny app", {
       }
       module_server <- function(id) {
         shiny::moduleServer(id, function(input, output, session) {
-          output$seen <- shiny::renderText(show(list(hint = input$m_tip_hint$state, pin = input$m_tip_tip$state)))
+          output$seen <- shiny::renderText(show(list(hint = input$m_tip_hint$state, pin = input$m_tip_pin$state)))
         })
       }
       ui <- bslib::page_fluid(
@@ -79,7 +79,6 @@ describe("pins in a Shiny app", {
             record = list(label = "Query", sql = "SELECT 1;"),
             id = "e_tip",
             pin = TRUE,
-            kind = "review_item",
             events = c("pin", "copy")
           ),
           tip_on(
@@ -105,21 +104,20 @@ describe("pins in a Shiny app", {
           hint = input$a_tip_hint$state,
           hint_by = input$a_tip_hint$by,
           hint_reason = input$a_tip_hint$reason,
-          pin = input$a_tip_tip,
+          pin = input$a_tip_pin,
           click = !is.null(input$row_click)
         )))
-        output$seen_b <- shiny::renderText(show(input$b_tip_tip))
+        output$seen_b <- shiny::renderText(show(input$b_tip_pin))
         output$seen_c <- shiny::renderText(show(list(
           hint = input$c_tip_hint,
-          pin = input$c_tip_tip,
+          pin = input$c_tip_pin,
           copy = input$c_tip_copy
         )))
         output$seen_e <- shiny::renderText(show(list(
-          pin = input$e_tip_tip$state,
-          pin_kind = input$e_tip_tip$kind,
+          pin = input$e_tip_pin$state,
           copy = input$e_tip_copy
         )))
-        output$seen_modal <- shiny::renderText(show(input$modal_tip_tip$state))
+        output$seen_modal <- shiny::renderText(show(input$modal_tip_pin$state))
         shiny::observeEvent(input$show_a, tip_show("a_tip"))
         shiny::observeEvent(input$open_modal, {
           shiny::showModal(shiny::modalDialog(
@@ -310,10 +308,10 @@ describe("pins in a Shiny app", {
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
     expect_true(seen(
       "seen_e",
-      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\",\"kind\":\"review_item\"\\}"
+      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\"\\}"
     ))
     expect_equal(page$evaluate("window.copyFired"), 1)
-    expect_true(seen("seen_e", "\"pin\":\"pinned\",\"pin_kind\":\"review_item\""))
+    expect_true(seen("seen_e", "\"pin\":\"pinned\""))
     page$press("Escape")
   })
 
@@ -427,17 +425,10 @@ describe("pins in a Shiny app", {
     page$press("Escape")
   })
 
-  it("shows the button on an item that pins by a click too, and names the tip's kind in the inputs", {
+  it("shows the button on an item that pins by a click too", {
     reset()
     page$hover("#row_b")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    reset()
-    view("row_e")
-    page$hover("#row_e")
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    mouse_at(strip, click = TRUE)
-    expect_true(seen("seen_e", "\"pin_kind\":\"review_item\""))
-    page$press("Escape")
   })
 
   it("keeps the button in the corner of a hint inside a modal, above it", {

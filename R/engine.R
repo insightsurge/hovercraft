@@ -124,7 +124,7 @@ tip_reset <- function() {
 #' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
 #'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as
 #'   the engine's attributes on the page, and last `hovercraft-runtime`, which starts the engine and the layers. Put it
-#'   once in the page's UI, for example `bslib::page_fluid(tip_dependency(style = "sober"), ...)`.
+#'   once in the page's UI, for example `bslib::page_fluid(use_hovercraft(style = "sober"), ...)`.
 #'
 #'   Nothing in them is inline script or style: they are files and data, so a page served with
 #'   `Content-Security-Policy: script-src 'self'; style-src 'self'` works. A style sheet that is made from a theme is
@@ -144,12 +144,12 @@ tip_reset <- function() {
 #'
 #' @family tooltips
 #' @examples
-#' tip_dependency()
-#' tip_dependency(style = "modern")
-#' tip_dependency(style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
-#' tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
+#' use_hovercraft()
+#' use_hovercraft(style = "modern")
+#' use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
+#' use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 #' @export
-tip_dependency <- function(style = NULL) {
+use_hovercraft <- function(style = NULL) {
   style <- tip_as_style(style, "style")
   page <- if (!is.null(style)) tip_style_page(style)
   c(list(tip_engine_dependency()), if (!is.null(page)) list(page), list(tip_runtime_dependency()))

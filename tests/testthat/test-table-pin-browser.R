@@ -97,13 +97,13 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
           # The module's own input names: the tip id without the module's prefix.
           output$seen_in <- shiny::renderText({
             mine <- shiny::reactiveValuesToList(input)
-            mine <- mine[grepl("^tips/row/[0-9]+_tip$", names(mine))]
+            mine <- mine[grepl("^tips/row/[0-9]+_pin$", names(mine))]
             paste("inside:", paste(vapply(mine, function(x) x$state, ""), collapse = ","))
           })
         })
         output$seen <- shiny::renderText({
           everything <- shiny::reactiveValuesToList(input)
-          at <- grepl("_tip$|_copy$", names(everything))
+          at <- grepl("_pin$|_copy$", names(everything))
           state <- lapply(everything[at], function(x) if (is.null(x$state)) x$field else x$state)
           jsonlite::toJSON(state[order(names(state))], auto_unbox = TRUE, null = "null")
         })
@@ -181,17 +181,17 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     pin_by_handle(rows_dt("dtc")[[2]])
     expect_identical(pins(), "dtc/row/2")
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Foxes')", pinned_box)))
-    expect_true(seen_has("dtc/row/2_tip", "pinned"))
+    expect_true(seen_has("dtc/row/2_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#dtc tbody tr.selected') === null"))
     # The reader's own pin: by the reader, with a click on the handle.
     expect_identical(
       page$evaluate(
-        "Shiny.shinyapp.$inputValues['dtc/row/2_tip'].by + '/' + Shiny.shinyapp.$inputValues['dtc/row/2_tip'].via"
+        "Shiny.shinyapp.$inputValues['dtc/row/2_pin'].by + '/' + Shiny.shinyapp.$inputValues['dtc/row/2_pin'].via"
       ),
       "reader/click"
     )
     page$press("Escape")
-    expect_true(seen_has("dtc/row/2_tip", "closed"))
+    expect_true(seen_has("dtc/row/2_pin", "closed"))
     expect_identical(pins(), character())
   })
 
@@ -209,8 +209,8 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     page$press("p")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') !== null"))
     expect_identical(pins(), "dtc/row/3")
-    expect_true(seen_has("dtc/row/3_tip", "pinned"))
-    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/3_tip'].via"), "key")
+    expect_true(seen_has("dtc/row/3_pin", "pinned"))
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/3_pin'].via"), "key")
     page$press("Escape")
     expect_identical(pins(), character())
     # A cell with a tip of its own, inside a pinnable row: only the row can pin, so the key pins the row's tip.
@@ -259,8 +259,8 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Owls')", pinned_box)))
     page$evaluate("$('#dtc table').DataTable().search('Voles').draw(); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dtc/row/1_tip", "closed"))
-    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/1_tip'].reason"), "gone")
+    expect_true(seen_has("dtc/row/1_pin", "closed"))
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/1_pin'].reason"), "gone")
     page$evaluate("$('#dtc table').DataTable().search('').draw(); 0")
   })
 
@@ -270,7 +270,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_identical(pins(), "dts/row/1")
     page$evaluate("$('#dts table').DataTable().page(1).draw(false); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dts/row/1_tip", "closed"))
+    expect_true(seen_has("dts/row/1_pin", "closed"))
     page$evaluate("$('#dts table').DataTable().page(0).draw(false); 0")
   })
 
@@ -278,7 +278,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     reset()
     pin_by_handle(rt_row(2))
     expect_identical(pins(), "rt/row/2")
-    expect_true(seen_has("rt/row/2_tip", "pinned"))
+    expect_true(seen_has("rt/row/2_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#rt .rt-tr.-selected, #rt [aria-selected=true]') === null"))
     # The server moves the table to its second page: React keeps the row nodes and gives them other rows, which must
     # not show under the pin made for the row it was.
@@ -290,14 +290,14 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_true(page$wait_until(
       "document.querySelector('#rt [role=row][data-hovercraft-tip-id=\"rt/row/5\"]') !== null"
     ))
-    expect_true(seen_has("rt/row/2_tip", "closed"))
+    expect_true(seen_has("rt/row/2_pin", "closed"))
     expect_identical(pins(), character())
     expect_false(page$evaluate("window.sawRow5"))
     # The layer closes the pin through the engine's host command, so the engine says who and why that way (a DT row that
     # leaves the page is closed by the engine itself, as "gone" by "data").
     expect_identical(
-      page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['rt/row/2_tip'])"),
-      "{\"state\":\"closed\",\"text\":\"Foxes: 5 wins\",\"by\":\"host\",\"via\":\"command\",\"reason\":\"host\",\"kind\":\"table_row\"}"
+      page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['rt/row/2_pin'])"),
+      "{\"state\":\"closed\",\"text\":\"Foxes: 5 wins\",\"by\":\"host\",\"via\":\"command\",\"reason\":\"host\"}"
     )
     poke("page_to", "1")
     expect_true(page$wait_until(
@@ -361,10 +361,10 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     pin_by_handle("#m-dt tbody tr:nth-child(1)")
     id <- pins()
     expect_match(id, "^m-tips/row/[0-9]+$")
-    expect_true(seen_has(paste0(id, "_tip"), "pinned"))
+    expect_true(seen_has(paste0(id, "_pin"), "pinned"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: pinned'"))
     page$press("Escape")
-    expect_true(seen_has(paste0(id, "_tip"), "closed"))
+    expect_true(seen_has(paste0(id, "_pin"), "closed"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: closed'"))
   })
 

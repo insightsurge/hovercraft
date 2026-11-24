@@ -60,7 +60,7 @@ describe("module template names and ids", {
 })
 
 describe("app frameworks and reverse-proxy dependency structure", {
-  it("ships tip_dependency() as a package-relative htmlDependency with no absolute paths", {
+  it("ships use_hovercraft() as a package-relative htmlDependency with no absolute paths", {
     generated <- tip_on(
       htmltools::tags$button("Go"),
       "Short",
@@ -69,8 +69,8 @@ describe("app frameworks and reverse-proxy dependency structure", {
       more_on = "hover"
     )
     deps <- c(
-      tip_dependency(),
-      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))),
+      use_hovercraft(),
+      use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))),
       htmltools::findDependencies(generated)
     )
     for (dep in deps) {
@@ -80,7 +80,7 @@ describe("app frameworks and reverse-proxy dependency structure", {
       expect_false(any(startsWith(dep$script %||% "", "/")))
       expect_false(any(startsWith(dep$stylesheet %||% "", "/")))
     }
-    expect_identical(tip_dependency()[[1]]$src$file, "engine/www")
+    expect_identical(use_hovercraft()[[1]]$src$file, "engine/www")
   })
 })
 
@@ -90,7 +90,7 @@ describe("production checks (strict CSP and multi-session R state)", {
     withr::defer(tip_reset())
     # No dependency carries markup in its head: files and data only. (test-csp-browser.R serves a page under the policy.)
     deps <- c(
-      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "9px"), gap = 3)),
+      use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "9px"), gap = 3)),
       tip_on(
         htmltools::tags$button("A"),
         "a",

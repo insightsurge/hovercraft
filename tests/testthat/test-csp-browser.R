@@ -82,7 +82,7 @@ describe("a page under a strict Content-Security-Policy", {
           htmltools::tags$title("csp"),
           htmltools::tags$link(rel = "stylesheet", href = "extra.css")
         ),
-        tip_dependency(style = tip_style("dense", theme = list("--hovercraft-tip-radius" = "11px"))),
+        use_hovercraft(style = tip_style("dense", theme = list("--hovercraft-tip-radius" = "11px"))),
         htmltools::tags$div(
           class = "page",
           tip_on(htmltools::tags$button("Plain", id = "plain", tabindex = "0"), "A plain tip"),
@@ -222,7 +222,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
           return(shiny::fluidPage(shiny::actionButton("run", "Run")))
         }
         shiny::fluidPage(
-          tip_dependency(style = tip_style("dense")),
+          use_hovercraft(style = tip_style("dense")),
           tip_on(
             shiny::actionButton("run", "Run"),
             "Runs the **check**",
@@ -350,12 +350,12 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 })
 
 # The three small icons that the package draws from `data:` images, under a policy that has `default-src` (which covers
-# `img-src` too). The help page of tip_dependency() lists them.
+# `img-src` too). The help page of use_hovercraft() lists them.
 describe("the icons drawn from data: images, under a policy with default-src", {
   build <- function() {
     htmltools::tagList(
       htmltools::tags$head(htmltools::tags$title("icons")),
-      tip_dependency(),
+      use_hovercraft(),
       htmltools::tags$div(
         tip_on(htmltools::tags$button("Marked", id = "marked"), "A marked tip", marker = "icon"),
         tip_on(htmltools::tags$button("Pinnable", id = "pinnable"), "Pins", id = "pin_tip", pin = TRUE),

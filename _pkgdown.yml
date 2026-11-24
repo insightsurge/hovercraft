@@ -40,6 +40,6 @@ reference:
       - tip_theme
       - tip_marker
   - title: The engine
-    contents: tip_dependency
+    contents: use_hovercraft
   - title: The studio (experimental)
     contents: tip_studio

@@ -8,7 +8,7 @@ start_look_code <- function(preset, motion) {
   motion <- choice(motion, start_motions, "fade")
   paste0(
     "# Once in the page's UI: the look of every tip on it\n",
-    code_call("tip_dependency", style = code_call("tip_style", code_str(preset), motion = code_str(motion)))
+    code_call("use_hovercraft", style = code_call("tip_style", code_str(preset), motion = code_str(motion)))
   )
 }
 

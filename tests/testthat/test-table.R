@@ -619,7 +619,7 @@ describe("tip_table(style =)", {
     names <- vapply(widget$dependencies, function(d) d$name, "")
     names[startsWith(names, "hovercraft-theme-")]
   }
-  ink <- tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+  ink <- tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff"))
 
   it("writes the preset and class on every row, cell and header cell that has a tip", {
     got <- tip_table(

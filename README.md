@@ -59,8 +59,8 @@ missing or blank shows a dash. Mistakes in a template, such as a placeholder tha
 the template is made, not later in the browser.
 
 A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too; the tip
-then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_tip`, here
-`input$run_tip`:
+then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_pin`, here
+`input$run_pin`:
 
 ```r
 library(shiny)
@@ -78,7 +78,7 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   output$state <- renderText({
-    if (is.null(input$run_tip)) "Nothing pinned yet" else paste("The tip is", input$run_tip$state)
+    if (is.null(input$run_pin)) "Nothing pinned yet" else paste("The tip is", input$run_pin$state)
   })
 }
 
@@ -132,17 +132,17 @@ stop and moves between them with the arrow keys.
 ## Themes
 
 The tip follows the page: on a bslib page it uses the theme's colours and turns dark with `input_dark_mode()`. To set its look
-yourself, give `tip_dependency()` a `tip_theme()` as `style` once, in the page's UI:
+yourself, give `use_hovercraft()` a `tip_theme()` as `style` once, in the page's UI:
 
 ```r
 brand <- tip_theme(
-  light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 10),
-  dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+  light = list(bg = "#1b3a6b", text = "#ffffff", radius = 10),
+  dark = list(bg = "#9ec5fe", text = "#0b1f3a")
 )
-bslib::page_fluid(tip_dependency(style = brand), ...)
+bslib::page_fluid(use_hovercraft(style = brand), ...)
 ```
 
-`style` also takes a preset name, `tip_dependency(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
+`style` also takes a preset name, `use_hovercraft(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
 bundles a preset, a theme, a class for the tip box, and its motion and size (`tip_style(motion = "slide", max_width = 280)`). One tag can have its own look: `tip_on(btn, "Run", style = "dense")`.
 
 A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See

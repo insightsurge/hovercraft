@@ -54,7 +54,7 @@ button <- function(text = "Runs the **check**") {
   tip_on(htmltools::tags$button(id = "go", class = "btn btn-primary", "Run"), text)
 }
 page <- function(..., style = NULL) {
-  bslib::page_fluid(tip_dependency(style = style), htmltools::tags$div(style = "padding: 16px", ...))
+  bslib::page_fluid(use_hovercraft(style = style), htmltools::tags$div(style = "padding: 16px", ...))
 }
 
 # 1. The page's own bslib variables, and the page turning dark.
@@ -64,8 +64,8 @@ for (mode in c("light", "dark")) {
 
 # 2. A theme of the developer's own roles.
 brand <- tip_theme(
-  light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 10, shadow = "0 6px 18px rgba(27, 58, 107, 0.35)"),
-  dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+  light = list(bg = "#1b3a6b", text = "#ffffff", radius = 10, shadow = "0 6px 18px rgba(27, 58, 107, 0.35)"),
+  dark = list(bg = "#9ec5fe", text = "#0b1f3a")
 )
 for (mode in c("light", "dark")) {
   shoot(page(button(), style = brand), paste0("theme-", mode), mode)

@@ -153,8 +153,8 @@ describe("the studio's server", {
         output_mode = "empty",
         tables_parts = "headers",
         visits_hint = list(state = "shown", by = "reader"),
-        col_wait_min_tip = list(state = "pinned", by = "reader"),
-        region_north_tip = list(state = "pinned", by = "reader"),
+        col_wait_min_pin = list(state = "pinned", by = "reader"),
+        region_north_pin = list(state = "pinned", by = "reader"),
         onboarding_hint = list(state = "shown", by = "host", via = "command"),
         srv_show = 1,
         studio_tick = list(plate = "tables", i = 0, on = TRUE)
@@ -316,9 +316,9 @@ describe("the test steps and their proofs", {
     }
     shiny::testServer(server, {
       ticks <- session$userData$pins
-      session$setInputs(col_wait_min_tip = list(state = "pinned", by = "host"))
+      session$setInputs(col_wait_min_pin = list(state = "pinned", by = "host"))
       expect_identical(ticks$done(), integer())
-      session$setInputs(col_wait_min_tip = list(state = "pinned", by = "reader"))
+      session$setInputs(col_wait_min_pin = list(state = "pinned", by = "reader"))
       expect_identical(ticks$done(), 1L)
       session$setInputs(col_region_copy = list(ok = TRUE, by = "reader"))
       expect_identical(ticks$done(), c(1L, 3L))
@@ -343,8 +343,8 @@ describe("the test steps and their proofs", {
 
   it("say what proved them", {
     expect_identical(
-      studio$proof_says("col_wait_min_tip", list(state = "closed", reason = "escape", by = "reader")),
-      "input$col_wait_min_tip, state \"closed\", reason \"escape\""
+      studio$proof_says("col_wait_min_pin", list(state = "closed", reason = "escape", by = "reader")),
+      "input$col_wait_min_pin, state \"closed\", reason \"escape\""
     )
     expect_identical(studio$proof_says("studio:kept", "the server kept the plot"), "the server kept the plot")
   })
@@ -355,8 +355,8 @@ describe("the words of a step", {
 
   it("turn backticks into code and stars into italics, escape the rest, and add no space before punctuation", {
     expect_identical(
-      as.character(studio$inline_code("Pin *North*: `input$x_tip` <arrives>.")),
-      "Pin <i>North</i>: <code>input$x_tip</code> &lt;arrives&gt;."
+      as.character(studio$inline_code("Pin *North*: `input$x_pin` <arrives>.")),
+      "Pin <i>North</i>: <code>input$x_pin</code> &lt;arrives&gt;."
     )
   })
 })

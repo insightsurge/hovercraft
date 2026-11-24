@@ -25,7 +25,8 @@ paths:
 
 ## Names, records and checks
 
-- **Prefix:** every exported function starts with `tip_`.
+- **Prefix:** every exported function starts with `tip_`, except `use_hovercraft()` and, once it lands,
+  `hovercraft_book()`, which carry the package's name.
 - **Names come from the engine, not from R.** The vendored engine's names (the attribute, the CSS class prefix, the
   JavaScript global) and its rules (the template-name pattern, the placeholder grammar, the block shapes) are read from
   `inst/engine/engine.json` through the package's readers. Never write an attribute name, a class name or a rule into R

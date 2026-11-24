@@ -100,7 +100,7 @@ per feature. A pull request that changes an export or an argument updates the st
   (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the same way.
   Code that would fail in a reader's app fails in the studio too. The one exception is the page's look on the Start
   plate: a dependency loads once per page, so the studio writes the attribute and variable that
-  `tip_dependency(style = )` writes, with the names from the engine's `tip.json`.
+  `use_hovercraft(style = )` writes, with the names from the engine's `tip.json`.
 - **Test steps tick from real inputs.** A step is `step(text, bug, target, proof)`; a proof names the Shiny input that
   shows the step was done (`on_hint()`, `on_pin()`, `on_copy()`). By default a proof counts only the reader's own
   actions (`by = "reader"`), so a tip the page closes and pins again never ticks a step. A step without a proof is

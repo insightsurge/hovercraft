@@ -329,10 +329,11 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   when there is no room, and `"left"` and `"right"` mirror in right-to-left text. On a phone the tip always chooses
 #'   its own side.
 #'
-#' @param marker `r lifecycle::badge("experimental")` A visible cue that the tag holds a tip, off by default: `"none"`,
-#'   `"underline"`, `"icon"` or `"corner"`, a [tip_marker()] to choose the line of an underline or give an icon, or a
-#'   tag, which is used as the icon (`marker = fontawesome::fa("circle-info")` is `tip_marker("icon", icon = ...)`).
-#'   See [tip_marker()] for what each draws. For the cells of a table, use the `marker` argument of [tip_table()].
+#' @param marker `r lifecycle::badge("experimental")` A visible cue that the tag holds a tip. `NULL` (the default) and
+#'   `"none"` draw none; the others are `"underline"`, `"icon"` or `"corner"`, a [tip_marker()] to choose the line of
+#'   an underline or give an icon, or a tag, which is used as the icon (`marker = fontawesome::fa("circle-info")` is
+#'   `tip_marker("icon", icon = ...)`). See [tip_marker()] for what each draws. For the cells of a table, use the
+#'   `marker` argument of [tip_table()].
 #'
 #' @param id `r lifecycle::badge("experimental")` A Shiny id for this tip, or `NULL` (the default) for none: one
 #'   non-empty string with no whitespace, so `ns("baseline_tip")` works in a module. Give it a different id from every
@@ -342,13 +343,13 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #' @param events `r lifecycle::badge("experimental")` Which Shiny inputs this tag's tip sends, or `NULL` (the
 #'   default) for none; one or more of `"hint"`, `"pin"` and `"copy"`. All are off unless asked for, because
 #'   they send a message to the server every time a reader meets the tag. They need an `id`, or a tag with an
-#'   `id` of its own; in a module the input is read without the namespace. Each is a list that holds the tip's
-#'   `kind` (see `kind`) as well as the fields below.
+#'   `id` of its own; in a module the input is read without the namespace. Each is a list that holds the
+#'   fields below.
 #'
 #'   `"hint"` sends `input$<id>_hint` each time the tip opens or closes: `state` (`"shown"` or `"hidden"`), `text`
 #'   (the tip's plain words, cut at 200 characters), `by` (`"reader"`, `"host"` for [tip_show()] and [tip_hide()],
 #'   or `"data"` when the tag left the page), `via` (`"pointer"`, `"focus"`, `"tap"`, `"key"`, `"command"`, or
-#'   `NULL`) and `reason` (why it closed, `NULL` on `"shown"`). `"pin"` sends `input$<id>_tip` each time the tip is
+#'   `NULL`) and `reason` (why it closed, `NULL` on `"shown"`). `"pin"` sends `input$<id>_pin` each time the tip is
 #'   pinned, closed or drawn again while pinned: `state` (`"pinned"`, `"closed"` or `"updated"`), `text`, `by`
 #'   (`"reader"`, `"host"` or `"data"`), `via` (`"click"`, `"key"`, `"command"`, or `NULL`) and `reason` (why it
 #'   closed: `"select"`, `"escape"`, `"button"`, `"outside"`, `"replaced"`, `"gone"` or `"host"`, `NULL` on
@@ -397,9 +398,10 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   short hint on hover and expands to the long form when pinned) or `"hover"` (shows the long form on hover too), or
 #'   `NULL` to use the engine's default (`"pin"`).
 #'
-#' @param pin `r lifecycle::badge("experimental")` Whether a reader can keep this tip open: `FALSE` (the
-#'   default) for a tip that only shows on hover or focus, `TRUE` for a tip that is pinned by the small pin
-#'   button in the corner of the tip, or by the pin key, and `"click"` for a tip that a click on the tagged item
+#' @param pin `r lifecycle::badge("experimental")` Whether a reader can keep this tip open: `NULL` (the
+#'   default) or `FALSE` for a tip that only shows on hover or focus (`FALSE` is "never", whatever a level above says),
+#'   `TRUE` for a tip that is pinned by the small
+#'   pin button in the corner of the tip, or by the pin key, and `"click"` for a tip that a click on the tagged item
 #'   also pins. With `TRUE`, a click, a key or a tap on the item never pins, so an item that does something when
 #'   it is clicked, such as a row that selects itself, keeps doing it; a tap shows the tip. A tip that is pinned
 #'   stays open, with the engine's own close button, until it is closed (the button, Escape, or a click
@@ -415,10 +417,6 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   else on the page. A screen reader that is in browse mode may take the letter for its own navigation, so check
 #'   the key with the screen reader you support. `Escape` closes a pinned tip. Pointer, keyboard and tap are tested
 #'   in Chrome only.
-#'
-#' @param kind `r lifecycle::badge("experimental")` The tip's kind, as one string of lower-case words joined with
-#'   `_`, such as `"review_item"`, or `NULL` (the default) for the engine's own kind, `"element"`. The events
-#'   and the inputs of [tip_on()] carry it as `kind`; [tip_table()] sets the kind of its own tips.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 #'   and the marker's own dependency; with `when_disabled`, inside a wrapper that holds the reason.
@@ -455,7 +453,7 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #' tip_on(
 #'   htmltools::tags$button("Run"),
 #'   "Runs the **check**",
-#'   style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+#'   style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff"))
 #' )
 #'
 #' # A visible cue that a word holds a tip
@@ -489,14 +487,13 @@ tip_on <- function(
   record = NULL,
   style = NULL,
   placement = NULL,
-  marker = "none",
+  marker = NULL,
   id = NULL,
   events = NULL,
   when_disabled = NULL,
   more = NULL,
   more_on = NULL,
-  pin = FALSE,
-  kind = NULL
+  pin = NULL
 ) {
   if (inherits(tag, "shiny.tag.list")) {
     tip_abort(
@@ -522,8 +519,7 @@ tip_on <- function(
       "when_disabled",
       "more",
       "more_on",
-      "pin",
-      "kind"
+      "pin"
     )
   )
   # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the reason is kept or changed.
@@ -541,7 +537,6 @@ tip_on <- function(
   events <- tip_check_events(events)
   tip_check_when_disabled(when_disabled, tag)
   pin_value <- tip_check_pin(pin)
-  tip_check_kind(kind)
   if (!is.null(pin_value)) {
     tip_check_pin_tag(tag)
   }
@@ -651,9 +646,6 @@ tip_on <- function(
     values[[tip_attribute("pin")]] <- pin_value
     values[["aria-keyshortcuts"]] <- toupper(tip_pin_key())
   }
-  if (!is.null(kind)) {
-    values[[tip_attribute("kind")]] <- kind
-  }
   more_deps <- list()
   if (!is.null(more_info)) {
     if (!is.null(more_info$template)) {
@@ -675,9 +667,9 @@ tip_on <- function(
   look <- tip_style_tag(style)
   # A tip made before is replaced, its look too. A call that does not mention `pin` leaves a pin the tag has, and with
   # it the tip's id, which the pin is named by; a call that does mention it (also `pin = FALSE`) decides it.
-  pin_given <- !missing(pin)
+  pin_given <- !is.null(pin)
   keep_pin <- !pin_given && !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
-  replaced <- c("preset", "class", "placement", "kind", "more", "more_template", "more_on")
+  replaced <- c("preset", "class", "placement", "more", "more_template", "more_on")
   own <- c(
     attrs,
     vapply(c(replaced, if (!(keep_pin && is.null(id))) "id"), tip_attribute, ""),

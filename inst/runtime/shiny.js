@@ -74,11 +74,10 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
-        kind: d.kind ?? null,
       }),
     },
     pin: {
-      suffix: '_tip',
+      suffix: '_pin',
       opens: 'pinned',
       closes: 'closed',
       value: (d) => ({
@@ -87,7 +86,6 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
-        kind: d.kind ?? null,
       }),
     },
     copy: {
@@ -98,7 +96,6 @@
         ok: d.ok === true,
         by: d.by ?? null,
         via: d.via ?? null,
-        kind: d.kind ?? null,
       }),
     },
   };

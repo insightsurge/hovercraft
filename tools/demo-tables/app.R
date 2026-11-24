@@ -72,7 +72,7 @@ reactable::reactable(
     )
   )
 )',
-  dt_html = '# In the UI, once: tip_dependency() and the same tip_define() as above
+  dt_html = '# In the UI, once: use_hovercraft() and the same tip_define() as above
 shown <- study[c("site", "country", "status")]
 shown$status <- vapply(seq_len(nrow(study)), function(i) {
   as.character(tip_on(
@@ -236,7 +236,7 @@ demo_head <- shiny::tags$head(
 ui <- bslib::page_fluid(
   theme = bslib::bs_theme(version = 5),
   demo_head,
-  tip_dependency(),
+  use_hovercraft(),
   tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}"))),
   bslib::input_dark_mode(id = "mode"),
   shiny::h2("tip_table() demo (experimental)"),
@@ -290,7 +290,7 @@ server <- function(input, output, session) {
     study$site[input$dt_rows_selected]
   ))
   output$rt <- reactable::renderReactable(run(code$rt))
-  # A pinned row sends input$<id>/row/<n>_tip: read the inputs that exist, whichever rows have been pinned.
+  # A pinned row sends input$<id>/row/<n>_pin: read the inputs that exist, whichever rows have been pinned.
   output$pins <- shiny::renderPrint({
     inputs <- shiny::reactiveValuesToList(input)
     inputs <- inputs[grepl("^sites_(dt|rt)/row/[0-9]+_tip$", names(inputs))]

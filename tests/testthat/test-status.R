@@ -21,7 +21,7 @@ describe("the badge status stylesheet", {
   })
 
   it("comes with the runtime dependency, on every page that has a tip", {
-    runtime <- tip_dependency()[[2]]
+    runtime <- use_hovercraft()[[2]]
     expect_true("status.css" %in% runtime$stylesheet)
     got <- tip_on(htmltools::tags$button("Run"), "Runs")
     deps <- htmltools::findDependencies(got)

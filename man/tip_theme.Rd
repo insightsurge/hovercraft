@@ -9,7 +9,7 @@ tip_theme(..., light = NULL, dark = NULL, mode = "auto")
 \arguments{
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{light, dark}{Named lists of roles, or \code{NULL}. Roles: \code{bg}, \code{ink}, \code{line}, \code{code_bg}, \code{radius}, \code{shadow},
+\item{light, dark}{Named lists of roles, or \code{NULL}. Roles: \code{bg}, \code{text}, \code{border}, \code{code_bg}, \code{radius}, \code{shadow},
 \code{font}. \code{radius} is a number of pixels or a length such as \code{"0.5rem"}; \code{shadow} is CSS \code{box-shadow} text or
 \code{"none"}; \code{font} is CSS \code{font-family} text. Values may only hold letters, digits, spaces and
 \verb{, . ' " ( ) # \% _ + * -}.}
@@ -20,7 +20,7 @@ the page says. A tip is drawn at the page level, so a \code{data-bs-theme} on a 
 reach it.}
 }
 \value{
-A \code{hovercraft_theme} object, to give as \verb{style =} to \code{\link[=tip_dependency]{tip_dependency()}} or \code{\link[=tip_on]{tip_on()}}, or to
+A \code{hovercraft_theme} object, to give as \verb{style =} to \code{\link[=use_hovercraft]{use_hovercraft()}} or \code{\link[=tip_on]{tip_on()}}, or to
 \code{\link[=tip_style]{tip_style()}}. Its fields are internal; pass the object on.
 }
 \description{
@@ -29,11 +29,11 @@ Sets how the tips look: the fill, words, border and code background, the corner,
 light and for dark. A role left out keeps what the page gives: the tip reads Bootstrap's variables where the page has
 them (bslib), so a page that already has a \code{bslib::bs_theme()} needs no theme, and its tips follow light and dark on
 their own. Use a theme when the tips must look different from the page, or when the page has no bslib. Give the
-result to \code{\link[=tip_dependency]{tip_dependency()}} once, in the page's UI, or to \code{\link[=tip_on]{tip_on()}} for one tag, as \verb{style =}.
+result to \code{\link[=use_hovercraft]{use_hovercraft()}} once, in the page's UI, or to \code{\link[=tip_on]{tip_on()}} for one tag, as \verb{style =}.
 }
 \details{
-The roles are \code{bg} (the tip's fill), \code{ink} (its words), \code{line} (its border, seen in forced-colours mode and in a tip
-that stays open), \code{code_bg} (behind code), \code{radius} (the corner), \code{shadow} and \code{font}. Colours may be names, hex,
+The roles are \code{bg} (the tip's fill), \code{text} (its words), \code{border} (its border, seen in forced-colours mode and in a
+tip that stays open), \code{code_bg} (behind code), \code{radius} (the corner), \code{shadow} and \code{font}. Colours may be names, hex,
 \code{\link[grDevices:rgb]{grDevices::rgb()}} output, \code{"rgba(0, 0, 0, 0.8)"} text or three numbers from 0 to 255. A value that is a CSS
 variable, \code{"--team-blue"} or \code{"var(--team-blue)"}, is read by the browser where the page defines it; R cannot check
 it. A theme can also be a \code{\link[bslib:bs_theme]{bslib::bs_theme()}} or a plain list, see \code{\link[=tip_style]{tip_style()}}.
@@ -45,7 +45,7 @@ opaque: with a translucent \code{bg} (\code{"rgba(0, 0, 0, 0.8)"}) the tip has n
 }
 \section{Contrast warnings}{
 
-The words of a tip must be readable on its fill. For each mode, the \code{ink} on the \code{bg} (and on the \code{code_bg}, if you
+The words of a tip must be readable on its fill. For each mode, the \code{text} on the \code{bg} (and on the \code{code_bg}, if you
 give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 \code{hovercraft_contrast}; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 gives, a shade of the page: Bootstrap's tertiary background with the page's text colour (a \verb{#f8f8f8} fill with
@@ -56,7 +56,7 @@ the warnings off, or
 silence only them:
 
 \if{html}{\out{<div class="sourceCode r">}}\preformatted{withCallingHandlers(
-  tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")),
+  tip_theme(light = list(bg = "#ffffff", text = "#dddddd")),
   hovercraft_contrast = function(w) invokeRestart("muffleWarning")
 )
 }\if{html}{\out{</div>}}
@@ -64,10 +64,10 @@ silence only them:
 
 \examples{
 tip_theme()
-tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 8))
+tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff", radius = 8))
 tip_theme(
-  light = list(bg = "#1b3a6b", ink = "#ffffff"),
-  dark = list(bg = "#9ec5fe", ink = "#0b1f3a"),
+  light = list(bg = "#1b3a6b", text = "#ffffff"),
+  dark = list(bg = "#9ec5fe", text = "#0b1f3a"),
   mode = "auto"
 )
 tip_theme(light = list(bg = "--brand-blue", font = "Georgia, serif"))
@@ -76,7 +76,6 @@ tip_theme(light = list(bg = "--brand-blue", font = "Georgia, serif"))
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
@@ -85,6 +84,7 @@ Other tooltips:
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
-\code{\link[=tip_template]{tip_template()}}
+\code{\link[=tip_template]{tip_template()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}
