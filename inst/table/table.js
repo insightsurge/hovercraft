@@ -106,7 +106,7 @@
   // gives the element another data row (React reuses its row nodes when a table sorts, pages or filters) or takes the tip
   // away, the pin would show another row's tip under the old row's id, so it is closed first, under the id it was made for.
   const release = (el) => {
-    if (openAttribute && el.getAttribute(openAttribute) === pinnedValue) window.Hovercraft?.close();
+    if (openAttribute && el.getAttribute(openAttribute) === pinnedValue) window.Hovercraft?.close(el);
   };
 
   const unmark = (el, spec) => {
@@ -173,10 +173,12 @@
   // each other, so the page says so once on the console. The same table drawn again (a renderDT() that runs once more)
   // keeps its element, so it is not a second table.
   const owners = new Map();
+  const warned = new Set();
   const claim = (el, id) => {
     if (!id) return;
     const owner = owners.get(id);
-    if (owner && owner !== el && owner.isConnected) {
+    if (owner && owner !== el && owner.isConnected && !warned.has(id)) {
+      warned.add(id);
       console.warn(
         `Hovercraft: two tables have the id "${id}". Give each its own id: their inputs and tips share the name.`,
       );

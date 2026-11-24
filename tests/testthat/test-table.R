@@ -346,8 +346,13 @@ describe("tip_table() checks", {
     expect_error(tip_table(dt(), rows = "x", placement = "above"), class = "hovercraft_error_argument")
   })
 
+  it("refuses a colon in an id, which Shiny would read as the type of the input", {
+    expect_error(tip_table(dt(), rows = "x", id = "a:b"), "colon", class = "hovercraft_error_argument")
+    expect_error(tip_on(htmltools::tags$span("x"), "y", id = "a:b"), "colon", class = "hovercraft_error_argument")
+  })
+
   it("takes a Shiny id: any string without whitespace, hyphens from ns() included", {
-    for (id in c("league", "mod1-league_tips", "a.b:c", "Scores")) {
+    for (id in c("league", "mod1-league_tips", "a.b_c", "Scores")) {
       expect_no_error(tip_table(dt(), rows = "x", id = id))
     }
     for (bad in list("", "Not Allowed", " a", NA_character_, c("a", "b"), 1, "tab\tbed", character())) {
@@ -961,9 +966,12 @@ describe("the _pinned input of a table", {
     before <- getHook(hook)
     withr::defer(setHook(hook, before, "replace"))
     expect_silent(tip_register_with_shiny())
-    after <- getHook(hook)
-    expect_length(after, length(before) + 1L)
-    expect_silent(after[[length(after)]]())
+    ours <- function() Filter(function(f) isTRUE(attr(f, "hovercraft")), getHook(hook))
+    expect_length(ours(), 1L)
+    # Loading again leaves one hook of ours, not two.
+    expect_silent(tip_register_with_shiny())
+    expect_length(ours(), 1L)
+    expect_silent(ours()[[1]]())
     expect_error(shiny::registerInputHandler(tip_pinned_input_type(), function(...) NULL), "already")
   })
 })

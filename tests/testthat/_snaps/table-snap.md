@@ -68,8 +68,8 @@
       tip_table(dt(), rows = "x", id = "two words")
     Condition
       Error in `tip_table()`:
-      ! `id` is not right: Must be one non-empty string without whitespace.
-      i Give one non-empty string with no spaces, such as `ns("scores")`, or `NULL`.
+      ! `id` is not right: Must be one non-empty string without whitespace or a colon.
+      i Give one non-empty string with no spaces and no `:` (Shiny reads what follows a colon as the type of an input), such as `"scores"`, or `NULL`.
 
 ---
 

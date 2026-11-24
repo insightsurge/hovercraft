@@ -377,7 +377,7 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
     ident$column <- column
     # A tip that sends events says where it is (the table, the target, the data row and the column's name) in an
     # attribute of its own, which the Shiny layer reads for the input's value (inst/runtime/shiny.js).
-    if (!is.null(events) && !is.null(id)) {
+    if (!is.null(events)) {
       ident$name <- column_name
       ident$address <- tip_table_address_attribute()
     }

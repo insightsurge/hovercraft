@@ -33,6 +33,7 @@ describe("the inputs of tip_table() in a Shiny app", {
         DT::DTOutput("dts"),
         DT::DTOutput("dtx"),
         reactable::reactableOutput("rt"),
+        reactable::reactableOutput("rt2"),
         DT::DTOutput("m-dt"),
         DT::DTOutput("m-dts"),
         reactable::reactableOutput("m-rt"),
@@ -56,6 +57,14 @@ describe("the inputs of tip_table() in a Shiny app", {
           server = FALSE
         )
         output$rt <- reactable::renderReactable(tipped(reactable::reactable(scores, defaultPageSize = 6), "rt"))
+        # A small table of its own, for the test of two pins.
+        output$rt2 <- reactable::renderReactable(
+          tip_table(
+            reactable::reactable(data.frame(team = c("A", "B", "C"), wins = c(1, 2, 3))),
+            rows = listen("rt2"),
+            id = "rt2"
+          )
+        )
         shiny::moduleServer("m", function(input, output, session) {
           output$dt <- DT::renderDT(tipped(DT::datatable(scores, rownames = FALSE), "tips"), server = FALSE)
           output$dts <- DT::renderDT(
@@ -222,13 +231,15 @@ describe("the inputs of tip_table() in a Shiny app", {
 
   it("sends a hint input for the table too, with the same address", {
     page$evaluate("window.Hovercraft.hide(); 0")
-    page$hover(sprintf("#dtc tbody tr:nth-child(2) td:nth-child(1)"))
+    # Foxes is data row 2, wherever the table has put it on the screen.
+    page$hover("#dtc tbody tr[data-hovercraft-tip-id='dtc/row/2'] td:nth-child(1)")
     expect_true(wait_seen("dtc_hint", "v.state === 'shown'"))
     got <- seen("dtc_hint")
     expect_identical(got$target, "row")
-    expect_identical(got$column, NULL)
-    expect_match(got$id, "^dtc/row/[0-9]+$")
-    expect_identical(got$row, as.integer(sub("dtc/row/", "", got$id, fixed = TRUE)))
+    expect_null(got$column)
+    expect_identical(got$row, 2L)
+    expect_identical(got$id, "dtc/row/2")
+    expect_match(got$text, "^Foxes")
     page$mouse(5, 5, FALSE)
   })
 
@@ -252,6 +263,37 @@ describe("the inputs of tip_table() in a Shiny app", {
     expect_identical(seen("dtc_pin")$row, 1L)
     close_all()
     expect_true(wait_seen("dtc_pinned", "v.length === 0"))
+  })
+
+  it("closes only the pin of a row that is given another data row, when several pins are allowed", {
+    expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length === 3", rows_in("rt2", "rt"))))
+    page$evaluate("document.documentElement.setAttribute('data-hovercraft-tip-pins', '3'); 0")
+    withr::defer(page$evaluate("document.documentElement.removeAttribute('data-hovercraft-tip-pins'); 0"))
+    pin_row(rows_in("rt2", "rt"), "A")
+    Sys.sleep(0.3)
+    pin_row(rows_in("rt2", "rt"), "B")
+    expect_true(wait_seen("rt2_pinned", "v.length === 2"))
+    expect_setequal(open_pins(), c("rt2/row/1", "rt2/row/2"))
+    # React gives the first row's element another data row (a sort does this to a reactable table, but a click on the
+    # header would be a click away, which closes every pin): the table script re-marks the element, and that closes the
+    # pin made for the old row. The pin of the second row stays.
+    page$evaluate(sprintf(
+      "(() => {
+        const el = %s;
+        const id = { attribute: 'data-hovercraft-tip-id', base: 'rt2', target: 'row' };
+        HovercraftTable.mark(el, { attrs: {}, record: 'data-hovercraft-tip-record', needs: [], id }, null, 3);
+      })()",
+      row_of(rows_in("rt2", "rt"), "A")
+    ))
+    expect_true(wait_seen("rt2_pinned", "v.length === 1"))
+    Sys.sleep(0.5)
+    expect_identical(length(seen("rt2_pinned")), 1L)
+    expect_identical(seen("rt2_pinned")[[1]]$row, 2L)
+    expect_identical(open_pins(), "rt2/row/2")
+    expect_identical(seen("rt2_pin")$state, "closed")
+    expect_identical(seen("rt2_pin")$row, 1L)
+    close_all()
+    expect_true(wait_seen("rt2_pinned", "v.length === 0"))
   })
 
   it("keeps the list of pins true when Shiny draws the table again while a row is pinned", {
