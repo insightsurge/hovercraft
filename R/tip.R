@@ -52,6 +52,47 @@ tip_check_focus <- function(tag, call) {
   invisible()
 }
 
+# `tip_on()` takes one tag. Anything else stops with the way out: a tag list is tipped tag by tag, and a tab's title is
+# a tag inside `nav_panel(title = )`.
+tip_check_one_tag <- function(tag, call = rlang::caller_env()) {
+  if (inherits(tag, "shiny.tag")) {
+    return(invisible())
+  }
+  what <- if (inherits(tag, "shiny.tag.list")) "a list of tags" else "{.obj_type_friendly {tag}}"
+  tip_abort(
+    c(
+      paste0("{.arg tag} must be one HTML tag, not ", what, "."),
+      i = if (is.list(tag)) "Call {.fn tip_on} on each tag, or wrap the content in one tag such as {.code span()}.",
+      i = paste0(
+        "For a tab, tip the tag that is its title: ",
+        "{.code nav_panel(title = tip_on(span(\"Data\"), \"...\"), value = \"data\")}. ",
+        "The {.arg value} is needed: without it bslib writes the tag's HTML into the tab's value."
+      )
+    ),
+    class = "hovercraft_error_tag",
+    call = call
+  )
+}
+
+# A tag that has a `title` attribute shows the browser's own tooltip beside the tip. The tip keeps the title (on an icon
+# it may be the only name), so this says to remove it.
+tip_warn_title <- function(tag, call) {
+  if (is.null(htmltools::tagGetAttribute(tag, "title"))) {
+    return(invisible())
+  }
+  tip_warn(
+    c(
+      "The tag has a {.code title} attribute, so the browser shows its own tooltip beside the tip.",
+      i = "Remove the {.code title}, or move its words into {.arg text}. {.fn tip_on} keeps it."
+    ),
+    class = "hovercraft_warning_title",
+    call = call,
+    .frequency = "once",
+    .frequency_id = "hovercraft-title"
+  )
+  invisible()
+}
+
 # Visible words inside `x`: any text that is not blank, or an image with alt text. A fixed icon has none.
 tip_has_words <- function(x) {
   if (inherits(x, "shiny.tag")) {
@@ -223,10 +264,10 @@ tip_warn_more_on <- function(more, more_on, call = rlang::caller_env()) {
 }
 
 # Deterministic HTML dependency defining an inline `more` template (no random or per-session ids, safe for bindCache()).
-tip_more_template_dep <- function(template) {
+tip_more_template_dep <- function(template, prefix = "more") {
   body <- tip_blocks_plain(template)
   hash <- substr(rlang::hash(tip_json(body)), 1L, 12L)
-  name <- paste0("more_", hash)
+  name <- paste0(prefix, "_", hash)
   ops <- list(list(op = "define", name = name, blocks = body))
   for (out_id in tip_output_ids(list(template))) {
     ops <- c(ops, list(list(op = "park", id = out_id)))
@@ -237,18 +278,19 @@ tip_more_template_dep <- function(template) {
   if (length(park_tags)) {
     ops <- c(ops, list(list(op = "parkHtml", html = as.character(htmltools::tagList(park_tags)))))
   }
-  dep <- tip_gen_dependency(paste0("hovercraft-more-", hash), ops = ops)
+  dep <- tip_gen_dependency(paste0("hovercraft-", prefix, "-", hash), ops = ops)
   extra_deps <- if (length(park_tags)) htmltools::findDependencies(park_tags) else list()
   list(name = name, deps = c(list(dep), extra_deps))
 }
 
-# Checks fields named by a `more` template against `record`, matching tip_check_use().
-tip_check_more_fields <- function(fields, held, id, call) {
+# Checks fields named by an inline template (`more`, a `tip_template()` given as `template`, or `text` with a record)
+# against `record`, matching tip_check_use(). `what` names the argument in the messages.
+tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") {
   engine <- unlist(tip_rules()$engine_fields)
   if ("tip_index" %in% fields && !"tip_index" %in% held) {
     tip_abort(
       c(
-        "{.arg more} names {.code tip_index}, which has nothing to count here.",
+        paste0(what, " names {.code tip_index}, which has nothing to count here."),
         i = "Give the record a value of that name for now."
       ),
       class = "hovercraft_error_field",
@@ -258,7 +300,7 @@ tip_check_more_fields <- function(fields, held, id, call) {
   if ("tip_id" %in% fields && !"tip_id" %in% held && is.null(id)) {
     tip_abort(
       c(
-        "{.arg more} names {.code tip_id}, which is the tag's own id, and the tag has none.",
+        paste0(what, " names {.code tip_id}, which is the tag's own id, and the tag has none."),
         i = "Give the tag an {.arg id}, or put a value named {.code tip_id} in the record."
       ),
       class = "hovercraft_error_field",
@@ -270,7 +312,7 @@ tip_check_more_fields <- function(fields, held, id, call) {
     holds <- if (length(held)) "The record holds {.val {held}}." else "No record was given."
     tip_abort(
       c(
-        "{.arg more} names fields the record does not hold.",
+        paste0(what, " names fields the record does not hold."),
         x = "Missing: {.val {missing}}.",
         i = holds
       ),
@@ -307,11 +349,27 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #' this session is checked against the record here: a field it names that the record does not hold is an error. A
 #' name that has not been defined is left to the page, which says so once in the browser's console.
 #'
-#' @param tag One HTML tag, such as `htmltools::tags$tr()` or `shiny::actionButton()`.
+#' A second `tip_on()` on a tag that already has a tip replaces the old tip whole: its words, look, `id`, `events`,
+#' `pin` and `when_disabled` all go, and the new call's arguments are the tip. When the old tip had an `id`, `events`
+#' or a pin and the new call gives none of them, it warns once, with the class `hovercraft_warning_retip`, so a wrapper
+#' that tips a tag again on purpose can silence it with `suppressWarnings(classes = )`.
+#'
+#' A tag that already has a `title` attribute keeps it, and the browser then shows its own tooltip beside the tip.
+#' `tip_on()` warns once, with the class `hovercraft_warning_title`, and says to remove the `title`; it does not
+#' remove it itself, because on an icon it may be the only name.
+#'
+#' @param tag One HTML tag, such as `htmltools::tags$tr()` or `shiny::actionButton()`. A list of tags, a tag list or
+#'   text stops with an error. To tip a tab, put the tip on the tag that is its title, and give the tab a `value`:
+#'   `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. Without `value`, bslib writes the tag's HTML
+#'   into the tab's value.
 #' @param text One string of markdown (strong, emphasis, code, links, short lists), or `NULL`. It is shown as written:
-#'   build it with [paste0()] or [sprintf()]. `NA` and `""` count as none: the tag comes back as it was.
+#'   build it with [paste0()] or [sprintf()]. `NA` and `""` count as none: the tag comes back as it was. When `record`
+#'   is given, the `{{ field }}` placeholders in the text are filled from it (as in a template, with one filter at
+#'   most, `number:n` or `percent:n`); without a record, braces stay as written. Words with placeholders give the tag
+#'   no `aria-label`, because they depend on the record.
 #' @param ... Must be empty. It makes a misspelt argument an error.
-#' @param template The name of a template defined with [tip_define()], or `NULL`.
+#' @param template The name of a template defined with [tip_define()], a [tip_template()] made here, or `NULL`. A
+#'   `tip_template()` travels with the tag, so it needs no `tip_define()`; its fields are checked against `record`.
 #' @param record A named list, or a data frame of one row: the values the template's placeholders read, one value each.
 #'   `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as `YYYY-MM-DDTHH:MM:SSZ` and
 #'   factors as their labels. Once [tip_define()] has seen the template, only the columns it names are kept, so nothing
@@ -322,7 +380,8 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   page's. A preset name from [tip_presets()] (`"none"` clears a preset set above), a [tip_style()], or one part of a
 #'   style: a [tip_theme()] or a [bslib::bs_theme()]. The tag's style beats the page's, and a value set nearer wins,
 #'   value by value. A list is not taken, and neither is a string that holds `:` or `;` (`style` takes no CSS); see
-#'   [tip_style()].
+#'   [tip_style()]. A list of CSS variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so on one
+#'   tag it stops with an error: give it to [use_hovercraft()], or use the roles of [tip_theme()].
 #'
 #' @param placement Where the tip opens: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` (the default)
 #'   for the page's choice, which is `"auto"` unless a tagged ancestor sets a side. A chosen side flips to the other
@@ -343,8 +402,8 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #' @param events `r lifecycle::badge("experimental")` Which Shiny inputs this tag's tip sends, or `NULL` (the
 #'   default) for none; one or more of `"hint"`, `"pin"` and `"copy"`. All are off unless asked for, because
 #'   they send a message to the server every time a reader meets the tag. They need an `id`, or a tag with an
-#'   `id` of its own; in a module the input is read without the namespace. Each is a list that holds the
-#'   fields below.
+#'   `id` of its own; in a module the input is read without the namespace. `"pin"` and `"copy"` belong to a pinned
+#'   tip, so asking for either without a `pin` stops with an error. Each is a list that holds the fields below.
 #'
 #'   `"hint"` sends `input$<id>_hint` each time the tip opens or closes: `state` (`"shown"` or `"hidden"`), `text`
 #'   (the tip's plain words, cut at 200 characters), `by` (`"reader"`, `"host"` for [tip_show()] and [tip_hide()],
@@ -402,7 +461,10 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   default) or `FALSE` for a tip that only shows on hover or focus (`FALSE` is "never", whatever a level above says),
 #'   `TRUE` for a tip that is pinned by the small
 #'   pin button in the corner of the tip, or by the pin key, and `"click"` for a tip that a click on the tagged item
-#'   also pins. With `TRUE`, a click, a key or a tap on the item never pins, so an item that does something when
+#'   also pins. `"click"` is for a tag that has nothing to click on its own: on a control, or on a tag that holds
+#'   one, it stops with an error, because the click would pin the tip instead of using the control. Use `TRUE`
+#'   there: a plain button and a `div` around an input take it. With `TRUE`, a click, a key or a tap on the item never
+#'   pins, so an item that does something when
 #'   it is clicked, such as a row that selects itself, keeps doing it; a tap shows the tip. A tip that is pinned
 #'   stays open, with the engine's own close button, until it is closed (the button, Escape, or a click
 #'   elsewhere), and a code block with `tip_code(copy = TRUE)` shows its Copy button there. A pin needs an `id`
@@ -495,15 +557,7 @@ tip_on <- function(
   more_on = NULL,
   pin = NULL
 ) {
-  if (inherits(tag, "shiny.tag.list")) {
-    tip_abort(
-      c("{.arg tag} is a list of tags; give one tag.", i = "Call {.fn tip_on} on each tag."),
-      class = "hovercraft_error_tag"
-    )
-  }
-  if (!inherits(tag, "shiny.tag")) {
-    tip_abort("{.arg tag} must be an HTML tag, not {.obj_type_friendly {tag}}.", class = "hovercraft_error_tag")
-  }
+  tip_check_one_tag(tag)
   tip_check_dots(
     ...,
     args = c(
@@ -522,24 +576,35 @@ tip_on <- function(
       "pin"
     )
   )
-  # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the reason is kept or changed.
+  # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the earlier tip goes with the
+  # wrapper, the reason included (a second call replaces the tip whole).
   wrapper <- NULL
   if (tip_is_disabled_wrapper(tag)) {
     wrapper <- tag
     tag <- wrapper$children[[1]]
-    when_disabled <- when_disabled %||% htmltools::tagGetAttribute(wrapper, tip_disabled_attribute())
   }
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
-  tip_arg_string(template, "template", null_ok = TRUE)
+  # A template is a name from tip_define(), or a tip_template() made here, which travels with the tag.
+  inline <- NULL
+  if (inherits(template, "hovercraft_template")) {
+    inline <- list(template = template, fields = unique(tip_template_fields(template)), what = "The {.arg template}")
+    template <- NULL
+  } else {
+    tip_arg_string(template, "template", null_ok = TRUE)
+  }
   style <- tip_as_style(style, "style")
   tip_check_placement(placement)
   tip_check_id(id)
   events <- tip_check_events(events)
   tip_check_when_disabled(when_disabled, tag)
   pin_value <- tip_check_pin(pin)
+  if (identical(pin_value, "true")) {
+    tip_check_pin_click(tag)
+  }
   if (!is.null(pin_value)) {
     tip_check_pin_tag(tag)
   }
+  tip_check_events_pin(events, pin_value)
   tip_check_more_on(more_on)
   tip_warn_more_on(more, more_on)
   more_info <- tip_parse_more(more, rlang::current_env())
@@ -559,7 +624,7 @@ tip_on <- function(
   }
   effective_more_on <- more_on %||% tip_contract()$more$on$default
   if (!is.null(more_info) && identical(effective_more_on, "pin")) {
-    has_pin <- !is.null(pin_value) || !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
+    has_pin <- !is.null(pin_value)
     if (!has_pin || is.null(effective_id)) {
       why <- if (!has_pin && is.null(effective_id)) {
         "the tag cannot pin and has no {.arg id}."
@@ -579,13 +644,23 @@ tip_on <- function(
   }
   marker <- tip_as_marker(marker, "marker")
   has_text <- !is.null(text) && !is.na(text) && nzchar(text)
-  if (!has_text && is.null(template) && is.null(when_disabled)) {
+  # `text` with a record fills its {{ field }} placeholders: the words are made into a template of their own. Without a
+  # record, braces stay as written.
+  text_inline <- FALSE
+  if (has_text && !is.null(record) && is.null(template) && is.null(inline)) {
+    fields <- tip_check_text(text, "The words of {.arg text}")
+    if (length(fields)) {
+      inline <- list(template = tip_template(tip_text(text)), fields = unique(fields), what = "{.arg text}")
+      text_inline <- TRUE
+    }
+  }
+  if (!has_text && is.null(template) && is.null(inline) && is.null(when_disabled)) {
     if (is.null(text)) {
       tip_abort("Give {.arg text} or {.arg template}; there is nothing to show.", class = "hovercraft_error_tip")
     }
     return(tag) # a missing or empty text is no tip, so a table row with no note stays as it was
   }
-  if (!has_text && is.null(template) && !identical(marker$type, "none")) {
+  if (!has_text && is.null(template) && is.null(inline) && !identical(marker$type, "none")) {
     tip_warn(
       c(
         "{.arg marker} is left off: the tag has no tip of its own, only a reason for when it is disabled.",
@@ -597,10 +672,13 @@ tip_on <- function(
     marker <- tip_as_marker("none", "marker")
   }
   tip_check_focus(tag, rlang::current_env())
+  tip_warn_title(tag, rlang::current_env())
   held <- names(record)
   more_fields <- more_info$fields %||% character()
   short_known <- !is.null(template) && template %in% names(tip_known())
-  keep <- if (!is.null(template)) {
+  keep <- if (!is.null(inline)) {
+    unique(c(inline$fields, more_fields))
+  } else if (!is.null(template)) {
     if (short_known) unique(c(tip_known()[[template]]$fields, more_fields)) else NULL
   } else if (length(more_fields)) {
     more_fields
@@ -610,7 +688,9 @@ tip_on <- function(
   if (!is.null(record)) {
     record <- tip_record(record, keep)
   }
-  if (!is.null(template)) {
+  if (!is.null(inline)) {
+    tip_check_more_fields(inline$fields, held, effective_id, rlang::current_env(), what = inline$what)
+  } else if (!is.null(template)) {
     tip_check_use(template, held, effective_id, rlang::current_env())
   } else if (!is.null(record) && !length(more_fields)) {
     tip_warn(
@@ -624,7 +704,13 @@ tip_on <- function(
   }
   attrs <- tip_attributes()
   values <- list()
-  if (has_text) {
+  inline_deps <- list()
+  if (!is.null(inline)) {
+    built <- tip_more_template_dep(inline$template, "inline")
+    template <- built$name
+    inline_deps <- built$deps
+  }
+  if (has_text && !text_inline) {
     values[[attrs[["text"]]]] <- text
   }
   if (!is.null(template)) {
@@ -665,23 +751,29 @@ tip_on <- function(
     tag$attribs[names(tag$attribs) == "aria-label"] <- NULL
   }
   look <- tip_style_tag(style)
-  # A tip made before is replaced, its look too. A call that does not mention `pin` leaves a pin the tag has, and with
-  # it the tip's id, which the pin is named by; a call that does mention it (also `pin = FALSE`) decides it.
-  pin_given <- !is.null(pin)
-  keep_pin <- !pin_given && !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
-  replaced <- c("preset", "class", "placement", "more", "more_template", "more_on")
-  own <- c(
-    attrs,
-    vapply(c(replaced, if (!(keep_pin && is.null(id))) "id"), tip_attribute, ""),
-    if (pin_given) tip_attribute("pin"),
-    tip_theme_attribute(),
-    tip_shiny_attribute()
-  )
+  # A tip made before is replaced whole: its words, id, events, pin and look. A call that names none of the wiring the
+  # old tip had (an id, events, a pin) says so once.
+  replaced <- c("preset", "class", "placement", "more", "more_template", "more_on", "id", "pin")
+  own <- c(attrs, vapply(replaced, tip_attribute, ""), tip_theme_attribute(), tip_shiny_attribute())
+  had_pin <- !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
+  wiring <- c(tip_attribute("id"), tip_attribute("pin"), tip_shiny_attribute())
+  if (any(names(tag$attribs) %in% wiring) && is.null(id) && is.null(events) && is.null(pin)) {
+    tip_warn(
+      c(
+        "This tag already has a tip with an id, events or a pin, and {.fn tip_on} replaced it whole.",
+        i = "Give {.arg id}, {.arg events} and {.arg pin} again if the new tip still needs them.",
+        i = "A wrapper that tips again on purpose can silence the class {.cls hovercraft_warning_retip}."
+      ),
+      class = "hovercraft_warning_retip",
+      .frequency = "once",
+      .frequency_id = "hovercraft-retip"
+    )
+  }
   tag$attribs[names(tag$attribs) %in% own] <- NULL
-  if (pin_given && identical(htmltools::tagGetAttribute(tag, "aria-keyshortcuts"), toupper(tip_pin_key()))) {
+  if (had_pin && identical(htmltools::tagGetAttribute(tag, "aria-keyshortcuts"), toupper(tip_pin_key()))) {
     tag$attribs[names(tag$attribs) == "aria-keyshortcuts"] <- NULL
   }
-  if (has_text && tip_needs_label(tag)) {
+  if (has_text && !text_inline && tip_needs_label(tag)) {
     label <- tip_plain_text(text)
     if (nzchar(label)) {
       values[["aria-label"]] <- label
@@ -689,8 +781,8 @@ tip_on <- function(
   }
   tag <- do.call(htmltools::tagAppendAttributes, c(list(tag), values, look$attribs))
   tag <- tip_marker_apply(tag, marker, rlang::current_env())
-  deps <- c(list(tip_engine_dependency()), look$deps, more_deps)
-  if (!is.null(pin_value) || !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))) {
+  deps <- c(list(tip_engine_dependency()), look$deps, inline_deps, more_deps)
+  if (!is.null(pin_value)) {
     deps <- c(deps, list(tip_pin_dependency()))
   }
   if (!is.null(when_disabled)) {

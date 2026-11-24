@@ -10,7 +10,7 @@ describe("tip_on(pin = )", {
   it("writes the engine's pin value manual for TRUE, and the classic pin for \"click\"", {
     manual <- tip_on(button(), "Runs", id = "run_tip", pin = TRUE)
     expect_identical(attrs(manual)[[tip_attribute("pin")]], "manual")
-    classic <- tip_on(button(), "Runs", id = "run_tip", pin = "click")
+    classic <- tip_on(htmltools::tags$span("Runs", tabindex = "0"), "Runs", id = "run_tip", pin = "click")
     expect_identical(attrs(classic)[[tip_attribute("pin")]], "true")
     expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", id = "run_tip")$attribs))
     expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", id = "run_tip", pin = FALSE)$attribs))
@@ -42,7 +42,12 @@ describe("tip_on(pin = )", {
     names_of <- function(tag) vapply(htmltools::findDependencies(tag), function(x) x$name, "")
     expect_true("hovercraft-pin" %in% names_of(tip_on(button(), "Runs", pin = TRUE)))
     expect_false("hovercraft-pin" %in% names_of(tip_on(button(), "Runs")))
-    again <- tip_on(tip_on(button(), "One", pin = TRUE), "Two", pin = "click")
+    again <- tip_on(
+      tip_on(htmltools::tags$span("Go", tabindex = "0"), "One", id = "go", pin = TRUE),
+      "Two",
+      id = "go",
+      pin = "click"
+    )
     expect_identical(sum(names(again$attribs) == tip_attribute("pin")), 1L)
     expect_identical(attrs(again)[[tip_attribute("pin")]], "true")
   })
@@ -50,7 +55,12 @@ describe("tip_on(pin = )", {
   it("makes the tagged item announce the pin key, and takes it away with the pin", {
     got <- tip_on(button(), "Runs", id = "run_tip", pin = TRUE)
     expect_identical(attrs(got)[["aria-keyshortcuts"]], toupper(tip_pin_key()))
-    expect_identical(attrs(tip_on(button(), "Runs", id = "run_tip", pin = "click"))[["aria-keyshortcuts"]], "P")
+    expect_identical(
+      attrs(tip_on(htmltools::tags$span("Runs", tabindex = "0"), "Runs", id = "run_tip", pin = "click"))[[
+        "aria-keyshortcuts"
+      ]],
+      "P"
+    )
     expect_false("aria-keyshortcuts" %in% names(tip_on(button(), "Runs")$attribs))
     off <- tip_on(got, "Runs", pin = FALSE)
     expect_false("aria-keyshortcuts" %in% names(off$attribs))
@@ -67,18 +77,23 @@ describe("tip_on(pin = )", {
     expect_identical(formals(tip_on)$pin, NULL)
   })
 
-  it("keeps a pin and its id when the tag is tipped again without a pin argument, and drops both with pin = FALSE", {
-    first <- tip_on(button(), "One", id = "run_tip", pin = TRUE)
-    again <- tip_on(first, "Two")
-    expect_identical(attrs(again)[[tip_attribute("pin")]], "manual")
-    expect_identical(attrs(again)[[tip_attribute("id")]], "run_tip")
+  it("replaces a pin, its id and its events when the tag is tipped again, and says so once", {
+    first <- tip_on(button(), "One", id = "run_tip", pin = TRUE, events = "pin")
+    rlang::reset_warning_verbosity("hovercraft-retip")
+    expect_warning(again <- tip_on(first, "Two"), class = "hovercraft_warning_retip")
     expect_identical(attrs(again)[[tip_names()$attribute]], "Two")
-    off <- tip_on(first, "Two", pin = FALSE)
-    expect_false(tip_attribute("pin") %in% names(off$attribs))
-    # With a new id and no pin argument, the new id is the pin's.
-    renamed <- tip_on(first, "Two", id = "other_tip")
-    expect_identical(attrs(renamed)[[tip_attribute("id")]], "other_tip")
-    expect_identical(attrs(renamed)[[tip_attribute("pin")]], "manual")
+    for (name in c("pin", "id")) {
+      expect_false(tip_attribute(name) %in% names(again$attribs))
+    }
+    expect_false(tip_shiny_attribute() %in% names(again$attribs))
+    expect_false("aria-keyshortcuts" %in% names(again$attribs))
+    # A call that names an id, events or a pin again does not warn, and neither does pin = FALSE.
+    rlang::reset_warning_verbosity("hovercraft-retip")
+    expect_no_warning(tip_on(first, "Two", id = "other_tip", pin = TRUE))
+    expect_no_warning(tip_on(first, "Two", pin = FALSE))
+    expect_no_warning(tip_on(first, "Two", events = "hint"))
+    # A tag whose tip had no id, events or pin has nothing to lose.
+    expect_no_warning(tip_on(tip_on(button(), "One"), "Two"))
   })
 
   it("lets more_on = \"pin\" follow the pin argument", {

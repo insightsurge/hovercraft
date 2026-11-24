@@ -42,8 +42,9 @@
       tip_on(htmltools::tagList(button(), button()), "x")
     Condition
       Error in `tip_on()`:
-      ! `tag` is a list of tags; give one tag.
-      i Call `tip_on()` on each tag.
+      ! `tag` must be one HTML tag, not a list of tags.
+      i Call `tip_on()` on each tag, or wrap the content in one tag such as `span()`.
+      i For a tab, tip the tag that is its title: `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. The `value` is needed: without it bslib writes the tag's HTML into the tab's value.
 
 ---
 
@@ -51,7 +52,8 @@
       tip_on("x", "x")
     Condition
       Error in `tip_on()`:
-      ! `tag` must be an HTML tag, not a string.
+      ! `tag` must be one HTML tag, not a string.
+      i For a tab, tip the tag that is its title: `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. The `value` is needed: without it bslib writes the tag's HTML into the tab's value.
 
 # the tip_on() errors / say there is nothing to show
 

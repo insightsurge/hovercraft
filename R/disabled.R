@@ -70,8 +70,9 @@ tip_check_when_disabled <- function(when_disabled, tag, call = rlang::caller_env
   invisible()
 }
 
-# A tag that an earlier tip_on(when_disabled = ) made: its wrapper. A second call changes the reason of this wrapper and
-# does not put a second one around it.
+# A tag that an earlier tip_on(when_disabled = ) made: its wrapper. A second call tips the control inside again and does
+# not put a second wrapper around it; the earlier reason goes with the earlier tip, so a call without `when_disabled`
+# gives the control back without its wrapper.
 tip_is_disabled_wrapper <- function(tag) {
   tip_marker_has_class(tag, tip_disabled_class()) &&
     length(tag$children) == 1L &&

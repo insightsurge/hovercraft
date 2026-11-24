@@ -57,6 +57,25 @@ tip_check_events <- function(events, call = rlang::caller_env()) {
   paste(unique(events), collapse = " ")
 }
 
+# The pin and copy inputs belong to a pinned tip: without a pin there is nothing to send.
+tip_check_events_pin <- function(events, pin_value, call = rlang::caller_env()) {
+  if (is.null(events) || !is.null(pin_value)) {
+    return(invisible())
+  }
+  asked <- intersect(strsplit(events, " ", fixed = TRUE)[[1]], c("pin", "copy"))
+  if (length(asked)) {
+    tip_abort(
+      c(
+        "{.arg events} asks for {.val {asked}}, and the tip has no pin.",
+        i = "Give {.arg pin} as {.code TRUE} or {.code \"click\"}, or ask only for {.val hint}."
+      ),
+      class = "hovercraft_error_events",
+      call = call
+    )
+  }
+  invisible()
+}
+
 # A server call needs a Shiny session: the one given, or the one the call runs in. Outside a server function there is
 # none, and the message says so instead of failing deep inside Shiny.
 tip_check_session <- function(session, fn, call = rlang::caller_env()) {

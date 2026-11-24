@@ -371,11 +371,22 @@ tip_style_page <- function(style) {
 # A tag's style: the attributes to write on the tag, and the dependencies they need. The preset and class are the
 # engine's attributes; a theme is a marker on the tag, named by a hash of the theme, with its CSS in a dependency of
 # that name, so two tags with one theme share it.
-tip_style_tag <- function(style) {
+tip_style_tag <- function(style, call = rlang::caller_env()) {
   attribs <- list()
   deps <- list()
   if (is.null(style)) {
     return(list(attribs = attribs, deps = deps))
+  }
+  if (length(style$theme$tokens)) {
+    tip_abort(
+      c(
+        "A style given to one tag cannot hold a list of CSS variables: {.val {names(style$theme$tokens)}}.",
+        i = "Give {.fn tip_theme} roles instead, such as {.code tip_theme(light = list(radius = 8))}.",
+        i = "A list of CSS variables is for the whole page: give it to {.fn use_hovercraft}."
+      ),
+      class = "hovercraft_error_style",
+      call = call
+    )
   }
   attribs[[tip_attribute("preset")]] <- style$preset
   attribs[[tip_attribute("class")]] <- style$class
