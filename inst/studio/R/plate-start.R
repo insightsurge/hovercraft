@@ -111,14 +111,15 @@ plate_start_ui <- function(look) {
       ),
       htmltools::p(class = "hero-sub", "studio: every tip it draws, on one page"),
       htmltools::tags$header(
-        class = "plate-head start-head",
+        class = "plate-head",
+        htmltools::p(class = "plate-no", `aria-hidden` = "true", "1"),
         htmltools::p(class = "plate-kicker", "Plate 1"),
-        htmltools::h2(id = "start-h", "Start"),
-        htmltools::p(
-          class = "lede",
-          "Rest the pointer on a word, or reach it with Tab. Each plate below is one feature: the figure is live, the",
-          "margin holds its R code, what to test, and the inputs your Shiny server would get."
-        )
+        htmltools::h2(id = "start-h", "Start")
+      ),
+      htmltools::p(
+        class = "lede",
+        "Rest the pointer on a word, or reach it with Tab. Each plate below is one feature: the figure is live, the",
+        "margin holds its R code, what to test, and the inputs your Shiny server would get."
       )
     ),
     controls = htmltools::tagList(

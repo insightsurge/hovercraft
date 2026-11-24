@@ -107,21 +107,27 @@ main {
   min-width: 0;
 }
 .plate {
+  --head-h: 112px;
   position: relative;
-  padding-top: 96px;
+  padding-top: 56px;
 }
 .plate + .plate {
   margin-top: 40px;
 }
+/* The plate's number and title stay pinned at the top while the plate is in view, like a running head; the figure
+   stays pinned under it. The head is as wide as the plate, so the margin passes under it too. */
 .plate-head {
-  position: relative;
-  max-width: 40rem;
-  margin-bottom: 36px;
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  min-height: var(--head-h);
+  padding: 40px 0 14px;
+  background: var(--paper);
 }
 .plate-no {
   position: absolute;
   right: calc(100% + 22px);
-  top: -0.08em;
+  top: calc(40px - 0.08em);
   margin: 0;
   font: 300 var(--s5) / 1 var(--serif);
   color: var(--blue);
@@ -138,14 +144,14 @@ main {
 .plate h2 {
   font: 400 var(--s4) / 1.08 var(--serif);
   letter-spacing: -0.012em;
-  margin: 0 0 14px;
+  margin: 0;
 }
 .plate .lede {
   font-size: var(--s1);
   line-height: 1.5;
   color: var(--ink);
   max-width: 36em;
-  margin: 0;
+  margin: 0 0 36px;
 }
 .plate .lede em {
   font-style: italic;
@@ -168,7 +174,7 @@ main {
 /* The figure stays beside the reader while the margin is read. */
 .plate-body > .specimen {
   position: sticky;
-  top: 40px;
+  top: calc(var(--head-h) + 24px);
   align-self: start;
 }
 .specimen::before {
@@ -663,6 +669,11 @@ main {
   }
   .plate-head h2 {
     margin-top: 6px;
+  }
+  /* Under the phone's fixed bar, with less room above. */
+  .plate-head {
+    top: var(--bar-h);
+    padding: 12px 0 10px;
   }
   .plate-body {
     display: block;
@@ -1208,12 +1219,6 @@ body {
 .plate h2,
 .hero {
   color: var(--ink);
-}
-.start-head {
-  margin-top: 40px;
-}
-.start-head .plate-kicker {
-  display: block;
 }
 .specimen .shiny-html-output {
   min-width: 0;

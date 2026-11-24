@@ -32,9 +32,9 @@ plate <- function(
         class = "plate-head",
         htmltools::p(class = "plate-no", `aria-hidden` = "true", n),
         htmltools::p(class = "plate-kicker", paste("Plate", n)),
-        htmltools::h2(id = heading, title),
-        htmltools::p(class = "lede", lede)
+        htmltools::h2(id = heading, title)
       ),
+    if (!is.null(lede)) htmltools::p(class = "lede", lede),
     htmltools::div(
       class = "plate-body",
       htmltools::tags$figure(
