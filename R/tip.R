@@ -437,11 +437,17 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   `"hint"` sends `input$<id>_hint` each time the tip opens or closes: `state` (`"shown"` or `"hidden"`), `text`
 #'   (the tip's plain words, cut at 200 characters), `by` (`"reader"`, `"host"` for [tip_show()] and [tip_hide()],
 #'   or `"data"` when the tag left the page), `via` (`"pointer"`, `"focus"`, `"tap"`, `"key"`, `"command"`, or
-#'   `NULL`) and `reason` (why it closed, `NULL` on `"shown"`). `"pin"` sends `input$<id>_pin` each time the tip is
-#'   pinned, closed or drawn again while pinned: `state` (`"pinned"`, `"closed"` or `"updated"`), `text`, `by`
-#'   (`"reader"`, `"host"` or `"data"`), `via` (`"click"`, `"key"`, `"command"`, or `NULL`) and `reason` (why it
-#'   closed: `"select"`, `"escape"`, `"button"`, `"outside"`, `"replaced"`, `"gone"` or `"host"`, `NULL` on
-#'   `"pinned"`). `"copy"` sends `input$<id>_copy` each time the Copy button of a code block in the pinned tip is
+#'   `NULL`) and `reason` (why it closed, `NULL` on `"shown"`: `"leave"`, `"blur"`, `"escape"`, `"outside"`,
+#'   `"pinned"` when the hint became a pin, `"replaced"`, `"gone"` or `"host"`). `"pin"` sends `input$<id>_pin` each
+#'   time the tip is pinned, closed or drawn again while pinned: `state` (`"pinned"`, `"closed"` or `"updated"`),
+#'   `text`, `by` (`"reader"`, `"host"` or `"data"`), `via` (`"click"`, `"key"`, `"command"`, or `NULL`) and `reason`
+#'   (why it closed: `"select"`, `"escape"`, `"button"`, `"outside"`, `"replaced"`, `"gone"`, `"below"` when a layer
+#'   around it closed, `"host"` or `"redraw"` when it was drawn again with other host slots (`by` is `"data"`); `NULL`
+#'   on `"pinned"`). A `"state"` of `"updated"` is not a pin: an app that tests only for `"closed"` should check it.
+#'   `"pin"` also keeps `input$<id>_pinned`, `TRUE` while the tip is pinned and `FALSE` after, sent in the same batch
+#'   as `_pin` and as a plain value, so an equal value does not fire an observer again; read it with
+#'   `isTRUE(input$run_pinned)`.
+#'   `"copy"` sends `input$<id>_copy` each time the Copy button of a code block in the pinned tip is
 #'   pressed: `field` (the record field the code came from), `block` (the code block's place among the tip's code
 #'   blocks, from 0), `ok` (`TRUE` when the browser let the copy happen), `by` (`"reader"`) and `via` (`"click"` or
 #'   `"key"`).

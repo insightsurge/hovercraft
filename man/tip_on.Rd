@@ -77,11 +77,17 @@ tip, so asking for either without a \code{pin} stops with an error. Each is a li
 \code{"hint"} sends \verb{input$<id>_hint} each time the tip opens or closes: \code{state} (\code{"shown"} or \code{"hidden"}), \code{text}
 (the tip's plain words, cut at 200 characters), \code{by} (\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}} and \code{\link[=tip_hide]{tip_hide()}},
 or \code{"data"} when the tag left the page), \code{via} (\code{"pointer"}, \code{"focus"}, \code{"tap"}, \code{"key"}, \code{"command"}, or
-\code{NULL}) and \code{reason} (why it closed, \code{NULL} on \code{"shown"}). \code{"pin"} sends \verb{input$<id>_pin} each time the tip is
-pinned, closed or drawn again while pinned: \code{state} (\code{"pinned"}, \code{"closed"} or \code{"updated"}), \code{text}, \code{by}
-(\code{"reader"}, \code{"host"} or \code{"data"}), \code{via} (\code{"click"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason} (why it
-closed: \code{"select"}, \code{"escape"}, \code{"button"}, \code{"outside"}, \code{"replaced"}, \code{"gone"} or \code{"host"}, \code{NULL} on
-\code{"pinned"}). \code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
+\code{NULL}) and \code{reason} (why it closed, \code{NULL} on \code{"shown"}: \code{"leave"}, \code{"blur"}, \code{"escape"}, \code{"outside"},
+\code{"pinned"} when the hint became a pin, \code{"replaced"}, \code{"gone"} or \code{"host"}). \code{"pin"} sends \verb{input$<id>_pin} each
+time the tip is pinned, closed or drawn again while pinned: \code{state} (\code{"pinned"}, \code{"closed"} or \code{"updated"}),
+\code{text}, \code{by} (\code{"reader"}, \code{"host"} or \code{"data"}), \code{via} (\code{"click"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason}
+(why it closed: \code{"select"}, \code{"escape"}, \code{"button"}, \code{"outside"}, \code{"replaced"}, \code{"gone"}, \code{"below"} when a layer
+around it closed, \code{"host"} or \code{"redraw"} when it was drawn again with other host slots (\code{by} is \code{"data"}); \code{NULL}
+on \code{"pinned"}). A \code{"state"} of \code{"updated"} is not a pin: an app that tests only for \code{"closed"} should check it.
+\code{"pin"} also keeps \verb{input$<id>_pinned}, \code{TRUE} while the tip is pinned and \code{FALSE} after, sent in the same batch
+as \verb{_pin} and as a plain value, so an equal value does not fire an observer again; read it with
+\code{isTRUE(input$run_pinned)}.
+\code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
 pressed: \code{field} (the record field the code came from), \code{block} (the code block's place among the tip's code
 blocks, from 0), \code{ok} (\code{TRUE} when the browser let the copy happen), \code{by} (\code{"reader"}) and \code{via} (\code{"click"} or
 \code{"key"}).}
