@@ -67,7 +67,7 @@
   const waiting = new Map(); // plate -> the Copy button waiting for that plate's newest code
   // A change of a plate's choices counts one more revision; the server sends code with the revision it answers.
   document.addEventListener('change', (e) => {
-    // Only a choice the plate's code reads: the page colours in the Start sentence are not one.
+    // Only a choice the plate's code reads: the page colours in a section's sentence are not one.
     if (!e.target.closest?.('.plate .controls .shiny-input-radiogroup')) return;
     const plate = e.target.closest('.plate');
     revs[plate.id] = (revs[plate.id] ?? 0) + 1;
@@ -169,6 +169,11 @@
   });
 
   /* ---- The ticks of the test steps: the server says which are done -------------------------------------------- */
+  // A step's box: a tick when it is done, else its number.
+  const drawBox = (button, on, i) => {
+    button.setAttribute('aria-pressed', String(on));
+    button.replaceChildren(on ? tickSvg() : Object.assign(document.createElement('span'), { textContent: i + 1 }));
+  };
   const drawTicks = (msg) => {
     const list = $(`[data-steps="${CSS.escape(msg.plate)}"]`);
     if (!list) return;
@@ -176,20 +181,19 @@
     const items = $$(':scope > li', list);
     items.forEach((li, i) => {
       const on = done.has(i);
-      li.classList.toggle('g-done', on);
-      const box = $('.g-tick', li);
-      box.setAttribute('aria-pressed', String(on));
-      box.replaceChildren(on ? tickSvg() : Object.assign(document.createElement('span'), { textContent: i + 1 }));
+      li.classList.toggle('ck-done', on);
+      drawBox($('.ck-tick', li), on, i);
     });
     const count = $(`[data-count="${CSS.escape(msg.plate)}"]`);
     if (count) count.textContent = done.size ? `${done.size} of ${items.length} ticked` : '';
-    const said = $('.g-said', list.closest('.note'));
+    const said = $('.ck-said', list.closest('.note'));
     if (said && msg.said) said.textContent = msg.said;
     document.dispatchEvent(new CustomEvent('book:ticks', { detail: { plate: msg.plate, done: [...done] } }));
   };
   // A click on a step's box asks the server to tick or untick it.
   window.BookShared = {
     tickSvg,
+    drawBox,
     toggle: (plate, i, on) => send('book_tick', { plate, i, on, at: Date.now() }, true),
   };
 

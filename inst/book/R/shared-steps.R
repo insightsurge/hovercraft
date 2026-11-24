@@ -1,16 +1,6 @@
 # Shared helpers: the What to test steps and the proofs that tick them. A step is ticked by the server, from inputs it
 # really received, Checklist on or off; the page only draws the ticks. A step without a proof is ticked by hand.
 
-# The engine's page contract (attribute names, events, presets), from a file every install has, so the book never
-# writes one of the engine's names itself.
-book_cache <- new.env()
-book_contract <- function() {
-  if (is.null(book_cache$contract)) {
-    book_cache$contract <- jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
-  }
-  book_cache$contract
-}
-
 # A CSS selector for the tag whose tip has the id `id` (the id given to tip_on(id =)).
 tip_target <- function(id) sprintf("[%s=\"%s\"]", book_contract()$attributes$id, id)
 

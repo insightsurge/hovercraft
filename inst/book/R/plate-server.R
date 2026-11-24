@@ -1,4 +1,4 @@
-# Plate 9, From the server: open, close and change a tip from R, and hear back through the hint input.
+# Section 5.1, From the server: open, close and change a tip from R, and hear back through the hint input.
 
 server_first <- "New here? Start with **week 46**: the newest complete week."
 server_new <- "Week 47 is in: **5,102 visits**, the busiest week since spring."

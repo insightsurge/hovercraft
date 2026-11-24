@@ -1,4 +1,5 @@
-# Plate 8, Tables: tips on the rows, cells and headers of a DT or reactable table, each from its own row.
+# Section 6.1, Rows, cells and headers: tips on the rows, cells and headers of a DT or reactable table, each from its
+# own row.
 
 tables_parts <- c("rows" = "rows", "rows and headers" = "headers", "rows and a cell" = "cells")
 

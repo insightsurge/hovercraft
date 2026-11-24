@@ -1,4 +1,4 @@
-# Plate 5, Pins: a tip a reader keeps open, with the pin button in its corner, the P key, Copy on a code block, and
+# Section 3.1, Pins: a tip a reader keeps open, with the pin button in its corner, the P key, Copy on a code block, and
 # the pin and copy inputs.
 
 pins_placements <- c("where they fit" = "auto", "above" = "top", "below" = "bottom", "beside" = "right")

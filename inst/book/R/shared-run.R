@@ -1,4 +1,14 @@
-# Shared helpers: running the code a plate shows.
+# Shared helpers: running the code a plate shows, and the engine's names the page needs.
+
+# The engine's page contract (attribute names, events, presets), from a file every install has, so the book never
+# writes one of the engine's names itself.
+book_cache <- new.env()
+book_contract <- function() {
+  if (is.null(book_cache$contract)) {
+    book_cache$contract <- jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
+  }
+  book_cache$contract
+}
 
 # An environment that holds hovercraft's exported functions and nothing else, as `library(hovercraft)` gives a reader.
 # The code a plate shows runs here, so it can't lean on anything a reader's own app would not have.

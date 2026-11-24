@@ -1,5 +1,5 @@
-# Plate 3.3, What your server hears: the three inputs a tip can send (`events =`), the `kind` each carries, and a small
-# server that reads them.
+# Section 3.3, What your server hears: the three inputs a tip can send (`events =`), the `kind` each carries, and a
+# small server that reads them.
 
 inputs_kinds <- c("metric" = "metric", "review_item" = "review_item", "none given" = "none")
 

@@ -18,7 +18,7 @@ describe("hovercraft book in a browser", {
   js <- function(code) page$evaluate(code)
   tip <- function(id) sprintf("[%s-id=\"%s\"]", tip_names()$attribute, id)
   ticked <- function(plate, i) {
-    sprintf("!!document.querySelector('[data-steps=\"%s\"] > li[data-i=\"%d\"].g-done')", plate, i)
+    sprintf("!!document.querySelector('[data-steps=\"%s\"] > li[data-i=\"%d\"].ck-done')", plate, i)
   }
   logged <- function(plate, words) {
     sprintf(
@@ -52,7 +52,7 @@ describe("hovercraft book in a browser", {
     expect_length(page$hover(tip("visits")), 1L)
     expect_true(page$wait_until(logged("start", "input$visits_hint")))
     expect_true(page$wait_until(ticked("start", 2L)))
-    expect_match(js("document.querySelector('#start .g-said').textContent"), "ticked itself")
+    expect_match(js("document.querySelector('#start .ck-said').textContent"), "ticked itself")
   })
 
   it("opens the title's tip in its own look, and logs it", {
@@ -240,11 +240,11 @@ describe("hovercraft book in a browser", {
     js("document.activeElement.blur()")
     page$press("c", wait = 0.3)
     expect_true(js("document.documentElement.classList.contains('checklist-on')"))
-    expect_false(js("document.getElementById('g-leader').hasAttribute('hidden')"))
-    expect_true(js("!!document.querySelector('#pins .g-target')"))
-    before <- js("document.querySelector('#pins .tests > li.g-current').dataset.i")
+    expect_false(js("document.getElementById('ck-leader').hasAttribute('hidden')"))
+    expect_true(js("!!document.querySelector('#pins .ck-target')"))
+    before <- js("document.querySelector('#pins .tests > li.ck-current').dataset.i")
     page$press("n", wait = 0.3)
-    expect_false(identical(js("document.querySelector('#pins .tests > li.g-current').dataset.i"), before))
+    expect_false(identical(js("document.querySelector('#pins .tests > li.ck-current').dataset.i"), before))
     page$press("c", wait = 0.3)
     expect_false(js("document.documentElement.classList.contains('checklist-on')"))
   })

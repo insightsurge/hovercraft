@@ -1,4 +1,4 @@
-# Plate 6.3, Pins and inputs on tables: a row's tip pinned with its handle, and the inputs a table sends for its rows
+# Section 6.3, Pins and inputs on tables: a row's tip pinned with its handle, and the inputs a table sends for its rows
 # (`tip_table(pin =, events =, id =)`).
 
 table_pins_pins <- c("pinnable" = "on", "hover only" = "off")

@@ -1,4 +1,4 @@
-# Plate 4, Short and long: one line on a glance, the whole method on request (`more =`, `more_on =`).
+# Section 3.2, Short and long: one line on a glance, the whole method on request (`more =`, `more_on =`).
 
 more_on_choices <- c("pinned" = "pin", "hovered" = "hover")
 more_pin_choices <- c("its corner button or P" = "true", "a click as well" = "click")

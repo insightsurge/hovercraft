@@ -1,4 +1,4 @@
-# Plate 6, Disabled: a control that is switched off says why, at once, with a small lock.
+# Section 2.2, Switched-off controls: a control that is switched off says why, at once, with a small lock.
 
 disabled_states <- c("still loading" = "loading", "ready" = "ready")
 

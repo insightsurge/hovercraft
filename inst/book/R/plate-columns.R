@@ -1,4 +1,4 @@
-# Plate 6.2, One column its own way: a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own
+# Section 6.2, One column its own way: a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own
 # placement, look and marker for that column only.
 
 columns_settings <- c(

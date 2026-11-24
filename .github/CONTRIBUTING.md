@@ -93,9 +93,9 @@ request that adds, removes or changes an export or an argument (its name, values
 book in the same pull request, and a test fails until it does.
 
 - **Files.** `app.R` starts the app. Shiny loads every file in `R/` first: the shared helpers in `R/shared-*.R` (code
-  as text, running it, the section frame and its margin, the test steps and their proofs, the inputs log), one file
-  per section in `R/plate-<id>.R`, the parts, the sections and the made-up data in `R/data.R`, and the page in
-  `R/page.R`. `www/shared.css` and `www/shared.js` go with the shared helpers; `www/book.css` and `www/book.js` are
+  as text, running it, the section frame and its margin, the test steps and their proofs, the inputs log, the
+  tables), one file per section in `R/plate-<id>.R`, the parts, the sections and all the made-up data in `R/data.R`,
+  and the page in `R/page.R`. `www/shared.css` and `www/shared.js` go with the shared helpers; `www/book.css` and `www/book.js` are
   the page's own look, its index and search, its phone layout and the checklist.
 - **A section** has an id in `book_sections` (`data.R`, with its part, number and title) and in `book_section_ids`
   (`R/book.R`), and in its file: `<id>_code()` (the code text), `<id>_steps()` (3 to 5 test steps),

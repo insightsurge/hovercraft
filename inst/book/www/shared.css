@@ -123,9 +123,6 @@ p {
   padding: 0;
   min-width: 0;
 }
-.choice legend {
-  padding: 0;
-}
 .choice label {
   position: relative;
   display: inline-flex;
@@ -291,8 +288,7 @@ p {
 
 /* Every button of the book's own chrome (Copy, Close, Back, Next) is this one: a thin blue box, filled on hover
    and when its action is done. The outline is kept for buttons only. */
-.btn-quiet,
-.g-btn {
+.btn-quiet {
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -306,12 +302,10 @@ p {
   border-radius: 3px;
   cursor: pointer;
 }
-.btn-quiet:hover,
-.g-btn:hover {
+.btn-quiet:hover {
   background: var(--wash);
 }
-.btn-quiet:focus-visible,
-.g-btn:focus-visible {
+.btn-quiet:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 2px;
 }
@@ -400,13 +394,13 @@ p {
 }
 
 /* A step the server ticked: its number becomes a tick, checklist on or off. */
-.tests li.g-done::before {
+.tests li.ck-done::before {
   content: "\2713";
 }
-.tests li.g-done > span {
+.tests li.ck-done > span {
   color: var(--ink-2);
 }
-.g-count-h:empty {
+.ck-count-h:empty {
   display: none;
 }
 
@@ -439,6 +433,7 @@ p {
   float: none;
   width: auto;
   margin: 0;
+  padding: 0;
   font: inherit;
 }
 

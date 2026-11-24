@@ -102,7 +102,7 @@ code_note <- function(id, code) {
 steps_note <- function(id, steps) {
   htmltools::tags$section(
     class = "note tests-note",
-    htmltools::h4("What to test", htmltools::span(class = "aside g-count-h", `data-count` = id)),
+    htmltools::h4("What to test", htmltools::span(class = "aside ck-count-h", `data-count` = id)),
     htmltools::tags$ol(
       class = "tests",
       role = "list",
@@ -114,8 +114,8 @@ steps_note <- function(id, steps) {
           `data-manual` = if (is.null(s$proof)) "true",
           htmltools::tags$button(
             type = "button",
-            class = "g-tick g-ui",
-            `data-g` = "tick",
+            class = "ck-tick ck-ui",
+            `data-ck` = "tick",
             `data-i` = i - 1L,
             `aria-pressed` = "false",
             `aria-label` = paste("Step", i, "done"),
@@ -129,11 +129,23 @@ steps_note <- function(id, steps) {
       })
     ),
     htmltools::div(
-      class = "g-fold g-ui",
-      htmltools::p(class = "g-step"),
-      htmltools::tags$button(type = "button", class = "g-btn", `data-g` = "back", "Back ", htmltools::tags$kbd("B")),
-      htmltools::tags$button(type = "button", class = "g-btn", `data-g` = "next", "Next ", htmltools::tags$kbd("N")),
-      htmltools::p(class = "g-said", `aria-live` = "polite")
+      class = "ck-fold ck-ui",
+      htmltools::p(class = "ck-step"),
+      htmltools::tags$button(
+        type = "button",
+        class = "btn-quiet",
+        `data-ck` = "back",
+        "Back ",
+        htmltools::tags$kbd("B")
+      ),
+      htmltools::tags$button(
+        type = "button",
+        class = "btn-quiet",
+        `data-ck` = "next",
+        "Next ",
+        htmltools::tags$kbd("N")
+      ),
+      htmltools::p(class = "ck-said", `aria-live` = "polite")
     )
   )
 }
@@ -166,7 +178,7 @@ inline_code <- function(text) {
   htmltools::HTML(paste(html, collapse = ""))
 }
 
-# A choice set inside a sentence: a run of words where the chosen one is boxed. A real Shiny radio group (Shiny's own
+# A choice set inside a sentence: a run of words where the chosen one sits on a soft fill. A real Shiny radio group (Shiny's own
 # radio binding reads `.shiny-input-radiogroup` and the radios named after its id), so `input[[id]]` holds the value.
 # `choices` is a named vector: values, named by the words shown.
 choice_set <- function(id, legend, choices, selected = choices[[1]]) {

@@ -1,4 +1,4 @@
-# Plate 7, Live output: a Shiny plot inside a pinned tip, drawn by the server for the region under the pointer, kept
+# Section 5.2, Live output: a Shiny plot inside a pinned tip, drawn by the server for the region under the pointer, kept
 # alive when the tip closes and shared by three rows; and its loading, error-with-Retry and empty states.
 
 output_modes <- c("a plot" = "plot", "a slow plot" = "slow", "an error" = "error", "no rows" = "empty")

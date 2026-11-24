@@ -55,7 +55,7 @@ book_toc <- function(id = NULL) {
                 `data-search` = section_search(i),
                 htmltools::span(class = "n", book_sections$n[[i]]),
                 htmltools::span(class = "t", book_sections$title[[i]]),
-                htmltools::span(class = "g-mark g-ui")
+                htmltools::span(class = "ck-mark ck-ui")
               ))
             })
           )
@@ -87,7 +87,7 @@ toc_search <- function(id) {
 checklist_switch <- function(kbd = TRUE) {
   htmltools::tags$button(
     type = "button",
-    class = "g-switch js-checklist",
+    class = "ck-switch js-checklist",
     `aria-pressed` = "false",
     title = "Checklist (C)",
     htmltools::span(class = "box", `aria-hidden` = "true"),
@@ -170,25 +170,37 @@ book_page <- function(query) {
       `aria-label` = "Checklist: the current step",
       htmltools::tags$button(
         type = "button",
-        class = "g-tick",
-        `data-g` = "tick",
+        class = "ck-tick",
+        `data-ck` = "tick",
         `aria-pressed` = "false",
         `aria-label` = "Current step done"
       ),
       htmltools::tags$button(
         type = "button",
         class = "cue-text",
-        `data-g` = "open",
+        `data-ck` = "open",
         title = "Open the margin",
         htmltools::span(class = "w"),
         htmltools::span(class = "x")
       ),
-      htmltools::tags$button(type = "button", class = "g-btn", `data-g` = "back", `aria-label` = "Back a step", "Back"),
-      htmltools::tags$button(type = "button", class = "g-btn", `data-g` = "next", `aria-label` = "Next step", "Next")
+      htmltools::tags$button(
+        type = "button",
+        class = "btn-quiet",
+        `data-ck` = "back",
+        `aria-label` = "Back a step",
+        "Back"
+      ),
+      htmltools::tags$button(
+        type = "button",
+        class = "btn-quiet",
+        `data-ck` = "next",
+        `aria-label` = "Next step",
+        "Next"
+      )
     ),
     htmltools::tags$svg(
-      class = "g-leader",
-      id = "g-leader",
+      class = "ck-leader",
+      id = "ck-leader",
       `aria-hidden` = "true",
       hidden = NA,
       htmltools::tags$polyline(points = ""),
@@ -201,9 +213,9 @@ book_page <- function(query) {
         `aria-label` = "Contents",
         htmltools::a(class = "wordmark", href = "#start", htmltools::tags$b("hovercraft"), htmltools::span("book")),
         htmltools::div(
-          class = "g-head",
+          class = "ck-head",
           checklist_switch(),
-          htmltools::tags$button(type = "button", class = "g-resume g-ui", id = "g-resume")
+          htmltools::tags$button(type = "button", class = "ck-resume ck-ui", id = "ck-resume")
         ),
         toc_search("toc-q"),
         book_toc("toc"),

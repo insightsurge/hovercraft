@@ -1,5 +1,5 @@
-# Plate 4.3, Your own colours: a tip's fill, words, border, corner and font, for light and for dark
-# (`tip_theme(light =, dark =, mode =)`, given as `tip_style(theme =)`), or the colours of a bslib theme.
+# Section 4.3, Your own colours: a tip's fill, words, border, corner and font, for light and for dark (`tip_theme(light
+# =, dark =, mode =)`, given as `tip_style(theme =)`), or the colours of a bslib theme.
 
 colours_text <- paste(
   "Median time from a ticket opening to its first reply.",
@@ -29,22 +29,18 @@ colours_roles <- list(
   )
 )
 
-colours_has_bslib <- function() requireNamespace("bslib", quietly = TRUE)
-
-# The palettes on offer: the bslib one only where bslib is installed.
-colours_palettes <- function() {
-  c(
-    "harbour blue" = "harbour",
-    "warm linen" = "linen",
-    "washed out" = "washed",
-    if (colours_has_bslib()) c("a bslib theme" = "bslib")
-  )
-}
+# The palettes on offer. bslib is always there: the book needs it to run.
+colours_palettes <- c(
+  "harbour blue" = "harbour",
+  "warm linen" = "linen",
+  "washed out" = "washed",
+  "a bslib theme" = "bslib"
+)
 
 colours_modes <- c("follows the page" = "auto", "always light" = "light", "always dark" = "dark")
 
 colours_code <- function(settings) {
-  palette <- choice(settings$palette, colours_palettes(), "harbour")
+  palette <- choice(settings$palette, colours_palettes, "harbour")
   mode <- choice(settings$mode, colours_modes, "auto")
   tag <- function(style) {
     code_call(
@@ -160,7 +156,7 @@ plate_colours_ui <- function() {
     log_empty = "Nothing yet. Rest on the tag.",
     controls = htmltools::tagList(
       "Dress the tip in",
-      choice_set("colours_palette", "Palette", colours_palettes()),
+      choice_set("colours_palette", "Palette", colours_palettes),
       "and let it use the mode that",
       choice_set("colours_mode", "Mode", colours_modes),
       "on a",
