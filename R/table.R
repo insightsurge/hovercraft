@@ -864,8 +864,10 @@ tip_table <- function(
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
+  # A column's position counts the data columns; the row names of a reactable (".rownames") are not one.
+  shown <- setdiff(columns, ".rownames")
   if (!is.null(id)) {
-    tip_table_register(id, columns)
+    tip_table_register(id, shown)
   }
   plan <- list(
     rows = if (!is.null(rows)) {
@@ -907,7 +909,7 @@ tip_table <- function(
       content
     })
   }
-  column_of <- function(column) match(column, columns)
+  column_of <- function(column) match(column, shown)
   plan$specs <- list(
     rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, "row", id = id),
     cells = Map(

@@ -64,14 +64,15 @@ and \code{column} a cell, and \code{column} alone a header cell. For a tip on a 
 with other data, row 3 is whatever is third. It is not a record's id, so do not keep it to find a record later.
 \code{column} is the data column, by its name in the data frame (not the header's words) or its position among the data
 columns, without the row-names column. A name is read from the table that \code{\link[=tip_table]{tip_table()}} drew in this session, so the
-table has to have been drawn once; a name that is not a column stops with an error that lists the columns. A column
-that the widget hides has no tip. A row that a server-side \code{DT} table does not show on its current page has no
-element yet either, so nothing happens until it is on the page.
+table has to have been drawn: a name that is not a column of a table already drawn stops with an error that lists the
+columns; a name given before the table's first draw is read when the call is sent, and if it is still not a column
+then, the call warns (class \code{hovercraft_warning_table}) and sends nothing. A position needs no table. A column that
+the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
+(\code{DT} in client or server mode, \code{reactable}), so nothing happens until it is on the page.
 
-A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. When the call runs in a
-reactive flush, such as an observer, it is sent when the flush is over, so \code{tip_show()} in the same observer as a
-\code{renderUI()} that draws the tag reaches the new tag. Anywhere else, such as a callback of \code{later}, no flush follows
-and the call is sent at once.
+A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
+the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a \code{renderUI()}
+that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
 
 A tip opened by \code{tip_show()} stays open until \code{tip_hide()} closes it, or until the reader opens another tip, presses
 Escape or clicks away. \code{tip_hide()} closes a hint, the tip that shows on hover or focus, and never a pin: when the

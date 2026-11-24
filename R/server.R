@@ -150,11 +150,14 @@ tip_check_table_error <- function(message, ..., call, .envir = parent.frame()) {
   tip_abort(message, class = "hovercraft_error_table", ..., call = call, .envir = .envir)
 }
 
-# `row` and `column` of a server call as the table's tip id, or the plain id for a tag. `row` is the 1-based row of the
-# data the widget has now; `column` the data column's name or its 1-based position, without the row-names column.
-tip_server_id <- function(id, row, column, session, call) {
+# What a server call addresses, checked at the call: a tag by its id, or a table's tip by the table, `row` and `column`.
+# `row` is the 1-based row of the data the widget has now; `column` the data column's name or its 1-based position,
+# without the row-names column. A name is turned into a position from the columns `tip_table()` kept for the session:
+# when the table is not known yet (it is drawn after this call, in the same flush or later) the name waits and is
+# resolved when the message is sent. Everything that can be wrong is stopped here, in the caller's own call.
+tip_server_target <- function(id, row, column, session, call) {
   if (is.null(row) && is.null(column)) {
-    return(session$ns(id))
+    return(list(tag = session$ns(id)))
   }
   tip_arg_count <- function(x, arg) {
     ok <- checkmate::test_count(x, positive = TRUE) && length(x) == 1L
@@ -168,68 +171,83 @@ tip_server_id <- function(id, row, column, session, call) {
   if (!is.null(row)) {
     tip_arg_count(row, "row")
   }
-  table <- tip_table_id(id, session)
-  known <- tip_session_tables(session = session)[[table]]
-  position <- NULL
-  if (!is.null(column)) {
-    by_name <- is.character(column) && length(column) == 1L && !is.na(column)
-    if (!by_name) {
-      tip_arg_count(column, "column")
-    }
-    listed <- if (is.null(known)) "none known yet" else paste0("\"", known, "\"", collapse = ", ")
-    if (by_name && is.null(known)) {
-      tip_check_table_error(
-        c(
-          "{.arg column} names a column, and no table with the id {.val {id}} has been drawn in this session.",
-          i = paste(
-            "A column's name is read from the table that {.fn tip_table} drew.",
-            "Call this after the table is drawn, or give a position."
-          )
-        ),
-        call = call
-      )
-    }
-    position <- if (by_name) match(column, known) else column
-    if (is.na(position) || (!is.null(known) && position > length(known))) {
-      tip_check_table_error(
-        c(
-          "{.arg column} is not a column of the table {.val {id}}: {.val {column}}.",
-          i = paste0("The data columns are ", listed, ". A position counts these, without the row names."),
-          i = "A column is the data's own, not the header's words."
-        ),
-        call = call
-      )
-    }
-    position <- as.integer(position)
+  target <- list(table = tip_table_id(id, session), id = id, row = if (!is.null(row)) as.integer(row))
+  if (is.null(column)) {
+    return(target)
   }
-  tip_table_tip_id(table, if (!is.null(row)) as.integer(row), position)
+  by_name <- is.character(column) && length(column) == 1L && !is.na(column)
+  if (!by_name) {
+    tip_arg_count(column, "column")
+  }
+  known <- tip_session_tables(session = session)[[target$table]]
+  if (by_name && is.null(known)) {
+    target$name <- column
+    return(target)
+  }
+  position <- if (by_name) match(column, known) else column
+  if (is.na(position) || (!is.null(known) && position > length(known))) {
+    tip_check_table_error(
+      c(
+        "{.arg column} is not a column of the table {.val {id}}: {.val {column}}.",
+        i = paste0("The data columns are ", paste0("\"", known, "\"", collapse = ", "), ". A position counts these."),
+        i = "A column is the data's own, not the header's words, and the row names are not one."
+      ),
+      call = call
+    )
+  }
+  target$position <- as.integer(position)
+  target
 }
 
-# Sends one message. Called in a reactive flush, such as an observer, it waits until the flush is done: the message then
-# reaches the page after the outputs of that flush, so a tag that `renderUI()` draws in the same flush is there to be
-# found. Called anywhere else (a callback of `later`, outside a reactive flush) no flush follows and the message goes at
-# once.
-tip_send <- function(session, what, message) {
-  send <- function() session$sendCustomMessage(tip_message(what), message)
-  if (is.function(session$onFlushed) && tip_in_reactive_flush()) {
+# The tip id of a target, when the message is sent. A tag, or a position, is known; a column name that waited for its
+# table is read now, from the columns the table has kept since. A name that is still not a column of a table is a
+# warning and no message: this runs in a callback of the flush, where an error would end the R process.
+tip_server_id <- function(target, session) {
+  if (!is.null(target$tag)) {
+    return(target$tag)
+  }
+  position <- target$position
+  if (is.null(position) && !is.null(target$name)) {
+    known <- tip_session_tables(session = session)[[target$table]]
+    position <- if (is.null(known)) NA_integer_ else match(target$name, known)
+    if (is.na(position)) {
+      tip_warn(
+        c(
+          "{.arg column} {.val {target$name}} is not a column of a table {.val {target$id}} that has been drawn.",
+          i = "The call was not sent. A column's name is read from the table that {.fn tip_table} drew.",
+          i = "Call this after the table is drawn, or give the column's position."
+        ),
+        class = "hovercraft_warning_table"
+      )
+      return(NULL)
+    }
+  }
+  tip_table_tip_id(target$table, target$row, position)
+}
+
+# Sends one message after the flush. The message is built from `build()` when it is sent, so the call itself has already
+# been checked and only reads what the flush has drawn since. Every call waits for a flush and asks for one, so it also
+# reaches the page from a callback where none is due (a `later` callback, `isolate()` outside a flush); a tag that
+# `renderUI()` draws in the flush of the call is there by then. A session that cannot say when it flushes gets the
+# message at once.
+tip_send <- function(session, what, build) {
+  send <- function() {
+    message <- build()
+    if (!is.null(message)) {
+      session$sendCustomMessage(tip_message(what), message)
+    }
+  }
+  if (is.function(session$onFlushed)) {
     session$onFlushed(send, once = TRUE)
+    # A real session takes the request; a mock one (shiny::testServer()) says it is for internal use only, and a flush
+    # is not due there anyway.
+    if (is.function(session$requestFlush)) {
+      suppressWarnings(tryCatch(session$requestFlush(), error = function(e) NULL))
+    }
   } else {
     send()
   }
   invisible()
-}
-
-# Whether the code runs inside a reactive context, which Shiny only gives to code that runs in a flush (an observer, a
-# reactive, an output): reading a reactive value outside one is an error.
-tip_in_reactive_flush <- function() {
-  values <- shiny::reactiveValues(probe = NULL)
-  tryCatch(
-    {
-      values$probe
-      TRUE
-    },
-    error = function(e) FALSE
-  )
 }
 
 #' Show, hide and change a tip from the server
@@ -244,14 +262,15 @@ tip_in_reactive_flush <- function() {
 #' with other data, row 3 is whatever is third. It is not a record's id, so do not keep it to find a record later.
 #' `column` is the data column, by its name in the data frame (not the header's words) or its position among the data
 #' columns, without the row-names column. A name is read from the table that [tip_table()] drew in this session, so the
-#' table has to have been drawn once; a name that is not a column stops with an error that lists the columns. A column
-#' that the widget hides has no tip. A row that a server-side `DT` table does not show on its current page has no
-#' element yet either, so nothing happens until it is on the page.
+#' table has to have been drawn: a name that is not a column of a table already drawn stops with an error that lists the
+#' columns; a name given before the table's first draw is read when the call is sent, and if it is still not a column
+#' then, the call warns (class `hovercraft_warning_table`) and sends nothing. A position needs no table. A column that
+#' the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
+#' (`DT` in client or server mode, `reactable`), so nothing happens until it is on the page.
 #'
-#' A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. When the call runs in a
-#' reactive flush, such as an observer, it is sent when the flush is over, so `tip_show()` in the same observer as a
-#' `renderUI()` that draws the tag reaches the new tag. Anywhere else, such as a callback of `later`, no flush follows
-#' and the call is sent at once.
+#' A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
+#' the flush that follows it is done, and asks for that flush, so `tip_show()` in the same observer as a `renderUI()`
+#' that draws the tag reaches the new tag, and a call from a callback of `later` is sent too.
 #'
 #' A tip opened by `tip_show()` stays open until `tip_hide()` closes it, or until the reader opens another tip, presses
 #' Escape or clicks away. `tip_hide()` closes a hint, the tip that shows on hover or focus, and never a pin: when the
@@ -309,7 +328,11 @@ tip_show <- function(id, ..., row = NULL, column = NULL, session = shiny::getDef
   tip_check_dots(..., args = c("id", "row", "column", "session"))
   tip_check_id(id, null_ok = FALSE)
   session <- tip_check_session(session, "tip_show")
-  tip_send(session, "show", list(id = tip_server_id(id, row, column, session, call)))
+  target <- tip_server_target(id, row, column, session, call)
+  tip_send(session, "show", function() {
+    id <- tip_server_id(target, session)
+    if (!is.null(id)) list(id = id)
+  })
   invisible(NULL)
 }
 
@@ -320,7 +343,11 @@ tip_hide <- function(id, ..., row = NULL, column = NULL, session = shiny::getDef
   tip_check_dots(..., args = c("id", "row", "column", "session"))
   tip_check_id(id, null_ok = FALSE)
   session <- tip_check_session(session, "tip_hide")
-  tip_send(session, "hide", list(id = tip_server_id(id, row, column, session, call)))
+  target <- tip_server_target(id, row, column, session, call)
+  tip_send(session, "hide", function() {
+    id <- tip_server_id(target, session)
+    if (!is.null(id)) list(id = id)
+  })
   invisible(NULL)
 }
 
@@ -373,7 +400,7 @@ tip_update <- function(
     )
   }
   session <- tip_check_session(session, "tip_update")
-  tip_id <- tip_server_id(id, row, column, session, call)
+  target <- tip_server_target(id, row, column, session, call)
   attrs <- tip_attributes()
   ask <- c(
     text = attrs[["text"]],
@@ -398,6 +425,9 @@ tip_update <- function(
       tip_check_use(template, names(record), id, rlang::current_env(), session)
     }
   }
-  tip_send(session, "update", list(id = tip_id, set = set, remove = as.list(unname(ask[removed]))))
+  tip_send(session, "update", function() {
+    id <- tip_server_id(target, session)
+    if (!is.null(id)) list(id = id, set = set, remove = as.list(unname(ask[removed])))
+  })
   invisible(NULL)
 }

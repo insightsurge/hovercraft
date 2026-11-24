@@ -70,6 +70,7 @@ describe("server calls on the tips of a table in a Shiny app", {
             server = FALSE
           )
           shiny::observeEvent(input$call, tip_show("tips", row = 4))
+          shiny::observeEvent(input$by_name, tip_show("tips", row = 2, column = "wins"))
         })
       }
       shiny::shinyApp(ui, server)
@@ -147,9 +148,21 @@ describe("server calls on the tips of a table in a Shiny app", {
     call("show", "dts", row = 4)
     expect_true(shows("Lynx: 9 wins"))
     expect_identical(page$evaluate(open_id), "dts/row/4")
-    # Row 5 (Voles) is on the second page, which has no element yet: nothing opens, and nothing fails.
+    # Row 5 (Voles) is on the second page, which has no element yet: the page says so on its console, opens nothing,
+    # and the session goes on.
+    page$evaluate(
+      "window.notes = []; const warn = console.warn; console.warn = (...a) => { window.notes.push(a.join(' ')); warn(...a); }; 0"
+    )
     call("show", "dts", row = 5)
-    expect_true(page$wait_until(sprintf("%s !== 'Voles: 1 wins'", open_text)))
+    expect_true(page$wait_until("window.notes.some((x) => x.includes('dts/row/5'))"))
+    expect_identical(page$evaluate(open_id), "dts/row/4")
+    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+  })
+
+  it("does not end the session for a table that is never drawn, with a column name", {
+    call("show", "nodraw", row = 1, column = "wins")
+    call("show", "dtc", row = 1)
+    expect_true(shows("Owls: 7 wins"))
     expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
   })
 
@@ -164,6 +177,10 @@ describe("server calls on the tips of a table in a Shiny app", {
     expect_true(page$wait_until(
       "document.querySelector('#rt .rt-tbody [role=row] [role=cell]')?.textContent.startsWith('Lynx')"
     ))
+    # The layer marks reactable's reused rows a moment after the sort: wait for row 4's tip id to sit on Lynx's row.
+    expect_true(page$wait_until(
+      "document.querySelector('[data-hovercraft-tip-id=\"rt/row/4\"]')?.textContent.startsWith('Lynx')"
+    ))
     call("show", "rt", row = 4)
     expect_true(shows("Lynx: 9 wins"))
     call("show", "rt", row = 1, column = "wins")
@@ -175,5 +192,9 @@ describe("server calls on the tips of a table in a Shiny app", {
     page$evaluate("Shiny.setInputValue('m-call', 1, { priority: 'event' }); 0")
     expect_true(shows("Lynx: 9 wins"))
     expect_identical(page$evaluate(open_id), "m-tips/row/4")
+    # A cell by the column's name, in the module: the name is read from the table the module drew.
+    page$evaluate("Shiny.setInputValue('m-by_name', 1, { priority: 'event' }); 0")
+    expect_true(shows("Wins of Foxes: 5"))
+    expect_identical(page$evaluate(open_id), "m-tips/cell/2/2")
   })
 })

@@ -344,14 +344,85 @@ describe("server calls on the tips of a table", {
     expect_length(session$sent(), 0L)
   })
 
-  it("stop for a column name when no table with the id has been drawn in the session", {
+  it("wait for a column name when no table with the id has been drawn yet, and read it when sent", {
     session <- fake_session()
     session$userData <- new.env()
-    expect_error(tip_show("scores", row = 1, column = "wins", session = session), class = "hovercraft_error_table")
-    expect_error(tip_show("scores", row = 1, column = "wins", session = session), "drawn")
+    # A session that cannot say when it flushes sends at once, so the name is read at the call and warns there.
+    expect_warning(
+      tip_show("scores", row = 1, column = "wins", session = session),
+      class = "hovercraft_warning_table"
+    )
+    # The table is drawn after the call: the name is read at send time, from what it kept since.
+    later <- fake_session()
+    later$userData <- new.env()
+    queue <- list()
+    later$onFlushed <- function(callback, once = TRUE) queue[[length(queue) + 1L]] <<- callback
+    tip_show("scores", row = 1, column = "wins", session = later)
+    expect_length(later$sent(), 0L)
+    tip_table_register("scores", c("team", "wins"), later)
+    for (callback in queue) {
+      callback()
+    }
+    expect_identical(later$sent()[[1]]$message$id, "scores/cell/1/2")
     # A position needs no names, and a row needs no column.
     expect_no_error(tip_show("scores", row = 1, column = 2, session = session))
     expect_no_error(tip_show("scores", row = 1, session = session))
+  })
+
+  it("warn, send nothing and never error in the flush for a name that is still not a column", {
+    session <- fake_session()
+    session$userData <- new.env()
+    queue <- list()
+    session$onFlushed <- function(callback, once = TRUE) queue[[length(queue) + 1L]] <<- callback
+    tip_show("scores", row = 1, column = "wins", session = session)
+    tip_update("scores", text = "x", column = "wins", session = session)
+    expect_warning(queue[[1]](), class = "hovercraft_warning_table")
+    expect_warning(queue[[2]](), class = "hovercraft_warning_table")
+    expect_length(session$sent(), 0L)
+    # A table that is drawn but has no such column warns the same way.
+    queue <- list()
+    tip_show("scores", column = "points", session = session)
+    tip_table_register("scores", c("team", "wins"), session)
+    expect_warning(
+      for (callback in queue) {
+        callback()
+      },
+      "points"
+    )
+    expect_length(session$sent(), 0L)
+  })
+
+  it("check everything at the call, so nothing can fail inside the flush", {
+    session <- table_session()
+    queue <- list()
+    session$onFlushed <- function(callback, once = TRUE) queue[[length(queue) + 1L]] <<- callback
+    shiny::isolate({
+      expect_error(tip_show("scores", row = 1, column = "points", session = session), class = "hovercraft_error_table")
+      expect_error(tip_hide("scores", row = 0, session = session), class = "hovercraft_error_argument")
+      expect_error(tip_update("scores", text = "x", column = 9, session = session), class = "hovercraft_error_table")
+    })
+    expect_length(queue, 0L)
+    shiny::isolate(tip_show("scores", row = 1, column = "wins", session = session))
+    expect_no_error(
+      for (callback in queue) {
+        callback()
+      }
+    )
+    expect_identical(session$sent()[[1]]$message$id, "scores/cell/1/2")
+  })
+
+  it("count the data columns only: a reactable's row names are not one", {
+    skip_if_not_installed("reactable")
+    skip_if_not_installed("DT")
+    data <- data.frame(team = c("a", "b"), wins = c(1, 2), row.names = c("r1", "r2"))
+    for (widget in list(
+      reactable::reactable(data, rownames = TRUE),
+      DT::datatable(data, rownames = TRUE)
+    )) {
+      session <- shiny::MockShinySession$new()
+      shiny::withReactiveDomain(session, tip_table(widget, cells = c(wins = "{{ wins }}"), id = "scores"))
+      expect_identical(get(session$ns("scores"), tip_session_tables(session = session)), c("team", "wins"))
+    }
   })
 
   it("stop for a row that is not a whole number from 1", {
@@ -380,11 +451,15 @@ describe("server calls on the tips of a table", {
 })
 
 describe("server calls and the flush", {
-  # A session that holds onFlushed callbacks until flush() runs them, as Shiny does after a reactive flush.
+  # A session that holds onFlushed callbacks until flush() runs them, as Shiny does after a reactive flush, and counts
+  # how many flushes were asked for.
   flushing_session <- function() {
     session <- fake_session()
     waiting <- list()
+    asked <- 0L
     session$onFlushed <- function(callback, once = TRUE) waiting[[length(waiting) + 1L]] <<- callback
+    session$requestFlush <- function() asked <<- asked + 1L
+    session$asked <- function() asked
     session$flush <- function() {
       todo <- waiting
       waiting <<- list()
@@ -395,7 +470,7 @@ describe("server calls and the flush", {
     session
   }
 
-  it("wait for the flush when they run in a reactive context, so a tag drawn in the same flush is there", {
+  it("wait for the flush, so a tag drawn in the same flush is there, and ask for one", {
     session <- flushing_session()
     shiny::isolate({
       tip_show("run_tip", session = session)
@@ -403,6 +478,7 @@ describe("server calls and the flush", {
       tip_update("run_tip", text = "New", session = session)
     })
     expect_length(session$sent(), 0L)
+    expect_identical(session$asked(), 3L)
     session$flush()
     expect_identical(
       vapply(session$sent(), function(x) x$type, ""),
@@ -412,22 +488,33 @@ describe("server calls and the flush", {
     expect_length(session$sent(), 3L)
   })
 
-  it("go at once outside a reactive context, where no flush follows (a later callback)", {
+  it("wait and ask also outside a reactive context, where a `later` callback would not flush on its own", {
     session <- flushing_session()
     tip_show("run_tip", session = session)
+    expect_length(session$sent(), 0L)
+    expect_identical(session$asked(), 1L)
+    session$flush()
     expect_length(session$sent(), 1L)
   })
 
-  it("go at once for a session that cannot say when it flushes", {
-    session <- fake_session()
-    shiny::isolate(tip_show("run_tip", session = session))
-    expect_length(session$sent(), 1L)
+  it("go on when a session says a flush cannot be requested, as shiny::testServer() does", {
+    session <- flushing_session()
+    session$requestFlush <- function() warning("for internal use only")
+    expect_no_warning(tip_show("run_tip", session = session))
+    session$requestFlush <- function() stop("for internal use only")
+    expect_no_error(tip_show("run_tip", session = session))
+    session$flush()
+    expect_length(session$sent(), 2L)
   })
 
-  it("know a reactive context from none", {
-    expect_false(tip_in_reactive_flush())
-    expect_true(shiny::isolate(tip_in_reactive_flush()))
-    inside_reactive <- shiny::reactive(tip_in_reactive_flush())
-    expect_true(shiny::isolate(inside_reactive()))
+  it("wait without asking when the session has no requestFlush, and send at once with no onFlushed", {
+    session <- flushing_session()
+    session$requestFlush <- NULL
+    expect_no_error(tip_show("run_tip", session = session))
+    session$flush()
+    expect_length(session$sent(), 1L)
+    plain <- fake_session()
+    tip_show("run_tip", session = plain)
+    expect_length(plain$sent(), 1L)
   })
 })
