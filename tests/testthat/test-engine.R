@@ -109,6 +109,14 @@ describe("the vendored engine, after a copy", {
     expect_true(grepl("close: (el) => {", js, fixed = TRUE), info = "close(el) closes one chosen pin")
   })
 
+  it("has the names the engine added in 0.58.0 (a hover tip that keeps its place, a pin that closes when hidden)", {
+    expect_true(grepl("function keepSpot(", js, fixed = TRUE), info = "the hover tip drawn again keeps its side")
+    expect_true(grepl("box.dataset.cap = 'true'", js, fixed = TRUE), info = "the height cap of a tall hover tip")
+    expect_true(grepl("const vanished = (a) =>", js, fixed = TRUE), info = "a pin whose item took no room")
+    expect_true(grepl("shut({ reason: 'gone', by: 'data', via: null })", js, fixed = TRUE), info = "the close as gone")
+    expect_true(grepl("attributeOldValue: true", js, fixed = TRUE), info = "the reason observer skips an equal write")
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))

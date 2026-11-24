@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.55.0, built from its source; do not edit.
+// hovercraft tip engine 0.58.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.55.0';
+  const VERSION = '0.58.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -1520,7 +1520,7 @@
         typeof view?.ResizeObserver === 'function'
           ? new view.ResizeObserver((entries) => {
               const page = pageOf(doc);
-              page.hint?.place();
+              page.hint?.place(true, true);
               for (const p of page.pins) p.place();
               for (const { target } of entries) resizeLives(target);
             })
@@ -1687,18 +1687,22 @@
       placement = 'auto',
       arrow = false,
       item = null,
+      keep = null,
     ) {
       const baseGap = gapOf(box);
+      if (!keep) uncap(box);
       const reach = baseGap === GAP ? '' : `${baseGap}px`;
       if (box.style.getPropertyValue('--hc-tip-reach') !== reach) {
         if (reach) box.style.setProperty('--hc-tip-reach', reach);
         else box.style.removeProperty('--hc-tip-reach');
       }
       const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap, item);
+      if (to && keep) keepSpot(box, anchor, keep, item, line);
       const moved = isPin && dodge(box);
       if (point(box, arrow && !moved ? to : null)) return;
       if (arrow) {
-        placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap, item);
+        const bare = placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap, item);
+        if (bare && keep) keepSpot(box, anchor, keep, item, line);
         if (isPin) dodge(box);
       }
     }
@@ -1779,6 +1783,58 @@
       const at = `${along}px`;
       if (box.style.getPropertyValue(AT) !== at) box.style.setProperty(AT, at);
       return true;
+    }
+    function spotOf(box, anchor, item, line, how) {
+      const r = aimAt(item, anchor, line) ?? anchor.getBoundingClientRect();
+      const left = Number.parseFloat(box.style.left);
+      const top = Number.parseFloat(box.style.top);
+      if (Number.isNaN(left) || Number.isNaN(top) || !box.dataset.side || box.dataset.side === 'sheet') return null;
+      return {
+        how,
+        side: box.dataset.side,
+        rtl: box.ownerDocument.defaultView.getComputedStyle(anchor).direction === 'rtl',
+        dx: left - r.left,
+        dy: top - r.top,
+        w: box.offsetWidth,
+        h: box.offsetHeight,
+      };
+    }
+    function keepSpot(box, anchor, was, item, line) {
+      const doc = box.ownerDocument;
+      const vw = doc.documentElement.clientWidth;
+      const vh = doc.documentElement.clientHeight;
+      const r = aimAt(item, anchor, line) ?? anchor.getBoundingClientRect();
+      const at = box.scrollTop;
+      uncap(box);
+      const w = box.offsetWidth;
+      let h = box.offsetHeight;
+      const { side } = was;
+      const start = { left: r.left + was.dx, top: r.top + was.dy };
+      const atEnd = side === 'left' || (was.rtl && side !== 'right');
+      let left = atEnd ? start.left + was.w - w : start.left;
+      const bottom = start.top + was.h;
+      const room = side === 'above' ? bottom - 4 : vh - 4 - start.top;
+      if (h > room) {
+        h = Math.max(room, 0);
+        box.style.maxHeight = `${h}px`;
+        box.style.overflowY = 'auto';
+        box.dataset.cap = 'true';
+      }
+      let top = side === 'above' ? bottom - h : start.top;
+      if (w !== was.w || h !== was.h) was.drawn = true;
+      Object.assign(was, { dx: left - r.left, dy: top - r.top, w, h });
+      left = Math.max(4, Math.min(left, vw - w - 4));
+      top = Math.max(4, Math.min(top, vh - h - 4));
+      box.dataset.side = side;
+      box.style.left = `${Math.round(left)}px`;
+      box.style.top = `${Math.round(top)}px`;
+      if (box.dataset.cap) box.scrollTop = at;
+    }
+    function uncap(box) {
+      if (!box.dataset.cap) return;
+      delete box.dataset.cap;
+      box.style.maxHeight = '';
+      box.style.overflowY = '';
     }
     function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP, item = null) {
       const g = baseGap + grow;
@@ -2630,8 +2686,9 @@
           stops.at(-1).focus();
         }
       };
-      const onMove = () => {
-        if (page.hint) page.hint.place(false);
+      const onMove = (e) => {
+        if (e?.target?.closest?.(`[${NAMES.attr}-box]`)) return;
+        if (page.hint) page.hint.place(false, page.hint.kept === true);
         for (const q of page.pins) q.place(false);
       };
       const onSize = () => {
@@ -2704,6 +2761,9 @@
       let seenHint = null;
       let stopHintWatch = null;
       let inHint = false;
+      let hintAt = null;
+      let shrunkAt = null;
+      let shrunk = null;
       let lastPointer = 'mouse';
       let hovered = false;
       let gone = false;
@@ -2951,6 +3011,8 @@
         stopHintWatch?.();
         stopHintWatch = null;
         inHint = false;
+        hintAt = null;
+        endShrunk();
         if (page.hint?.handle !== handle) return false;
         const closing = page.hint;
         const delayed = closing.delayed;
@@ -3005,14 +3067,14 @@
         h.text = cut(plainOf(c, true, 'hint'));
         fill(kit.hint, c, { pinned: false });
         redescribeItem(n);
-        h.place();
+        h.place(true, true);
         startLives(kit.hint);
       }
       function checkOpen(by) {
         if (page.hint?.handle === handle) {
           if (page.hint.anchor.isConnected && page.hint.anchor.getClientRects().length) {
             hintCheck();
-            if (page.hint?.handle === handle) page.hint.place();
+            if (page.hint?.handle === handle) page.hint.place(true, true);
           } else hideHint(false, goneInfo());
         }
         for (const q of pinsHere()) q.check(by);
@@ -3061,6 +3123,7 @@
         if (!c) return;
         const resumed = page.skip ? (page.lastHint ?? null) : null;
         const again = page.hint?.handle === handle && page.hint.anchor === n;
+        if (again) endShrunk();
         const held = how === 'command' || (again && page.hint.held === true);
         const before = again ? null : page.hint;
         if (before) before.handle.hideHint(false, { reason: 'replaced', by: who, via: how, keep: n });
@@ -3082,9 +3145,17 @@
           kind: c.rec.kind ?? 'row',
           text,
           delayed: c.blocks.length > 0,
-          place: (restyle = true) => {
+          place: (restyle = true, keep = false) => {
             if (restyle) copyMarks(kit.hint, n);
-            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n), arrowOf(n), n);
+            const at = anchorOf(n);
+            const line = atPointer(n) ? n : null;
+            const how = `${placementOf(n)}|${arrowOf(n)}|${line ? 1 : 0}`;
+            const was = keep && page.hint.spot?.how === how ? page.hint.spot : null;
+            place(kit.hint, at, s, x, by, line, false, placementOf(n), arrowOf(n), n, was);
+            if (was) {
+              if (was.drawn) page.hint.kept = true;
+            } else if (kit.hint.style.visibility !== 'hidden') page.hint.spot = spotOf(kit.hint, at, n, line, how);
+            if (keep) shrinkAway();
           },
         };
         markOpen(n, 'hint');
@@ -3124,6 +3195,7 @@
       }
       const over = (e) => {
         if (e.pointerType === 'touch') return;
+        if (shrunk && shrunkAt && e.clientX === shrunkAt[0] && e.clientY === shrunkAt[1]) return;
         const n = itemAt(e.target);
         if (!n || hitOwns(n)) return;
         hovered = true;
@@ -3141,12 +3213,64 @@
         if (kit.hint.contains(e.relatedTarget)) return;
         leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
       };
-      const hintOver = () => {
-        if (page.hint?.handle !== handle) return;
-        clearTimeout(leave);
-        inHint = true;
+      const overBox = (x, y) => {
+        const left = Number.parseFloat(kit.hint.style.left);
+        const top = Number.parseFloat(kit.hint.style.top);
+        return x >= left && x <= left + kit.hint.offsetWidth && y >= top && y <= top + kit.hint.offsetHeight;
       };
+      const hintOver = (e) => {
+        if (page.hint?.handle !== handle) return;
+        if (shrunk && e?.clientX !== undefined && !overBox(e.clientX, e.clientY)) return;
+        clearTimeout(leave);
+        endShrunk();
+        inHint = true;
+        if (e?.clientX !== undefined) hintAt = [e.clientX, e.clientY];
+      };
+      const hintMove = (e) => {
+        hintAt = [e.clientX, e.clientY];
+      };
+      function shrinkAway() {
+        if (!inHint || !hintAt || shrunk || page.hint?.how === 'tap') return;
+        const [x, y] = hintAt;
+        if (overBox(x, y)) return;
+        const away = (e) => {
+          if (e.clientX === x && e.clientY === y) return;
+          endShrunk();
+          const n = page.hint?.handle === handle ? page.hint.anchor : null;
+          const other = itemAt(e.target);
+          if (n && e.pointerType !== 'touch' && !kit.hint.contains(e.target) && other && other !== n) {
+            inHint = false;
+            over(e);
+            return;
+          }
+          if (n && kit.hint.contains(e.target)) {
+            inHint = true;
+            hintAt = [e.clientX, e.clientY];
+            return;
+          }
+          inHint = false;
+          if (
+            !n ||
+            e.pointerType === 'touch' ||
+            partOf(e.target) ||
+            n.contains(e.target) ||
+            anchorOf(n).contains(e.target)
+          )
+            return;
+          leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
+        };
+        doc.addEventListener('pointermove', away, true);
+        shrunkAt = [x, y];
+        inHint = false;
+        shrunk = () => doc.removeEventListener('pointermove', away, true);
+      }
+      function endShrunk() {
+        shrunk?.();
+        shrunk = null;
+        shrunkAt = null;
+      }
       const hintOut = (e) => {
+        if (shrunk) return;
         if (page.hint?.handle !== handle || kit.hint.contains(e.relatedTarget) || partOf(e.relatedTarget)) return;
         if (e.pointerType === 'touch' || page.hint.how === 'tap') return;
         const n = page.hint.anchor;
@@ -3506,12 +3630,20 @@
         let marked = n;
         let clipped = false;
         const view = doc.defaultView;
+        const vanished = (a) => {
+          if (!a?.isConnected) return true;
+          if (a.getClientRects().length) return false;
+          if (view?.getComputedStyle(a).display !== 'contents') return true;
+          const held = doc.createRange();
+          held.selectNodeContents(a);
+          return !held.getClientRects().length;
+        };
         const seen =
           typeof view?.IntersectionObserver === 'function'
             ? new view.IntersectionObserver((list) => {
                 if (!isOpen()) return;
                 const a = p.anchor();
-                if (!a?.getClientRects().length) {
+                if (vanished(a)) {
                   shut({ reason: 'gone', by: 'data', via: null });
                   return;
                 }
@@ -3530,7 +3662,11 @@
           'style',
           'hidden',
         ];
-        const marks = new MutationObserver(() => isOpen() && p.place());
+        const marks = new MutationObserver(() => {
+          if (!isOpen()) return;
+          if (vanished(p.anchor())) shut({ reason: 'gone', by: 'data', via: null });
+          else p.place();
+        });
         const watchLine = (a) => {
           marks.disconnect();
           for (let node = a; node && node.nodeType === 1; node = node.parentElement) {
@@ -3610,7 +3746,7 @@
           check: (by) => {
             if (!isOpen()) return;
             const a = p.anchor();
-            if (!a?.getClientRects().length) shut({ reason: 'gone', by, via: null });
+            if (vanished(a)) shut({ reason: 'gone', by, via: null });
             else {
               const fresh = contentFor(a);
               if (!fresh?.blocks.length) {
@@ -3700,10 +3836,11 @@
       box.addEventListener('focusout', blur);
       box.addEventListener('click', tap);
       kit.hint.addEventListener('pointerover', hintOver);
+      kit.hint.addEventListener('pointermove', hintMove);
       kit.hint.addEventListener('pointerout', hintOut);
       kit.hint.addEventListener('mousedown', hintDown);
       const partOver = (e) => {
-        if (partOf(e.target)) hintOver();
+        if (partOf(e.target)) hintOver(e);
       };
       const partOut = (e) => {
         if (partOf(e.target)) hintOut(e);
@@ -3823,6 +3960,7 @@
           box.removeEventListener('focusout', blur);
           box.removeEventListener('click', tap);
           kit.hint.removeEventListener('pointerover', hintOver);
+          kit.hint.removeEventListener('pointermove', hintMove);
           kit.hint.removeEventListener('pointerout', hintOut);
           kit.hint.removeEventListener('mousedown', hintDown);
           doc.removeEventListener('pointerover', partOver);
@@ -4012,7 +4150,9 @@
         e.stopPropagation();
       };
       const NAME_ATTRS = ['aria-label', 'aria-labelledby'];
-      const reasons = new MutationObserver((records) => {
+      const reasons = new MutationObserver((seen) => {
+        const records = seen.filter((r) => r.oldValue !== r.target.getAttribute(r.attributeName));
+        if (!records.length) return;
         if (records.every((r) => NAME_ATTRS.includes(r.attributeName) && !h.itemAt(r.target))) return;
         for (const r of records) {
           const n = r.target;
@@ -4029,6 +4169,7 @@
       });
       reasons.observe(at, {
         attributes: true,
+        attributeOldValue: true,
         subtree: true,
         attributeFilter: [REASON, 'data-reason', 'aria-disabled', 'disabled', ...NAME_ATTRS],
       });
