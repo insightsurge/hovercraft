@@ -33,7 +33,12 @@ tables_code <- function(settings) {
   }
   tipped <- code_call(
     "tip_table",
-    rows = code_str("**{{ branch }}.** Opened {{ opened }}, {{ staff }} staff."),
+    rows = code_call(
+      "tip_spec",
+      code_str("**{{ branch }}.** Opened {{ opened }}, {{ staff }} staff."),
+      pin = "TRUE",
+      events = code_str("pin")
+    ),
     headers = if (parts == "headers") code_call("c", wait_min = code_str("Median minutes to the first reply.")),
     cells = if (parts == "cells") code_call("c", visits = code_str("{{ visits | number:0 }} visits in week 46.")),
     marker = if (parts != "rows") code_str("corner"),
@@ -58,6 +63,15 @@ tables_steps <- function() {
       "Choose *reactable*: the same tips, on the other widget.",
       "a tip shows the row that used to be there.",
       "#tables_widget"
+    ),
+    step(
+      paste(
+        "Pin a row with the handle in its tip's corner: `input$branches_pin` arrives with the data row,",
+        "and `input$branches_pinned` lists it."
+      ),
+      "the row is selected, or the input has no `row`.",
+      "#tables .stage",
+      on_pin("branches")
     )
   )
 }
@@ -68,10 +82,13 @@ plate_tables_ui <- function() {
     8,
     "Tables",
     lede = "Tips on DT and reactable rows, cells and headers, each filled in from its own row.",
-    caption = "Three branches and their week. Table tips send no Shiny inputs yet, so these steps are ticked by hand.",
+    caption = paste(
+      "Three branches and their week. The rows can be pinned: one input for the table, `input$branches_pin`,",
+      "says which row; the first steps are ticked by hand."
+    ),
     steps = tables_steps(),
     code = code_text(tables_code(list())),
-    log_empty = "Table tips send no inputs yet.",
+    log_empty = "Nothing yet. Pin a row.",
     controls = htmltools::tagList(
       "Draw the table with",
       choice_set("tables_widget", "Widget", tables_widgets, tables_default()),
@@ -89,6 +106,7 @@ plate_tables_server <- function(input, output, session) {
     if (!requireNamespace(widget, quietly = TRUE)) widget
   })
   plate_code(input, output, session, "tables", code, draw = FALSE)
+  log_inputs(input, session, "tables", c("branches_pin", "branches_pinned"))
   exports <- studio_exports()
   result <- shiny::reactive({
     if (!is.null(missing())) {

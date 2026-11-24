@@ -8,3 +8,21 @@
 #'
 #' @keywords internal
 "_PACKAGE"
+
+# Shiny reads the `_pinned` input of a table through a handler of its own type (see `tip_pinned_input_type()`). It is
+# registered now when Shiny is already loaded, and when Shiny loads if it comes later.
+tip_register_with_shiny <- function() {
+  hook <- packageEvent("shiny", "onLoad")
+  ours <- function(f) isTRUE(attr(f, "hovercraft"))
+  # One hook of ours, however often the package is loaded (pkgload loads it again): the old one goes, the new one stays.
+  setHook(hook, Filter(Negate(ours), getHook(hook)), "replace")
+  setHook(hook, structure(function(...) tip_register_pinned_input(), hovercraft = TRUE))
+  if (isNamespaceLoaded("shiny")) {
+    tip_register_pinned_input()
+  }
+  invisible()
+}
+
+# nocov start: runs when the package loads, before the tests (and their coverage) begin; the function it calls is tested
+.onLoad <- function(libname, pkgname) tip_register_with_shiny()
+# nocov end

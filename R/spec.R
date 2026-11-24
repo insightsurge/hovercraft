@@ -18,7 +18,9 @@
 #'   table's. A cell or header cell with no placement of its own follows the table's, not its row's.
 #' @param style How this target's tips look, or `NULL` to take the table's: whatever `style` takes in [tip_on()] (a
 #'   preset name, a [tip_style()], a [tip_theme()] or a [bslib::bs_theme()]). A row's own style also reaches the cells
-#'   in that row that have none of their own, because the tip engine reads the nearest tagged element.
+#'   in that row that have none of their own, because the tip engine reads the nearest tagged element. A list of CSS
+#'   variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so a spec refuses it with an error: give
+#'   it to [use_hovercraft()], or use the roles of [tip_theme()].
 #' @param marker The visible cue for this target's cells or header cells: `"corner"`, `"none"` to take the marker off
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
@@ -28,6 +30,16 @@
 #'   choice, `"hover"`. `"pin"` works only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
 #'   target that can pin; anywhere else in a table it stops with an error. Without `more`, `more_on` does nothing and
 #'   gives a warning.
+#' @param pin Whether a reader can keep this target's tip open: `NULL` (the default) or `FALSE` for no pin, or `TRUE`
+#'   for a pin handle in the corner of the tip and a pin key, as in [tip_on()]. Only the tips of `rows` pin for now: a
+#'   spec with a pin given to `cells` or `headers` stops with "only rows pin for now". A click on a row selects it in
+#'   both widgets, so the `"click"` pin of [tip_on()] is refused in a table. A pin needs the table's `id`. With
+#'   `pin = TRUE`, `more_on = "pin"` opens the long form when the row is pinned.
+#' @param events The Shiny inputs this target's tips send: one or more of `"hint"`, `"pin"` and `"copy"`, or `NULL` (the
+#'   default) for none. `"pin"` and `"copy"` belong to a pinned tip, so asking for either without a `pin` stops with an
+#'   error, as in [tip_on()]. Only the tips of `rows` send them for now ("only rows send events for now"), and they need
+#'   the table's `id`. The inputs belong to the table, one per event, not one per row: see the `events` section of
+#'   [tip_table()].
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
 #' @family tooltips
@@ -47,6 +59,13 @@
 #'       )
 #'     )
 #'   )
+#'
+#' # A row that can be pinned, and a Shiny input that says which row was pinned
+#' DT::datatable(scores) |>
+#'   tip_table(
+#'     rows = tip_spec("**{{ team }}**: {{ wins | number:0 }} wins", pin = TRUE, events = "pin"),
+#'     id = "scores_tips"
+#'   )
 #' @export
 tip_spec <- function(
   content,
@@ -55,10 +74,12 @@ tip_spec <- function(
   placement = NULL,
   marker = NULL,
   more = NULL,
-  more_on = NULL
+  more_on = NULL,
+  pin = NULL,
+  events = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on"))
+  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on", "pin", "events"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -82,6 +103,9 @@ tip_spec <- function(
   tip_check_placement(placement, call = call)
   tip_check_more_on(more_on, call = call)
   tip_warn_more_on(more, more_on, call = call)
+  pin <- tip_check_pin(pin, call = call)
+  events <- tip_check_events(events, call = call)
+  tip_check_events_pin(events, pin, call = call)
   style <- tip_as_style(style, call = call)
   tip_check_style_tokens(style, call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
@@ -92,7 +116,9 @@ tip_spec <- function(
       placement = placement,
       marker = marker,
       more = more,
-      more_on = more_on
+      more_on = more_on,
+      pin = pin,
+      events = events
     ),
     class = "hovercraft_spec"
   )
