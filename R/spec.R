@@ -83,6 +83,7 @@ tip_spec <- function(
   tip_check_more_on(more_on, call = call)
   tip_warn_more_on(more, more_on, call = call)
   style <- tip_as_style(style, call = call)
+  tip_check_style_tokens(style, call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   structure(
     list(

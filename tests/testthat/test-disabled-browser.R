@@ -69,7 +69,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
           tip_on(
             off(shiny::actionButton("styled", "Styled")),
             "Enabled tip",
-            style = tip_style(theme = list("--hovercraft-tip-radius" = "13px")),
+            style = tip_style(theme = list(radius = 13)),
             placement = "right",
             when_disabled = "Styled reason"
           )

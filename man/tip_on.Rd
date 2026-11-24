@@ -22,14 +22,22 @@ tip_on(
 )
 }
 \arguments{
-\item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}.}
+\item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}. A list of tags, a tag list or
+text stops with an error. To tip a tab, put the tip on the tag that is its title, and give the tab a \code{value}:
+\code{nav_panel(title = tip_on(span("Data"), "..."), value = "data")}. Without \code{value}, bslib writes the tag's HTML
+into the tab's value.}
 
 \item{text}{One string of markdown (strong, emphasis, code, links, short lists), or \code{NULL}. It is shown as written:
-build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back as it was.}
+build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back without a tip. When
+\code{record} is given, the \code{{{ field }}} placeholders in the text are filled from it, also when a \code{template} is given
+(as in a template, with one filter at most, \code{number:n} or \code{percent:n}); without a record, braces stay as written.
+Words with placeholders give the tag no \code{aria-label}, because they depend on the record.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{template}{The name of a template defined with \code{\link[=tip_define]{tip_define()}}, or \code{NULL}.}
+\item{template}{The name of a template defined with \code{\link[=tip_define]{tip_define()}}, a \code{\link[=tip_template]{tip_template()}} made here, or \code{NULL}. A
+\code{tip_template()} travels with the tag, so it needs no \code{tip_define()}; its fields are checked against \code{record}.
+If \code{text} is given too, the text is the tip (see \code{text}).}
 
 \item{record}{A named list, or a data frame of one row: the values the template's placeholders read, one value each.
 \code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as \code{YYYY-MM-DDTHH:MM:SSZ} and
@@ -41,7 +49,8 @@ else in a row is written into the page; for a template not seen here, every colu
 page's. A preset name from \code{\link[=tip_presets]{tip_presets()}} (\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a
 style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins,
 value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
-\code{\link[=tip_style]{tip_style()}}.}
+\code{\link[=tip_style]{tip_style()}}. A list of CSS variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so on one
+tag it stops with an error: give it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where the tip opens: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} (the default)
 for the page's choice, which is \code{"auto"} unless a tagged ancestor sets a side. A chosen side flips to the other
@@ -62,8 +71,8 @@ the inputs after it.}
 \item{events}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Which Shiny inputs this tag's tip sends, or \code{NULL} (the
 default) for none; one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}. All are off unless asked for, because
 they send a message to the server every time a reader meets the tag. They need an \code{id}, or a tag with an
-\code{id} of its own; in a module the input is read without the namespace. Each is a list that holds the
-fields below.
+\code{id} of its own; in a module the input is read without the namespace. \code{"pin"} and \code{"copy"} belong to a pinned
+tip, so asking for either without a \code{pin} stops with an error. Each is a list that holds the fields below.
 
 \code{"hint"} sends \verb{input$<id>_hint} each time the tip opens or closes: \code{state} (\code{"shown"} or \code{"hidden"}), \code{text}
 (the tip's plain words, cut at 200 characters), \code{by} (\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}} and \code{\link[=tip_hide]{tip_hide()}},
@@ -97,8 +106,9 @@ control's label, so a screen reader still says what the field is. The wrapper is
 control is enabled. A control that has the focus when it is switched off hands it to the wrapper, and takes it
 back when it is switched on. The tip's \code{id} and \code{events} stay on the control, and the wrapper answers to them
 while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way. The value
-returned is the wrapper; calling \code{tip_on()} on it again changes the control's tip and keeps one wrapper, with
-the reason it had unless a new one is given.
+returned is the wrapper; calling \code{tip_on()} on it again replaces the tip whole, the reason
+included, and keeps one wrapper when a new \code{when_disabled} is given; without one you get the bare control back,
+with the layout it had before it was wrapped.
 
 The wrapper takes the control's place in a layout: a width, a share of a flex row and a side written in its
 \code{style}, or as the classes \code{w-25}, \code{w-50}, \code{w-75}, \code{w-100}, \code{flex-fill}, \verb{flex-grow-*}, \verb{col-*}, \verb{order-*},
@@ -121,7 +131,10 @@ short hint on hover and expands to the long form when pinned) or \code{"hover"} 
 default) or \code{FALSE} for a tip that only shows on hover or focus (\code{FALSE} is "never", whatever a level above says),
 \code{TRUE} for a tip that is pinned by the small
 pin button in the corner of the tip, or by the pin key, and \code{"click"} for a tip that a click on the tagged item
-also pins. With \code{TRUE}, a click, a key or a tap on the item never pins, so an item that does something when
+also pins. \code{"click"} is for a tag that has nothing to click on its own: on a control, or on a tag that holds
+one, it stops with an error, because the click would pin the tip instead of using the control. Use \code{TRUE}
+there: a plain button and a \code{div} around an input take it. With \code{TRUE}, a click, a key or a tap on the item never
+pins, so an item that does something when
 it is clicked, such as a row that selects itself, keeps doing it; a tap shows the tip. A tip that is pinned
 stays open, with the engine's own close button, until it is closed (the button, Escape, or a click
 elsewhere), and a code block with \code{tip_code(copy = TRUE)} shows its Copy button there. A pin needs an \code{id}
@@ -166,6 +179,15 @@ given to a screen reader as a description.
 If both \code{text} and \code{template} are given, the text is shown for this tag. A template whose name has been defined in
 this session is checked against the record here: a field it names that the record does not hold is an error. A
 name that has not been defined is left to the page, which says so once in the browser's console.
+
+A second \code{tip_on()} on a tag that already has a tip replaces the old tip whole: its words, look, \code{id}, \code{events},
+\code{pin} and \code{when_disabled} all go, and the new call's arguments are the tip. When the old tip had an \code{id}, \code{events}
+or a pin and the new call gives none of them, it warns once, with the class \code{hovercraft_warning_retip}, so a wrapper
+that tips a tag again on purpose can silence it with \code{suppressWarnings(classes = )}.
+
+A tag that already has a \code{title} attribute keeps it, and the browser then shows its own tooltip beside the tip.
+\code{tip_on()} warns once, with the class \code{hovercraft_warning_title}, and says to remove the \code{title}; it does not
+remove it itself, because on an icon it may be the only name.
 }
 \examples{
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")

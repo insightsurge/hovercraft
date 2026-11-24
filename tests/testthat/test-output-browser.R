@@ -375,14 +375,15 @@ describe("tip_output() in ordinary use", {
   made <- start_app(
     function(pin_attr) {
       pinnable <- function(tag) htmltools::tagAppendAttributes(tag, !!pin_attr := "")
+      # The engine's own click pin, written by hand after the tip: `pin = "click"` refuses a button.
       button <- function(id, label, tpl) {
-        tip_on(
-          pinnable(shiny::actionButton(id, label)),
+        pinnable(tip_on(
+          shiny::actionButton(id, label),
           template = tpl,
           record = list(label = label),
           id = id,
           events = "hint"
-        )
+        ))
       }
       ui <- shiny::fluidPage(
         # The usual order: the templates first, the output tags after them, nothing hiding them.

@@ -74,6 +74,50 @@ tip_check_pin_tag <- function(tag, call = rlang::caller_env()) {
   invisible()
 }
 
+# `pin = "click"` makes a click on the item pin it, which would take a control's own click. A control, or a tag that
+# holds one, takes `pin = TRUE` instead, and the tip's pin button and key do the pinning.
+tip_is_control <- function(tag) {
+  type <- tolower(as.character(htmltools::tagGetAttribute(tag, "type") %||% ""))
+  editable <- htmltools::tagGetAttribute(tag, "contenteditable")
+  switch(
+    tag$name,
+    button = ,
+    select = ,
+    textarea = ,
+    summary = ,
+    label = TRUE,
+    input = !identical(type, "hidden"),
+    a = !is.null(htmltools::tagGetAttribute(tag, "href")),
+    !is.null(editable) && !identical(tolower(as.character(editable)), "false")
+  )
+}
+
+tip_check_pin_click <- function(tag, call = rlang::caller_env()) {
+  if (tip_pin_refused(tag)) {
+    tip_abort(
+      c(
+        "{.code pin = \"click\"} is given, but a {.code <{tag$name}>} tag cannot pin: its click does something else.",
+        i = "Put the tip on a {.code <div>} or {.code <span>} around it, and give that {.code pin = TRUE}."
+      ),
+      class = "hovercraft_error_pin",
+      call = call
+    )
+  }
+  found <- Filter(tip_is_control, tip_tags_in(tag))
+  if (length(found)) {
+    where <- if (tip_is_control(tag)) "is a control" else paste0("holds a control, a {.code <", found[[1]]$name, ">}")
+    tip_abort(
+      c(
+        paste0("{.code pin = \"click\"} cannot go on a tag that ", where, ": a click would pin it, not use it."),
+        i = "Use {.code pin = TRUE}: the pin button in the tip's corner and the pin key pin it; a click still works."
+      ),
+      class = "hovercraft_error_pin",
+      call = call
+    )
+  }
+  invisible()
+}
+
 # The pin key: one letter, used only while the focus is on the tagged item (WCAG 2.1.4). The tagged item announces it
 # (`aria-keyshortcuts`) where a keyboard and a screen reader meet the item; the layer listens for it.
 tip_pin_key <- function() "p"

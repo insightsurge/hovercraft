@@ -188,7 +188,12 @@ describe("the code each plate shows", {
         placement = unname(studio$basics_placements),
         look = unname(studio$basics_looks)
       ),
-      each(studio$templates_code, record = unname(studio$templates_records), slots = unname(studio$templates_slots)),
+      each(
+        studio$templates_code,
+        record = unname(studio$templates_records),
+        slots = unname(studio$templates_slots),
+        how = unname(studio$templates_how)
+      ),
       each(studio$more_code, more_on = unname(studio$more_on_choices), pin = unname(studio$more_pin_choices)),
       each(studio$pins_code, placement = unname(studio$pins_placements), copy = unname(studio$pins_copy)),
       list(studio$disabled_code(), studio$output_ui_code(), studio$server_ui_code()),
@@ -210,6 +215,11 @@ describe("the code each plate shows", {
     html <- as.character(htmltools::renderTags(studio$run_code(code, exports)$ui)$html)
     expect_match(html, paste0(attribute, "-placement=\"top\""), fixed = TRUE)
     expect_match(html, paste0(attribute, "-preset=\"editorial\""), fixed = TRUE)
+    named <- studio$templates_code(list(how = "named"))
+    expect_match(named, "tip_define(", fixed = TRUE)
+    on_tag <- studio$templates_code(list(how = "tag"))
+    expect_no_match(on_tag, "tip_define(", fixed = TRUE)
+    expect_match(on_tag, "template = tip_template(", fixed = TRUE)
     pins <- studio$pins_code(list(copy = "off"))
     expect_no_match(pins, "copy = TRUE", fixed = TRUE)
     expect_match(studio$pins_code(list(copy = "on")), "copy = TRUE", fixed = TRUE)
@@ -219,7 +229,7 @@ describe("the code each plate shows", {
     hostile <- "x\"); system(\"id\"); \""
     cases <- list(
       list(studio$basics_code, c("marker", "placement", "look")),
-      list(studio$templates_code, c("record", "slots")),
+      list(studio$templates_code, c("record", "slots", "how")),
       list(studio$more_code, c("more_on", "pin")),
       list(studio$pins_code, c("placement", "copy")),
       list(studio$tables_code, c("widget", "parts"))

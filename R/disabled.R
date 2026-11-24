@@ -70,12 +70,40 @@ tip_check_when_disabled <- function(when_disabled, tag, call = rlang::caller_env
   invisible()
 }
 
-# A tag that an earlier tip_on(when_disabled = ) made: its wrapper. A second call changes the reason of this wrapper and
-# does not put a second one around it.
+# A tag that an earlier tip_on(when_disabled = ) made: its wrapper. A second call tips the control inside again and does
+# not put a second wrapper around it; the earlier reason goes with the earlier tip, so a call without `when_disabled`
+# gives the control back without its wrapper.
 tip_is_disabled_wrapper <- function(tag) {
   tip_marker_has_class(tag, tip_disabled_class()) &&
     length(tag$children) == 1L &&
     inherits(tag$children[[1]], "shiny.tag")
+}
+
+# The control of a wrapper, as it was before it was wrapped: the layout style and classes that went to the wrapper come
+# back, and the mark that made it fill the wrapper goes. What the wrapper carried for other packages (dependencies that
+# are not hovercraft's) comes with it.
+tip_disabled_unwrap <- function(wrapper, control) {
+  moved_style <- htmltools::tagGetAttribute(wrapper, tip_disabled_attribute("style"))
+  wrapper_class <- strsplit(paste(htmltools::tagGetAttribute(wrapper, "class"), collapse = " "), "[[:space:]]+")[[1L]]
+  wrapper_class <- setdiff(wrapper_class, c("", tip_disabled_class(), paste0(tip_disabled_class(), "-block")))
+  control$attribs[names(control$attribs) == tip_disabled_attribute("fill")] <- NULL
+  style <- c(htmltools::tagGetAttribute(control, "style"), moved_style)
+  classes <- unique(c(
+    strsplit(paste(htmltools::tagGetAttribute(control, "class"), collapse = " "), "[[:space:]]+")[[1L]],
+    wrapper_class
+  ))
+  classes <- classes[nzchar(classes)]
+  control$attribs[names(control$attribs) %in% c("style", "class")] <- NULL
+  control <- do.call(
+    htmltools::tagAppendAttributes,
+    c(
+      list(control),
+      list(style = if (length(style)) paste(style, collapse = " ")),
+      list(class = if (length(classes)) paste(classes, collapse = " "))
+    )
+  )
+  other <- tip_drop_deps(wrapper)
+  htmltools::attachDependencies(control, htmltools::htmlDependencies(other), append = TRUE)
 }
 
 # The inline declarations and the Bootstrap classes of a control that give it its place in a layout: its width, its

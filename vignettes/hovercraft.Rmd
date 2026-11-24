@@ -111,6 +111,28 @@ length(rows)
 Once `tip_define()` has seen a template, `tip_on()` keeps only the columns it names, so a record that holds more is not
 written out in full. A record that holds a value a tip cannot show, such as a list or a data frame, is an error that says which.
 
+A template needs no `tip_define()` when it is only used here: give `template` a `tip_template()` and it travels with the
+tag, with its fields checked against the record. Plain `text` takes placeholders too once there is a record:
+
+```{r}
+tip_on(
+  htmltools::tags$button("ADAE"),
+  "{{ differences }} differences in {{ records }} records",
+  record = files[1, ]
+)
+```
+
+Without a record the braces stay as written.
+
+## Putting a tip on a tag again
+
+A second `tip_on()` on a tag replaces its tip whole: the words, look, `id`, `events`, `pin` and `when_disabled` of the
+first call are gone, and the new call says what it needs. When the old tip had an `id`, `events` or a pin and the new
+call names none of them, `tip_on()` warns once (class `hovercraft_warning_retip`). A tag with a `title` attribute keeps
+it, so the browser's own tooltip shows beside the tip; `tip_on()` warns (class `hovercraft_warning_title`) and asks you
+to remove the `title`. `tip_on()` takes one tag: to tip a tab, tip the tag that is its title and give the tab a value,
+`nav_panel(title = tip_on(span("Data"), "..."), value = "data")`.
+
 ## Keyboard users
 
 A tip shows on keyboard focus, so a tag that cannot take focus, such as a table row or a `div`, gives a keyboard user no
