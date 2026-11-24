@@ -43,6 +43,20 @@ describe("hovercraft book in a browser", {
     expect_identical(page$problems(), character())
   })
 
+  it("folds long code to its first lines, and opens it in place", {
+    more <- "document.querySelector('#start .js-code-more')"
+    folded <- "document.getElementById('start-code').classList.contains('is-folded')"
+    expect_match(js(paste0(more, ".textContent")), "^Show all [0-9]+ lines$")
+    expect_true(js(folded))
+    # Short code shows whole, with no button.
+    expect_true(js("document.querySelector('#size .js-code-more').hidden"))
+    js(paste0(more, ".click()"))
+    expect_false(js(folded))
+    expect_identical(js(paste0(more, ".getAttribute('aria-expanded')")), "true")
+    js(paste0(more, ".click()"))
+    expect_true(js(folded))
+  })
+
   it("logs a real hint and ticks the step it proves", {
     # The figures are drawn by the server a moment after the page.
     expect_true(page$wait_until(

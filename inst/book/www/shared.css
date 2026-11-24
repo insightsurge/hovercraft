@@ -260,6 +260,15 @@ p {
   tab-size: 2;
 }
 /* A line longer than the margin wraps with its continuation indented, so it still reads as one line of code. */
+/* Long code, folded: its first 16 lines, fading out above the button that opens the rest (shared.js). */
+.code.is-folded {
+  max-height: calc(16 * 1.6em + 12px);
+  overflow-y: hidden;
+  mask-image: linear-gradient(to bottom, #000 calc(100% - 3.2em), transparent);
+}
+.code-more {
+  margin-top: 8px;
+}
 .code .ln {
   display: block;
   min-height: 1.6em;

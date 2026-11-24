@@ -83,7 +83,9 @@ part_head <- function(at) {
 }
 
 # The R code note: the code for the plate's settings, with a Copy button. The server sends new code with a revision
-# (shared.js keeps the page's own count), so Copy never copies code drawn for an older choice.
+# (shared.js keeps the page's own count), so Copy never copies code drawn for an older choice. Long code shows its
+# first lines and a button that opens the rest in place; shared.js shows the button only when the code is long, so
+# with no script the code is whole.
 code_note <- function(id, code) {
   htmltools::tags$section(
     class = "note",
@@ -93,7 +95,22 @@ code_note <- function(id, code) {
       htmltools::h4("R code"),
       htmltools::tags$button(type = "button", class = "btn-quiet js-copy", `aria-label` = "Copy the R code", "Copy")
     ),
-    htmltools::tags$pre(class = "code", `data-code` = id, `data-rev` = "0", tabindex = "0", code)
+    htmltools::tags$pre(
+      id = paste0(id, "-code"),
+      class = "code",
+      `data-code` = id,
+      `data-rev` = "0",
+      tabindex = "0",
+      code
+    ),
+    htmltools::tags$button(
+      type = "button",
+      class = "btn-quiet code-more js-code-more",
+      `aria-controls` = paste0(id, "-code"),
+      `aria-expanded` = "false",
+      hidden = NA,
+      "Show all"
+    )
   )
 }
 

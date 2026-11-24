@@ -62,6 +62,21 @@
       pre.append(ln);
     }
     pre.dataset.raw = text;
+    fold(pre);
+  };
+  // Long code shows its first lines, faded, and a button that opens the rest in place. A section keeps the reader's
+  // choice when its code is drawn again for a new setting.
+  const FOLD_OVER = 20;
+  const fold = (pre) => {
+    const button = pre.parentElement.querySelector('.js-code-more');
+    if (!button) return;
+    const lines = (pre.dataset.raw ?? '').split('\n').length;
+    const long = lines > FOLD_OVER;
+    const open = pre.dataset.open === 'true';
+    button.hidden = !long;
+    pre.classList.toggle('is-folded', long && !open);
+    button.setAttribute('aria-expanded', String(long && open));
+    button.textContent = open ? 'Show fewer lines' : `Show all ${lines} lines`;
   };
   const revs = {};
   const waiting = new Map(); // plate -> the Copy button waiting for that plate's newest code
@@ -129,6 +144,21 @@
       }
       copyNow(button, pre);
       // In the capture phase: the margin stops its clicks from bubbling, so a pinned tip stays open.
+    },
+    true,
+  );
+  document.addEventListener(
+    'click',
+    (e) => {
+      const button = e.target.closest?.('.js-code-more');
+      if (!button) return;
+      const pre = document.getElementById(button.getAttribute('aria-controls'));
+      pre.dataset.open = String(pre.dataset.open !== 'true');
+      fold(pre);
+      // Folding again from far down the code: bring the code's start back into view, not the page below it.
+      if (pre.dataset.open === 'false' && pre.getBoundingClientRect().top < 0) {
+        pre.scrollIntoView({ block: 'start', behavior: 'instant' });
+      }
     },
     true,
   );
