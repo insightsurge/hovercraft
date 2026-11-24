@@ -292,6 +292,9 @@
         const b = t.getBoundingClientRect();
         const seen = (r) => r.height && r.bottom > 0 && r.top < innerHeight;
         if (!seen(a) || !seen(b)) return;
+        // In the one-plate view the margin scrolls: the step must be in sight inside it.
+        const box = li.closest('.margin')?.getBoundingClientRect();
+        if (box && (a.bottom < box.top || a.top > box.bottom)) return;
         const clamp = (v, lo, hi) => Math.min(Math.max(v, lo), Math.max(lo, hi));
         let pts;
         if (g.p.classList.contains('wide')) {
@@ -335,20 +338,77 @@
     }
     for (const n of ['tip', 'hint']) if (N.events[n]) document.addEventListener(N.events[n], watchSheets);
 
-    addEventListener(
+    // The page's scroll, and in the one-plate view a margin's own scroll: scroll events do not bubble, so the
+    // listener is on the document in the capture phase.
+    document.addEventListener(
       'scroll',
       () => {
         track();
         if (G.on) drawLeader();
       },
-      { passive: true },
+      { capture: true, passive: true },
     );
     addEventListener('resize', () => {
       track();
       if (G.on) render();
     });
 
-    /* ---- Start: the plate and the guide the address asks for ------------------------------------------------ */
+    /* ---- One plate at a time: each plate fills the screen, and the page snaps from plate to plate ----------- */
+    const setPaged = (on) => {
+      const at = current;
+      root.classList.toggle('paged', on);
+      for (const b of $$('.js-paged')) b.setAttribute('aria-pressed', String(on));
+      // Stay on the plate the reader was on, now aligned to the top of the screen.
+      at?.scrollIntoView({ behavior: 'instant', block: 'start' });
+      track();
+      if (G.on) render();
+    };
+    // In the capture phase: the index stops its clicks from bubbling, so a pinned tip stays open.
+    document.addEventListener(
+      'click',
+      (e) => {
+        if (e.target.closest?.('.js-paged')) setPaged(!root.classList.contains('paged'));
+      },
+      true,
+    );
+    // One scroll, one plate: a wheel or trackpad gesture moves to the next or previous plate, unless the column under
+    // the pointer (the margin, or a tall figure) can still scroll that way; then that column scrolls, and the gesture
+    // after it reaches its end moves the page. A gesture's trailing events are ignored, so one flick is one plate.
+    let quietUntil = 0;
+    const canScroll = (el, down) => {
+      for (let n = el; n && n !== root; n = n.parentElement) {
+        const style = getComputedStyle(n);
+        if (!/(auto|scroll)/.test(style.overflowY) || n.scrollHeight <= n.clientHeight) continue;
+        if (down ? n.scrollTop + n.clientHeight < n.scrollHeight - 1 : n.scrollTop > 0) return true;
+      }
+      return false;
+    };
+    document.addEventListener(
+      'wheel',
+      (e) => {
+        if (!root.classList.contains('paged') || compact.matches || e.ctrlKey || Math.abs(e.deltaY) < 2) return;
+        if (e.target.closest?.(TIP)) return;
+        const down = e.deltaY > 0;
+        if (canScroll(e.target, down)) return;
+        e.preventDefault();
+        const now = performance.now();
+        if (now < quietUntil) {
+          quietUntil = Math.max(quietUntil, now + 200);
+          return;
+        }
+        quietUntil = now + 900;
+        track();
+        const j = plates.indexOf(current) + (down ? 1 : -1);
+        if (j >= 0 && j < plates.length) plates[j].scrollIntoView({ behavior: behaviour(), block: 'start' });
+      },
+      { passive: false },
+    );
+
+    // The switches' boxes: a tick that shows while a switch is on.
+    for (const b of $$('.g-switch .box')) b.append(window.StudioShared.tickSvg());
+
+    /* ---- Start: the plate, the view and the guide the address asks for -------------------------------------- */
+    if (boot.paged) setPaged(true);
     track();
     syncInert();
     if (boot.plate) {

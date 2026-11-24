@@ -105,6 +105,9 @@ per feature. A pull request that changes an export or an argument updates the st
   shows the step was done (`on_hint()`, `on_pin()`, `on_copy()`). By default a proof counts only the reader's own
   actions (`by = "reader"`), so a tip the page closes and pins again never ticks a step. A step without a proof is
   ticked by hand; a step with one is ticked only by its proof.
+- **One plate at a time** (a switch in the index, or `?paged=1` in the address) is CSS on `html.paged` plus a wheel
+  handler in `www/studio.js`: a scroll moves one plate unless the column under the pointer can still scroll that way.
+  It applies only at desktop widths; a phone keeps the flowing page.
 - **App code** calls other packages as `pkg::fn()`, and nothing in it writes an attribute or class name of the tip
   engine: they come from the engine's `tip.json`.
 - **Tests:** `tests/testthat/test-studio.R` (the launcher, the page, every plate's code for every combination of its

@@ -1276,3 +1276,81 @@ body {
   --bs-table-striped-color: var(--ink);
   --bs-table-hover-color: var(--ink);
 }
+
+/* ==== One plate at a time (desktop): each plate fills the screen, and the page snaps from plate to plate. The
+   margin scrolls inside its own column and hands the scroll back to the page at its end. ==================== */
+@media (min-width: 1100px) {
+  html.paged {
+    scroll-snap-type: y mandatory;
+    scroll-padding-top: 0;
+  }
+  .paged .plate {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    padding-top: 0;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .paged .plate + .plate {
+    margin-top: 0;
+  }
+  .paged .plate-head {
+    position: static;
+    flex: none;
+  }
+  .paged .plate .lede {
+    flex: none;
+    margin-bottom: 20px;
+  }
+  .paged .hero {
+    margin-top: 24px;
+    font-size: clamp(2.6rem, 5vw, 4.4rem);
+  }
+  .paged .specimen {
+    padding: 24px 32px 20px;
+  }
+  .paged .specimen figcaption {
+    margin-top: 16px;
+  }
+  .paged .hero-sub {
+    margin-bottom: 0;
+  }
+  .paged .plate-body {
+    flex: 1 1 auto;
+    min-height: 0;
+    padding-bottom: 24px;
+  }
+  .paged .plate-body > .specimen {
+    position: static;
+    max-height: 100%;
+    overflow-y: auto;
+  }
+  /* The margin's scroll box starts at the leaders, so the hairlines and their dots stay inside it. */
+  .paged .margin {
+    max-height: 100%;
+    overflow-y: auto;
+    margin-left: calc(-1 * var(--leader) - 16px);
+    padding: 0 8px 0 calc(var(--leader) + 16px);
+  }
+  .paged .plate.wide .plate-body {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+  .paged .plate.wide .plate-body > .specimen {
+    max-height: none;
+    overflow: visible;
+  }
+  .paged .wide-margin {
+    margin: 0;
+    padding: 56px 8px 0 0;
+  }
+  .paged .colophon {
+    scroll-snap-align: end;
+  }
+}
+@media (min-width: 1100px) and (prefers-reduced-motion: reduce) {
+  html.paged {
+    scroll-behavior: auto;
+  }
+}

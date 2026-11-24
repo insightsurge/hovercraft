@@ -148,6 +148,50 @@ describe("hovercraft studio in a browser", {
     expect_false(js("document.documentElement.classList.contains('guide-on')"))
   })
 
+  it("shows one plate at a time when asked: a scroll moves one plate, and the margin scrolls inside it", {
+    js("window.scrollTo({ top: 0, behavior: 'instant' }); document.querySelector('.js-paged').click()")
+    expect_true(js("document.documentElement.classList.contains('paged')"))
+    expect_identical(js("document.querySelector('.js-paged').getAttribute('aria-pressed')"), "true")
+    expect_true(js("[...document.querySelectorAll('.plate')].every((p) => Math.abs(p.offsetHeight - innerHeight) < 1)"))
+    # Pins' margin is taller than the screen: it scrolls inside its own column.
+    expect_true(js(paste(
+      "(() => { const m = document.querySelector('#pins .margin');",
+      "return getComputedStyle(m).overflowY === 'auto' && m.scrollHeight > m.clientHeight; })()"
+    )))
+    wheel <- function(selector, dy) {
+      js(sprintf(
+        "document.querySelector(%s).dispatchEvent(new WheelEvent('wheel', { deltaY: %d, bubbles: true, cancelable: true }))",
+        jsonlite::toJSON(selector, auto_unbox = TRUE),
+        dy
+      ))
+    }
+    top_of <- function(id) sprintf("Math.abs(document.getElementById('%s').getBoundingClientRect().top) < 2", id)
+    # A scroll over the figure moves to the next plate, and back.
+    js("document.getElementById('basics').scrollIntoView({ behavior: 'instant' })")
+    expect_true(page$wait_until(top_of("basics")))
+    wheel("#basics .specimen", 120)
+    expect_true(page$wait_until(top_of("templates")))
+    Sys.sleep(1)
+    wheel("#templates .specimen", -120)
+    expect_true(page$wait_until(top_of("basics")))
+    # Over a margin that can still scroll, the page stays on its plate.
+    js("document.getElementById('pins').scrollIntoView({ behavior: 'instant' })")
+    Sys.sleep(1)
+    wheel("#pins .margin .note", 120)
+    Sys.sleep(1)
+    expect_true(js(top_of("pins")))
+    # At the margin's end, the scroll goes back to the page: the next plate.
+    js("const m = document.querySelector('#pins .margin'); m.scrollTop = m.scrollHeight")
+    wheel("#pins .margin .note", 120)
+    expect_true(page$wait_until(top_of("disabled")))
+    # Page Down scrolls most of a screen, and the page snaps to the next plate.
+    Sys.sleep(1)
+    js("window.scrollBy({ top: innerHeight * 0.875, behavior: 'instant' })")
+    expect_true(page$wait_until(top_of("output")))
+    js("document.querySelector('.js-paged').click()")
+    expect_false(js("document.documentElement.classList.contains('paged')"))
+  })
+
   it("fits a phone: no sideways scroll, the margin opens as a drawer and Escape closes it", {
     page$resize(375, 812)
     expect_lte(js("document.documentElement.scrollWidth"), 375L)

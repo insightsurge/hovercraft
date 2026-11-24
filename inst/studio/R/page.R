@@ -6,6 +6,7 @@ studio_query <- function(request) {
   list(
     plate = choice(query$plate, studio_plates$id, ""),
     guide = identical(query$guide, "1"),
+    paged = identical(query$paged, "1"),
     preset = choice(query$preset, hovercraft::tip_presets()$name, "sober"),
     motion = choice(query$motion, start_motions, "fade")
   )
@@ -48,6 +49,17 @@ guide_switch <- function(kbd = TRUE) {
   )
 }
 
+# The switch of the one-plate-at-a-time view: each plate fills the screen and the page snaps from plate to plate.
+paged_switch <- function() {
+  htmltools::tags$button(
+    type = "button",
+    class = "g-switch js-paged",
+    `aria-pressed` = "false",
+    htmltools::span(class = "box", `aria-hidden` = "true"),
+    "One plate at a time"
+  )
+}
+
 # What the page's script needs to start: each plate's step targets, and the settings from the address.
 studio_boot <- function(query) {
   steps <- list(
@@ -71,7 +83,8 @@ studio_boot <- function(query) {
     ),
     targets = lapply(steps, function(s) lapply(s, function(x) x$target)),
     plate = query$plate,
-    guide = query$guide
+    guide = query$guide,
+    paged = query$paged
   )
   htmltools::tags$script(
     type = "application/json",
@@ -165,7 +178,8 @@ studio_page <- function(query) {
         htmltools::div(
           class = "g-head",
           guide_switch(),
-          htmltools::tags$button(type = "button", class = "g-resume g-ui", id = "g-resume")
+          htmltools::tags$button(type = "button", class = "g-resume g-ui", id = "g-resume"),
+          paged_switch()
         ),
         studio_toc("toc"),
         htmltools::div(class = "index-foot", theme_set("theme_rail"))

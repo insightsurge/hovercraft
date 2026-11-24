@@ -136,8 +136,7 @@ plate_pins_ui <- function() {
       "Open pinned tips",
       choice_set("pins_placement", "Placement", pins_placements),
       "the column, and give code blocks",
-      choice_set("pins_copy", "Copy button", pins_copy),
-      "."
+      choice_set("pins_copy", "Copy button", pins_copy)
     )
   )
 }
