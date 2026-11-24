@@ -83,7 +83,20 @@
     else el.removeAttribute('aria-describedby');
   };
 
+  // The engine's `open` attribute (name and the value of a pin), set by `define`: an element that carries it with that value
+  // holds a pinned tip.
+  let openAttribute = null;
+  let pinnedValue = null;
+
+  // A pinned row keeps its pin while the data row is the same, and its tip follows the row's new values. Once the widget
+  // gives the element another data row (React reuses its row nodes when a table sorts, pages or filters) or takes the tip
+  // away, the pin would show another row's tip under the old row's id, so it is closed first, under the id it was made for.
+  const release = (el) => {
+    if (openAttribute && el.getAttribute(openAttribute) === pinnedValue) window.Hovercraft?.close();
+  };
+
   const unmark = (el, spec) => {
+    release(el);
     forget(el);
     const was = el.hasAttribute(spec.record) || el.hasAttribute(Object.keys(spec.attrs)[0]);
     for (const name of Object.keys(spec.attrs)) el.removeAttribute(name);
@@ -109,6 +122,9 @@
     if (!el || !spec) return false;
     if (blank(spec, record)) return unmark(el, spec);
     let changed = false;
+    if (spec.id && el.hasAttribute(spec.id.attribute) && el.getAttribute(spec.id.attribute) !== identity(spec, row)) {
+      release(el);
+    }
     for (const [name, value] of Object.entries(spec.attrs)) changed = put(el, name, value) || changed;
     const before = el.getAttribute(spec.record);
     if (spec.id) {
@@ -133,8 +149,9 @@
 
   // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a
   // tip opens, as `tip_define()` does for a tag of the page's own.
-  const define = (defines, desc, park) => {
+  const define = (defines, desc, park, open) => {
     if (desc) descClass = desc;
+    if (open) [openAttribute, pinnedValue] = [open.attribute, open.pinned];
     for (const [name, blocks] of Object.entries(defines ?? {})) window.Hovercraft?.define(name, JSON.parse(blocks));
     for (const id of park ?? []) window.HovercraftShiny?.park(id);
   };
