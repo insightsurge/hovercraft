@@ -349,3 +349,114 @@ describe("tip_on(placement =, id =)", {
     expect_error(tip_on(button(), "Runs", id = 1), class = "hovercraft_error_argument")
   })
 })
+
+describe("tip_on(more =, more_on =)", {
+  withr::defer(tip_reset())
+  tip_reset()
+  pinnable <- function(id = NULL) {
+    tag <- htmltools::tags$button("Run", id = id)
+    htmltools::tagAppendAttributes(tag, !!tip_attribute("pin") := "")
+  }
+
+  it("writes data-hovercraft-tip-more and more_on for plain words on hover", {
+    got <- tip_on(button(), "Short", more = "Extra **words**", more_on = "hover")
+    expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more")), "Extra **words**")
+    expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more_on")), "hover")
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more_template")))
+  })
+
+  it("accepts a tip_template() or placeholder text for more and attaches a deterministic template dependency", {
+    got_a <- tip_on(
+      pinnable("run_a"),
+      "Short",
+      more = "Details for {{ label }} ({{ n | number:0 }})",
+      record = list(label = "ADAE", n = 12, unused = "drop")
+    )
+    got_b <- tip_on(
+      pinnable("run_a"),
+      "Short",
+      more = "Details for {{ label }} ({{ n | number:0 }})",
+      record = list(label = "ADAE", n = 12, unused = "drop")
+    )
+    expect_identical(as.character(got_a), as.character(got_b))
+    expect_match(htmltools::tagGetAttribute(got_a, tip_attribute("more_template")), "^more_[a-f0-9]{12}$")
+    rec <- jsonlite::fromJSON(htmltools::tagGetAttribute(got_a, tip_attribute("record")))
+    expect_named(rec, c("label", "n"))
+
+    tpl_tag <- tip_on(
+      pinnable(),
+      "Short",
+      more = tip_template(tip_fields(Owner = "{{ owner }}")),
+      record = list(owner = "Biostats"),
+      id = "run_tpl"
+    )
+    expect_match(htmltools::tagGetAttribute(tpl_tag, tip_attribute("more_template")), "^more_[a-f0-9]{12}$")
+    deps <- vapply(htmltools::findDependencies(tpl_tag), function(d) d$name, "")
+    expect_true(any(startsWith(deps, "hovercraft-more-")))
+  })
+
+  it("parks a Shiny output that a more template holds, with the park markup in the template's dependency", {
+    skip_if_not_installed("shiny")
+    tag <- tip_on(
+      pinnable(),
+      "Short",
+      more = tip_template(tip_output(shiny::plotOutput("mod1-more_plot"))),
+      id = "run_out"
+    )
+    dep <- Filter(function(d) startsWith(d$name, "hovercraft-more-"), htmltools::findDependencies(tag))[[1]]
+    expect_match(dep$head, "HovercraftShiny.park(\"mod1-more_plot\")", fixed = TRUE)
+    # The output tag goes to the script as a string, and the script puts it in the body: a `<div>` written into a
+    # dependency's head would end the head where the parser meets it, so the head holds one script and nothing else.
+    expect_match(dep$head, "HovercraftShiny.parkHtml(", fixed = TRUE)
+    expect_match(dep$head, "id=\\\"mod1-more_plot\\\"", fixed = TRUE)
+    expect_match(dep$head, "^<script>.*</script>$")
+    # Only the script's own end tag has "</": the output's closing tags are escaped inside the string.
+    expect_identical(lengths(gregexpr("</", dep$head, fixed = TRUE)), 1L)
+  })
+
+  it("warns once when more_on is given without more, in tip_on() and tip_spec()", {
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_warning(tip_on(button(), "Short", more_on = "hover"), class = "hovercraft_warning_more")
+    # Once per session: the second call stays quiet.
+    expect_no_warning(tip_on(button(), "Short", more_on = "hover"))
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_warning(tip_spec("x", more_on = "hover"), class = "hovercraft_warning_more")
+    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
+    expect_no_warning(tip_on(button(), "Short", more = "Long", more_on = "hover"))
+  })
+
+  it("treats NA and empty more as no long form and clears earlier more attributes on replacement", {
+    expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = ""), tip_attribute("more")))
+    expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = NA_character_), tip_attribute("more")))
+    once <- tip_on(button(), "Short", more = "Extra", more_on = "hover")
+    twice <- tip_on(once, "Only short")
+    expect_null(htmltools::tagGetAttribute(twice, tip_attribute("more")))
+    expect_null(htmltools::tagGetAttribute(twice, tip_attribute("more_on")))
+  })
+
+  it("stops with a classed error when more_on is pin (or default) without a pinnable tag or id", {
+    expect_error(tip_on(button(), "Short", more = "Long"), class = "hovercraft_error_pin")
+    expect_error(tip_on(button(), "Short", more = "Long", id = "x"), class = "hovercraft_error_pin")
+    expect_error(tip_on(pinnable(), "Short", more = "Long"), class = "hovercraft_error_pin")
+    expect_no_error(tip_on(pinnable(), "Short", more = "Long", id = "x"))
+    expect_no_error(tip_on(pinnable("x"), "Short", more = "Long"))
+  })
+
+  it("validates more, more_on and placeholders in more", {
+    expect_error(tip_on(button(), "Short", more = 1, more_on = "hover"), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Short", more = "Long", more_on = "click"), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Short", more = "{{ bad", more_on = "hover"), class = "hovercraft_error_placeholder")
+    expect_error(
+      tip_on(button(), "Short", more = "{{ missing }}", more_on = "hover", record = list(other = 1)),
+      class = "hovercraft_error_field"
+    )
+    expect_error(
+      tip_on(button(), "Short", more = "{{ tip_index }}", more_on = "hover", record = list()),
+      class = "hovercraft_error_field"
+    )
+    expect_error(
+      tip_on(button(), "Short", more = "{{ tip_id }}", more_on = "hover", record = list()),
+      class = "hovercraft_error_field"
+    )
+  })
+})

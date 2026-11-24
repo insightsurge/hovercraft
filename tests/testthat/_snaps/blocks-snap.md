@@ -43,7 +43,7 @@
     Condition
       Error in `tip_badge()`:
       ! `status` is "ok", which is not a status.
-      i Give one of "success", "warning", "danger", and "info", or leave it out for a plain badge.
+      i Give one of "success", "warning", "danger", and "info", a placeholder such as `"{{ status }}"`, or leave it out for a plain badge.
 
 # the block errors / say Copy comes later
 

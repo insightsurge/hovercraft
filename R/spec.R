@@ -22,6 +22,11 @@
 #' @param marker The visible cue for this target's cells or header cells: `"corner"`, `"none"` to take the marker off
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
+#' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with
+#'   `{{ column }}` placeholders for `rows` and `cells`) or a [tip_template()]. `NA` and `""` mean no long form.
+#' @param more_on When the long form (`more`) opens: `"pin"` or `"hover"`, or `NULL` (the default) for the table's
+#'   choice, `"hover"`, because table rows and cells cannot pin yet; `"pin"` in a table stops with an error. Without
+#'   `more`, `more_on` does nothing and gives a warning.
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
 #' @family tooltips
@@ -31,13 +36,28 @@
 #'   tip_table(
 #'     rows = "**{{ team }}**: {{ wins | number:0 }} wins",
 #'     cells = list(
-#'       note = tip_spec("{{ note }}", style = "sober", placement = "right", marker = "corner")
+#'       note = tip_spec(
+#'         "{{ team }}",
+#'         more = "{{ note }}",
+#'         more_on = "hover",
+#'         style = "sober",
+#'         placement = "right",
+#'         marker = "corner"
+#'       )
 #'     )
 #'   )
 #' @export
-tip_spec <- function(content, ..., style = NULL, placement = NULL, marker = NULL) {
+tip_spec <- function(
+  content,
+  ...,
+  style = NULL,
+  placement = NULL,
+  marker = NULL,
+  more = NULL,
+  more_on = NULL
+) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("content", "style", "placement", "marker"))
+  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -48,10 +68,32 @@ tip_spec <- function(content, ..., style = NULL, placement = NULL, marker = NULL
       call = call
     )
   }
+  if (!is.null(more) && !tip_content_ok(more)) {
+    tip_abort(
+      c(
+        "{.arg more} must be a string or a {.fn tip_template}, not {.obj_type_friendly {more}}.",
+        i = "Give the words of the long form, a {.fn tip_template}, or {.code NULL}."
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
   tip_check_placement(placement, call = call)
+  tip_check_more_on(more_on, call = call)
+  tip_warn_more_on(more, more_on, call = call)
   style <- tip_as_style(style, call = call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
-  structure(list(content = content, style = style, placement = placement, marker = marker), class = "hovercraft_spec")
+  structure(
+    list(
+      content = content,
+      style = style,
+      placement = placement,
+      marker = marker,
+      more = more,
+      more_on = more_on
+    ),
+    class = "hovercraft_spec"
+  )
 }
 
 # Words, a template or a missing value: what a tip's content can be before the table's columns are known.

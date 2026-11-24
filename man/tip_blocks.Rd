@@ -24,9 +24,12 @@ tip_code(field, language = NULL, copy = FALSE)
 links, short lists), and a value put in by a placeholder is never read as markdown.}
 
 \item{status}{What the badge says about its item, or \code{NULL} for a plain badge: one of \code{"success"}, \code{"warning"},
-\code{"danger"} or \code{"info"}, the words bslib uses. Any other word is an error. The badge is coloured from the page's
-Bootstrap colours for that status (with plain colours on a page without Bootstrap), and its text should say the
-same thing, because colour alone is not enough. A block written as a plain list, \code{list(type = "badge", text = "a", tone = "info")}, uses the engine's name for it, \code{tone}, with the same four words.}
+\code{"danger"} or \code{"info"}, the words bslib uses, or a placeholder such as \code{"{{ tone }}"} filled from the record. Any
+other fixed word is an error. When filled from a record, one of the four words colours the badge and any other
+value shows a plain badge. The badge is coloured from the page's Bootstrap colours for that status (with plain
+colours on a page without Bootstrap), and its text should say the same thing, because colour alone is not enough. A
+block written as a plain list, \code{list(type = "badge", text = "a", tone = "info")}, uses the engine's name for it,
+\code{tone}, with the same rule.}
 
 \item{...}{Named strings for \code{tip_fields()}: each name is a label (plain text) and each value a string that may hold
 placeholders, as in \code{tip_fields(Records = "{{ records | number:0 }}")}.}
@@ -64,6 +67,7 @@ Other tooltips:
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},

@@ -22,17 +22,24 @@ tip_shiny_head <- function() {
       attributes = list(
         id = tip_attribute("id"),
         open = tip_contract()$attributes$open,
-        events = tip_shiny_attribute()
+        events = tip_shiny_attribute(),
+        more = tip_attribute("more"),
+        moreTemplate = tip_attribute("more_template")
       ),
       global = tip_names()$global,
+      css = tip_names()$css,
+      parkClass = tip_output_park_class(),
+      statuses = as.list(tip_statuses),
       # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
-      states = list(hint = tip_rules()$open$values[[1]]),
-      events = list(hint = tip_contract()$events$hint$name),
+      states = list(hint = tip_rules()$open$values[[1]], pin = tip_rules()$open$values[[2]]),
+      events = list(hint = tip_contract()$events$hint$name, tip = tip_contract()$events$tip$name),
       messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
     )
     code <- paste(readLines(system.file("shiny", "shiny.js", package = "hovercraft"), warn = FALSE), collapse = "\n")
+    css <- paste(readLines(system.file("shiny", "shiny.css", package = "hovercraft"), warn = FALSE), collapse = "\n")
     tip_state$shiny_head <- sprintf(
-      "<script>%s\n%sShiny.start(%s);</script>",
+      "<style>%s</style><script>%s\n%sShiny.start(%s);</script>",
+      css,
       code,
       tip_names()$global,
       jsonlite::toJSON(config, auto_unbox = TRUE)

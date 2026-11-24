@@ -90,9 +90,12 @@
     node.remove();
   };
 
-  const define = (defines, desc) => {
+  // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a tip
+  // opens, as `tip_define()` does for a tag of the page's own.
+  const define = (defines, desc, park) => {
     if (desc) descClass = desc;
     for (const [name, blocks] of Object.entries(defines ?? {})) window.Hovercraft?.define(name, JSON.parse(blocks));
+    for (const id of park ?? []) window.HovercraftShiny?.park(id);
   };
 
   // DT: the row and cell callbacks R writes into the table's options call `mark` with the row's data; the header cells

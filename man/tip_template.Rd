@@ -4,10 +4,17 @@
 \alias{tip_template}
 \title{A template: the blocks a tip is drawn from}
 \usage{
-tip_template(...)
+tip_template(..., head = NULL, body = NULL, foot = NULL)
 }
 \arguments{
-\item{...}{One or more blocks.}
+\item{...}{One or more blocks in order (cannot be named; use \code{head}, \code{body} and \code{foot} for slots).}
+
+\item{head}{Optional block or list of blocks drawn at the top of the tip (for example a \code{\link[=tip_title]{tip_title()}} and a
+\code{\link[=tip_badge]{tip_badge()}}).}
+
+\item{body}{Optional block or list of blocks drawn in the middle of the tip. Cannot be combined with \code{...}.}
+
+\item{foot}{Optional block or list of blocks drawn at the bottom of the tip below a subtle divider.}
 }
 \value{
 A template, to give to \code{\link[=tip_define]{tip_define()}}.
@@ -18,11 +25,22 @@ A template is a list of blocks, shown in order. Name it with \code{\link[=tip_de
 block can be made with \code{\link[=tip_title]{tip_title()}} and the other block functions, or written as a plain list such as
 \code{list(type = "text", text = "...")}; both are checked in the same way.
 }
+\details{
+Blocks can be given in order through \code{...}, or placed into the named slots \code{head}, \code{body} and \code{foot}. Each slot
+takes one block or a list of blocks; \code{foot} is drawn below a thin divider in muted text, suited for a source line or
+footnote. Do not pass both positional blocks in \code{...} and \code{body}.
+}
 \examples{
 tip_template(
   tip_title("{{ label }}"),
   tip_text("{{ differences | number:0 }} differences"),
   list(type = "badge", text = "{{ status }}")
+)
+
+tip_template(
+  head = list(tip_title("{{ label }}"), tip_badge("{{ status }}", status = "{{ tone }}")),
+  body = tip_fields(Records = "{{ records | number:0 }}"),
+  foot = tip_text("Source: {{ source }}")
 )
 }
 \seealso{
@@ -32,6 +50,7 @@ Other tooltips:
 \code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
