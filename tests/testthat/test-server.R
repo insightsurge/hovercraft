@@ -230,6 +230,8 @@ describe("tip_on(events = )", {
     config <- jsonlite::fromJSON(jsonlite::toJSON(tip_runtime_config(), auto_unbox = TRUE))
     expect_identical(config$attributes$id, tip_attribute("id"))
     expect_identical(config$attributes$open, tip_contract()$attributes$open)
+    expect_identical(config$attributes$placement, tip_attribute("placement"))
+    expect_identical(config$attributes$disabled, tip_disabled_attribute())
     expect_identical(config$events$hint, tip_contract()$events$hint$name)
     expect_identical(config$messages$show, tip_message("show"))
     expect_identical(config$global, tip_names()$global)

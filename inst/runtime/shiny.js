@@ -38,8 +38,22 @@
     update: ({ id, set, remove }) => {
       const el = find(id);
       if (!el) return note(`update|${id}`, `tip_update(): no tag with the tip id "${id}" is on the page.`);
-      for (const [attribute, value] of Object.entries(set ?? {})) el.setAttribute(attribute, value);
-      for (const attribute of [remove ?? []].flat()) el.removeAttribute(attribute);
+      // A control with `when_disabled` sits in a wrapper that answers to the control's tip id while the control is off, so
+      // `find()` can give the wrapper. The new words, template and record belong to the tag inside it, which is the tip the
+      // control shows once it is on; written on the wrapper they would make a tip of its own beside the reason. The
+      // placement is the one value the wrapper holds too, since the reason takes its place while the control is off.
+      const isWrapper = (node) => node?.hasAttribute(names.attributes.disabled);
+      const wrapper = isWrapper(el) ? el : isWrapper(el.parentElement) ? el.parentElement : null;
+      const tag = wrapper === el ? (el.firstElementChild ?? el) : el;
+      const placement = names.attributes.placement;
+      for (const [attribute, value] of Object.entries(set ?? {})) {
+        tag.setAttribute(attribute, value);
+        if (attribute === placement && wrapper) wrapper.setAttribute(attribute, value);
+      }
+      for (const attribute of [remove ?? []].flat()) {
+        tag.removeAttribute(attribute);
+        if (attribute === placement && wrapper) wrapper.removeAttribute(attribute);
+      }
     },
   };
 

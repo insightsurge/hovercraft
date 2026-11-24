@@ -366,7 +366,8 @@ tip_check_more_fields <- function(fields, held, id, call) {
 #'   `button`, `input`, `select`, `textarea` or `fieldset`. It works when the page is built with the control
 #'   disabled and when it is switched off later, by the `update*(disabled = )` functions of Shiny or by script,
 #'   on a Bootstrap 5 page (bslib) and on the Bootstrap 3 page of a plain `fluidPage()`; a control disabled by
-#'   `aria-disabled` alone is not covered.
+#'   `aria-disabled` alone is not covered. [tip_update()] changes the control's own tip, also while it is disabled:
+#'   the new words show once the control is enabled.
 #'
 #'   A disabled control takes no keyboard focus and, under Bootstrap 5, no pointer, so `tip_on()` puts it in a small
 #'   wrapper that does: a `<span>`, or a `<div>` for a tag that is a block, such as the `div` Shiny puts around an

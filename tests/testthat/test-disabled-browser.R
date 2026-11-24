@@ -392,3 +392,140 @@ describe("tip_on(when_disabled = ) on a Bootstrap 3 page", {
     expect_identical(page$problems(), character())
   })
 })
+
+# tip_update() on a control that has `when_disabled` (#85): while the control is off the page's tip item is its wrapper, but
+# the new words, template, record and placement belong to the control's own tip. The reason stays alone while the control is
+# off, the new values show once it is on, and the wrapper never holds a tip of its own.
+describe("tip_update() on a control with when_disabled", {
+  app <- start_app(function() {
+    off <- function(x) htmltools::tagAppendAttributes(x, disabled = "disabled")
+    row <- function(id, label, ...) {
+      htmltools::tags$div(
+        style = "margin: 160px 0 0 220px",
+        tip_on(
+          off(shiny::actionButton(id, label)),
+          ...,
+          when_disabled = paste("Reason", label),
+          id = paste0(id, "_tip")
+        )
+      )
+    }
+    ui <- shiny::fluidPage(
+      tip_define(card = tip_template(body = tip_text("Hello {{ name }}"))),
+      row("tx", "Text", "Old text"),
+      row("tp", "Template", template = "card", record = list(name = "Ada")),
+      row("pl", "Place", "Place tip", placement = "top"),
+      row("nt", "Plain", "Plain tip"),
+      htmltools::tags$div(
+        style = "margin: 160px 0 0 20px",
+        shiny::actionButton("upd", "Update"),
+        shiny::actionButton("en", "Enable"),
+        shiny::actionButton("clear", "Clear")
+      )
+    )
+    server <- function(input, output, session) {
+      shiny::observeEvent(input$upd, {
+        tip_update("tx_tip", text = "New **text**")
+        tip_update("tp_tip", template = "card", record = list(name = "Grace"))
+        tip_update("pl_tip", placement = "bottom")
+      })
+      shiny::observeEvent(
+        input$en,
+        for (id in c("tx", "tp", "pl", "nt")) {
+          shiny::updateActionButton(session, id, disabled = FALSE)
+        }
+      )
+      shiny::observeEvent(input$clear, tip_update("tx_tip", text = NULL))
+    }
+    shiny::shinyApp(ui, server)
+  })
+  page <- local_page(app$url, environment())
+  tip_attrs <- c(tip_attribute("text"), tip_attribute("template"), tip_attribute("record"))
+  wrapper <- function(id) sprintf("document.getElementById('%s').closest('.%s')", id, tip_disabled_class())
+  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  # Whether the wrapper holds any attribute that would make it a tip of its own.
+  ghost <- function(id) {
+    page$evaluate(sprintf(
+      "%s.hasAttribute('%s') || %s.hasAttribute('%s') || %s.hasAttribute('%s')",
+      wrapper(id),
+      tip_attrs[[1]],
+      wrapper(id),
+      tip_attrs[[2]],
+      wrapper(id),
+      tip_attrs[[3]]
+    ))
+  }
+  # The tip's place against the control: the tip's top edge minus the control's bottom edge ("below" when positive), and
+  # the control's top edge minus the tip's bottom edge ("above" when positive).
+  gap <- function(id) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => { const b = document.getElementById('%s').getBoundingClientRect(); const t = [...document.querySelectorAll('.%s')].find((e) => !e.hidden).getBoundingClientRect(); return JSON.stringify({ below: t.top - b.bottom, above: b.top - t.bottom }); })()",
+      id,
+      tip_names()$css
+    )))
+  }
+
+  it("starts and the wrappers have no tip of their own", {
+    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_until(sprintf("%s.getAttribute('role') === 'button'", wrapper("tx"))))
+    for (id in c("tx", "tp", "pl", "nt")) {
+      expect_false(ghost(id), info = id)
+    }
+  })
+
+  it("shows the placement it was built with, above, while the control is off", {
+    page$hover("#pl")
+    expect_gt(gap("pl")$above, 0)
+  })
+
+  it("keeps the reason alone while the control is off, after an update of text, template, record and placement", {
+    press_button("upd")
+    expect_true(page$wait_until(sprintf(
+      "document.getElementById('tx').getAttribute('%s') === 'New **text**'",
+      tip_attrs[[1]]
+    )))
+    expect_true(page$wait_until(sprintf(
+      "(document.getElementById('tp').getAttribute('%s') ?? '').includes('Grace')",
+      tip_attrs[[3]]
+    )))
+    expect_true(page$wait_until(sprintf(
+      "document.getElementById('pl').closest('[%s]').getAttribute('%s') === 'bottom'",
+      tip_attribute("placement"),
+      tip_attribute("placement")
+    )))
+    for (id in c("tx", "tp", "pl")) {
+      expect_false(ghost(id), info = id)
+    }
+    expect_identical(page$hover("#tx"), "Not available: Reason Text")
+    expect_identical(page$hover("#tp"), "Not available: Reason Template")
+    expect_identical(page$hover("#pl"), "Not available: Reason Place")
+  })
+
+  it("puts the reason where the new placement says, below", {
+    page$hover("#pl")
+    expect_gt(gap("pl")$below, 0)
+  })
+
+  it("shows the updated tip once the control is on, and leaves nothing on the wrapper", {
+    press_button("en")
+    expect_true(page$wait_until(sprintf("%s.getAttribute('role') === null", wrapper("tx"))))
+    expect_true(page$wait_until(sprintf("%s.getAttribute('role') === null", wrapper("pl"))))
+    for (id in c("tx", "tp", "pl", "nt")) {
+      expect_false(ghost(id), info = id)
+    }
+    expect_identical(page$hover("#tx"), "New text")
+    expect_match(page$hover("#tp"), "Hello Grace")
+    expect_identical(page$hover("#pl"), "Place tip")
+    expect_gt(gap("pl")$below, 0)
+  })
+
+  it("takes the text away on a control that is on, and the control then has no tip of its own", {
+    press_button("clear")
+    expect_true(page$wait_until(sprintf("!document.getElementById('tx').hasAttribute('%s')", tip_attrs[[1]])))
+    expect_length(page$hover("#tx"), 0L)
+  })
+
+  it("leaves the console without errors", {
+    expect_identical(page$problems(), character())
+  })
+})
