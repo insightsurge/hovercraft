@@ -21,6 +21,7 @@
   /* Modular scale, major third from 17 px */
   --s-2: 0.694rem;
   --s-1: 0.833rem;
+  --s-code: 0.72rem; /* code in the margin and the log */
   --s0: 1rem;
   --s1: 1.25rem;
   --s2: 1.563rem;
@@ -185,7 +186,7 @@ p {
 .margin {
   grid-column: 3;
   font-family: var(--sans);
-  font-size: 0.82rem;
+  font-size: var(--s-1);
   line-height: 1.5;
   color: var(--ink);
   min-width: 0;
@@ -221,7 +222,7 @@ p {
   background: var(--paper);
 }
 .note h4 {
-  font: 600 0.82rem / 1.45 var(--sans);
+  font: 600 var(--s-1) / 1.45 var(--sans);
   color: var(--blue);
   margin: 0 0 8px;
   display: flex;
@@ -252,7 +253,7 @@ p {
   padding: 12px 14px;
   background: var(--wash);
   border-radius: 3px;
-  font: 400 0.72rem / 1.6 var(--mono);
+  font: 400 var(--s-code) / 1.6 var(--mono);
   white-space: pre-wrap;
   overflow-x: auto;
   color: var(--ink);
@@ -276,15 +277,6 @@ p {
 .code .f {
   font-weight: 600;
 }
-.code-foot {
-  margin: 8px 0 0;
-  color: var(--ink-2);
-  font-size: 0.76rem;
-}
-.code-foot b {
-  font-weight: 600;
-  color: var(--ink);
-}
 
 /* Every button that acts (Copy, Close, Back, Next) is this one: a thin blue box, filled on hover and when its action
    is done. The outline is kept for buttons only. The page's own navigation (the phone bar's section button and the
@@ -297,7 +289,7 @@ p {
   min-height: 28px;
   min-width: 28px;
   padding: 0 10px;
-  font: 500 0.78rem / 1 var(--sans);
+  font: 500 var(--s-1) / 1 var(--sans);
   color: var(--blue);
   background: none;
   border: 1px solid var(--blue);
@@ -347,7 +339,7 @@ p {
   list-style: none;
   margin: 0;
   padding: 0;
-  font: 400 0.7rem / 1.45 var(--mono);
+  font: 400 var(--s-code) / 1.45 var(--mono);
   max-height: 236px;
   overflow-y: auto;
 }
@@ -389,7 +381,8 @@ p {
 }
 .log-empty {
   color: var(--ink-2);
-  font: 400 0.82rem / 1.5 var(--sans);
+  font: 400 var(--s-1) / 1.5 var(--sans);
+  text-wrap: pretty;
   margin: 0;
 }
 
@@ -412,7 +405,7 @@ p {
   margin: 14px 0 0;
   padding: 8px 10px;
   border-left: 2px solid var(--blue);
-  font: 400 0.82rem / 1.5 var(--sans);
+  font: 400 var(--s-1) / 1.5 var(--sans);
 }
 .figure-note.is-error {
   border-left-style: dashed;
