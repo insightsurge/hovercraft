@@ -1220,8 +1220,11 @@ body {
   padding: 8px 0 0;
   font-family: var(--sans);
 }
+/* Under a part's heading the section title still gets more room above than below, so it reads as the start of what
+   follows. The extra room is a margin: once the title sticks to the top it keeps the 32px padding. */
 .part-head + .plate-head {
   padding-top: 32px;
+  margin-top: 24px;
 }
 .plate + .plate .part-head {
   margin-top: 24px;
