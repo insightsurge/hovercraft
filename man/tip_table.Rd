@@ -95,9 +95,9 @@ filtering and paging.
 Not supported: a \code{DT} table with its own \code{createdRow} or \code{initComplete} option; a \code{reactable} column whose
 \code{headerClass} is a JavaScript function; any other widget.
 
-Large tables: \code{tip_table()} adds nothing to the data of the page, since each tip reads its values from the table's own
-data in the browser. A table with every row drawn at once is slow in \code{DT} when cells or headers have tips (thousands
-of rows take seconds); page it, or tip its rows only.
+Large tables: \code{tip_table()} adds nothing to the data of the page, since each tip reads its values from the table's
+own data in the browser. A table with every row drawn at once is slow in \code{DT} when cells or headers have tips
+(thousands of rows take seconds); page it, or tip its rows only.
 
 Give \code{tip_table()} the finished widget, last in the pipe or at least after the columns are settled.
 \code{DT::datatable()} keeps its columns and its inputs as they are: \code{tip_table()} adds no column and changes no event

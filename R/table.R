@@ -541,9 +541,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' Not supported: a `DT` table with its own `createdRow` or `initComplete` option; a `reactable` column whose
 #' `headerClass` is a JavaScript function; any other widget.
 #'
-#' Large tables: `tip_table()` adds nothing to the data of the page, since each tip reads its values from the table's own
-#' data in the browser. A table with every row drawn at once is slow in `DT` when cells or headers have tips (thousands
-#' of rows take seconds); page it, or tip its rows only.
+#' Large tables: `tip_table()` adds nothing to the data of the page, since each tip reads its values from the table's
+#' own data in the browser. A table with every row drawn at once is slow in `DT` when cells or headers have tips
+#' (thousands of rows take seconds); page it, or tip its rows only.
 #'
 #' Give `tip_table()` the finished widget, last in the pipe or at least after the columns are settled.
 #' `DT::datatable()` keeps its columns and its inputs as they are: `tip_table()` adds no column and changes no event

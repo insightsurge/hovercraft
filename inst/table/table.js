@@ -15,10 +15,10 @@
 
   // The JSON record of one row: the values of `fields` (names, in the order R gives them) taken from `values`, a
   // function of a field name. A missing or non-finite value is `null`, as in a record R writes.
-  const recordFrom = (fields, valueOf) => {
+  const recordFrom = (fields, read) => {
     const record = {};
     for (const field of fields) {
-      const value = valueOf(field);
+      const value = read(field);
       record[field] = value === undefined || (typeof value === 'number' && !Number.isFinite(value)) ? null : value;
     }
     return JSON.stringify(record);
