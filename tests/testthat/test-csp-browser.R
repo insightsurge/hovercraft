@@ -89,7 +89,7 @@ describe("a page under a strict Content-Security-Policy", {
           tip_on(
             htmltools::tags$button("Looked", id = "looked"),
             "A tip with a look of its own",
-            style = tip_style(theme = list("--hovercraft-tip-radius" = "13px"), motion = "none", gap = 12)
+            style = tip_style(theme = list(radius = 13), motion = "none", gap = 12)
           ),
           tip_on(
             htmltools::tags$button("Card", id = "card"),
@@ -249,7 +249,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
               shiny::actionButton(paste0(id, "_btn"), paste("Button", id)),
               template = paste0(id, "_card"),
               record = list(label = id, n = 7),
-              style = tip_style(theme = list("--hovercraft-tip-radius" = radius)),
+              style = tip_style(theme = list(radius = radius)),
               more = tip_template(tip_text(paste("The long form of", id))),
               more_on = "hover"
             )

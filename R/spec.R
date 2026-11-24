@@ -103,6 +103,7 @@ tip_spec <- function(
   pin <- tip_check_pin(pin, call = call)
   events <- tip_check_events(events, call = call)
   style <- tip_as_style(style, call = call)
+  tip_check_style_tokens(style, call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   structure(
     list(
