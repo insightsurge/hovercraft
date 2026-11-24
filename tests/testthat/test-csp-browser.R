@@ -273,7 +273,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
   up <- wait_for_app(app, url)
   # What Shiny alone reports under the policy, to hold the page with tips to.
   plain <- local_page(paste0(url, "?plain"), environment(), init = watch)
-  plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true")
+  expect_true(plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
   baseline <- violations(plain)
   page <- local_page(url, environment(), init = watch)
   css <- tip_names()$css
@@ -296,7 +296,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
   it("shows a tip when the server asks, and draws the pin button", {
     page$mouse(5, 5, FALSE)
     expect_true(page$wait_closed())
-    page$evaluate("document.getElementById('show').click()")
+    page$click_now("#show")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     # A hint the server asked for stays until it is closed.
@@ -315,7 +315,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("draws a template, a theme and a long form that arrive through renderUI() after the page has loaded", {
     page$mouse(5, 5, FALSE)
-    page$evaluate("document.getElementById('late').click()")
+    page$click_now("#late")
     expect_true(page$wait_until("document.getElementById('rendered_btn') !== null"))
     expect_match(paste(page$hover("#rendered_btn"), collapse = " "), "rendered.*Late: 7")
     expect_identical(radius(), "15px")
@@ -326,7 +326,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
   it("draws them when they arrive through insertUI() too", {
     page$mouse(5, 5, FALSE)
     expect_true(page$wait_closed())
-    page$evaluate("document.getElementById('insert').click()")
+    page$click_now("#insert")
     expect_true(page$wait_until("document.getElementById('inserted_btn') !== null"))
     expect_match(paste(page$hover("#inserted_btn"), collapse = " "), "inserted.*Late: 7")
     expect_identical(radius(), "17px")
@@ -356,11 +356,11 @@ describe("the icons drawn from data: images, under a policy with default-src", {
   reported <- function(policy) {
     made <- serve_page(build, policy = policy, env = parent.frame())
     page <- local_page(made$url, parent.frame(), init = watch)
-    page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global))
+    expect_true(page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global)))
     for (id in c("marked", "pinnable", "off")) {
       page$hover(paste0("#", id))
     }
-    page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     page$hover("#off")
     list(violations = violations(page), page = page)
   }

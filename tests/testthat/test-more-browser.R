@@ -320,7 +320,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
     page$emulate("prefers-reduced-motion", "reduce")
     page$hover("#pin_btn")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
-    page$evaluate("document.getElementById('pin_btn').click()")
+    page$click_now("#pin_btn")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s.%s-pin:not([hidden])') !== null", css, css)))
     anim_count <- page$evaluate(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])').getAnimations().length",

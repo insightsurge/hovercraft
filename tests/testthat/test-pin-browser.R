@@ -174,7 +174,7 @@ describe("pins in a Shiny app", {
   reset <- function() {
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    page$wait_closed()
+    expect_true(page$wait_closed())
     # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
     page$hold(0.4)
   }
@@ -389,7 +389,7 @@ describe("pins in a Shiny app", {
   it("keeps a hint that the server asked to show open when the pointer passes over the button", {
     reset()
     view("show_a")
-    press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+    press_button <- function(id) page$click_now(paste0("#", id))
     press_button("show_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
@@ -428,7 +428,7 @@ describe("pins in a Shiny app", {
 
   it("keeps the button in the corner of a hint inside a modal, above it", {
     reset()
-    page$evaluate("document.getElementById('open_modal').click()")
+    page$click_now("#open_modal")
     expect_true(page$wait_until(
       "document.getElementById('row_modal') !== null && document.getElementById('row_modal').getBoundingClientRect().width > 0"
     ))

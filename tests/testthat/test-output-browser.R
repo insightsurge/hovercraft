@@ -216,7 +216,7 @@ describe("tip_output() in a live Shiny app", {
 
   close_tip <- function() {
     page$press("Escape", wait = 0.25)
-    page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css))
+    expect_true(page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css)))
   }
 
   it("starts and connects", {
@@ -267,7 +267,7 @@ describe("tip_output() in a live Shiny app", {
     ))
     close_tip()
     # Change reactive input while parked, then reopen: must refresh to v2!
-    page$evaluate("document.getElementById('bump').click()")
+    page$click_now("#bump")
     page$settle()
     page$hover("#btn_alive")
     expect_true(page$wait_until(
@@ -429,7 +429,7 @@ describe("tip_output() in ordinary use", {
   state_of <- "document.querySelector('.hc-tip:not([hidden]) .hc-output')?.dataset.state"
   close_tip <- function() {
     page$press("Escape", wait = 0.25)
-    page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css))
+    expect_true(page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css)))
   }
 
   it("starts and connects", {
@@ -498,7 +498,7 @@ describe("tip_output() in ordinary use", {
     page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-retry').click()")
     expect_true(page$wait_until(paste0(state_of, " === 'loading'")))
     # Nothing re-runs the render, so the tip must not stay on "Loading…".
-    expect_true(page$wait_until(paste0(state_of, " === 'error'"), seconds = 10))
+    expect_true(page$wait_until(paste0(state_of, " === 'error'")))
     expect_match(
       page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-error-msg').textContent"),
       "did not run this output again",

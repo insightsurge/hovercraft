@@ -106,7 +106,7 @@ describe("server calls and the hint input in a Shiny app", {
       jsonlite::toJSON(id, auto_unbox = TRUE)
     ))
   }
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
 
   it("starts and connects", {
     expect_true(up, info = paste(app$read_error(), collapse = "\n"))

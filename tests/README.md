@@ -44,5 +44,6 @@ create a missing one.
 `helper-browser.R` starts one headless Chrome per test process and `local_page()` opens a tab in it, so a test never
 waits for a Chrome to start. A Chrome that has died is replaced (twice at most per run). Every wait uses one limit,
 `browser_timeout` (30 seconds): wait for a signal (`page$wait_until()`, `page$settle()`) and never for a fixed time
-(`page$hold()` is the exception; its comment says why). Apps under test start with `start_app()` and are stopped when
+(`page$hold()` is the exception; its comment says why). Click anything Shiny can redraw with
+`page$click_now()`, which finds and clicks in one step in the page. Apps under test start with `start_app()` and are stopped when
 the test ends. Each test file must run on its own, as files run in parallel and in any order.

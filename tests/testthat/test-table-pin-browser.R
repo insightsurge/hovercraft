@@ -147,7 +147,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     page$press("Escape", wait = 0.2)
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    page$wait_closed()
+    expect_true(page$wait_closed())
     # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
     page$hold(0.4)
   }

@@ -207,7 +207,7 @@ describe("Shiny practices in a running app", {
   url <- paste0("http://127.0.0.1:", port)
   up <- wait_for_app(app, url)
   page <- local_page(url, environment())
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   hover_in_view <- function(selector) {
     page$evaluate(sprintf(
       "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
@@ -295,7 +295,7 @@ describe("Shiny practices in a running app", {
     expect_identical(hover_in_view("#acc_btn"), "Accordion tip")
 
     # conditionalPanel
-    page$evaluate("document.getElementById('show_cond').click()")
+    page$click_now("#show_cond")
     expect_true(page$wait_until(
       "document.getElementById('cond_btn')?.getBoundingClientRect().height > 0"
     ))

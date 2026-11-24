@@ -155,6 +155,9 @@ describe("hovercraft studio in a browser", {
       count("kept for North"),
       kept_now
     )))
+    # Let the other counter move too, were it going to: "drawn and kept" must be caught, not only the first signal. No
+    # signal says that nothing else comes, so this is a wait for time to pass, not for an event.
+    page$hold(2)
     drew <- js(count("drawn for North")) > drawn_now
     kept <- js(count("kept for North")) > kept_now
     expect_true(xor(drew, kept))

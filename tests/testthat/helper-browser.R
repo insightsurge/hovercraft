@@ -170,10 +170,22 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
       )$result$value
     )
   }
-  # Waits until a tip is on show (true), or the given seconds pass (false; for a tag that has no tip to show). Pinned
-  # tips count too.
-  wait_open <- function(seconds = 1.5) {
-    wait_until(sprintf("document.querySelector('.%s:not([hidden])') !== null", tip_names()$css), seconds)
+  # Clicks the element `selector` names, found and clicked in one step in the page, as a person's click is. Use it for
+  # anything Shiny can redraw: a click by pointer position takes two steps (read the box, then press there), and a
+  # redraw between them lands the press on whatever moved in. A selector that matches nothing fails the test.
+  click_now <- function(selector) {
+    found <- evaluate(sprintf(
+      "(() => { const node = document.querySelector(%s); if (node) node.click(); return node !== null; })()",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    ))
+    if (!isTRUE(found)) {
+      cli::cli_abort("No element matches {.val {selector}}.")
+    }
+    invisible()
+  }
+  # Waits until a tip is on show. Pinned tips count too.
+  wait_open <- function() {
+    wait_until(sprintf("document.querySelector('.%s:not([hidden])') !== null", tip_names()$css))
   }
   # Waits until no hint is on show (a pinned tip stays: it needs a click away or Escape).
   wait_closed <- function() {
@@ -307,6 +319,7 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     resize = resize,
     wait_until = wait_until,
     settle = settle,
+    click_now = click_now,
     wait_open = wait_open,
     wait_closed = wait_closed,
     hold = hold,

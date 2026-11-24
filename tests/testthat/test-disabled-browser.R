@@ -128,7 +128,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
       reason
     )))
   }
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   seen <- function(id, pattern) {
     page$wait_until(sprintf(
       "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
@@ -280,7 +280,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   it("keeps the focus with a control that disables itself, and gives it back when the control is enabled", {
     view("self")
     page$evaluate("document.getElementById('self').focus()")
-    page$evaluate("document.getElementById('self').click()")
+    page$click_now("#self")
     expect_true(page$wait_until(sprintf("%s.getAttribute('tabindex') === '0'", wrapper("self"))))
     expect_true(page$wait_until(sprintf("document.activeElement === %s", wrapper("self"))))
     page$evaluate("document.getElementById('self').disabled = false")
@@ -366,10 +366,10 @@ describe("tip_on(when_disabled = ) on a Bootstrap 3 page", {
   })
 
   it("shows the reason when Shiny switches the control off, and the control's own tip when it is on again", {
-    page$evaluate("document.getElementById('off').click()")
+    page$click_now("#off")
     expect_true(page$wait_until("document.getElementById('later').parentElement.getAttribute('role') === 'button'"))
     expect_identical(page$hover("#later"), "Not available: Switched off")
-    page$evaluate("document.getElementById('on').click()")
+    page$click_now("#on")
     expect_true(page$wait_until("document.getElementById('later').parentElement.getAttribute('role') === null"))
     expect_identical(page$hover("#later"), "Enabled tip")
   })
@@ -428,7 +428,7 @@ describe("tip_update() on a control with when_disabled", {
   page <- local_page(app$url, environment())
   tip_attrs <- c(tip_attribute("text"), tip_attribute("template"), tip_attribute("record"))
   wrapper <- function(id) sprintf("document.getElementById('%s').closest('.%s')", id, tip_disabled_class())
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   # Whether the wrapper holds any attribute that would make it a tip of its own.
   ghost <- function(id) {
     page$evaluate(sprintf(
