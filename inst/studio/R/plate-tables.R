@@ -47,6 +47,11 @@ tables_code <- function(settings) {
   paste0(data, "\n\n", table, " |>\n  ", gsub("\n", "\n  ", tipped, fixed = TRUE))
 }
 
+# The server's code, shown in the code note and run by the server as it is shown: a table's tip by its row.
+tables_server_code <- function() {
+  "shiny::observeEvent(input$tables_show, tip_show(\"branches\", row = 2))"
+}
+
 tables_steps <- function() {
   list(
     step(
@@ -63,6 +68,11 @@ tables_steps <- function() {
       "Choose *reactable*: the same tips, on the other widget.",
       "a tip shows the row that used to be there.",
       "#tables_widget"
+    ),
+    step(
+      "Press *Show row 2's tip*: `tip_show(\"branches\", row = 2)` opens the tip of the second row of the data.",
+      "nothing opens, or the tip of another row does.",
+      "#tables_show"
     ),
     step(
       paste(
@@ -87,13 +97,14 @@ plate_tables_ui <- function() {
       "says which row; the first steps are ticked by hand."
     ),
     steps = tables_steps(),
-    code = code_text(tables_code(list())),
+    code = code_text(tables_code(list()), tables_server_code()),
     log_empty = "Nothing yet. Pin a row.",
     controls = htmltools::tagList(
       "Draw the table with",
       choice_set("tables_widget", "Widget", tables_widgets, tables_default()),
       "and put tips on",
-      choice_set("tables_parts", "Parts", tables_parts)
+      choice_set("tables_parts", "Parts", tables_parts),
+      shiny::actionButton("tables_show", "Show row 2's tip", class = "btn-sm")
     )
   )
 }
@@ -105,7 +116,16 @@ plate_tables_server <- function(input, output, session) {
     widget <- choice(input$tables_widget, tables_widgets, tables_default())
     if (!requireNamespace(widget, quietly = TRUE)) widget
   })
-  plate_code(input, output, session, "tables", code, draw = FALSE)
+  plate_code(
+    input,
+    output,
+    session,
+    "tables",
+    ui_code = code,
+    server_code = shiny::reactive(tables_server_code()),
+    draw = FALSE
+  )
+  run_server_code(tables_server_code(), input, session)
   log_inputs(input, session, "tables", c("branches_pin", "branches_pinned"))
   exports <- studio_exports()
   result <- shiny::reactive({

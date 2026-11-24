@@ -797,7 +797,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   alone, and outside a session (a static page) the id is used as given. Give it a different id from every other tip
 #'   source on the page: two tables with one id make the page warn in the browser console. With an `id`, every marked
 #'   row, cell and header cell gets its own tip id derived from it, which follows the data row through sorting,
-#'   filtering and paging; how that id is built is not part of the API. `NULL` gives the tips no id. A pin or events
+#'   filtering and paging; how that id is built is not part of the API: [tip_show()], [tip_hide()] and [tip_update()]
+#'   take the table's `id` with `row` and `column` instead. `NULL` gives the tips no id. A pin or events
 #'   given to `rows` (see [tip_spec()]) need an `id`. The engine's kind of the tips is not yours to set.
 #' @returns The widget, with the tips added.
 #' @family tooltips
@@ -863,6 +864,11 @@ tip_table <- function(
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   data <- tip_table_data(widget, kind)
   columns <- names(data)
+  # A column's position counts the data columns; the row names of a reactable (".rownames") are not one.
+  shown <- setdiff(columns, ".rownames")
+  if (!is.null(id)) {
+    tip_table_register(id, shown)
+  }
   plan <- list(
     rows = if (!is.null(rows)) {
       tip_table_content(
@@ -903,7 +909,7 @@ tip_table <- function(
       content
     })
   }
-  column_of <- function(column) match(column, columns)
+  column_of <- function(column) match(column, shown)
   plan$specs <- list(
     rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, "row", id = id),
     cells = Map(

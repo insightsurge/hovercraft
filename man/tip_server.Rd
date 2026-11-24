@@ -7,20 +7,47 @@
 \alias{tip_update}
 \title{Show, hide and change a tip from the server}
 \usage{
-tip_show(id, session = shiny::getDefaultReactiveDomain())
+tip_show(
+  id,
+  ...,
+  row = NULL,
+  column = NULL,
+  session = shiny::getDefaultReactiveDomain()
+)
 
-tip_hide(id, session = shiny::getDefaultReactiveDomain())
+tip_hide(
+  id,
+  ...,
+  row = NULL,
+  column = NULL,
+  session = shiny::getDefaultReactiveDomain()
+)
 
-tip_update(id, ..., session = shiny::getDefaultReactiveDomain())
+tip_update(
+  id,
+  text = NULL,
+  ...,
+  template = NULL,
+  record = NULL,
+  placement = NULL,
+  row = NULL,
+  column = NULL,
+  session = shiny::getDefaultReactiveDomain()
+)
 }
 \arguments{
-\item{id}{The tip's id: the \code{id} given to \code{\link[=tip_on]{tip_on()}}, without the module's namespace. One non-empty string with no
-whitespace.}
+\item{id}{The tip's id: the \code{id} given to \code{\link[=tip_on]{tip_on()}}, or, with \code{row} or \code{column}, the \code{id} given to \code{\link[=tip_table]{tip_table()}},
+without the module's namespace. One non-empty string with no whitespace.}
+
+\item{...}{Must be empty. It makes a misspelt argument an error.}
+
+\item{row, column}{The address of a table's tip: \code{row} the row's position in the data, \code{column} a data column's name
+or position. Both \code{NULL} (the default) for a tip on a tag.}
 
 \item{session}{The Shiny session; the default is the one the call runs in.}
 
-\item{...}{For \code{tip_update()}: the new values, all named, and at least one: \code{text}, \code{template}, \code{record} and
-\code{placement}, as in \code{\link[=tip_on]{tip_on()}}.}
+\item{text, template, record, placement}{For \code{tip_update()}: the new values, as in \code{\link[=tip_on]{tip_on()}}. \code{NULL} (the default)
+leaves a value as it is and \code{NA} takes it away; \code{""} clears the \code{text}. Give at least one.}
 }
 \value{
 \code{NULL}, invisibly. These functions are called for their effect on the page.
@@ -29,23 +56,36 @@ whitespace.}
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 \code{tip_show()} opens the tip of a tag, \code{tip_hide()} closes it, and \code{tip_update()} changes what the tip says, from a
 Shiny server function. The tag is found by the \code{id} given to \code{\link[=tip_on]{tip_on()}}, or, when \code{\link[=tip_on]{tip_on()}} had none, by the tag's
-own \code{id}. The ids of the rows, cells and header cells of a \code{\link[=tip_table]{tip_table()}} work too: they are written
-\verb{<id>/row/<n>}, \verb{<id>/cell/<n>/<column>} and \verb{<id>/header/<column>}, where \verb{<n>} is the data row.
+own \code{id}. For a tip of a \code{\link[=tip_table]{tip_table()}} give the table's \code{id} and the address of the tip: \code{row} alone is a row, \code{row}
+and \code{column} a cell, and \code{column} alone a header cell. For a tip on a tag, leave both out.
 }
 \details{
+\code{row} is the position of the row in the data the table has now, counting from 1: after \code{replaceData()} or a redraw
+with other data, row 3 is whatever is third. It is not a record's id, so do not keep it to find a record later.
+\code{column} is the data column, by its name in the data frame (not the header's words) or its position among the data
+columns, without the row-names column. A name is read from the table that \code{\link[=tip_table]{tip_table()}} drew in this session, so the
+table has to have been drawn: a name that is not a column of a table already drawn stops with an error that lists the
+columns; a name given before the table's first draw is read when the call is sent, and if it is still not a column
+then, the call warns (class \code{hovercraft_warning_table}) and sends nothing. A position needs no table. A column that
+the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
+(\code{DT} in client or server mode, \code{reactable}), so nothing happens until it is on the page.
+
+A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
+the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a \code{renderUI()}
+that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
+
 A tip opened by \code{tip_show()} stays open until \code{tip_hide()} closes it, or until the reader opens another tip, presses
 Escape or clicks away. \code{tip_hide()} closes a hint, the tip that shows on hover or focus, and never a pin: when the
 tip of this id is not the hint that is open (another tip's hint is, or this one is pinned or closed), it does
-nothing.
+nothing. No server call pins a tip or closes a pin.
 
 \code{tip_update()} rewrites the tag's tip attributes. It takes the same values as \code{\link[=tip_on]{tip_on()}} and changes only what is
-named: \code{text}, \code{template}, \code{record} or \code{placement}. \code{NULL} takes that value away, and so do \code{""} and \code{NA} for \code{text},
-as in \code{\link[=tip_on]{tip_on()}}. An open tip draws its new words, template or record at once; a new \code{placement} is used the next
-time the tip opens. A \code{record} needs the \code{template} in the same call, so that only the columns the template names
-are sent to the page; to change the template alone, leave \code{record} out and the tag keeps the record it has.
-\code{tip_update()} leaves a \code{style} or \code{marker} alone, and it leaves the tag's \code{aria-label} as it is, so a button named
-from its tip keeps the old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn
-again, for example by \code{renderUI()}.
+named: \code{NULL} leaves a value as it is, \code{NA} takes it away, and for \code{text}, \code{""} clears the words. An open tip draws
+its new words, template or record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs
+the \code{template} in the same call, so that only the columns the template names are sent to the page; to change the
+template alone, leave \code{record} out and the tag keeps the record it has. \code{tip_update()} leaves a \code{style} or \code{marker}
+alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the old name; give such a
+button its own \code{aria-label}. The new tip lasts until the tag is drawn again, for example by \code{renderUI()}.
 
 On a control that has \code{when_disabled}, \code{tip_update()} changes the control's own tip, also while the control is
 disabled. A disabled control still says only "Not available:" and its reason, in the new \code{placement}; the new \code{text},
