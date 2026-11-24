@@ -27,6 +27,9 @@ How to contribute is in `.github/CONTRIBUTING.md`; launchR's checks: <https://la
 - Check arguments with checkmate, send messages through cli, call other packages as `pkg::fn()`.
 - `man/` and `NAMESPACE` come from `devtools::document()`, never from hand edits.
 - Every change starts from an issue and lands by pull request; never push to `main`, force-push or skip a check.
+- **Keep the studio up to date:** a pull request that adds, removes or changes an export or an argument (its name,
+  values, default or behaviour) also updates hovercraft studio (`inst/studio/`, opened by `tip_studio()`) in the same
+  pull request. How the studio is built: "The studio" in `.github/CONTRIBUTING.md`.
 - Change only what the task needs. Ask before adding a dependency, changing a check or deleting a file.
 - Keep secrets, private data and machine paths out of code, tests, examples and commits.
 - Report what you ran and what it printed, failures and skipped steps included.

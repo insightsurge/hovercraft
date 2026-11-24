@@ -85,6 +85,32 @@ Tests use testthat 3rd edition, one test file per R file. Add a test for every n
 data made up.
 Browser and snapshot tests that CRAN skips live in their own files and run in CI.
 
+## The studio
+
+hovercraft studio (`inst/studio/`, opened by `tip_studio()`) shows every tip feature on one page, one numbered plate
+per feature. A pull request that changes an export or an argument updates the studio in the same pull request.
+
+- **Files.** `app.R` starts the app. Shiny loads every file in `R/` first: the shared helpers in `R/shared-*.R` (code
+  as text, running it, the plate frame and its margin, the test steps and their proofs, the inputs log), one file
+  per plate in `R/plate-<id>.R`, the made-up data in `R/data.R` and the page in `R/page.R`. `www/shared.css` and
+  `www/shared.js` go with the shared helpers; `www/studio.css` and `www/studio.js` are the page's own look, its phone
+  layout and Guide me.
+- **One source of truth.** Each plate builds its R code as text from its choices (`<id>_code()`); the margin shows
+  that text and the figure is the same text, run with only the package's exports in reach. A plate's server code
+  (Live output's render, Disabled's update, From the server's observers) is run from its shown text the same way.
+  Code that would fail in a reader's app fails in the studio too. The one exception is the page's look on the Start
+  plate: a dependency loads once per page, so the studio writes the attribute and variable that
+  `tip_dependency(style = )` writes, with the names from the engine's `tip.json`.
+- **Test steps tick from real inputs.** A step is `step(text, bug, target, proof)`; a proof names the Shiny input that
+  shows the step was done (`on_hint()`, `on_pin()`, `on_copy()`). By default a proof counts only the reader's own
+  actions (`by = "reader"`), so a tip the page closes and pins again never ticks a step. A step without a proof is
+  ticked by hand; a step with one is ticked only by its proof.
+- **App code** calls other packages as `pkg::fn()`, and nothing in it writes an attribute or class name of the tip
+  engine: they come from the engine's `tip.json`.
+- **Tests:** `tests/testthat/test-studio.R` (the launcher, the page, every plate's code for every combination of its
+  choices, the proofs)
+  and `test-studio-browser.R` (the app in Chrome).
+
 ## NEWS.md
 
 Add one bullet for each user-facing change (a new or changed function, argument or message), in the same pull request. Write it for users, in the present tense, start
