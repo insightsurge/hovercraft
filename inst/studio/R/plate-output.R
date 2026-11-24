@@ -221,7 +221,7 @@ plate_output_server <- function(input, output, session) {
   seen <- new.env()
   seen$draws <- 0L
   seen$drawn_for <- NULL
-  seen$closed <- character()
+  seen$closed <- list() # region -> the number of draws when its tip closed
   output$region_trend <- shiny::renderPlot({
     region <- env$open()
     mode <- choice(input$output_mode, output_modes, "plot")
@@ -238,8 +238,9 @@ plate_output_server <- function(input, output, session) {
     }
     eval(body, env)
   })
-  # "Kept": a region's tip pinned again after it closed, and a second later the plot has not been drawn again and is
-  # still the one drawn for that region. Decided from the draws counted above, after Shiny has had time to draw.
+  # "Kept": a region's tip pinned again after it closed, and a second later the plot has not been drawn since that tip
+  # closed (not even by the hint that opens as the reader comes back) and is still the one drawn for that region.
+  # Decided from the draws counted above, after Shiny has had time to draw.
   pending <- shiny::reactiveVal(NULL)
   for (region in studio_regions$region) {
     local({
@@ -248,13 +249,13 @@ plate_output_server <- function(input, output, session) {
       shiny::observeEvent(input[[name]], {
         value <- input[[name]]
         if (identical(value$state, "closed")) {
-          seen$closed <- union(seen$closed, region)
+          seen$closed[[region]] <- seen$draws
         }
         if (identical(value$state, "pinned") && identical(value$by, "reader")) {
-          if (region %in% seen$closed) {
-            pending(list(region = region, draws = seen$draws, at = Sys.time()))
+          if (!is.null(seen$closed[[region]])) {
+            pending(list(region = region, draws = seen$closed[[region]], at = Sys.time()))
           }
-          seen$closed <- setdiff(seen$closed, region)
+          seen$closed[[region]] <- NULL
         }
       })
     })

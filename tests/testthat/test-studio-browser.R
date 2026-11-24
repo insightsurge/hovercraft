@@ -107,12 +107,15 @@ describe("hovercraft studio in a browser", {
 
   it("says drawn, not kept, when the plot was drawn for another region in between", {
     scroll_to("output")
-    count <- function(words) {
-      sprintf(
-        "[...document.querySelectorAll('[data-log=\"output\"] li')].filter((li) => li.textContent.includes('%s')).length",
-        words
-      )
-    }
+    # Every log line the server sends from now on (the page keeps only the newest 14, so they are counted here).
+    js(paste(
+      "window.studioSeen = [];",
+      "window.jQuery(document).on('shiny:message', (e) => {",
+      "  const m = e.message?.custom?.['studio-log'];",
+      "  if (m) window.studioSeen.push(m.value);",
+      "})"
+    ))
+    count <- function(words) sprintf("window.studioSeen.filter((v) => v.includes('%s')).length", words)
     # Coast first, so North's plot is drawn anew when North is pinned.
     focus(tip("region_coast"))
     page$press("p", wait = 0.2)
@@ -125,15 +128,30 @@ describe("hovercraft studio in a browser", {
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before), 15))
     page$press("Escape", wait = 0.4)
     coast_before <- js(count("drawn for Coast"))
-    # Resting on Coast draws the shared plot for Coast; pinning North again must draw it again.
-    page$hover(tip("region_coast"))
+    # Pinning Coast draws the shared plot for Coast; pinning North again must draw it again, not keep it.
+    focus(tip("region_coast"))
+    page$press("p", wait = 0.2)
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for Coast"), coast_before), 15))
-    page$mouse(5, 5)
+    page$press("Escape", wait = 0.4)
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before + 1L), 15))
     Sys.sleep(2)
     expect_identical(js(count("kept for North")), kept_before)
+    page$press("Escape", wait = 0.4)
+    # Resting on Coast in between may or may not draw the plot for Coast, as Shiny decides; either way the log tells
+    # the truth about North when it is pinned again: drawn, or kept, never both and never neither.
+    drawn_now <- js(count("drawn for North"))
+    kept_now <- js(count("kept for North"))
+    page$hover(tip("region_coast"))
+    Sys.sleep(1)
+    page$mouse(5, 5)
+    focus(tip("region_north"))
+    page$press("p", wait = 0.2)
+    Sys.sleep(3)
+    drew <- js(count("drawn for North")) > drawn_now
+    kept <- js(count("kept for North")) > kept_now
+    expect_true(xor(drew, kept))
     page$press("Escape", wait = 0.4)
   })
 
