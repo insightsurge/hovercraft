@@ -197,14 +197,6 @@ main {
   color: var(--blue);
   font-variant-numeric: lining-nums;
 }
-.plate-kicker {
-  font: 500 var(--s-1) / 1.4 var(--sans);
-  color: var(--blue);
-  margin: 0 0 6px;
-}
-.plate-kicker {
-  display: none;
-} /* the hanging numeral says it on desktop; the phone shows it inline */
 .plate-head h3 {
   font: 400 var(--s4) / 1.08 var(--serif);
   letter-spacing: -0.012em;
@@ -614,10 +606,6 @@ main {
   }
   #start {
     padding-top: 40px;
-  }
-  /* The number and the title share one line, as in the index. */
-  .plate-kicker {
-    display: inline;
   }
   .plate-head h3 {
     margin-top: 6px;
