@@ -9,7 +9,7 @@ server_ui_code <- function() {
   paste(
     c(
       code_sentence(
-        "On a first visit, the server opens a hint on the",
+        "A hint on the",
         code_call(
           "tip_on",
           code_word("week picker"),
@@ -18,7 +18,7 @@ server_ui_code <- function() {
           id = code_str("onboarding"),
           events = code_str("hint")
         ),
-        "without a click."
+        "opens from the server on a reader's first visit."
       ),
       code_call("shiny::actionButton", code_str("srv_show"), code_str("Show")),
       code_call("shiny::actionButton", code_str("srv_hide"), code_str("Hide")),
