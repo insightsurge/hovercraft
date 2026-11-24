@@ -20,6 +20,8 @@ tip_runtime_config <- function() {
   list(
     attributes = list(
       id = tip_attribute("id"),
+      placement = tip_attribute("placement"),
+      disabled = tip_disabled_attribute(),
       open = tip_contract()$attributes$open,
       events = tip_shiny_attribute(),
       more = tip_attribute("more"),
@@ -92,6 +94,10 @@ tip_check_session <- function(session, fn, call = rlang::caller_env()) {
 #' `tip_update()` leaves a `style` or `marker` alone, and it leaves the tag's `aria-label` as it is, so a button named
 #' from its tip keeps the old name; give such a button its own `aria-label`. The new tip lasts until the tag is drawn
 #' again, for example by `renderUI()`.
+#'
+#' On a control that has `when_disabled`, `tip_update()` changes the control's own tip, also while the control is
+#' disabled. A disabled control still says only "Not available:" and its reason, in the new `placement`; the new `text`,
+#' `template` and `record` show once the control is enabled.
 #'
 #' Inside a module, give the id as the module's own (`"save"`); the call adds the module's namespace, as the `update*()`
 #' functions of Shiny do. In the module's UI, give [tip_on()] the id as `ns("save")`.

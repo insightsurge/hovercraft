@@ -58,6 +58,68 @@ A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | perc
 missing or blank shows a dash. Mistakes in a template, such as a placeholder that never closes, stop with an error when
 the template is made, not later in the browser.
 
+A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too; the tip
+then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_tip`, here
+`input$run_tip`:
+
+```r
+library(shiny)
+
+ui <- fluidPage(
+  tip_on(
+    actionButton("run", "Run"),
+    "Runs the **check** on every dataset",
+    pin = TRUE,
+    events = "pin",
+    id = "run"
+  ),
+  textOutput("state")
+)
+
+server <- function(input, output, session) {
+  output$state <- renderText({
+    if (is.null(input$run_tip)) "Nothing pinned yet" else paste("The tip is", input$run_tip$state)
+  })
+}
+
+shinyApp(ui, server)
+```
+
+`state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
+"hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
+tip from the server.
+
+A live Shiny output inside a tip. `tip_output()` puts a plot, a table or any other output in a template; the output is
+drawn while the tip is open:
+
+```r
+library(shiny)
+
+ui <- fluidPage(
+  tip_define(
+    trend = tip_template(
+      tip_title("{{ label }}"),
+      tip_output(plotOutput("trend_plot", width = 260, height = 140))
+    )
+  ),
+  tip_on(
+    actionButton("adae", "ADAE"),
+    template = "trend",
+    record = list(label = "ADAE differences"),
+    id = "adae"
+  )
+)
+
+server <- function(input, output, session) {
+  output$trend_plot <- renderPlot({
+    par(mar = c(2, 2, 1, 1))
+    plot(c(3, 5, 4, 8), type = "b")
+  })
+}
+
+shinyApp(ui, server)
+```
+
 The tags work in a bslib page, in a plain Shiny page and in output made later with `renderUI()`. A tag inside
 `bslib::tooltip()` keeps the tip that bslib draws.
 

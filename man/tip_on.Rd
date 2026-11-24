@@ -86,7 +86,8 @@ would show on an enabled control that has no tip. The tag must hold a control th
 \code{button}, \code{input}, \code{select}, \code{textarea} or \code{fieldset}. It works when the page is built with the control
 disabled and when it is switched off later, by the \verb{update*(disabled = )} functions of Shiny or by script,
 on a Bootstrap 5 page (bslib) and on the Bootstrap 3 page of a plain \code{fluidPage()}; a control disabled by
-\code{aria-disabled} alone is not covered.
+\code{aria-disabled} alone is not covered. \code{\link[=tip_update]{tip_update()}} changes the control's own tip, also while it is disabled:
+the new words show once the control is enabled.
 
 A disabled control takes no keyboard focus and, under Bootstrap 5, no pointer, so \code{tip_on()} puts it in a small
 wrapper that does: a \verb{<span>}, or a \verb{<div>} for a tag that is a block, such as the \code{div} Shiny puts around an
