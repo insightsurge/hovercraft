@@ -68,6 +68,7 @@ tip_code("sql", language = "sql")
 Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},

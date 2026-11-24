@@ -71,7 +71,7 @@
       Error in `tip_on()`:
       ! `...` must be empty.
       x Not an argument: "tmplate".
-      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, `more_on`, and `pin`.
+      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, and `pin`.
 
 # the tip_on() errors / say what a record lacks, and what it holds
 
@@ -122,6 +122,42 @@
       Warning in `tip_on()`:
       `record` is ignored without a `template`.
       i A plain text tip has no placeholders to fill in.
+
+# the tip_on() errors / say what the long form needs
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", on = "pin"))
+    Condition
+      Error in `tip_on()`:
+      ! `more` with `tip_more(on = "pin")` opens on a pin, but the tag cannot pin and has no `id`.
+      i Allow the tip to pin and give it an `id`, or use `on = "hover"` or `"button"`.
+
+---
+
+    Code
+      tip_more("y", on = "hover", label = "Details")
+    Condition
+      Error in `tip_more()`:
+      ! `label` names the words of the buttons, but `on = "hover"` has no button.
+      i Take `label` out, or use `on = "button"`.
+
+---
+
+    Code
+      tip_more("y", label = c(more = "a", other = "b"))
+    Condition
+      Error in `tip_more()`:
+      ! `label` is not right: Must be a string, or a named character vector with the names "more" and "less".
+      i Give one string, or `c(more = "...", less = "...")`, or `NULL` for the built-in words.
+
+---
+
+    Code
+      tip_more("y", on = "click")
+    Condition
+      Error in `tip_more()`:
+      ! `on` is not right: Must be element of set {'button','hover','pin'}, but is 'click'
+      i Give one of "button", "hover", "pin", or `NULL` for "button".
 
 # the tip_on() errors / say what a placement and an id must be
 

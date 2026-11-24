@@ -1,0 +1,59 @@
+/* hovercraft's "More" and "Less" button: a small button over the bottom-right corner of a tip, and the room kept for it.
+   This is hovercraft's own layer, on top of the tip engine; it never changes the engine. The class names are spelt as
+   inst/more/more.js writes them (hovercraft-more-strip) and the tip box is the engine's own (hc-tip); test-more.R holds
+   both. */
+.hovercraft-more-strip {
+  position: fixed;
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 1);
+  display: flex;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  inset: auto;
+  overflow: visible;
+}
+.hovercraft-more-strip-button {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  block-size: 24px;
+  margin: 0;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  color: inherit;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.hovercraft-more-strip-button:hover,
+.hovercraft-more-strip-button:focus-visible {
+  background: color-mix(in srgb, currentcolor 14%, transparent);
+}
+.hovercraft-more-strip-button:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 1px;
+}
+@media (forced-colors: active) {
+  .hovercraft-more-strip-button {
+    border-color: ButtonText;
+    forced-color-adjust: none;
+    color: CanvasText;
+    background: Canvas;
+  }
+}
+/* Room under the last line for the button. */
+.hc-tip[data-hovercraft-more-room] {
+  padding-block-end: 36px;
+}
+.hovercraft-more-strip-live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

@@ -72,7 +72,7 @@ and paging need no code of yours: each row is its own record, whatever place it 
 A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
 beside the text and not far to its left; there is no argument for it. A target that needs its own settings (style,
-placement, marker, or \code{more} / \code{more_on}) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown)
+placement, marker or \code{more}) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown)
 with
 \code{{{ column }}} placeholders, or of a \code{\link[=tip_template]{tip_template()}}; every placeholder is checked against the table's columns, and
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
@@ -89,7 +89,8 @@ Pins: with \code{tip_spec(pin = TRUE)} as \code{rows}, a reader can keep a row's
 focus gets a small pin handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the
 row's tip, and the tip's own close button, \code{Escape} or a click away closes it. The pin key \code{P} pins the tip of the
 row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
-rows pin for now"). A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not
+rows pin for now"). A long form (\code{more}) opens with its "More" button, or with the \code{M} key when the focus is on the
+row or on a cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not
 a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which each row that
 can pin announces as \code{aria-keyshortcuts}. A pin follows its row. It stays on a row when \code{DT} sorts (client and
 server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
@@ -122,16 +123,16 @@ pinned. It is sent in the same batch as \verb{_pin}, and a value equal to the on
 Read it with \code{length(input$scores_pinned)}; a table keeps one pin at a time for now. For a tag of \code{\link[=tip_on]{tip_on()}} with
 \code{events = "pin"}, \verb{input$<id>_pinned} is \code{TRUE} or \code{FALSE} (read it with \code{isTRUE(input$run_pinned)}).
 
-\verb{input$<id>_pin} and \verb{input$<id>_hint} are told apart by \code{state}. A pin's \code{state} is \code{"pinned"}, \code{"closed"} or
-\code{"updated"} (the tip is pinned and was drawn again because its words changed: an app that only tests for \code{"closed"}
-should not take it for a pin); a hint's is \code{"shown"} or \code{"hidden"}. The values of \code{by} are \code{"reader"}, \code{"data"} (the
-page changed under the tip) and \code{"host"} (a command of the page did it). The values of \code{reason} (the same for the
-inputs of \code{\link[=tip_on]{tip_on()}}) are, for a pin, \code{"select"} (the same element again), \code{"escape"}, \code{"button"} (the tip's close
-button), \code{"outside"} (a click away), \code{"replaced"} (another tip was pinned), \code{"gone"} (the row left the page),
-\code{"below"} (a layer around it closed), \code{"host"} (a command of the page closed it) and \code{"redraw"} (the tip was drawn
-again with other host slots, \code{by = "data"}); for a hint, \code{"leave"} (the pointer left), \code{"blur"} (the focus left),
-\code{"escape"}, \code{"outside"}, \code{"pinned"} (the hint became a pin), \code{"replaced"}, \code{"gone"} and \code{"host"}. \code{reason} is \code{NULL}
-when a tip opens.
+\verb{input$<id>_pin} and \verb{input$<id>_hint} are told apart by \code{state}, whose values may grow in a later version. A pin's
+\code{state} is \code{"pinned"}, \code{"closed"} or \code{"updated"} (the tip is pinned and was drawn again because its words changed:
+an app that only tests for \code{"closed"} should not take it for a pin); a hint's is \code{"shown"} or \code{"hidden"}. The values
+of \code{by} are \code{"reader"}, \code{"data"} (the page changed under the tip) and \code{"host"} (a command of the page did it). The
+values of \code{reason} (the same for the inputs of \code{\link[=tip_on]{tip_on()}}) are, for a pin, \code{"select"} (the same element again),
+\code{"escape"}, \code{"button"} (the tip's close button), \code{"outside"} (a click away), \code{"replaced"} (another tip was pinned),
+\code{"gone"} (the row left the page), \code{"below"} (a layer around it closed), \code{"host"} (a command of the page closed it)
+and \code{"redraw"} (the tip was drawn again with other host slots, \code{by = "data"}); for a hint, \code{"leave"} (the pointer
+left), \code{"blur"} (the focus left), \code{"escape"}, \code{"outside"}, \code{"pinned"} (the hint became a pin), \code{"replaced"},
+\code{"gone"} and \code{"host"}. \code{reason} is \code{NULL} when a tip opens.
 
 What works, each checked in a browser:
 \itemize{
@@ -185,6 +186,7 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},

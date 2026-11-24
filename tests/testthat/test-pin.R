@@ -96,9 +96,9 @@ describe("tip_on(pin = )", {
     expect_no_warning(tip_on(tip_on(button(), "One"), "Two"))
   })
 
-  it("lets more_on = \"pin\" follow the pin argument", {
-    expect_no_error(tip_on(button(), "Short", more = "Long", pin = TRUE))
-    expect_error(tip_on(button(), "Short", more = "Long"), class = "hovercraft_error_pin")
+  it("lets tip_more(on = \"pin\") follow the pin argument", {
+    expect_no_error(tip_on(button(), "Short", more = tip_more("Long", on = "pin"), pin = TRUE))
+    expect_error(tip_on(button(), "Short", more = tip_more("Long", on = "pin")), class = "hovercraft_error_pin")
   })
 
   it("warns nothing and writes no pin for a tag with no pin", {

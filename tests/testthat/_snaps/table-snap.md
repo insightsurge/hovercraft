@@ -182,12 +182,12 @@
 ---
 
     Code
-      tip_table(dt(), cells = list(wins = tip_spec("x", more = "y", more_on = "pin")),
+      tip_table(dt(), cells = list(wins = tip_spec("x", more = tip_more("y", on = "pin"))),
       rows = tip_spec("x", pin = TRUE), id = "t")
     Condition
       Error in `tip_table()`:
-      ! `cells[["wins"]]` sets `more` with `more_on = "pin"`, but this tip cannot pin.
-      i Only the tips of `rows` can pin, with `tip_spec(pin = TRUE)`. Or set `more_on = "hover"`.
+      ! `cells[["wins"]]` sets `more` with `tip_more(on = "pin")`, but this tip cannot pin.
+      i Only the tips of `rows` can pin, with `tip_spec(pin = TRUE)`. Or use `on = "hover"` or `"button"`.
 
 # the tip_table() errors / say what a spec's events need
 
