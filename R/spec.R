@@ -28,6 +28,15 @@
 #'   choice, `"hover"`. `"pin"` works only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
 #'   target that can pin; anywhere else in a table it stops with an error. Without `more`, `more_on` does nothing and
 #'   gives a warning.
+#' @param pin Whether a reader can keep this target's tip open: `NULL` (the default) or `FALSE` for no pin, or `TRUE`
+#'   for a pin handle in the corner of the tip and a pin key, as in [tip_on()]. Only the tips of `rows` pin for now: a
+#'   spec with a pin given to `cells` or `headers` stops with "only rows pin for now". A click on a row selects it in
+#'   both widgets, so the `"click"` pin of [tip_on()] is refused in a table. A pin needs the table's `id`. With
+#'   `pin = TRUE`, `more_on = "pin"` opens the long form when the row is pinned.
+#' @param events The Shiny inputs this target's tips send: one or more of `"hint"`, `"pin"` and `"copy"`, or `NULL` (the
+#'   default) for none. Only the tips of `rows` send them for now ("only rows send events for now"), and they need the
+#'   table's `id`. The inputs belong to the table, one per event, not one per row: see the `events` section of
+#'   [tip_table()].
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
 #' @family tooltips
@@ -47,6 +56,13 @@
 #'       )
 #'     )
 #'   )
+#'
+#' # A row that can be pinned, and a Shiny input that says which row was pinned
+#' DT::datatable(scores) |>
+#'   tip_table(
+#'     rows = tip_spec("**{{ team }}**: {{ wins | number:0 }} wins", pin = TRUE, events = "pin"),
+#'     id = "scores_tips"
+#'   )
 #' @export
 tip_spec <- function(
   content,
@@ -55,10 +71,12 @@ tip_spec <- function(
   placement = NULL,
   marker = NULL,
   more = NULL,
-  more_on = NULL
+  more_on = NULL,
+  pin = NULL,
+  events = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on"))
+  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on", "pin", "events"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -82,6 +100,8 @@ tip_spec <- function(
   tip_check_placement(placement, call = call)
   tip_check_more_on(more_on, call = call)
   tip_warn_more_on(more, more_on, call = call)
+  pin <- tip_check_pin(pin, call = call)
+  events <- tip_check_events(events, call = call)
   style <- tip_as_style(style, call = call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)
   structure(
@@ -91,7 +111,9 @@ tip_spec <- function(
       placement = placement,
       marker = marker,
       more = more,
-      more_on = more_on
+      more_on = more_on,
+      pin = pin,
+      events = events
     ),
     class = "hovercraft_spec"
   )

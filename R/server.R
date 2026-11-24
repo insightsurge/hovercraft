@@ -24,11 +24,14 @@ tip_runtime_config <- function() {
       disabled = tip_disabled_attribute(),
       open = tip_contract()$attributes$open,
       events = tip_shiny_attribute(),
+      address = tip_table_address_attribute(),
+      kind = tip_attribute("kind"),
       more = tip_attribute("more"),
       moreTemplate = tip_attribute("more_template")
     ),
     global = tip_names()$global,
     css = tip_names()$css,
+    pinnedType = tip_pinned_input_type(),
     parkClass = tip_output_park_class(),
     statuses = as.list(tip_statuses),
     # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
@@ -40,6 +43,22 @@ tip_runtime_config <- function() {
     ),
     messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
   )
+}
+
+# The type of the input `_pinned` of a table: Shiny turns an unnamed JSON array into one flat vector (a list of
+# addresses would lose its fields, an empty one would be NULL), so the page names a type and this handler gives the
+# list back as it was sent: one named list per pinned tip, oldest first, and `list()` once nothing is pinned.
+tip_pinned_input_type <- function() paste0(tip_names()$prefix, ".pinned")
+
+# What the handler gives Shiny for `_pinned`: the list as it was sent, one named list per pinned tip.
+tip_pinned_value <- function(value, session, name) as.list(value)
+
+# Registers the handler. It is registered when the package loads, or when Shiny does if it comes later (`.onLoad`), so a
+# table built in another process or read from a cache still finds it; `force` because a package that is loaded again
+# (pkgload) registers it again.
+tip_register_pinned_input <- function() {
+  shiny::registerInputHandler(tip_pinned_input_type(), tip_pinned_value, force = TRUE)
+  invisible()
 }
 
 # `events` as the attribute value, or NULL: a subset of "hint", "pin" and "copy".

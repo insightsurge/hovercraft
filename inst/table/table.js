@@ -61,6 +61,20 @@
     return id.target === 'row' ? `${id.base}/row/${row}` : `${id.base}/cell/${row}/${id.column}`;
   };
 
+  // Where a tip is, as the JSON its Shiny inputs report (see inst/runtime/shiny.js): the table's id, the target, the 1-based
+  // data row (null for a header) and the data column's name (null for a row). R asks for it (`spec.id.address` names the
+  // attribute) only for the tips that send events. Null when the row is not known yet.
+  const addressOf = (spec, row) => {
+    const id = spec.id;
+    if (id.target !== 'header' && (typeof row !== 'number' || !Number.isFinite(row))) return null;
+    return JSON.stringify({
+      table: id.base,
+      target: id.target,
+      row: id.target === 'header' ? null : row,
+      column: id.target === 'row' ? null : (id.name ?? null),
+    });
+  };
+
   // The elements this layer gave a `tabindex` (see `keyboard` below), so it can take it back.
   const given = new WeakSet();
 
@@ -102,6 +116,7 @@
     for (const name of Object.keys(spec.attrs)) el.removeAttribute(name);
     el.removeAttribute(spec.record);
     if (spec.id) el.removeAttribute(spec.id.attribute);
+    if (spec.id?.address) el.removeAttribute(spec.id.address);
     if (given.has(el)) {
       el.removeAttribute('tabindex');
       given.delete(el);
@@ -131,6 +146,11 @@
       const id = identity(spec, row);
       if (id === null) el.removeAttribute(spec.id.attribute);
       else changed = put(el, spec.id.attribute, id) || changed;
+      if (spec.id.address) {
+        const address = addressOf(spec, row);
+        if (address === null) el.removeAttribute(spec.id.address);
+        else changed = put(el, spec.id.address, address) || changed;
+      }
     }
     if (typeof record === 'string' && record !== '') changed = put(el, spec.record, record) || changed;
     else el.removeAttribute(spec.record);
@@ -149,6 +169,21 @@
 
   // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a
   // tip opens, as `tip_define()` does for a tag of the page's own.
+  // The tables on the page, by id. Two tables with one id send their inputs to the same name and their tips answer for
+  // each other, so the page says so once on the console. The same table drawn again (a renderDT() that runs once more)
+  // keeps its element, so it is not a second table.
+  const owners = new Map();
+  const claim = (el, id) => {
+    if (!id) return;
+    const owner = owners.get(id);
+    if (owner && owner !== el && owner.isConnected) {
+      console.warn(
+        `Hovercraft: two tables have the id "${id}". Give each its own id: their inputs and tips share the name.`,
+      );
+    }
+    owners.set(id, el);
+  };
+
   const define = (defines, desc, park, open) => {
     if (desc) descClass = desc;
     if (open) [openAttribute, pinnedValue] = [open.attribute, open.pinned];
@@ -313,5 +348,15 @@
     settle();
   };
 
-  window.HovercraftTable = Object.freeze({ mark, define, headers, reactable, keyboard, dtRecord, dtRow, rowClass });
+  window.HovercraftTable = Object.freeze({
+    mark,
+    define,
+    claim,
+    headers,
+    reactable,
+    keyboard,
+    dtRecord,
+    dtRow,
+    rowClass,
+  });
 })();

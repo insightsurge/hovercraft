@@ -57,9 +57,49 @@
     },
   };
 
-  // The ids whose hint or pin is open and was asked for: a tag that renderUI() replaces is gone when the engine says its
-  // tip closed (by "data"), and the event is then sent at the page, so the tag can no longer say it asked.
-  const asked = { hint: new Set(), pin: new Set() };
+  // The tips whose hint or pin is open and was asked for, by tip id, with the input they send to and, for a table's tip,
+  // its address: a tag that renderUI() replaces is gone when the engine says its tip closed (by "data"), and the event
+  // is then sent at the page, so the tag can no longer say it asked or where it was.
+  const asked = { hint: new Map(), pin: new Map() };
+  // What each table has pinned now, by the table's id: the addresses, oldest first (a Map keeps the order it was set in).
+  const pinnedBy = new Map();
+
+  // Where a table's tip is, from the attribute table.js writes on the element: { table, target, row, column }, or null for
+  // a tag of tip_on(). `row` is the 1-based data row (null for a header), `column` the data column's name (null for a row).
+  const addressOf = (el) => {
+    const raw = names.attributes.address ? el?.getAttribute(names.attributes.address) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+  // What a table's input says about the tip it comes from, next to the event's own fields.
+  const placeOf = (address, id) => ({
+    target: address.target,
+    row: address.row ?? null,
+    column: address.column ?? null,
+    id,
+  });
+
+  // `input$<id>_pinned`: what is pinned now. For a tag of tip_on() TRUE or FALSE; for a table a list of the addresses,
+  // oldest first. Sent as a plain value, so a value equal to the last one does not fire an observer again, and in the same
+  // tick as `_pin`, so Shiny sends both in one batch.
+  const sendPinned = (detail, base, address) => {
+    if (detail.state !== 'pinned' && detail.state !== 'closed') return;
+    const opened = detail.state === 'pinned';
+    if (!address) {
+      window.Shiny.setInputValue(`${base}_pinned`, opened);
+      return;
+    }
+    const list = pinnedBy.get(base) ?? new Map();
+    if (opened) list.set(detail.id, placeOf(address, detail.id));
+    else list.delete(detail.id);
+    pinnedBy.set(base, list);
+    // Shiny would flatten a plain array of objects, so the input has a type of its own (R reads it back as a list).
+    window.Shiny.setInputValue(`${base}_pinned:${names.pinnedType}`, [...list.values()]);
+  };
 
   // What each input holds, from the engine's event. The hint and the pin share the shape: what happened, to which words,
   // who did it and how, and why it closed. A copy says which field and code block, and whether the browser let it.
@@ -102,7 +142,8 @@
 
   // The engine's events are sent at the tag and bubble, so one listener on the page serves every tag. A tag sends an
   // input only when its list names it, and only for its own tip: an outer tag with a list does not send for an inner
-  // one. `kind` is "hint", "pin" or "copy", the words `events =` takes.
+  // one. `kind` is "hint", "pin" or "copy", the words `events =` takes. A tag of tip_on() sends to `<its id>_<kind>`. A
+  // table's row sends to `<the table's id>_<kind>`, one input per table, and the value says which tip it was.
   const sendInput = (kind) => (event) => {
     const detail = event.detail;
     const input = inputs[kind];
@@ -111,12 +152,29 @@
     const wants =
       el?.getAttribute(names.attributes.events).split(/\s+/).includes(kind) &&
       (el.getAttribute(names.attributes.id) ?? el.id) === detail.id;
-    const closing = !!input.closes && detail.state === input.closes && asked[kind].has(detail.id);
+    const was = asked[kind]?.get(detail.id);
+    const closing = !!input.closes && detail.state === input.closes && !!was;
     if (!wants && !closing) return;
-    if (input.opens && detail.state === input.opens) asked[kind].add(detail.id);
+    const address = wants ? addressOf(el) : was.address;
+    const base = address ? address.table : detail.id;
+    if (input.opens && detail.state === input.opens) asked[kind].set(detail.id, { base, address });
     else if (input.closes && detail.state === input.closes) asked[kind].delete(detail.id);
+    if (kind === 'pin') sendPinned(detail, base, address);
+    const value = address ? { ...input.value(detail), ...placeOf(address, detail.id) } : input.value(detail);
     // "event" priority: the same value twice in a row (a hint opened, closed, opened) must still reach the server.
-    window.Shiny.setInputValue(`${detail.id}${input.suffix}`, input.value(detail), { priority: 'event' });
+    window.Shiny.setInputValue(`${base}${input.suffix}`, value, { priority: 'event' });
+  };
+
+  // Two tagged items with one tip id answer for each other: the events and the server calls find the first. A table checks
+  // its own id when it is drawn (inst/table/table.js); this looks at the tags of tip_on(), once a page change is over.
+  const checkIds = () => {
+    const seen = new Set();
+    const { id: idName, kind, disabled } = names.attributes;
+    for (const el of document.querySelectorAll(`[${idName}]:not([${kind}^="table_"]):not([${disabled}])`)) {
+      const id = el.getAttribute(idName);
+      if (seen.has(id)) note(`id|${id}`, `two tagged items have the tip id "${id}". Give each its own id.`);
+      seen.add(id);
+    }
   };
 
   // ---- tip_output(): live Shiny outputs in tips -------------------------------------------------------------------
@@ -861,6 +919,12 @@
       };
       ready();
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+      let checking = 0;
+      new MutationObserver(() => {
+        clearTimeout(checking);
+        checking = setTimeout(checkIds, 500);
+      }).observe(document.documentElement, { childList: true, subtree: true });
+      checkIds();
     },
     parkHtml: (html) => {
       if (typeof html !== 'string' || !html) return;

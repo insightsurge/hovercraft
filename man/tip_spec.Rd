@@ -11,7 +11,9 @@ tip_spec(
   placement = NULL,
   marker = NULL,
   more = NULL,
-  more_on = NULL
+  more_on = NULL,
+  pin = NULL,
+  events = NULL
 )
 }
 \arguments{
@@ -38,6 +40,17 @@ is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_tab
 choice, \code{"hover"}. \code{"pin"} works only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
 target that can pin; anywhere else in a table it stops with an error. Without \code{more}, \code{more_on} does nothing and
 gives a warning.}
+
+\item{pin}{Whether a reader can keep this target's tip open: \code{NULL} (the default) or \code{FALSE} for no pin, or \code{TRUE}
+for a pin handle in the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin for now: a
+spec with a pin given to \code{cells} or \code{headers} stops with "only rows pin for now". A click on a row selects it in
+both widgets, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} is refused in a table. A pin needs the table's \code{id}. With
+\code{pin = TRUE}, \code{more_on = "pin"} opens the long form when the row is pinned.}
+
+\item{events}{The Shiny inputs this target's tips send: one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}, or \code{NULL} (the
+default) for none. Only the tips of \code{rows} send them for now ("only rows send events for now"), and they need the
+table's \code{id}. The inputs belong to the table, one per event, not one per row: see the \code{events} section of
+\code{\link[=tip_table]{tip_table()}}.}
 }
 \value{
 An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{tip_table()}}.
@@ -68,6 +81,13 @@ DT::datatable(scores) |>
         marker = "corner"
       )
     )
+  )
+
+# A row that can be pinned, and a Shiny input that says which row was pinned
+DT::datatable(scores) |>
+  tip_table(
+    rows = tip_spec("**{{ team }}**: {{ wins | number:0 }} wins", pin = TRUE, events = "pin"),
+    id = "scores_tips"
   )
 \dontshow{\}) # examplesIf}
 }
