@@ -185,7 +185,7 @@ tip_update <- function(id, ..., session = shiny::getDefaultReactiveDomain()) {
     if (is.null(value)) {
       remove <- c(remove, ask[[name]])
     } else if (identical(name, "record")) {
-      set[[ask[[name]]]] <- tip_json(tip_record(value, tip_known()[[values$template]]$fields))
+      set[[ask[[name]]]] <- tip_json(tip_record(value, tip_known(session)[[values$template]]$fields))
     } else {
       set[[ask[[name]]]] <- value
     }
@@ -193,9 +193,9 @@ tip_update <- function(id, ..., session = shiny::getDefaultReactiveDomain()) {
   # A template given without a record is checked for its name only: the tag may already hold the record it reads.
   if (!is.null(values$template)) {
     if (is.null(values$record)) {
-      tip_template_seen(values$template, rlang::current_env())
+      tip_template_seen(values$template, rlang::current_env(), session)
     } else {
-      tip_check_use(values$template, names(values$record), id, rlang::current_env())
+      tip_check_use(values$template, names(values$record), id, rlang::current_env(), session)
     }
   }
   session$sendCustomMessage(

@@ -2,8 +2,8 @@
 # so a page under a strict Content-Security-Policy (`script-src 'self'; style-src 'self'`) works:
 # - the runtime dependency: inst/runtime/ holds the start script (it attaches the engine, defines the templates the page
 #   carries and sets the page's preset), the Shiny layer and the badge colours. It is told its names in a `<meta>`;
-# - generated stylesheets (a theme, a page's style) are written to a folder of this session's `tempdir()` and served as
-#   files by their dependency;
+# - generated CSS (a theme, a page's style) is data too, in a `<meta>`, and the runtime script applies it as a
+#   constructed style sheet;
 # - what used to be a script statement, such as defining a template, is data: JSON (as base64) in a `<meta>` of a
 #   dependency, or in a `<script type="application/json">` block, which a browser does not run and a policy does not
 #   block. The runtime script reads both, also when Shiny adds them to the page later.
@@ -13,7 +13,7 @@
 tip_runtime_dependency <- function() {
   htmltools::htmlDependency(
     name = "hovercraft-runtime",
-    version = tip_engine_version(),
+    version = tip_package_version(),
     src = "runtime",
     package = "hovercraft",
     script = c("shiny.js", "runtime.js"),
@@ -29,36 +29,29 @@ tip_meta_value <- function(x) {
   jsonlite::base64_enc(charToRaw(enc2utf8(tip_json(x))))
 }
 
-# The folder of generated files. One per R process, under `tempdir()`, which R removes with the process; the files are
-# named by what is in them, so a file written twice is the same file.
-tip_gen_dir <- function() {
-  if (is.null(tip_state$gen_dir) || !dir.exists(tip_state$gen_dir)) {
-    tip_state$gen_dir <- tempfile("hovercraft-")
-    dir.create(tip_state$gen_dir)
-  }
-  tip_state$gen_dir
-}
-
-# A dependency of generated content: a stylesheet written to a file, and operations for the runtime script as data.
+# A dependency of generated content: a stylesheet and operations for the runtime script, both as data in a `<meta>`.
+# It holds no file of its own and points at the package's own folder, so it works in any R process, also one that
+# reads it back from a cache after the process that made it has gone (R Markdown and Quarto cache a chunk's
+# dependencies, and Shiny's `bindCache()` can replay them from a cache that outlives the process). The runtime script
+# applies the CSS as a constructed style sheet, which a policy that allows no inline style does not block.
 # `ops` is a list of objects such as `list(op = "page", attributes = list(...))`; the runtime script runs each once.
 tip_gen_dependency <- function(name, css = "", ops = list()) {
-  stylesheet <- NULL
   if (nzchar(css)) {
-    stylesheet <- paste0(substr(rlang::hash(css), 1L, 16L), ".css")
-    path <- file.path(tip_gen_dir(), stylesheet)
-    if (!file.exists(path)) {
-      writeLines(css, path, useBytes = TRUE)
-    }
+    ops <- c(list(list(op = "css", id = substr(rlang::hash(css), 1L, 16L), text = css)), ops)
   }
   htmltools::htmlDependency(
     name = name,
-    version = tip_engine_version(),
-    src = list(file = tip_gen_dir()),
-    stylesheet = stylesheet,
+    version = tip_package_version(),
+    src = "runtime",
+    package = "hovercraft",
     meta = if (length(ops)) list("hovercraft-ops" = tip_meta_value(unname(ops))),
     all_files = FALSE
   )
 }
+
+# The files of inst/runtime/ are the package's own, so they are versioned with the package: a release that changes
+# shiny.js but not the engine is not served from a cached path of the engine's version.
+tip_package_version <- function() as.character(getNamespaceVersion("hovercraft"))
 
 # Operations as JSON for a `<meta>` or a `<script type="application/json">`: a `</` is written `<\/`, so that the text
 # cannot end the block that holds it.

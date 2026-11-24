@@ -151,7 +151,7 @@ describe("tip_reset()", {
     expect_identical(tip_known(), list())
   })
 
-  it("forgets the templates of the running Shiny session too, and leaves the process's own to the process", {
+  it("forgets the templates of the running Shiny session as well as the process's own", {
     skip_if_not_installed("shiny")
     skip_if_not_installed("withr")
     withr::defer(tip_reset())

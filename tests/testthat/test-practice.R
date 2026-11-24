@@ -61,10 +61,22 @@ describe("module template names and ids", {
 
 describe("app frameworks and reverse-proxy dependency structure", {
   it("ships tip_dependency() as a package-relative htmlDependency with no absolute paths", {
-    for (dep in tip_dependency()) {
+    generated <- tip_on(
+      htmltools::tags$button("Go"),
+      "Short",
+      style = tip_style(theme = list("--hovercraft-tip-radius" = "9px")),
+      more = tip_template(tip_text("Long")),
+      more_on = "hover"
+    )
+    deps <- c(
+      tip_dependency(),
+      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))),
+      htmltools::findDependencies(generated)
+    )
+    for (dep in deps) {
       expect_s3_class(dep, "html_dependency")
-      expect_identical(dep$package, "hovercraft")
-      expect_false(startsWith(dep$src$file, "/"))
+      expect_identical(dep$package, "hovercraft", info = dep$name)
+      expect_false(startsWith(dep$src$file, "/"), info = dep$name)
       expect_false(any(startsWith(dep$script %||% "", "/")))
       expect_false(any(startsWith(dep$stylesheet %||% "", "/")))
     }
@@ -122,6 +134,16 @@ describe("production checks (strict CSP and multi-session R state)", {
     # A template defined outside a session (the page's UI) is known to every session, which may replace it for itself.
     tip_define(page_wide = tip_template(tip_text("{{ x }}")))
     shiny::withReactiveDomain(one, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    shiny::withReactiveDomain(two, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    # A session that defines a page-wide name again for itself replaces it for itself only, and says nothing.
+    shiny::withReactiveDomain(
+      one,
+      expect_no_warning(tip_define(page_wide = tip_template(tip_text("{{ y }}"))))
+    )
+    shiny::withReactiveDomain(
+      one,
+      expect_error(tip_on(button(), template = "page_wide", record = list(x = 1L)), class = "hovercraft_error_field")
+    )
     shiny::withReactiveDomain(two, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
     # The page-wide registry did not take the sessions' definitions.
     expect_identical(names(tip_known()), "page_wide")

@@ -280,6 +280,7 @@ describe("the page's style, from tip_dependency(style =)", {
     expect_match(dep_ops(deps[[2]]), sprintf("\"%s\":\"lively\"", tip_attribute("preset")), fixed = TRUE)
     expect_null(deps[[2]]$stylesheet)
     expect_null(deps[[2]]$head)
+    expect_identical(dep_css(deps[[2]]), "")
   })
 
   it("writes the page class the same way, and an empty class as the empty string", {
@@ -307,7 +308,7 @@ describe("the page's style, from tip_dependency(style =)", {
     expect_match(dep_css(deps[[2]]), "--hovercraft-tip-gap: 12px;", fixed = TRUE)
     expect_match(dep_css(deps[[2]]), "--hovercraft-tip-max-width: 280px;", fixed = TRUE)
     expect_match(dep_css(deps[[2]]), "--hovercraft-tip-pin-width: 500px;", fixed = TRUE)
-    expect_null(deps[[2]]$meta)
+    expect_no_match(dep_ops(deps[[2]]), "\"op\":\"page\"", fixed = TRUE)
   })
 
   it("writes only the settings that were given, next to a theme and a preset", {
@@ -321,7 +322,7 @@ describe("the page's style, from tip_dependency(style =)", {
 
   it("writes a theme alone with no operation", {
     deps <- tip_dependency(style = navy())
-    expect_null(deps[[2]]$meta)
+    expect_no_match(dep_ops(deps[[2]]), "\"op\":\"page\"", fixed = TRUE)
   })
 
   it("keeps the style when tip_on() adds the plain engine dependency, in either order", {

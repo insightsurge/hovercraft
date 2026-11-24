@@ -19,10 +19,31 @@
   engine?.attach(document);
   layer()?.start(config);
 
+  const cssDone = new Set();
+  const addCss = (text) => {
+    if (typeof CSSStyleSheet === 'function' && 'adoptedStyleSheets' in document) {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(text);
+      document.adoptedStyleSheets = [...document.adoptedStyleSheets, sheet];
+    } else {
+      // A browser without constructed style sheets: a <style> element, which only a policy on inline style would block.
+      const style = document.createElement('style');
+      style.textContent = text;
+      document.head.append(style);
+    }
+  };
+
   const run = {
     define: (op) => engine.define(op.name, op.blocks),
     park: (op) => layer()?.park(op.id),
     parkHtml: (op) => layer()?.parkHtml(op.html),
+    // CSS that R made from a theme or a style: a constructed style sheet, which a policy that allows no inline style
+    // allows, as it blocks a <style> element and a `style` attribute. Once for each text.
+    css: (op) => {
+      if (cssDone.has(op.id)) return;
+      cssDone.add(op.id);
+      addCss(op.text);
+    },
     // The page's own style: attributes on the page's root, which the engine reads before its settings.
     page: (op) => {
       for (const [name, value] of Object.entries(op.attributes ?? {}))

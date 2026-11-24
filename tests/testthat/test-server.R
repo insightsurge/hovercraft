@@ -142,6 +142,51 @@ describe("tip_update()", {
   })
 })
 
+describe("tip_update() and the template registry of a session", {
+  withr::defer(tip_reset())
+  tip_reset()
+
+  # What a session that a call is given looks like to tip_update(), with the registry of a real mock session.
+  proxy_of <- function(mock) {
+    sent <- list()
+    list(
+      sendCustomMessage = function(type, message) sent[[length(sent) + 1L]] <<- message,
+      ns = function(id) id,
+      userData = mock$userData,
+      sent = function() sent
+    )
+  }
+
+  it("checks and trims a record against the templates of the session it is given, outside the default domain", {
+    skip_if_not_installed("shiny")
+    mock <- shiny::MockShinySession$new()
+    shiny::withReactiveDomain(mock, tip_define(card = tip_template(tip_text("{{ a }}"))))
+    # Outside the domain, as in a later::later() callback, the process knows no "card"; the given session does.
+    expect_null(tip_known()[["card"]])
+    session <- proxy_of(mock)
+    tip_update("x", template = "card", record = list(a = 1, secret = "S"), session = session)
+    set <- session$sent()[[1]]$set
+    expect_equal(jsonlite::fromJSON(set[[tip_attributes()[["record"]]]]), list(a = 1))
+    expect_error(
+      tip_update("x", template = "card", record = list(other = 1), session = session),
+      class = "hovercraft_error_field"
+    )
+  })
+
+  it("does not take another session's templates", {
+    skip_if_not_installed("shiny")
+    one <- shiny::MockShinySession$new()
+    two <- shiny::MockShinySession$new()
+    shiny::withReactiveDomain(one, tip_define(only_one = tip_template(tip_text("{{ a }}"))))
+    session <- proxy_of(two)
+    expect_no_error(
+      suppressWarnings(tip_update("x", template = "only_one", record = list(a = 1, extra = "e"), session = session))
+    )
+    # Session two does not know the template of session one, so it cannot trim the record to the template's fields.
+    expect_named(jsonlite::fromJSON(session$sent()[[1]]$set[[tip_attributes()[["record"]]]]), c("a", "extra"))
+  })
+})
+
 describe("tip_on(events = )", {
   attrs <- function(tag) unlist(tag$attribs)
 

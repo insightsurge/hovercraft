@@ -30,14 +30,17 @@ once in the page's UI, for example \code{bslib::page_fluid(tip_dependency(style 
 
 Nothing in them is inline script or style: they are files and data, so a page served with
 \verb{Content-Security-Policy: script-src 'self'; style-src 'self'} works. A style sheet that is made from a theme is
-written to a file in the R session's temporary folder and served from there. The scripts read their names and
-\code{\link[=tip_define]{tip_define()}}'s templates from JSON, which a browser does not run, and set styles through the browser's style
-object, which a policy on inline markup does not cover.
+data too, which a script applies as a constructed style sheet; it comes after the page's own style sheets in the
+cascade. The scripts read their names and \code{\link[=tip_define]{tip_define()}}'s templates from JSON, which a browser does not run, and
+set styles through the browser's style object, which a policy on inline markup does not cover. Every dependency is
+a folder of the installed package, so a cached document or a shared cache can use them in another R process.
 
 What such a page still needs, because it is not hovercraft's markup:
 \itemize{
-\item a policy that has \code{default-src} or \code{img-src} must also allow \verb{data:} images, or the lock and the pin button,
-which are drawn from small \verb{data:} images, are not drawn (their words still are);
+\item a policy that has \code{default-src} or \code{img-src} must also allow \verb{data:} images, or three small icons are not
+drawn: the lock before a reason (\code{when_disabled}), the pin button (\code{pin}) and the built-in icon of
+\code{marker = "icon"}. The words of the first two still show; the marker has no words, so an icon marker is then
+invisible (an icon of your own, given as a tag, is not affected);
 \item a \code{style} attribute written in markup, such as the width that \code{\link[shiny:actionButton]{shiny::actionButton()}} and \code{\link[shiny:plotOutput]{shiny::plotOutput()}}
 write, is blocked by \verb{style-src 'self'} whoever writes it. \verb{style-src-attr 'unsafe-inline'} allows them, and
 nothing else, or the page can use classes and a style sheet instead.

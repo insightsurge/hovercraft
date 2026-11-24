@@ -89,8 +89,8 @@ tip_plain_text <- function(text) {
 # Whether tip_define() has seen this template in this session. A name it has not seen is the page's to report (a UI is
 # often written before the templates it uses), so it warns once and says FALSE; with no template defined at all there is
 # nothing to compare with and the answer is FALSE without a word.
-tip_template_seen <- function(template, call) {
-  known <- tip_known()
+tip_template_seen <- function(template, call, session = tip_session()) {
+  known <- tip_known(session)
   if (!length(known)) {
     return(FALSE)
   }
@@ -116,11 +116,11 @@ tip_template_seen <- function(template, call) {
 # the fields it names against the record (`held`: the names the record has). Only a template tip_define() has seen can
 # be checked; any other name is the page's to report (a UI is often written before the templates it uses). This page
 # has no list of items, so {{ tip_index }} has nothing to count, and {{ tip_id }} is the tag's own id.
-tip_check_use <- function(template, held, id, call) {
-  if (!tip_template_seen(template, call)) {
+tip_check_use <- function(template, held, id, call, session = tip_session()) {
+  if (!tip_template_seen(template, call, session)) {
     return(invisible())
   }
-  known <- tip_known()
+  known <- tip_known(session)
   fields <- known[[template]]$fields
   engine <- unlist(tip_rules()$engine_fields)
   if ("tip_index" %in% fields && !"tip_index" %in% held) {

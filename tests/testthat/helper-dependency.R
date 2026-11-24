@@ -1,20 +1,19 @@
-# What a generated dependency carries, read the way a page reads it. The CSS is the text of the stylesheet file that the
-# dependency serves; operations for the runtime script are base64 of JSON in a <meta>.
-dep_css <- function(dep) {
-  paste(readLines(file.path(dep$src$file, dep$stylesheet), warn = FALSE), collapse = "\n")
-}
-
+# What a generated dependency carries, read the way a page reads it: operations for the runtime script, as base64 of JSON in
+# a <meta>. The CSS of a theme or a style is one of them.
 dep_ops <- function(dep) {
   rawToChar(jsonlite::base64_dec(dep$meta[["hovercraft-ops"]]))
+}
+
+# The CSS text a dependency carries, or "" when it carries none.
+dep_css <- function(dep) {
+  if (is.null(dep$meta[["hovercraft-ops"]])) {
+    return("")
+  }
+  ops <- jsonlite::fromJSON(dep_ops(dep), simplifyVector = FALSE)
+  paste(vapply(Filter(function(op) identical(op$op, "css"), ops), function(op) op$text, ""), collapse = "\n")
 }
 
 # The runtime dependency's configuration, as a list.
 dep_config <- function(dep, name = "hovercraft-config") {
   jsonlite::fromJSON(rawToChar(jsonlite::base64_dec(dep$meta[[name]])), simplifyVector = FALSE)
-}
-
-# The text of a dependency's one style sheet file, or "" when it is not a file on this machine (a widget's own).
-dep_css_if_file <- function(dep) {
-  path <- file.path(dep$src$file, dep$stylesheet)
-  if (file.exists(path)) dep_css(dep) else ""
 }

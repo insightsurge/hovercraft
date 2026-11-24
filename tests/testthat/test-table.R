@@ -671,11 +671,7 @@ describe("tip_table(style =)", {
     expect_length(theme_dep(got), 2L)
     expect_match(
       paste(
-        vapply(
-          got$dependencies,
-          function(d) if (identical(length(d$stylesheet), 1L) && is.list(d$src)) dep_css_if_file(d) else "",
-          ""
-        ),
+        vapply(got$dependencies, function(d) dep_css(d), ""),
         collapse = ""
       ),
       "--hovercraft-tip-motion: slide;",

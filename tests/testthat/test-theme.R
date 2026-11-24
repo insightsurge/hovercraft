@@ -471,7 +471,8 @@ describe("tip_dependency()", {
     expect_identical(deps[[1]]$name, "hovercraft")
     expect_identical(deps[[2]]$name, "hovercraft-style")
     expect_identical(deps[[3]]$name, "hovercraft-runtime")
-    expect_identical(deps[[2]]$version, deps[[1]]$version)
+    # The style's own files are the package's, and are versioned with it.
+    expect_identical(deps[[2]]$version, tip_package_version())
     expect_match(dep_css(deps[[2]]), "radius: 6px", fixed = TRUE)
     expect_null(deps[[2]]$script)
     expect_null(deps[[2]]$head)

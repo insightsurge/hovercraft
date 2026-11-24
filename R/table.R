@@ -320,7 +320,7 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL) {
 tip_table_dependencies <- function(widget, marker = FALSE, looks = list()) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
-    version = tip_engine_version(),
+    version = tip_package_version(),
     src = "table",
     package = "hovercraft",
     script = "table.js"

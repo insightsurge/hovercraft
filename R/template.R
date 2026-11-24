@@ -314,7 +314,9 @@ print.hovercraft_template <- function(x, ...) {
 #' The templates are also kept in R, so that [tip_on()] can check a record against them. Defined in a Shiny session (in
 #' `renderUI()` or a module's server), they belong to that session: two sessions of one app may define one name with
 #' different fields and each is checked against its own. Defined where the UI is built, they belong to the process and
-#' every session is checked against them; a session may define the name again for itself.
+#' every session is checked against them; a session may define the name again for itself, without a warning. A
+#' `renderUI()` that is cached with `bindCache()` does not run again for the next session, so a template it defines is
+#' known in R only to the session that ran it: define a template that sessions share where the UI is built.
 #'
 #' @param ... Templates, each with a name: `tip_define(diff = tip_template(...))`, or in a Shiny module
 #'   `tip_define(!!ns("diff") := tip_template(...))`. A template may also be a list of blocks. Supports dynamic dots
@@ -361,7 +363,7 @@ tip_define <- function(...) {
     }
     built[[name]] <- template
     body <- tip_json(tip_blocks_plain(template))
-    before <- tip_known()[[name]]
+    before <- tip_known_scope()[[name]]
     if (!is.null(before) && !identical(before$body, body)) {
       tip_warn(
         c(
