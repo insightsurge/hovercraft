@@ -209,7 +209,9 @@
         const spec = at && cfg.cells[at[0]];
         if (spec) changed = mark(node, spec, recordOf(node), at[1] + 1) || changed;
       }
-      for (const node of el.querySelectorAll('[class*="hovercraft-head-"]')) {
+      // reactable puts `headerClassName` on the filter cell under the header too (`filterable = TRUE`); the tip belongs to
+      // the header cell only, so the filter box stays free for the reader to use and nothing is described twice.
+      for (const node of el.querySelectorAll('[class*="hovercraft-head-"]:not(.rt-td-filter)')) {
         const at = pick(node, 'head');
         const spec = at && cfg.headers[at[0]];
         if (spec) changed = mark(node, spec, null, null) || changed;
