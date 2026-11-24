@@ -16,6 +16,7 @@
 ^CRAN-SUBMISSION$
 ^LICENSE\.md$
 ^\.codex$
+^\.impeccable$
 ^renv$
 ^renv\.lock$
 ^\.Rprofile$

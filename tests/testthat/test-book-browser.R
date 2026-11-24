@@ -70,12 +70,12 @@ describe("hovercraft book in a browser", {
     # A search opens every part with a match, not only the part being read.
     expect_true(page$wait_until(sprintf("JSON.stringify(%s) === '[\"output\"]'", visible)))
     page$type(" zzz")
-    expect_true(page$wait_until("!document.querySelector('.index .toc-none').hidden"))
+    expect_true(page$wait_until("document.querySelector('.index .toc-none').textContent === 'Nothing matches.'"))
     page$press("Escape", wait = 0.2)
     # Every section is back in the index, and only the part being read is open again.
     expect_true(js("[...document.querySelectorAll('#toc li')].every((li) => !li.hidden)"))
     expect_false(js("document.documentElement.classList.contains('toc-searching')"))
-    expect_true(js("document.querySelector('.index .toc-none').hidden"))
+    expect_identical(js("document.querySelector('.index .toc-none').textContent"), "")
     js("document.activeElement.blur()")
   })
 

@@ -33,7 +33,6 @@ book_toc <- function(id = NULL) {
   htmltools::div(
     class = "toc",
     id = id,
-    htmltools::div(class = "rail", `aria-hidden` = "true", htmltools::tags$i()),
     htmltools::tags$ol(
       role = "list",
       class = "parts",
@@ -81,7 +80,7 @@ toc_search <- function(id) {
       autocomplete = "off",
       spellcheck = "false"
     ),
-    htmltools::p(class = "toc-none", hidden = NA, `aria-live` = "polite", "Nothing matches.")
+    htmltools::p(class = "toc-none", role = "status", `aria-live` = "polite")
   )
 }
 

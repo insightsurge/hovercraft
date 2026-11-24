@@ -62,8 +62,8 @@ hovercraft_book <- function(section = NULL, ..., checklist = FALSE, run = TRUE) 
   tip_arg_flag(run, "run")
   rlang::check_installed(c("shiny", "bslib"), reason = "to open hovercraft book.")
   app <- shiny::shinyAppDir(system.file("book", package = "hovercraft", mustWork = TRUE))
-  # The first page request carries the choices in its address, as a link would; an address that names its own
-  # section or checklist keeps it.
+  # Every page request carries the choices in its address, as a link would, so a reload opens the same way; an
+  # address that names its own section or checklist keeps it.
   handler <- app$httpHandler
   start <- Filter(Negate(is.null), list(section = section, checklist = if (checklist) "1"))
   app$httpHandler <- function(request) {

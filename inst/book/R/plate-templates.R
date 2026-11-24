@@ -57,7 +57,7 @@ templates_kind_code <- function(kind) {
       template = code_call(
         "tip_template",
         code_call("tip_title", code_str("Visits, week 46")),
-        text("**{{ visits | number:2 }}** visits, {{ share | percent }} of the target."),
+        text("**{{ visits | number:2 }}** visits, {{ share | percent }} above the target."),
         text("Median wait: {{ wait | number:2 }} h")
       ),
       record = list(visits = 4812.4, share = 0.0634, wait = NULL)
@@ -173,7 +173,7 @@ templates_steps <- function() {
     ),
     step(
       paste(
-        "Choose *numbers*, then rest on the ticket: 4,812.40 visits, 6% of the target, and a dash where the wait",
+        "Choose *numbers*, then rest on the ticket: 4812.40 visits, 6% above the target, and a dash where the wait",
         "is missing."
       ),
       "it shows NA, null or undefined.",

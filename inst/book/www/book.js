@@ -226,7 +226,7 @@
         const j = plates.indexOf(g.p) + dir;
         if (j < 0 || j >= plates.length) {
           if (g.said)
-            g.said.textContent = dir > 0 ? 'That was the last step of the last plate.' : 'This is the first step.';
+            g.said.textContent = dir > 0 ? 'That was the last step of the last section.' : 'This is the first step.';
           return;
         }
         to = G.plates[plates[j].id];
@@ -375,7 +375,8 @@
     // Each section's words (number, title, part, the functions and arguments it shows) are in its link's
     // data-search, written by the server. The index and the phone's sheet each have a box; both show the same search.
     const search = (q) => {
-      const words = q.toLowerCase().split(/\s+/).filter(Boolean);
+      // Brackets are dropped as the server drops them from each section's words: tip_on(pin) finds tip_on pin.
+      const words = q.toLowerCase().replace(/[()]/g, ' ').split(/\s+/).filter(Boolean);
       let any = false;
       for (const box of $$('.js-toc-search')) if (box.value !== q) box.value = q;
       for (const part of $$('.toc .part')) {
@@ -388,7 +389,8 @@
         part.hidden = shown === 0;
         if (shown) any = true;
       }
-      for (const none of $$('.toc-none')) none.hidden = any;
+      // A live region that stays on the page and changes its words, so a screen reader says them.
+      for (const none of $$('.toc-none')) none.textContent = any ? '' : 'Nothing matches.';
       // While searching, every part with a match shows its sections, not only the part being read.
       root.classList.toggle('toc-searching', words.length > 0);
     };

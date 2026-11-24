@@ -131,7 +131,7 @@ plate_looks_server <- function(input, output, session) {
     figure_code = shiny::reactive(looks_figure_code())
   )
   names <- looks_names()
-  # The page's look is set once, when the page loads; a new choice is written onto the page by book.js the way the
+  # The page's look is set once, when the page loads; a new choice is written onto the page by shared.js the way the
   # look's own operation writes it, and a pinned tip is pinned again to take it.
   shiny::observeEvent(
     list(input$looks_preset, input$looks_motion),

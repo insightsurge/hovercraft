@@ -56,7 +56,7 @@ book_sections <- data.frame(
   )
 )
 
-# The columns of the visits table, with what a tip says about each (plate 5).
+# The columns of the visits table, with what a tip says about each (section 3.1).
 book_columns <- data.frame(
   name = c("visit_date", "region", "wait_min"),
   type = c("date", "factor, 3 levels", "double"),
@@ -74,7 +74,7 @@ book_columns <- data.frame(
   )
 )
 
-# Visits a week by region, weeks 39 to 46 (plate 7).
+# Visits a week by region, weeks 39 to 46 (section 5.2).
 book_regions <- data.frame(
   region = c("North", "Coast", "Hills"),
   total = c(4751, 2586, 1027),
@@ -87,7 +87,7 @@ book_weeks <- list(
   Hills = c(120, 98, 131, 140, 127, 133, 127, 151)
 )
 
-# Two support tickets; the second has no owner yet (plate 3).
+# Two support tickets; the second has no owner yet (section 2.1).
 book_tickets <- list(
   "SUP-2291" = list(
     key = "SUP-2291",
@@ -109,7 +109,7 @@ book_tickets <- list(
   )
 )
 
-# Three branches and their week (plate 8).
+# Three branches and their week (section 6.1).
 book_branches <- data.frame(
   branch = c("Harbour Street", "Mill Lane", "Station Road"),
   visits = c(1204, 866, 1512),

@@ -2,6 +2,10 @@
 # into an environment, as Shiny loads them, and its parts are tested one by one; the whole app runs in
 # test-book-browser.R.
 
+# Building the page runs the book's code, whose tip_define() calls register templates in this R process; forget them
+# when this file ends, so a later test file starts with none.
+withr::defer(tip_reset(), testthat::teardown_env())
+
 # The book's files, loaded as Shiny loads them: every file in R/, in order, into one environment.
 load_book <- function() {
   folder <- system.file("book", package = "hovercraft")
@@ -114,6 +118,14 @@ describe("the book's files", {
     expect_identical(setdiff(fn, exports), character())
     dotted <- vapply(fn, function(name) "..." %in% names(formals(getExportedValue("hovercraft", name))), TRUE)
     expect_identical(setdiff(covers[!dotted], needed), character())
+    # And a section covers only what its own file shows: each function it lists is in that file.
+    folder <- system.file("book", "R", package = "hovercraft")
+    for (id in book$book_sections$id) {
+      text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
+      for (name in unique(sub("\\(.*$", "", section_get(book, id, "%s_covers")))) {
+        expect_true(grepl(name, text, fixed = TRUE), info = paste(id, name))
+      }
+    }
   })
 })
 
