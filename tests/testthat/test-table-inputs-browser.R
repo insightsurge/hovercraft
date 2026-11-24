@@ -171,11 +171,11 @@ describe("the inputs of tip_table() in a Shiny app", {
     expect_identical(pinned[[1]], list(target = "row", row = 3L, column = NULL, id = "dtc/row/3"))
     # The tip changes size and side when the page gets narrow; it is still open, and the server is not told otherwise.
     page$viewport(420, 700)
-    Sys.sleep(0.6)
+    page$settle()
     expect_identical(open_pins(), "dtc/row/3")
     expect_identical(seen("dtc_pin")$state, "pinned")
     page$viewport(900, 700)
-    Sys.sleep(0.4)
+    page$settle()
     expect_identical(open_pins(), "dtc/row/3")
     close_all()
     expect_true(wait_seen("dtc_pin", "v.state === 'closed'"))
@@ -247,9 +247,9 @@ describe("the inputs of tip_table() in a Shiny app", {
     page$evaluate("document.documentElement.setAttribute('data-hovercraft-tip-pins', '3'); 0")
     withr::defer(page$evaluate("document.documentElement.removeAttribute('data-hovercraft-tip-pins'); 0"))
     # The table was sorted by wins, descending: pin the data rows in the order 2, 1, 3.
-    for (team in c("Foxes", "Owls", "Hares")) {
-      pin_row(rows_in("dtc"), team)
-      Sys.sleep(0.3)
+    for (i in 1:3) {
+      pin_row(rows_in("dtc"), c("Foxes", "Owls", "Hares")[[i]])
+      expect_true(wait_seen("dtc_pinned", sprintf("v.length === %d", i)))
     }
     expect_true(wait_seen("dtc_pinned", "v.length === 3"))
     rows <- vapply(seen("dtc_pinned"), function(a) a$row, 0L)
@@ -270,7 +270,7 @@ describe("the inputs of tip_table() in a Shiny app", {
     page$evaluate("document.documentElement.setAttribute('data-hovercraft-tip-pins', '3'); 0")
     withr::defer(page$evaluate("document.documentElement.removeAttribute('data-hovercraft-tip-pins'); 0"))
     pin_row(rows_in("rt2", "rt"), "A")
-    Sys.sleep(0.3)
+    expect_true(wait_seen("rt2_pinned", "v.length === 1"))
     pin_row(rows_in("rt2", "rt"), "B")
     expect_true(wait_seen("rt2_pinned", "v.length === 2"))
     expect_setequal(open_pins(), c("rt2/row/1", "rt2/row/2"))
@@ -286,7 +286,7 @@ describe("the inputs of tip_table() in a Shiny app", {
       row_of(rows_in("rt2", "rt"), "A")
     ))
     expect_true(wait_seen("rt2_pinned", "v.length === 1"))
-    Sys.sleep(0.5)
+    page$hold(0.5) # the count must stay at one: a second report, were it coming, has no signal to wait for
     expect_identical(length(seen("rt2_pinned")), 1L)
     expect_identical(seen("rt2_pinned")[[1]]$row, 2L)
     expect_identical(open_pins(), "rt2/row/2")
@@ -303,7 +303,7 @@ describe("the inputs of tip_table() in a Shiny app", {
     page$evaluate("Shiny.setInputValue('rerender', Date.now(), { priority: 'event' })")
     expect_true(page$wait_until("window.oldRow.isConnected === false"))
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]')?.isConnected === true"))
-    Sys.sleep(0.5)
+    page$settle()
     # What the server believes is pinned is what the page holds: the same count, the same row.
     held <- open_pins()
     expect_length(held, 1L)
@@ -398,7 +398,7 @@ describe("the page's warnings about an id used twice", {
 
   it("warns once on the console about two tagged items with one tip id, and not about a lone one", {
     expect_true(app$proc$is_alive(), info = paste(app$proc$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.warned.some((w) => w.includes('two tagged items'))", seconds = 15))
+    expect_true(page$wait_until("window.warned.some((w) => w.includes('two tagged items'))"))
     warned <- jsonlite::fromJSON(page$evaluate("JSON.stringify(window.warned.filter((w) => w.includes('two tagged')))"))
     expect_length(warned, 1L)
     expect_match(warned, "\"dupe\"", fixed = TRUE)
@@ -406,7 +406,7 @@ describe("the page's warnings about an id used twice", {
   })
 
   it("warns once about two tables with one id", {
-    expect_true(page$wait_until("window.warned.some((w) => w.includes('two tables'))", seconds = 15))
+    expect_true(page$wait_until("window.warned.some((w) => w.includes('two tables'))"))
     warned <- jsonlite::fromJSON(page$evaluate("JSON.stringify(window.warned.filter((w) => w.includes('two tables')))"))
     expect_length(warned, 1L)
     expect_match(warned, "\"same\"", fixed = TRUE)
