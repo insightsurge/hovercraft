@@ -155,7 +155,7 @@
 ---
 
     Code
-      tip_table(dt(), rows = tip_spec("x", events = "pin"))
+      tip_table(dt(), rows = tip_spec("x", events = "hint"))
     Condition
       Error in `tip_table()`:
       ! `events` needs an `id`: the table's inputs are named after it.
@@ -164,7 +164,7 @@
 ---
 
     Code
-      tip_table(dt(), headers = list(wins = tip_spec("x", events = "pin")), id = "t")
+      tip_table(dt(), headers = list(wins = tip_spec("x", events = "hint")), id = "t")
     Condition
       Error in `tip_table()`:
       ! `headers[["wins"]]` has events: only rows send events for now.
@@ -188,6 +188,15 @@
       Error in `tip_table()`:
       ! `cells[["wins"]]` sets `more` with `more_on = "pin"`, but this tip cannot pin.
       i Only the tips of `rows` can pin, with `tip_spec(pin = TRUE)`. Or set `more_on = "hover"`.
+
+# the tip_table() errors / say what a spec's events need
+
+    Code
+      tip_spec("x", events = "pin")
+    Condition
+      Error in `tip_spec()`:
+      ! `events` asks for "pin", and the tip has no pin.
+      i Give `pin` as `TRUE` or `"click"`, or ask only for "hint".
 
 # the tip_table() errors / say what a column list and a template name must be
 

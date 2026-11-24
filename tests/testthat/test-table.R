@@ -831,18 +831,18 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
   })
 
   it("writes the events a row sends, and only on the rows", {
-    sends <- tip_spec(rows, events = c("pin", "copy"))
+    sends <- tip_spec(rows, pin = TRUE, events = c("pin", "copy"))
     got <- tip_table(rt(), rows = sends, cells = c(wins = "{{ wins }}"), id = "t")
     cfg <- got$jsHooks$render[[1]]$data
     expect_identical(cfg$rows$attrs[[tip_shiny_attribute()]], "pin copy")
     expect_null(cfg$cells[["1"]]$attrs[[tip_shiny_attribute()]])
-    expect_null(cfg$rows$attrs[[tip_attribute("pin")]])
+    expect_identical(cfg$rows$attrs[[tip_attribute("pin")]], "manual")
     got <- tip_table(dt(), rows = tip_spec(rows, events = "hint"), id = "t")
     expect_match(js(got$x$options$createdRow), sprintf("\"%s\":\"hint\"", tip_shiny_attribute()), fixed = TRUE)
   })
 
   it("tells the layer where a row that sends events is: the table, the target and the data column's name", {
-    got <- tip_table(rt(), rows = tip_spec(rows, events = "pin"), id = "t")$jsHooks$render[[1]]$data
+    got <- tip_table(rt(), rows = tip_spec(rows, pin = TRUE, events = "pin"), id = "t")$jsHooks$render[[1]]$data
     expect_identical(got$rows$id$address, tip_table_address_attribute())
     expect_identical(got$id, "t")
     expect_identical(tip_runtime_config()$attributes$address, tip_table_address_attribute())
@@ -864,7 +864,7 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
   it("refuses the click pin, a pin or events with no id, and a wrong value", {
     expect_error(tip_table(dt(), rows = tip_spec(rows, pin = "click"), id = "t"), class = "hovercraft_error_pin")
     expect_error(tip_table(dt(), rows = pinned), class = "hovercraft_error_pin")
-    expect_error(tip_table(dt(), rows = tip_spec(rows, events = "pin")), class = "hovercraft_error_events")
+    expect_error(tip_table(dt(), rows = tip_spec(rows, events = "hint")), class = "hovercraft_error_events")
     expect_error(tip_spec(rows, pin = "yes"), class = "hovercraft_error_argument")
     expect_error(tip_spec(rows, events = "click"), class = "hovercraft_error_argument")
     expect_error(tip_spec(rows, pinn = TRUE), class = "hovercraft_error_argument")
@@ -876,7 +876,7 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
       with_pin[[what]] <- list(wins = tip_spec("x", pin = TRUE))
       expect_error(do.call(tip_table, with_pin), class = "hovercraft_error_pin")
       with_events <- list(widget = dt(), rows = "x", id = "t")
-      with_events[[what]] <- list(wins = tip_spec("x", events = "pin"))
+      with_events[[what]] <- list(wins = tip_spec("x", events = "hint"))
       expect_error(do.call(tip_table, with_events), class = "hovercraft_error_events")
     }
     expect_error(tip_table(dt(), cells = list(wins = tip_spec("x", pin = TRUE))), "only rows pin for now")
@@ -888,7 +888,26 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
 
   it("stops a spec for the rows that holds no words but asks for a pin or events", {
     expect_error(tip_table(dt(), rows = tip_spec(NA, pin = TRUE), id = "t"), class = "hovercraft_error_pin")
-    expect_error(tip_table(dt(), rows = tip_spec("", events = "pin"), id = "t"), class = "hovercraft_error_events")
+    expect_error(tip_table(dt(), rows = tip_spec("", events = "hint"), id = "t"), class = "hovercraft_error_events")
+  })
+
+  it("stops events of the pin or the copy without a pin in a spec, as tip_on() does", {
+    expect_error(tip_spec(rows, events = "pin"), "no pin", class = "hovercraft_error_events")
+    expect_error(tip_spec(rows, events = c("hint", "copy")), "copy", class = "hovercraft_error_events")
+    expect_error(tip_spec(rows, pin = FALSE, events = "pin"), class = "hovercraft_error_events")
+    expect_s3_class(tip_spec(rows, events = "hint"), "hovercraft_spec")
+    expect_s3_class(tip_spec(rows, pin = TRUE, events = c("hint", "pin", "copy")), "hovercraft_spec")
+  })
+
+  it("refuses a list of CSS variables as the style of the table or of a spec, as tip_on() does", {
+    css <- tip_style(theme = list("--x" = "red"))
+    expect_error(tip_table(dt(), rows = rows, style = css), "CSS variables", class = "hovercraft_error_style")
+    expect_error(tip_table(dt(), rows = tip_spec(rows, style = css)), "CSS variables", class = "hovercraft_error_style")
+    expect_error(
+      tip_table(dt(), cells = list(wins = tip_spec("x", style = css))),
+      "CSS variables",
+      class = "hovercraft_error_style"
+    )
   })
 
   it("no longer takes pin or events on the table, and says where they went", {
@@ -931,7 +950,7 @@ describe("tip_table(id =) in a module", {
       function(input, output, session) {
         shiny::moduleServer("mod1", function(input, output, session) {
           output$tbl <- shiny::renderText({
-            got <- tip_table(dt(), rows = tip_spec("{{ team }}", events = "pin"), id = "league")
+            got <- tip_table(dt(), rows = tip_spec("{{ team }}", pin = TRUE, events = "pin"), id = "league")
             js(got$x$options$createdRow)
           })
         })

@@ -18,7 +18,9 @@
 #'   table's. A cell or header cell with no placement of its own follows the table's, not its row's.
 #' @param style How this target's tips look, or `NULL` to take the table's: whatever `style` takes in [tip_on()] (a
 #'   preset name, a [tip_style()], a [tip_theme()] or a [bslib::bs_theme()]). A row's own style also reaches the cells
-#'   in that row that have none of their own, because the tip engine reads the nearest tagged element.
+#'   in that row that have none of their own, because the tip engine reads the nearest tagged element. A list of CSS
+#'   variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so a spec refuses it with an error: give
+#'   it to [use_hovercraft()], or use the roles of [tip_theme()].
 #' @param marker The visible cue for this target's cells or header cells: `"corner"`, `"none"` to take the marker off
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
@@ -34,8 +36,9 @@
 #'   both widgets, so the `"click"` pin of [tip_on()] is refused in a table. A pin needs the table's `id`. With
 #'   `pin = TRUE`, `more_on = "pin"` opens the long form when the row is pinned.
 #' @param events The Shiny inputs this target's tips send: one or more of `"hint"`, `"pin"` and `"copy"`, or `NULL` (the
-#'   default) for none. Only the tips of `rows` send them for now ("only rows send events for now"), and they need the
-#'   table's `id`. The inputs belong to the table, one per event, not one per row: see the `events` section of
+#'   default) for none. `"pin"` and `"copy"` belong to a pinned tip, so asking for either without a `pin` stops with an
+#'   error, as in [tip_on()]. Only the tips of `rows` send them for now ("only rows send events for now"), and they need
+#'   the table's `id`. The inputs belong to the table, one per event, not one per row: see the `events` section of
 #'   [tip_table()].
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
@@ -102,6 +105,7 @@ tip_spec <- function(
   tip_warn_more_on(more, more_on, call = call)
   pin <- tip_check_pin(pin, call = call)
   events <- tip_check_events(events, call = call)
+  tip_check_events_pin(events, pin, call = call)
   style <- tip_as_style(style, call = call)
   tip_check_style_tokens(style, call)
   marker <- if (!is.null(marker)) tip_as_marker(marker, call = call)

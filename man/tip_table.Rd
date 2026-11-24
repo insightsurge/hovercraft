@@ -35,7 +35,9 @@ the cells of that column. Each entry is a string, a
 \item{style}{How every tip in the table looks, or \code{NULL} (the default) to take the page's: whatever \code{style} takes in
 \code{\link[=tip_on]{tip_on()}} (a preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A \code{\link[=tip_spec]{tip_spec()}} with its own
 \code{style} beats it for that target. A row's own style also reaches the cells in that row that have none of their
-own, because the tip engine reads the nearest tagged element.}
+own, because the tip engine reads the nearest tagged element. A list of CSS variables
+(\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so a table refuses it with an error: give it to
+\code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where the tips show: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} for the page's
 choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A cell's tip follows this, not its row's.}

@@ -24,7 +24,9 @@ tip_spec(
 
 \item{style}{How this target's tips look, or \code{NULL} to take the table's: whatever \code{style} takes in \code{\link[=tip_on]{tip_on()}} (a
 preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A row's own style also reaches the cells
-in that row that have none of their own, because the tip engine reads the nearest tagged element.}
+in that row that have none of their own, because the tip engine reads the nearest tagged element. A list of CSS
+variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so a spec refuses it with an error: give
+it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where this tip shows: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} to take the
 table's. A cell or header cell with no placement of its own follows the table's, not its row's.}
@@ -48,8 +50,9 @@ both widgets, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} is re
 \code{pin = TRUE}, \code{more_on = "pin"} opens the long form when the row is pinned.}
 
 \item{events}{The Shiny inputs this target's tips send: one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}, or \code{NULL} (the
-default) for none. Only the tips of \code{rows} send them for now ("only rows send events for now"), and they need the
-table's \code{id}. The inputs belong to the table, one per event, not one per row: see the \code{events} section of
+default) for none. \code{"pin"} and \code{"copy"} belong to a pinned tip, so asking for either without a \code{pin} stops with an
+error, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} send them for now ("only rows send events for now"), and they need
+the table's \code{id}. The inputs belong to the table, one per event, not one per row: see the \code{events} section of
 \code{\link[=tip_table]{tip_table()}}.}
 }
 \value{

@@ -780,7 +780,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' @param style How every tip in the table looks, or `NULL` (the default) to take the page's: whatever `style` takes in
 #'   [tip_on()] (a preset name, a [tip_style()], a [tip_theme()] or a [bslib::bs_theme()]). A [tip_spec()] with its own
 #'   `style` beats it for that target. A row's own style also reaches the cells in that row that have none of their
-#'   own, because the tip engine reads the nearest tagged element.
+#'   own, because the tip engine reads the nearest tagged element. A list of CSS variables
+#'   (`tip_style(theme = list("--x" = ...))`) is for the whole page, so a table refuses it with an error: give it to
+#'   [use_hovercraft()], or use the roles of [tip_theme()].
 #' @param placement Where the tips show: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` for the page's
 #'   choice. A [tip_spec()] with its own placement beats it. A cell's tip follows this, not its row's.
 #' @param marker The visible cue on every cell and header cell that has a tip, so a reader can see where the tips are:

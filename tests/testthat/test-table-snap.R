@@ -32,8 +32,8 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_table(dt(), rows = tip_spec("x", pin = "click"), id = "t"), error = TRUE)
     expect_snapshot(tip_table(dt(), rows = tip_spec("x", pin = TRUE)), error = TRUE)
     expect_snapshot(tip_table(dt(), cells = list(wins = tip_spec("x", pin = TRUE)), id = "t"), error = TRUE)
-    expect_snapshot(tip_table(dt(), rows = tip_spec("x", events = "pin")), error = TRUE)
-    expect_snapshot(tip_table(dt(), headers = list(wins = tip_spec("x", events = "pin")), id = "t"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = tip_spec("x", events = "hint")), error = TRUE)
+    expect_snapshot(tip_table(dt(), headers = list(wins = tip_spec("x", events = "hint")), id = "t"), error = TRUE)
     expect_snapshot(tip_table(dt(), rows = "x", id = "t", pin = TRUE), error = TRUE)
     expect_snapshot(
       tip_table(
@@ -44,6 +44,9 @@ describe("the tip_table() errors", {
       ),
       error = TRUE
     )
+  })
+  it("say what a spec's events need", {
+    expect_snapshot(tip_spec("x", events = "pin"), error = TRUE)
   })
   it("say what a column list and a template name must be", {
     expect_snapshot(tip_table(dt(), cells = list(wins = "a", wins = "b")), error = TRUE)
