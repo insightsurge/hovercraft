@@ -91,25 +91,23 @@ widgets <- lapply(code, run)
 as_json <- function(x) jsonlite::toJSON(x, auto_unbox = TRUE, pretty = TRUE, null = "null")
 added_dt <- function(w) {
   defs <- Filter(function(d) !is.null(d$createdCell), w$x$options$columnDefs)
-  hidden <- Filter(function(d) isTRUE(d$visible == FALSE), w$x$options$columnDefs)
   paste(
     c(
-      "# 1. One hidden column, '.hovercraft', holds each row's record as JSON (first two rows):",
-      utils::head(w$x$data[[".hovercraft"]], 2),
+      "# 1. No column is added to the data, so DT::replaceData() with your own data frame still fits.",
+      paste("#    The data still has the columns", paste(names(w$x$data), collapse = ", "), "."),
       "",
-      "# 2. Its column definition (hidden, not searchable, named so server-side paging can find it):",
-      as_json(hidden[[1]]),
-      "",
-      "# 3. options$createdRow: DT calls it for each row it draws; it writes the tip's attributes onto the row:",
+      "# 2. options$createdRow: DT calls it for each row it draws. It reads the row's record from the data DT hands over",
+      "#    (the positions say where each field sits; the last argument says which columns DT escaped) and writes the",
+      "#    tip's attributes onto the row:",
       as.character(w$x$options$createdRow),
       "",
-      "# 4. columnDefs[[...]]$createdCell: the same for the cells of one column (status):",
+      "# 3. columnDefs[[...]]$createdCell: the same for the cells of one column (status):",
       as.character(defs[[1]]$createdCell),
       "",
-      "# 5. options$initComplete: marks the header cells once DT has drawn its header:",
+      "# 4. options$initComplete: marks the header cells once DT has drawn its header:",
       as.character(w$x$options$initComplete),
       "",
-      "# 6. A render hook defines the templates in the browser (name -> blocks):",
+      "# 5. A render hook defines the templates in the browser (name -> blocks):",
       as_json(w$jsHooks$render[[1]]$data$defines)
     ),
     collapse = "\n"
@@ -121,18 +119,19 @@ added_rt <- function(w) {
   cfg <- w$jsHooks$render[[1]]$data
   paste(
     c(
-      "# 1. rowClass becomes a function that puts the data row number in a class (reactable has no row attribute hook):",
+      "# 1. rowClass becomes a function that puts the data row number and the row's record in a class (reactable has",
+      "#    no row attribute hook); the record is read from reactable's own row values each time a row is drawn:",
       as.character(tag$attribs$rowClassName),
       "",
-      "# 2. The status column's class function does the same for its cells:",
+      "# 2. The status column's class function puts the data row number in a class for its cells:",
       as.character(tag$attribs[["columns"]][[match("status", ids)]]$className),
       "",
       "# 3. The response header gets a class naming its column position:",
       tag$attribs[["columns"]][[match("response", ids)]]$headerClassName,
       "",
       "# 4. The page layer (inst/table/table.js) reads those classes and gets this data: the specs that say which",
-      "#    attributes each row, cell and header gets, and one JSON record per data row (first two shown):",
-      as_json(list(rows = cfg$rows, cells = cfg$cells, headers = cfg$headers, records = utils::head(cfg$records, 2))),
+      "#    attributes each row, cell and header gets:",
+      as_json(list(rows = cfg$rows, cells = cfg$cells, headers = cfg$headers)),
       "",
       "# 5. And the templates to define in the browser (name -> blocks):",
       as_json(cfg$defines)
@@ -146,7 +145,7 @@ added <- list(
   rt = added_rt(widgets$rt),
   rt_cell = paste(
     "tip_table() is not used here. reactable calls the cell function for each cell and hands the returned tag to the",
-    "page, so tip_on() writes the tip's attributes into that tag itself: no layer, no hidden column.",
+    "page, so tip_on() writes the tip's attributes into that tag itself: no layer, no added column.",
     "",
     "The tag for the first status cell, as R made it:",
     as.character(tip_on(

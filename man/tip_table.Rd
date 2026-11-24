@@ -96,8 +96,11 @@ Not supported: a \code{DT} table with its own \code{createdRow} or \code{initCom
 \code{headerClass} is a JavaScript function; any other widget.
 
 Large tables: \code{tip_table()} adds nothing to the data of the page, since each tip reads its values from the table's
-own data in the browser. A table with every row drawn at once is slow in \code{DT} when cells or headers have tips
-(thousands of rows take seconds); page it, or tip its rows only.
+own data in the browser. A \code{reactable} row carries the values its tips read in its class, as well as in the engine's
+attribute, so they sit twice in the page for every row that is drawn: page the table. A table with every row drawn
+at once is slow in \code{DT} when cells or headers have tips (a table of 2,000 rows with a row tip and three cell tips
+took about a second to draw, five times as long as without tips; thousands of rows take seconds); page it, or tip
+its rows only.
 
 Give \code{tip_table()} the finished widget, last in the pipe or at least after the columns are settled.
 \code{DT::datatable()} keeps its columns and its inputs as they are: \code{tip_table()} adds no column and changes no event

@@ -275,13 +275,25 @@ tip_table_named <- function(x, arg, columns, header, placement, call, marker = N
 }
 
 # The values a tip reads are taken from the table's own data in the browser, so none is written to the page. What R can
-# still check is that the columns a tip names hold one value per row: no data frame or matrix column, and values a tip
-# can show (looked at in the first row, as the kinds are the same all down a column).
+# still check is that the columns a tip names hold one value per row: no data frame, matrix or list column (each is a
+# property of the whole column), and values a tip can show, looked at in the first row, since a column has one class
+# all down.
 tip_table_check_values <- function(data, fields, call) {
   if (!length(fields)) {
     return(invisible(data))
   }
   tip_check_columns(data[fields], call)
+  lists <- names(data[fields])[vapply(data[fields], is.list, NA)]
+  if (length(lists)) {
+    tip_abort(
+      c(
+        "Columns that hold a list: {.val {lists}}. A tip takes one value per column.",
+        i = "Spread them into plain columns first, one column for each value."
+      ),
+      class = "hovercraft_error_record",
+      call = call
+    )
+  }
   if (nrow(data)) {
     tip_record(data[1L, fields, drop = FALSE], call = call)
   }
@@ -352,6 +364,20 @@ tip_table_defines <- function(contents) {
   stats::setNames(lapply(parts, function(part) part$body), names)[!duplicated(names)]
 }
 
+# DT escapes the HTML of the columns named by its `escapeIdx` option before a row reaches the browser (`escape = TRUE`,
+# its default, escapes every column): the layer must give the tip the value as it is in the data. This is TRUE for every
+# column, FALSE for none, or the 0-based positions of the escaped columns.
+tip_table_dt_escaped <- function(x) {
+  idx <- attr(x$options, "escapeIdx") %||% "true"
+  if (identical(idx, "true")) {
+    return(TRUE)
+  }
+  if (identical(idx, "false")) {
+    return(FALSE)
+  }
+  as.list(as.integer(strsplit(gsub("\"", "", idx, fixed = TRUE), ",", fixed = TRUE)[[1]]) - 1L)
+}
+
 tip_table_dt <- function(widget, plan, call) {
   x <- widget$x
   taken <- intersect(c("createdRow", "initComplete"), names(x$options))
@@ -370,10 +396,10 @@ tip_table_dt <- function(widget, plan, call) {
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
   tip_table_check_values(data, fields, call)
   # DT hands its row callbacks the row's own data, so the layer reads the record from it: `field_at` says at which
-  # position of the row each field sits. A table that DT updates with new data (`DT::replaceData()`) keeps its tips,
-  # and no column is added to the data.
+  # position of the row each field sits, and the escaped columns say what to undo (see `tip_table_dt_escaped()`). A
+  # table that DT updates with new data (`DT::replaceData()`) keeps its tips, and no column is added to the data.
   field_at <- if (length(fields)) tip_json(stats::setNames(as.list(vapply(fields, position, 0L)), fields)) else "null"
-  record <- sprintf("HovercraftTable.dtRecord(data, %s)", field_at)
+  record <- sprintf("HovercraftTable.dtRecord(data, %s, %s)", field_at, tip_json(tip_table_dt_escaped(x)))
   row_at <- "HovercraftTable.dtRow(this, index)"
   if (!is.null(plan$rows)) {
     x$options$createdRow <- tip_js(sprintf(
@@ -544,8 +570,11 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' `headerClass` is a JavaScript function; any other widget.
 #'
 #' Large tables: `tip_table()` adds nothing to the data of the page, since each tip reads its values from the table's
-#' own data in the browser. A table with every row drawn at once is slow in `DT` when cells or headers have tips
-#' (thousands of rows take seconds); page it, or tip its rows only.
+#' own data in the browser. A `reactable` row carries the values its tips read in its class, as well as in the engine's
+#' attribute, so they sit twice in the page for every row that is drawn: page the table. A table with every row drawn
+#' at once is slow in `DT` when cells or headers have tips (a table of 2,000 rows with a row tip and three cell tips
+#' took about a second to draw, five times as long as without tips; thousands of rows take seconds); page it, or tip
+#' its rows only.
 #'
 #' Give `tip_table()` the finished widget, last in the pipe or at least after the columns are settled.
 #' `DT::datatable()` keeps its columns and its inputs as they are: `tip_table()` adds no column and changes no event
