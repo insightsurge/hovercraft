@@ -83,7 +83,7 @@ describe("hovercraft studio in a browser", {
       "document.querySelector('#start .js-copy').click();"
     ))
     expect_true(page$wait_until("typeof window.copied === 'string'"))
-    expect_match(js("window.copied"), "tip_dependency(", fixed = TRUE)
+    expect_match(js("window.copied"), "use_hovercraft(", fixed = TRUE)
     expect_identical(js("document.documentElement.getAttribute('data-bs-theme')"), "dark")
     expect_true(page$wait_until("window.Shiny.shinyapp.$inputValues.page_mode === 'dark'"))
     js("document.querySelector('#start .theme-set input[value=light]').click()")

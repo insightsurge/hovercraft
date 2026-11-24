@@ -22,8 +22,8 @@ describe("tip_on(pin = )", {
     expect_error(tip_on(htmltools::tags$div("Row"), "Runs", pin = TRUE), "id")
   })
 
-  it("refuses a value that is not FALSE, TRUE or \"click\"", {
-    for (bad in list("manual", "yes", 1, NA, c(TRUE, FALSE), NULL)) {
+  it("refuses a value that is not NULL, FALSE, TRUE or \"click\"", {
+    for (bad in list("manual", "yes", 1, NA, c(TRUE, FALSE))) {
       expect_error(tip_on(button(), "Runs", id = "r", pin = bad), class = "hovercraft_error_argument")
     }
   })
@@ -59,6 +59,14 @@ describe("tip_on(pin = )", {
     expect_identical(attrs(own)[["aria-keyshortcuts"]], "Alt+R")
   })
 
+  it("takes NULL, the default, as no pin, and FALSE as never", {
+    expect_identical(tip_check_pin(NULL), NULL)
+    expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", pin = NULL)$attribs))
+    expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", pin = FALSE)$attribs))
+    expect_error(tip_on(button(), "Runs", pin = NA), class = "hovercraft_error_argument")
+    expect_identical(formals(tip_on)$pin, NULL)
+  })
+
   it("keeps a pin and its id when the tag is tipped again without a pin argument, and drops both with pin = FALSE", {
     first <- tip_on(button(), "One", id = "run_tip", pin = TRUE)
     again <- tip_on(first, "Two")
@@ -80,18 +88,6 @@ describe("tip_on(pin = )", {
 
   it("warns nothing and writes no pin for a tag with no pin", {
     expect_no_warning(tip_on(button(), "Runs"))
-  })
-})
-
-describe("tip_on(kind = )", {
-  it("writes the kind, which the events and inputs carry, and checks it against the engine's pattern", {
-    got <- tip_on(button(), "Runs", kind = "review_item")
-    expect_identical(attrs(got)[[tip_attribute("kind")]], "review_item")
-    expect_false(tip_attribute("kind") %in% names(tip_on(button(), "Runs")$attribs))
-    expect_false(tip_attribute("kind") %in% names(tip_on(got, "Again")$attribs))
-    for (bad in c("Review", "review item", "_a", "a__b", "")) {
-      expect_error(tip_on(button(), "Runs", kind = bad), class = "hovercraft_error_argument")
-    }
   })
 })
 

@@ -6,6 +6,18 @@ describe("tip_on()", {
   withr::defer(tip_reset())
   tip_reset()
 
+  it("has no `kind`, and takes NULL for `marker` and `pin` by default", {
+    expect_false("kind" %in% names(formals(tip_on)))
+    expect_error(tip_on(button(), "Runs", kind = "review_item"), class = "hovercraft_error_argument")
+    expect_null(formals(tip_on)$marker)
+    expect_null(formals(tip_on)$pin)
+    expect_false(tip_attribute("kind") %in% names(tip_on(button(), "Runs")$attribs))
+    expect_identical(
+      names(tip_on(button(), "Runs", marker = NULL)$attribs),
+      names(tip_on(button(), "Runs", marker = "none")$attribs)
+    )
+  })
+
   it("writes the text under the engine's attribute and attaches the engine", {
     got <- tip_on(button(), "Runs the **check**")
     expect_identical(attrs(got)[[tip_names()$attribute]], "Runs the **check**")

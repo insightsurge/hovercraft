@@ -619,7 +619,7 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' or of the row a focused cell belongs to; a cell or a header cell has no pin of its own. A tap on a row shows its
 #' tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
 #' stop and its columns; keyboard readers use the key, which each row that can pin announces as `aria-keyshortcuts`. A
-#' pinned tip is named by the row's tip id (see `id`), so `events` sends `input$<id>/row/<n>_tip` for the pin, as
+#' pinned tip is named by the row's tip id (see `id`), so `events` sends `input$<id>/row/<n>_pin` for the pin, as
 #' [tip_on()] does for its own id. A pin follows its row's tip id. It stays on a row when `DT` sorts (client and
 #' server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
 #' `reactable::updateReactable(data = )` give it new data, with the new values in its tip. It closes when its row leaves
@@ -690,7 +690,7 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   row is pinned; the default is still `"hover"`.
 #' @param events The Shiny inputs the tips of the rows send, as in [tip_on()]: one or more of `"hint"`, `"pin"` and
 #'   `"copy"`, or `NULL` (the default) for none. The inputs are named after each row's tip id, such as
-#'   `input[["scores_tips/row/3_tip"]]`, so they need `rows` and an `id`. Inside a module, name the tips with
+#'   `input[["scores_tips/row/3_pin"]]`, so they need `rows` and an `id`. Inside a module, name the tips with
 #'   `session$ns()` and read the input by the part that follows the module's own prefix. Cells and header cells send
 #'   none.
 #' @returns The widget, with the tips added.

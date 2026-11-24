@@ -17,7 +17,7 @@ describe("the dependencies of a tag", {
       ),
       tip_on(htmltools::tags$button("Off", disabled = NA), "Off", when_disabled = "why"),
       tip_define(card = tip_template(tip_text("{{ a }}"))),
-      htmltools::tags$div(tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))))
+      htmltools::tags$div(use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))))
     )
   }
   all_deps <- function(x) htmltools::resolveDependencies(htmltools::findDependencies(x))

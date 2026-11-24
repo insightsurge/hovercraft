@@ -3,7 +3,7 @@
 # (`Hovercraft.show()` and `Hovercraft.hide()`) and its public attributes. A tag asks for an input with the attribute
 # this file writes (`events =` on tip_on()); the same file names the message, so R and the script agree.
 
-# The events a tag can ask for: "hint" sends `input$<id>_hint`, "pin" sends `input$<id>_tip` and "copy" sends
+# The events a tag can ask for: "hint" sends `input$<id>_hint`, "pin" sends `input$<id>_pin` and "copy" sends
 # `input$<id>_copy`.
 tip_event_names <- function() c("hint", "pin", "copy")
 

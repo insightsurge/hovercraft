@@ -17,7 +17,7 @@ word <- function(id, marker = "underline", preset = NULL, css = NULL, text = "Ba
 
 marker_page <- function(dir, ..., preset = NULL, dark = FALSE, name = "page.html") {
   page <- bslib::page_fluid(
-    tip_dependency(style = preset),
+    use_hovercraft(style = preset),
     if (dark) tags$script("document.documentElement.setAttribute('data-bs-theme', 'dark');"),
     ...
   )

@@ -126,6 +126,6 @@ plate_more_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "more", more_steps())
   code <- shiny::reactive(more_code(list(more_on = input$more_on, pin = input$more_pin)))
   plate_code(input, output, session, "more", code)
-  log_inputs(input, session, "more", c("median_wait_hint", "median_wait_tip", "reopened_tip"))
+  log_inputs(input, session, "more", c("median_wait_hint", "median_wait_pin", "reopened_pin"))
   ticks
 }

@@ -49,7 +49,7 @@ on_hint <- function(id, state = "shown", reason = NULL, via = NULL, by = "reader
 
 on_pin <- function(id, state = "pinned", reason = NULL, by = "reader", when = NULL) {
   proof(
-    paste0(id, "_tip"),
+    paste0(id, "_pin"),
     function(value, input) {
       fields_match(value, state = state, reason = reason, by = by) && (is.null(when) || isTRUE(when(input)))
     }
@@ -60,7 +60,7 @@ on_copy <- function(id) {
   proof(paste0(id, "_copy"), function(value, input) isTRUE(value$ok))
 }
 
-# What a proof's input says, for the line under the steps: input$id_tip, state "pinned", reason "escape".
+# What a proof's input says, for the line under the steps: input$id_pin, state "pinned", reason "escape".
 proof_says <- function(name, value) {
   bits <- if (is.list(value)) {
     Filter(

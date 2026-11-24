@@ -188,12 +188,12 @@ tip_style_over <- function(near, far) {
 #' `r lifecycle::badge("experimental")`
 #' Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font), a class
 #' on the tip box, and how it enters and how big it is. Give the result as `style =` to [tip_on()] for one tag, or to
-#' [tip_dependency()] for the whole page.
+#' [use_hovercraft()] for the whole page.
 #' A part left out is left alone: it is inherited from the page, or from the page's own bslib variables.
 #'
 #' A value set nearer the tip wins: a tag's `style` beats the page's. A theme is merged role by role, so a tag that sets
-#' only `bg` keeps the page's `ink`. A preset is replaced as a whole by the nearer one, and `"none"` clears an inherited
-#' preset. A theme beats a preset set at the same place or further out, role by role, so
+#' only `bg` keeps the page's `text`. A preset is replaced as a whole by the nearer one, and `"none"` clears an
+#' inherited preset. A theme beats a preset set at the same place or further out, role by role, so
 #' `tip_style("sober", theme = ...)` is sober with those roles changed; a preset set nearer the tip than a theme beats
 #' that theme.
 #'
@@ -219,7 +219,7 @@ tip_style_over <- function(near, far) {
 #' There is no `delay` argument: the tip engine reads the delay before a hint shows only from the file of a preset.
 #'
 #' @section Themes on one tag:
-#' A theme given to a tag sets the roles `bg`, `ink`, `line`, `code_bg`, `radius`, `shadow` and `font`. CSS variables
+#' A theme given to a tag sets the roles `bg`, `text`, `border`, `code_bg`, `radius`, `shadow` and `font`. CSS variables
 #' given as a list of names that start with `--` reach the tip only from the page, not from a tag, because a tip is
 #' drawn away from its tag.
 #'
@@ -239,16 +239,16 @@ tip_style_over <- function(near, far) {
 #' @param pin_width The widest a pinned tip grows, in pixels: a whole number from 240 to 720, or `NULL` (the default) to
 #'   inherit.
 #'
-#' @returns A `hovercraft_style` object, to give as `style =` to [tip_on()] or [tip_dependency()]. Its fields are
+#' @returns A `hovercraft_style` object, to give as `style =` to [tip_on()] or [use_hovercraft()]. Its fields are
 #'   internal; pass the object on.
 #' @family tooltips
 #' @examples
 #' tip_style("sober")
-#' tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
+#' tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 #' tip_style(class = "wide")
 #' tip_style(class = "") # clears a class set above
 #' tip_style("sober", motion = "slide", max_width = 280)
-#' tip_dependency(style = tip_style(motion = "fade", gap = 10))
+#' use_hovercraft(style = tip_style(motion = "fade", gap = 10))
 #' tip_on(
 #'   htmltools::tags$button("Run"),
 #'   "Runs the **check**",
@@ -285,7 +285,7 @@ tip_style <- function(
 #' The presets
 #'
 #' `r lifecycle::badge("experimental")`
-#' Lists the presets the tip engine ships, to give as `style =` to [tip_on()] and [tip_dependency()], or as the first
+#' Lists the presets the tip engine ships, to give as `style =` to [tip_on()] and [use_hovercraft()], or as the first
 #' argument of [tip_style()]. The name of a preset is stable; its values may be tuned between releases.
 #'
 #' @returns A data frame with one row for each preset and the columns `name`, `label` (a person's name for it) and

@@ -91,7 +91,7 @@ studio_page <- function(query) {
       htmltools::tags$script(src = "shared.js"),
       htmltools::tags$script(src = "studio.js")
     ),
-    hovercraft::tip_dependency(style = hovercraft::tip_style(query$preset, motion = query$motion)),
+    hovercraft::use_hovercraft(style = hovercraft::tip_style(query$preset, motion = query$motion)),
     studio_boot(query),
     htmltools::a(class = "vh skip", href = "#start", "Skip to the first plate"),
     htmltools::tags$header(

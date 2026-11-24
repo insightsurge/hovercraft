@@ -89,7 +89,7 @@ pins_steps <- function() {
     step(
       paste(
         "Pin *wait_min* with the corner button, or focus it and press P: the tip stays open, with a close button,",
-        "and `input$col_wait_min_tip` arrives."
+        "and `input$col_wait_min_pin` arrives."
       ),
       "a click on the chip itself pins it.",
       tip_target("col_wait_min"),
@@ -147,6 +147,6 @@ plate_pins_server <- function(input, output, session) {
   code <- shiny::reactive(pins_code(list(placement = input$pins_placement, copy = input$pins_copy)))
   plate_code(input, output, session, "pins", code)
   ids <- c("col_visit_date", "col_region", "col_wait_min", "col_booked")
-  log_inputs(input, session, "pins", c(paste0(ids, "_tip"), paste0(ids[1:3], "_copy")))
+  log_inputs(input, session, "pins", c(paste0(ids, "_pin"), paste0(ids[1:3], "_copy")))
   ticks
 }

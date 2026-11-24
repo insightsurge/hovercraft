@@ -22,7 +22,8 @@ How to contribute is in `.github/CONTRIBUTING.md`; launchR's checks: <https://la
 ## Always
 
 - Never edit the vendored engine in `inst/engine/`; `tools/copy-engine.R` writes it.
-- Every export starts with `tip_`. Names are snake_case.
+- Every export starts with `tip_`, except the two that carry the package's name: `use_hovercraft()` and, once it
+  lands, `hovercraft_book()`. Names are snake_case.
 - Public text never names the project the engine is built from; call it "the tip engine".
 - Check arguments with checkmate, send messages through cli, call other packages as `pkg::fn()`.
 - `man/` and `NAMESPACE` come from `devtools::document()`, never from hand edits.
