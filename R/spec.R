@@ -25,8 +25,9 @@
 #' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with
 #'   `{{ column }}` placeholders for `rows` and `cells`) or a [tip_template()]. `NA` and `""` mean no long form.
 #' @param more_on When the long form (`more`) opens: `"pin"` or `"hover"`, or `NULL` (the default) for the table's
-#'   choice, `"hover"`, because table rows and cells cannot pin yet; `"pin"` in a table stops with an error. Without
-#'   `more`, `more_on` does nothing and gives a warning.
+#'   choice, `"hover"`. `"pin"` works only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
+#'   target that can pin; anywhere else in a table it stops with an error. Without `more`, `more_on` does nothing and
+#'   gives a warning.
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].
 #' @family tooltips

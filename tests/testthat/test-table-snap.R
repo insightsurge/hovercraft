@@ -28,6 +28,23 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_table(dt(), rows = tip_spec("x", marker = "corner")), error = TRUE)
     expect_snapshot(tip_table(dt(), rows = "x", marker = "corner"), error = TRUE)
   })
+  it("say what a pin and the events of a row need", {
+    expect_snapshot(tip_table(dt(), rows = "x", id = "t", pin = "click"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = "x", pin = TRUE), error = TRUE)
+    expect_snapshot(tip_table(dt(), cells = c(wins = "x"), id = "t", pin = TRUE), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = "x", events = "pin"), error = TRUE)
+    expect_snapshot(tip_table(dt(), cells = c(wins = "x"), id = "t", events = "pin"), error = TRUE)
+    expect_snapshot(
+      tip_table(
+        dt(),
+        cells = list(wins = tip_spec("x", more = "y", more_on = "pin")),
+        rows = "x",
+        id = "t",
+        pin = TRUE
+      ),
+      error = TRUE
+    )
+  })
   it("say what a style must be", {
     expect_snapshot(tip_table(dt(), rows = "x", style = "nope"), error = TRUE)
     expect_snapshot(tip_spec("x", style = "color: red"), error = TRUE)

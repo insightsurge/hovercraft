@@ -38,7 +38,8 @@ code <- list(
     rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
-    placement = "bottom"
+    placement = "bottom",
+    id = "sites_dt", pin = TRUE, events = "pin"
   )',
   rt = 'reactable::reactable(
   study,
@@ -49,7 +50,8 @@ code <- list(
     rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
-    placement = "bottom"
+    placement = "bottom",
+    id = "sites_rt", pin = TRUE, events = "pin"
   )',
   rt_cell = '# In the UI, once: tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}")))
 reactable::reactable(
@@ -238,7 +240,11 @@ ui <- bslib::page_fluid(
   tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}"))),
   bslib::input_dark_mode(id = "mode"),
   shiny::h2("tip_table() demo (experimental)"),
-  shiny::p("Hover rows, status and note cells, and the response header. Sort, search, change page, switch to dark."),
+  shiny::p(
+    "Hover rows, status and note cells, and the response header. Sort, search, change page, switch to dark.",
+    "In the first two tables a row's tip can be pinned: press the pin handle in its corner, or focus the row and press P."
+  ),
+  shiny::verbatimTextOutput("pins"),
   example(
     "dt",
     "DT with tip_table()",
@@ -284,6 +290,15 @@ server <- function(input, output, session) {
     study$site[input$dt_rows_selected]
   ))
   output$rt <- reactable::renderReactable(run(code$rt))
+  # A pinned row sends input$<id>/row/<n>_tip: read the inputs that exist, whichever rows have been pinned.
+  output$pins <- shiny::renderPrint({
+    inputs <- shiny::reactiveValuesToList(input)
+    inputs <- inputs[grepl("^sites_(dt|rt)/row/[0-9]+_tip$", names(inputs))]
+    cat("Pin inputs (state, by row):\n")
+    for (name in names(inputs)) {
+      cat(" ", name, "->", inputs[[name]]$state, "\n")
+    }
+  })
   output$rt_cell <- reactable::renderReactable(run(code$rt_cell))
   output$dt_html <- DT::renderDT(run(code$dt_html))
   output$file_text <- shiny::renderText(paste(readLines(package_files[[input$file]], warn = FALSE), collapse = "\n"))

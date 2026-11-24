@@ -13,7 +13,9 @@ tip_table(
   style = NULL,
   placement = NULL,
   marker = NULL,
-  id = NULL
+  id = NULL,
+  pin = FALSE,
+  events = NULL
 )
 }
 \arguments{
@@ -50,6 +52,18 @@ the data row through sorting, filtering and paging; how that id is built is not 
 header cell that \code{DT} draws for \code{scrollX} or \code{fixedHeader} carries the id of the header it copies. \code{NULL} gives the
 tips no id. The engine's kind of the tips is not yours to set: \code{tip_table()} writes \code{table_row}, \code{table_cell} and
 \code{table_header}.}
+
+\item{pin}{Whether a reader can keep a row's tip open: \code{FALSE} (the default) for none, or \code{TRUE} for a pin handle in
+the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin. A click on a row never pins,
+because it selects the row, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} stops with an error. A pin needs \code{rows} and an
+\code{id}. With \code{pin = TRUE}, a \code{\link[=tip_spec]{tip_spec()}} for \code{rows} may set \code{more_on = "pin"}, and its long form opens when the
+row is pinned; the default is still \code{"hover"}.}
+
+\item{events}{The Shiny inputs the tips of the rows send, as in \code{\link[=tip_on]{tip_on()}}: one or more of \code{"hint"}, \code{"pin"} and
+\code{"copy"}, or \code{NULL} (the default) for none. The inputs are named after each row's tip id, such as
+\code{input[["scores_tips/row/3_tip"]]}, so they need \code{rows} and an \code{id}. Inside a module, name the tips with
+\code{session$ns()} and read the input by the part that follows the module's own prefix. Cells and header cells send
+none.}
 }
 \value{
 The widget, with the tips added.
@@ -77,6 +91,22 @@ right inside a row (the row first, then its cells), up and down between rows to 
 ends of the row, and Ctrl with Home or End to the ends of the table. The tip shows for what has focus. A header that
 its widget already makes focusable (the sortable headers of \code{DT}) keeps its own tab stop. Enter and Space do not
 select a row. A click on a row selects it in both widgets, so a row's tip does not pin on click.
+
+Pins: with \code{pin = TRUE} a reader can keep a row's tip open. The tip that shows on hover or focus gets a small pin
+handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the row's tip, and the
+tip's own close button, \code{Escape} or a click away closes it. The pin key \code{P} pins the tip of the row that has focus,
+or of the row a focused cell belongs to; a cell or a header cell has no pin of its own. A tap on a row shows its
+tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
+stop and its columns; keyboard readers use the key, which each row that can pin announces as \code{aria-keyshortcuts}. A
+pinned tip is named by the row's tip id (see \code{id}), so \code{events} sends \verb{input$<id>/row/<n>_tip} for the pin, as
+\code{\link[=tip_on]{tip_on()}} does for its own id. A pin follows its row's tip id. It stays on a row when \code{DT} sorts (client and
+server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
+\code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row leaves
+the page (a filter or another page in \code{DT}, another page in \code{reactable}), when \code{reactable} shows another row in the
+row's place, when the table goes, and when a click lands elsewhere. The input then says why: \code{DT} closes a pin of a
+row that left the page itself (\code{reason} \code{"gone"}, \code{by} \code{"data"}); \code{reactable} keeps its row nodes and gives them
+other rows, so the layer closes the pin through the tip engine's host command (\code{reason} \code{"host"}, \code{by} \code{"host"},
+\code{via} \code{"command"}). A server that acts on \code{by == "data"} sees the two widgets differently.
 
 What works, each checked in a browser:
 \itemize{
@@ -114,7 +144,9 @@ scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5), losses = c(3, 5)
 DT::datatable(scores) |>
   tip_table(
     rows = "**{{ team }}**: {{ wins | number:0 }} wins, {{ losses | number:0 }} losses",
-    headers = c(wins = "Games won this season")
+    headers = c(wins = "Games won this season"),
+    id = "scores_tips",
+    pin = TRUE
   )
 \dontshow{\}) # examplesIf}
 }

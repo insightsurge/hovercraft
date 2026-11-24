@@ -8,7 +8,8 @@ describe("the table layer's engine names", {
       placement = "placement",
       kind = "kind",
       id = "id",
-      anchor = "anchor"
+      anchor = "anchor",
+      pin = "pin"
     )
     for (key in attributes) {
       expect_true(nzchar(tip_attribute(key)), info = key)
@@ -773,5 +774,75 @@ describe("tip_output() in a tip_table() template", {
     err <- expect_error(tip_table(dt(), rows = tpl), class = "hovercraft_error_output")
     expect_match(conditionMessage(err), "tip_output(\"detail\")", fixed = TRUE)
     expect_error(tip_table(rt(), cells = list(wins = tip_spec("x", more = tpl))), class = "hovercraft_error_output")
+  })
+})
+
+describe("tip_table(pin = TRUE, events = )", {
+  rows <- "**{{ team }}**: {{ wins | number:0 }} wins"
+  deps <- function(widget) vapply(widget$dependencies, function(dep) dep$name, "")
+
+  it("gives the rows the engine's manual pin and the pin key's announcement, and no cell or header", {
+    got <- tip_table(
+      rt(),
+      rows = rows,
+      cells = c(wins = "{{ wins }}"),
+      headers = c(wins = "Wins"),
+      id = "t",
+      pin = TRUE
+    )
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$rows$attrs[[tip_attribute("pin")]], "manual")
+    expect_identical(cfg$rows$attrs[["aria-keyshortcuts"]], "P")
+    expect_null(cfg$cells[["1"]]$attrs[[tip_attribute("pin")]])
+    expect_null(cfg$cells[["1"]]$attrs[["aria-keyshortcuts"]])
+    expect_null(cfg$headers[["1"]]$attrs[[tip_attribute("pin")]])
+    got <- tip_table(dt(), rows = rows, id = "t", pin = TRUE)
+    expect_match(js(got$x$options$createdRow), sprintf("\"%s\":\"manual\"", tip_attribute("pin")), fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "\"aria-keyshortcuts\":\"P\"", fixed = TRUE)
+  })
+
+  it("adds the pin layer only with a pin, and tells the table's script how the engine marks a pin", {
+    expect_true("hovercraft-pin" %in% deps(tip_table(dt(), rows = rows, id = "t", pin = TRUE)))
+    expect_true("hovercraft-pin" %in% deps(tip_table(rt(), rows = rows, id = "t", pin = TRUE)))
+    expect_false("hovercraft-pin" %in% deps(tip_table(dt(), rows = rows, id = "t")))
+    expect_false("hovercraft-pin" %in% deps(tip_table(rt(), rows = rows, id = "t", pin = FALSE)))
+    plain <- tip_table(rt(), rows = rows, id = "t")$jsHooks$render[[1]]$data
+    expect_null(plain$rows$attrs[[tip_attribute("pin")]])
+    open <- tip_table(rt(), rows = rows, id = "t", pin = TRUE)$jsHooks$render[[1]]$data$open
+    expect_identical(open$attribute, tip_contract()$attributes$open)
+    expect_identical(open$pinned, "pin")
+    open_dt <- tip_table(dt(), rows = rows, id = "t", pin = TRUE)$jsHooks$render[[1]]$data$open
+    expect_identical(open_dt, open)
+  })
+
+  it("writes the events a row sends, and only on the rows", {
+    got <- tip_table(rt(), rows = rows, cells = c(wins = "{{ wins }}"), id = "t", events = c("pin", "copy"))
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$rows$attrs[[tip_shiny_attribute()]], "pin copy")
+    expect_null(cfg$cells[["1"]]$attrs[[tip_shiny_attribute()]])
+    expect_null(cfg$rows$attrs[[tip_attribute("pin")]])
+    got <- tip_table(dt(), rows = rows, id = "t", events = "hint")
+    expect_match(js(got$x$options$createdRow), sprintf("\"%s\":\"hint\"", tip_shiny_attribute()), fixed = TRUE)
+  })
+
+  it("lets a spec for the rows open its long form on the pin, and only with a pin", {
+    spec <- tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin")
+    got <- tip_table(rt(), rows = spec, id = "t", pin = TRUE)
+    expect_identical(got$jsHooks$render[[1]]$data$rows$attrs[[tip_attribute("more_on")]], "pin")
+    expect_error(tip_table(rt(), rows = spec, id = "t"), class = "hovercraft_error_pin")
+    expect_error(
+      tip_table(rt(), cells = list(team = spec), rows = "x", id = "t", pin = TRUE),
+      class = "hovercraft_error_pin"
+    )
+  })
+
+  it("refuses the click pin, a pin or events with no rows or no id, and a wrong value", {
+    expect_error(tip_table(dt(), rows = rows, id = "t", pin = "click"), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = rows, pin = TRUE), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), cells = c(wins = "x"), id = "t", pin = TRUE), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = rows, events = "pin"), class = "hovercraft_error_events")
+    expect_error(tip_table(dt(), cells = c(wins = "x"), id = "t", events = "pin"), class = "hovercraft_error_events")
+    expect_error(tip_table(dt(), rows = rows, id = "t", pin = "yes"), class = "hovercraft_error_argument")
+    expect_error(tip_table(dt(), rows = rows, id = "t", events = "click"), class = "hovercraft_error_argument")
   })
 })

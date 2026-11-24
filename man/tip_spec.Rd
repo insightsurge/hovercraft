@@ -35,8 +35,9 @@ is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_tab
 \code{{{ column }}} placeholders for \code{rows} and \code{cells}) or a \code{\link[=tip_template]{tip_template()}}. \code{NA} and \code{""} mean no long form.}
 
 \item{more_on}{When the long form (\code{more}) opens: \code{"pin"} or \code{"hover"}, or \code{NULL} (the default) for the table's
-choice, \code{"hover"}, because table rows and cells cannot pin yet; \code{"pin"} in a table stops with an error. Without
-\code{more}, \code{more_on} does nothing and gives a warning.}
+choice, \code{"hover"}. \code{"pin"} works only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
+target that can pin; anywhere else in a table it stops with an error. Without \code{more}, \code{more_on} does nothing and
+gives a warning.}
 }
 \value{
 An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{tip_table()}}.

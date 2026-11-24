@@ -125,6 +125,61 @@
       ! `marker` has no cell or header cell to mark.
       i A row takes no marker. Give `cells` or `headers` some words too.
 
+# the tip_table() errors / say what a pin and the events of a row need
+
+    Code
+      tip_table(dt(), rows = "x", id = "t", pin = "click")
+    Condition
+      Error in `tip_table()`:
+      ! `pin` is "click", but a click on a table row selects it, so it cannot pin.
+      i Give `pin = TRUE`: a reader pins a row's tip with the pin handle in its corner or with the pin key.
+
+---
+
+    Code
+      tip_table(dt(), rows = "x", pin = TRUE)
+    Condition
+      Error in `tip_table()`:
+      ! `pin` needs an `id`: it names the pin and the Shiny inputs after each row's tip id.
+      i Give `tip_table()` an `id`, such as `id = "scores_tips"`.
+
+---
+
+    Code
+      tip_table(dt(), cells = c(wins = "x"), id = "t", pin = TRUE)
+    Condition
+      Error in `tip_table()`:
+      ! `pin` is for the tips of the rows, and `rows` is empty.
+      i Give `rows` some words, or leave `pin` out.
+
+---
+
+    Code
+      tip_table(dt(), rows = "x", events = "pin")
+    Condition
+      Error in `tip_table()`:
+      ! `events` needs an `id`: it names the pin and the Shiny inputs after each row's tip id.
+      i Give `tip_table()` an `id`, such as `id = "scores_tips"`.
+
+---
+
+    Code
+      tip_table(dt(), cells = c(wins = "x"), id = "t", events = "pin")
+    Condition
+      Error in `tip_table()`:
+      ! `events` is for the tips of the rows, and `rows` is empty.
+      i Give `rows` some words, or leave `events` out.
+
+---
+
+    Code
+      tip_table(dt(), cells = list(wins = tip_spec("x", more = "y", more_on = "pin")),
+      rows = "x", id = "t", pin = TRUE)
+    Condition
+      Error in `tip_table()`:
+      ! `cells[["wins"]]` sets `more` with `more_on = "pin"`, but this tip cannot pin.
+      i Only the tips of `rows` can pin, with `pin = TRUE`. Or set `more_on = "hover"`.
+
 # the tip_table() errors / say what a style must be
 
     Code
