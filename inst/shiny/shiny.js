@@ -1,6 +1,6 @@
 // hovercraft's own layer for Shiny, on top of the tip engine; it never changes the engine. It answers the server calls
-// tip_show(), tip_hide() and tip_update() (one custom message each), sends the hint input for the tags that asked for
-// it with `events =`, and registers the "output" block for tip_output() through the engine's public block() door.
+// tip_show(), tip_hide() and tip_update() (one custom message each), sends the hint, pin and copy inputs for the tags that
+// asked for them with `events =`, and registers the "output" block for tip_output() through the engine's public block() door.
 // R passes the names in `start()`, so none is typed here twice.
 (() => {
   if (window.HovercraftShiny) return;
@@ -43,34 +43,69 @@
     },
   };
 
-  // The ids whose hint is open and was asked for: a tag that renderUI() replaces is gone when the engine says its hint
-  // closed (by "data"), and the event is then sent at the page, so the tag can no longer say it asked.
-  const asked = new Set();
+  // The ids whose hint or pin is open and was asked for: a tag that renderUI() replaces is gone when the engine says its
+  // tip closed (by "data"), and the event is then sent at the page, so the tag can no longer say it asked.
+  const asked = { hint: new Set(), pin: new Set() };
 
-  // The hint event is sent at the tag and bubbles, so one listener on the page serves every tag. A tag sends the
-  // input only when its list names it, and only for its own tip: an outer tag with a list does not send for an inner one.
-  const sendHint = (event) => {
+  // What each input holds, from the engine's event. The hint and the pin share the shape: what happened, to which words,
+  // who did it and how, and why it closed. A copy says which field and code block, and whether the browser let it.
+  const inputs = {
+    hint: {
+      suffix: '_hint',
+      opens: 'shown',
+      closes: 'hidden',
+      value: (d) => ({
+        state: d.state,
+        text: d.text ?? null,
+        by: d.by ?? null,
+        via: d.via ?? null,
+        reason: d.reason ?? null,
+        kind: d.kind ?? null,
+      }),
+    },
+    pin: {
+      suffix: '_tip',
+      opens: 'pinned',
+      closes: 'closed',
+      value: (d) => ({
+        state: d.state,
+        text: d.text ?? null,
+        by: d.by ?? null,
+        via: d.via ?? null,
+        reason: d.reason ?? null,
+        kind: d.kind ?? null,
+      }),
+    },
+    copy: {
+      suffix: '_copy',
+      value: (d) => ({
+        field: d.field ?? null,
+        block: d.block ?? null,
+        ok: d.ok === true,
+        by: d.by ?? null,
+        via: d.via ?? null,
+        kind: d.kind ?? null,
+      }),
+    },
+  };
+
+  // The engine's events are sent at the tag and bubble, so one listener on the page serves every tag. A tag sends an
+  // input only when its list names it, and only for its own tip: an outer tag with a list does not send for an inner
+  // one. `kind` is "hint", "pin" or "copy", the words `events =` takes.
+  const sendInput = (kind) => (event) => {
     const detail = event.detail;
+    const input = inputs[kind];
     if (!detail?.id || !window.Shiny?.setInputValue) return;
     const el = event.target?.closest?.(`[${names.attributes.events}]`);
     const wants =
-      el?.getAttribute(names.attributes.events).split(/\s+/).includes('hint') &&
+      el?.getAttribute(names.attributes.events).split(/\s+/).includes(kind) &&
       (el.getAttribute(names.attributes.id) ?? el.id) === detail.id;
-    if (!wants && !(detail.state === 'hidden' && asked.has(detail.id))) return;
-    if (detail.state === 'shown') asked.add(detail.id);
-    else asked.delete(detail.id);
-    // "event" priority: the same state twice in a row (a hint opened, closed, opened) must still reach the server.
-    window.Shiny.setInputValue(
-      `${detail.id}_hint`,
-      {
-        state: detail.state,
-        text: detail.text ?? null,
-        by: detail.by ?? null,
-        via: detail.via ?? null,
-        reason: detail.reason ?? null,
-      },
-      { priority: 'event' },
-    );
+    const closing = !!input.closes && detail.state === input.closes && asked[kind].has(detail.id);
+    if (!wants && !closing) return;
+    if (input.opens && detail.state === input.opens) asked[kind].add(detail.id);
+    else if (input.closes && detail.state === input.closes) asked[kind].delete(detail.id);
+    // "event" priority: the same value twice in a row (a hint opened, closed, opened) must still reach the server.
+    window.Shiny.setInputValue(`${detail.id}${input.suffix}`, input.value(detail), { priority: 'event' });
   };
 
   // ---- tip_output(): live Shiny outputs in tips -------------------------------------------------------------------
@@ -789,7 +824,9 @@
     start: (config) => {
       if (names) return;
       names = config;
-      document.addEventListener(names.events.hint, sendHint);
+      document.addEventListener(names.events.hint, sendInput('hint'));
+      document.addEventListener(names.events.tip, sendInput('pin'));
+      document.addEventListener(names.events.copy, sendInput('copy'));
       document.addEventListener(names.events.hint, trackHint);
       if (names.events.tip) document.addEventListener(names.events.tip, animatePinGrowth);
       document.addEventListener('pointerdown', refreshHintSnapshot, true);

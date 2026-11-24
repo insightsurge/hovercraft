@@ -32,8 +32,11 @@ tip_block <- function(type, ...) {
 #' @param field One string: the name of the record field that holds the code. The code is shown as text, never run,
 #'   and never filled in by placeholders.
 #' @param language One string naming the code's language, or `NULL`.
-#' @param copy `TRUE` asks for a Copy button, which lives in a tip that stays open. That comes in a later version, so
-#'   for now only `FALSE` is accepted.
+#' @param copy `TRUE` asks for a Copy button under the code, which lives in a tip that stays open: give the tag that has
+#'   this template `pin = TRUE` or `pin = "click"` in [tip_on()], or the button never shows. The button copies the code
+#'   as text, also on a page that is not served over https (where the browser's clipboard is closed to a page, the
+#'   copy is done the older way), and says "Copied" or "Copy failed" beside the button. With `events = "copy"` in
+#'   [tip_on()], the server reads each press as `input$<id>_copy`.
 #'
 #' @returns A block, to give to [tip_template()].
 #' @family tooltips
@@ -108,16 +111,7 @@ tip_code <- function(field, language = NULL, copy = FALSE) {
   tip_arg_string(field, "field")
   tip_arg_string(language, "language", null_ok = TRUE)
   tip_arg_flag(copy, "copy")
-  if (copy) {
-    tip_abort(
-      c(
-        "{.arg copy} is {.code TRUE}, but a Copy button lives in a tip that stays open.",
-        i = "That comes in a later version; leave {.arg copy} out for now."
-      ),
-      class = "hovercraft_error_pin"
-    )
-  }
-  tip_block("code", field = field, language = language)
+  tip_block("code", field = field, language = language, copy = if (copy) TRUE)
 }
 
 #' @export

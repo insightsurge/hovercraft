@@ -173,9 +173,10 @@ describe("tip_on(events = )", {
     expect_error(tip_on(button(), "Runs", events = NA_character_), class = "hovercraft_error_argument")
   })
 
-  it("names pin and copy and says they arrive later", {
-    expect_error(tip_on(button(), "Runs", events = c("hint", "pin")), class = "hovercraft_error_events")
-    expect_error(tip_on(button(), "Runs", events = "copy"), "pin work")
+  it("takes pin and copy too, in the order given and once each", {
+    got <- tip_on(button(), "Runs", events = c("hint", "pin", "copy", "pin"))
+    expect_identical(attrs(got)[[tip_shiny_attribute()]], "hint pin copy")
+    expect_identical(attrs(tip_on(button(), "Runs", events = "copy"))[[tip_shiny_attribute()]], "copy")
   })
 
   it("writes the layer's names from the engine's contract, not its own", {
@@ -185,6 +186,8 @@ describe("tip_on(events = )", {
     expect_identical(config$events$hint, tip_contract()$events$hint$name)
     expect_identical(config$messages$show, tip_message("show"))
     expect_identical(config$global, tip_names()$global)
+    expect_identical(config$events$tip, tip_contract()$events$tip$name)
+    expect_identical(config$events$copy, tip_contract()$events$copy$name)
     expect_identical(config$states$hint, "hint")
   })
 })

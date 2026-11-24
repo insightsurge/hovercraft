@@ -84,8 +84,14 @@ local_page <- function(html_file, env = parent.frame()) {
     )
     args <- list(
       key = key,
-      code = if (key == " ") "Space" else key,
-      windowsVirtualKeyCode = unname(codes[[key]]),
+      code = if (key == " ") {
+        "Space"
+      } else if (nchar(key) == 1L) {
+        paste0("Key", toupper(key))
+      } else {
+        key
+      },
+      windowsVirtualKeyCode = if (key %in% names(codes)) unname(codes[[key]]) else utf8ToInt(toupper(key)),
       modifiers = if (ctrl) 2L else 0L
     )
     do.call(session$Input$dispatchKeyEvent, c(list(type = "rawKeyDown"), args))
@@ -117,8 +123,38 @@ local_page <- function(html_file, env = parent.frame()) {
     Sys.sleep(0.3)
     invisible()
   }
+  # Moves the pointer to a point in the page and, with `click = TRUE`, presses and releases the left button there.
+  mouse <- function(x, y, click = FALSE) {
+    session$Input$dispatchMouseEvent(type = "mouseMoved", x = x, y = y)
+    if (click) {
+      for (type in c("mousePressed", "mouseReleased")) {
+        session$Input$dispatchMouseEvent(type = type, x = x, y = y, button = "left", clickCount = 1)
+      }
+    }
+    invisible()
+  }
+  # A finger tap at a point, with touch emulation on for the tap only: the page gets touch pointer events, then the click.
+  touch_tap <- function(x, y) {
+    session$Emulation$setTouchEmulationEnabled(enabled = TRUE)
+    session$Input$dispatchTouchEvent(type = "touchStart", touchPoints = list(list(x = x, y = y)))
+    session$Input$dispatchTouchEvent(type = "touchEnd", touchPoints = list())
+    invisible()
+  }
+  touch_off <- function() {
+    session$Emulation$setTouchEmulationEnabled(enabled = FALSE)
+    invisible()
+  }
+  # Sets the window's size, as a phone has it: `viewport(320, 640)`; `viewport(900, 700)` puts it back.
+  viewport <- function(width, height) {
+    session$Emulation$setDeviceMetricsOverride(width = width, height = height, deviceScaleFactor = 1, mobile = FALSE)
+    invisible()
+  }
   list(
     evaluate = evaluate,
+    viewport = viewport,
+    mouse = mouse,
+    touch_tap = touch_tap,
+    touch_off = touch_off,
     emulate = emulate,
     resize = resize,
     wait_until = wait_until,
