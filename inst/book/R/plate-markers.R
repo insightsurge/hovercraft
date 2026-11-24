@@ -124,9 +124,9 @@ plate_markers_ui <- function() {
     controls = htmltools::tagList(
       "Mark the phrase with",
       choice_set("markers_kind", "Marker", markers_kinds),
-      "; for an underline, use",
+      "and draw any underline in",
       choice_set("markers_line", "Line", markers_lines),
-      "; for an icon, use",
+      "style, and any icon as",
       choice_set("markers_icon", "Icon", markers_icons)
     )
   )

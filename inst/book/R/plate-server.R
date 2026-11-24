@@ -8,12 +8,17 @@ server_changes <- c("its words" = "words", "its words and the side it opens on" 
 server_ui_code <- function() {
   paste(
     c(
-      code_call(
-        "tip_on",
-        code_word("Week picker", class = "target"),
-        code_str(server_first),
-        id = code_str("onboarding"),
-        events = code_str("hint")
+      code_sentence(
+        "On a first visit, the server opens a hint on the",
+        code_call(
+          "tip_on",
+          code_word("week picker"),
+          code_str(server_first),
+          marker = code_str("underline"),
+          id = code_str("onboarding"),
+          events = code_str("hint")
+        ),
+        "without a click."
       ),
       code_call("shiny::actionButton", code_str("srv_show"), code_str("Show")),
       code_call("shiny::actionButton", code_str("srv_hide"), code_str("Hide")),

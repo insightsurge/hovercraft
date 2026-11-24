@@ -94,7 +94,7 @@ plate_tables_ui <- function() {
       choice_set("tables_widget", "Widget", table_widgets, table_default()),
       "and put tips on",
       choice_set("tables_parts", "Parts", tables_parts),
-      "; open them",
+      "that open",
       choice_set("tables_placement", "Placement", tables_placements),
       "in",
       choice_set("tables_style", "Look", tables_styles),
