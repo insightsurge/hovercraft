@@ -339,7 +339,7 @@ tip_define <- function(...) {
     fix = "Give each template a name: {.code tip_define(name = tip_template(...))}."
   )
   rules <- tip_engine()$rules$names
-  js <- character()
+  ops <- list()
   built <- list()
   for (name in names(templates)) {
     if (!tip_template_name_ok(name, rules)) {
@@ -375,13 +375,13 @@ tip_define <- function(...) {
       )
     }
     tip_known_set(name, list(fields = tip_template_fields(template), body = body))
-    js <- c(js, sprintf("%s.define(%s, %s);", tip_names()$global, tip_json(name), body))
+    ops <- c(ops, list(list(op = "define", name = name, blocks = tip_blocks_plain(template))))
   }
   for (out_id in tip_output_ids(built)) {
-    js <- c(js, sprintf("%sShiny.park(%s);", tip_names()$global, tip_json(out_id)))
+    ops <- c(ops, list(list(op = "park", id = out_id)))
   }
   park_tags <- tip_output_tags(built)
-  ui <- list(htmltools::tags$script(htmltools::HTML(paste(js, collapse = "\n"))))
+  ui <- list(tip_ops_script(ops))
   if (length(park_tags)) {
     ui <- c(
       ui,
@@ -396,7 +396,7 @@ tip_define <- function(...) {
   }
   htmltools::attachDependencies(
     htmltools::tagList(ui),
-    tip_dependency(),
+    tip_base_dependencies(),
     append = TRUE
   )
 }

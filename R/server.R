@@ -1,5 +1,5 @@
 # Server calls and the hint input: hovercraft's own layer for Shiny, on top of the tip engine. A server call sends one
-# custom message; inst/shiny/shiny.js finds the element by its tip id and uses only the engine's public doors
+# custom message; inst/runtime/shiny.js finds the element by its tip id and uses only the engine's public doors
 # (`Hovercraft.show()` and `Hovercraft.hide()`) and its public attributes. A tag asks for an input with the attribute
 # this file writes (`events =` on tip_on()); the same file names the message, so R and the script agree.
 
@@ -10,46 +10,34 @@ tip_event_names <- function() c("hint", "pin", "copy")
 # The attribute that lists the inputs a tag sends, named after the engine's own prefix like the marker's.
 tip_shiny_attribute <- function() paste0("data-", tip_names()$prefix, "-shiny-events")
 
-# The name of the custom message a server call sends; inst/shiny/shiny.js listens on the same names.
+# The name of the custom message a server call sends; inst/runtime/shiny.js listens on the same names.
 tip_message <- function(what) paste0(tip_names()$prefix, "-tip-", what)
 
-# The layer as a script for the page's head: the file inst/shiny/shiny.js, then the call that gives it the names. It is
-# put in the engine's own dependency, so every page that has a tip has it, and a page with no Shiny ignores it. Read
-# once per session: tip_on() asks for it for every tag.
-tip_shiny_head <- function() {
-  if (is.null(tip_state$shiny_head)) {
-    config <- list(
-      attributes = list(
-        id = tip_attribute("id"),
-        open = tip_contract()$attributes$open,
-        events = tip_shiny_attribute(),
-        more = tip_attribute("more"),
-        moreTemplate = tip_attribute("more_template")
-      ),
-      global = tip_names()$global,
-      css = tip_names()$css,
-      parkClass = tip_output_park_class(),
-      statuses = as.list(tip_statuses),
-      # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
-      states = list(hint = tip_rules()$open$values[[1]], pin = tip_rules()$open$values[[2]]),
-      events = list(
-        hint = tip_contract()$events$hint$name,
-        tip = tip_contract()$events$tip$name,
-        copy = tip_contract()$events$copy$name
-      ),
-      messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
-    )
-    code <- paste(readLines(system.file("shiny", "shiny.js", package = "hovercraft"), warn = FALSE), collapse = "\n")
-    css <- paste(readLines(system.file("shiny", "shiny.css", package = "hovercraft"), warn = FALSE), collapse = "\n")
-    tip_state$shiny_head <- sprintf(
-      "<style>%s</style><script>%s\n%sShiny.start(%s);</script>",
-      css,
-      code,
-      tip_names()$global,
-      jsonlite::toJSON(config, auto_unbox = TRUE)
-    )
-  }
-  tip_state$shiny_head
+# What the runtime script (inst/runtime/runtime.js) and the Shiny layer (inst/runtime/shiny.js) are told, as one JSON
+# object in a `<meta>` of the runtime dependency: the names they use. It is data, so a page whose policy allows no
+# inline script runs the same files.
+tip_runtime_config <- function() {
+  list(
+    attributes = list(
+      id = tip_attribute("id"),
+      open = tip_contract()$attributes$open,
+      events = tip_shiny_attribute(),
+      more = tip_attribute("more"),
+      moreTemplate = tip_attribute("more_template")
+    ),
+    global = tip_names()$global,
+    css = tip_names()$css,
+    parkClass = tip_output_park_class(),
+    statuses = as.list(tip_statuses),
+    # The engine's `open` attribute holds the kind of tip that is open; engine.json lists "hint" first, then "pin".
+    states = list(hint = tip_rules()$open$values[[1]], pin = tip_rules()$open$values[[2]]),
+    events = list(
+      hint = tip_contract()$events$hint$name,
+      tip = tip_contract()$events$tip$name,
+      copy = tip_contract()$events$copy$name
+    ),
+    messages = list(show = tip_message("show"), hide = tip_message("hide"), update = tip_message("update"))
+  )
 }
 
 # `events` as the attribute value, or NULL: a subset of "hint", "pin" and "copy".

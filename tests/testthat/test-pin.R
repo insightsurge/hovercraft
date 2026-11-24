@@ -109,7 +109,11 @@ describe("the pin layer's files", {
   it("get every name of the engine from R, and write none of the engine's own", {
     expect_false(grepl(tip_names()$attribute, js, fixed = TRUE))
     dependency <- tip_pin_dependency()
-    config <- jsonlite::fromJSON(sub("^.*Pin\\.start\\((.*)\\);</script>$", "\\1", dependency$head))
+    expect_null(dependency$head)
+    config <- jsonlite::fromJSON(
+      rawToChar(jsonlite::base64_dec(dependency$meta[["hovercraft-pin-config"]])),
+      simplifyVector = TRUE
+    )
     expect_identical(config$attributes$pin, tip_attribute("pin"))
     expect_identical(config$attributes$part, tip_contract()$attributes$part)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)

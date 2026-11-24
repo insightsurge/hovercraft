@@ -670,7 +670,14 @@ describe("tip_table(style =)", {
     expect_match(look_of(got, 1L), sprintf("\"%s\":\"sober\"", preset()), fixed = TRUE)
     expect_length(theme_dep(got), 2L)
     expect_match(
-      paste(vapply(got$dependencies, function(d) paste(d$head, collapse = ""), ""), collapse = ""),
+      paste(
+        vapply(
+          got$dependencies,
+          function(d) if (identical(length(d$stylesheet), 1L) && is.list(d$src)) dep_css_if_file(d) else "",
+          ""
+        ),
+        collapse = ""
+      ),
       "--hovercraft-tip-motion: slide;",
       fixed = TRUE
     )

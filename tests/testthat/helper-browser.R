@@ -1,6 +1,6 @@
 # A headless Chrome whose profile is in tempdir(), so R removes it with the session (chromote's own keeps its profile
 # in the user's Application Support folder). Opens an HTML file or a URL and gives a small set of helpers.
-local_page <- function(html_file, env = parent.frame()) {
+local_page <- function(html_file, env = parent.frame(), init = NULL) {
   old <- options(chromote.timeout = 60)
   withr::defer(options(old), envir = env)
   browser <- chromote::Chrome$new(
@@ -27,6 +27,11 @@ local_page <- function(html_file, env = parent.frame()) {
   session$Runtime$exceptionThrown(callback = function(event) {
     problems <<- c(problems, event$exceptionDetails$text)
   })
+  # A script that runs in every document before the page's own, to catch what happens while it loads.
+  if (!is.null(init)) {
+    session$Page$enable()
+    session$Page$addScriptToEvaluateOnNewDocument(source = init)
+  }
   session$Page$navigate(if (grepl("^https?://", html_file)) html_file else paste0("file://", normalizePath(html_file)))
 
   evaluate <- function(js) session$Runtime$evaluate(js, returnByValue = TRUE)$result$value

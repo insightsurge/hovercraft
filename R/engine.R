@@ -32,7 +32,12 @@ tip_contract <- function() {
 
 # The Shiny session that is running, or NULL outside one (and when Shiny is not installed).
 tip_session <- function() {
-  if (requireNamespace("shiny", quietly = TRUE)) shiny::getDefaultReactiveDomain() else NULL
+  # nocov start: Shiny is installed wherever the package is tested; without it there is no session to find
+  if (!requireNamespace("shiny", quietly = TRUE)) {
+    return(NULL)
+  }
+  # nocov end
+  shiny::getDefaultReactiveDomain()
 }
 
 # Where tip_define() keeps what it has seen, so that tip_on() can check a record against a template. Inside a Shiny
@@ -106,10 +111,24 @@ tip_reset <- function() {
 #'   variables such as `list("--hovercraft-tip-bg" = "#1b3a6b")`. A string that holds `:` or `;` is not a style: it
 #'   looks like CSS, and `style` takes no CSS.
 #'
-#' @returns An [htmltools::htmlDependency()]; with a `style` that sets something, a list of two: the engine and
-#'   `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as the engine's
-#'   attributes on the page. Put it once in the page's UI, for example
-#'   `bslib::page_fluid(tip_dependency(style = "sober"), ...)`.
+#' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
+#'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as
+#'   the engine's attributes on the page, and last `hovercraft-runtime`, which starts the engine and the layers. Put it
+#'   once in the page's UI, for example `bslib::page_fluid(tip_dependency(style = "sober"), ...)`.
+#'
+#'   Nothing in them is inline script or style: they are files and data, so a page served with
+#'   `Content-Security-Policy: script-src 'self'; style-src 'self'` works. A style sheet that is made from a theme is
+#'   written to a file in the R session's temporary folder and served from there. The scripts read their names and
+#'   [tip_define()]'s templates from JSON, which a browser does not run, and set styles through the browser's style
+#'   object, which a policy on inline markup does not cover.
+#'
+#'   What such a page still needs, because it is not hovercraft's markup:
+#'   * a policy that has `default-src` or `img-src` must also allow `data:` images, or the lock and the pin button,
+#'     which are drawn from small `data:` images, are not drawn (their words still are);
+#'   * a `style` attribute written in markup, such as the width that [shiny::actionButton()] and [shiny::plotOutput()]
+#'     write, is blocked by `style-src 'self'` whoever writes it. `style-src-attr 'unsafe-inline'` allows them, and
+#'     nothing else, or the page can use classes and a style sheet instead.
+#'
 #' @family tooltips
 #' @examples
 #' tip_dependency()
@@ -118,20 +137,23 @@ tip_reset <- function() {
 #' tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 #' @export
 tip_dependency <- function(style = NULL) {
-  engine <- htmltools::htmlDependency(
+  style <- tip_as_style(style, "style")
+  page <- if (!is.null(style)) tip_style_page(style)
+  c(list(tip_engine_dependency()), if (!is.null(page)) list(page), list(tip_runtime_dependency()))
+}
+
+# The engine's own two files; it starts and is told about templates by the runtime dependency.
+tip_engine_dependency <- function() {
+  htmltools::htmlDependency(
     name = "hovercraft",
     version = tip_engine_version(),
     src = "engine/www",
     package = "hovercraft",
     script = "tip.js",
-    stylesheet = "tip.css",
-    head = paste0(
-      sprintf("<script>%s.attach(document);</script>", tip_names()$global),
-      tip_shiny_head(),
-      tip_status_css()
-    )
+    stylesheet = "tip.css"
   )
-  style <- tip_as_style(style, "style")
-  page <- if (!is.null(style)) tip_style_page(style)
-  if (is.null(page)) engine else list(engine, page)
 }
+
+# The engine and the runtime, which every tag that has a tip attaches. The runtime comes last: it starts the engine and
+# reads the data the other dependencies carry.
+tip_base_dependencies <- function() list(tip_engine_dependency(), tip_runtime_dependency())

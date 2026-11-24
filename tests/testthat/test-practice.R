@@ -61,24 +61,43 @@ describe("module template names and ids", {
 
 describe("app frameworks and reverse-proxy dependency structure", {
   it("ships tip_dependency() as a package-relative htmlDependency with no absolute paths", {
-    dep <- tip_dependency()
-    expect_s3_class(dep, "html_dependency")
-    expect_identical(dep$package, "hovercraft")
-    expect_identical(dep$src$file, "engine/www")
-    expect_false(startsWith(dep$script, "/"))
-    expect_false(startsWith(dep$stylesheet, "/"))
+    for (dep in tip_dependency()) {
+      expect_s3_class(dep, "html_dependency")
+      expect_identical(dep$package, "hovercraft")
+      expect_false(startsWith(dep$src$file, "/"))
+      expect_false(any(startsWith(dep$script %||% "", "/")))
+      expect_false(any(startsWith(dep$stylesheet %||% "", "/")))
+    }
+    expect_identical(tip_dependency()[[1]]$src$file, "engine/www")
   })
 })
 
 describe("production checks (strict CSP and multi-session R state)", {
   it("emits no inline <script> or <style> tags under a strict Content-Security-Policy", {
-    testthat::skip("known: tip_dependency() and tip_define() emit inline <script> and <style> blocks")
-    dep <- tip_dependency()
-    expect_false(grepl("<script|<style", dep$head %||% "", ignore.case = TRUE))
     tip_reset()
     withr::defer(tip_reset())
+    # No dependency carries markup in its head: files and data only. (test-csp-browser.R serves a page under the policy.)
+    deps <- c(
+      tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "9px"), gap = 3)),
+      tip_on(
+        htmltools::tags$button("A"),
+        "a",
+        style = tip_style(gap = 2),
+        more = tip_template(tip_text("b")),
+        pin = TRUE,
+        id = "a"
+      ) |>
+        htmltools::findDependencies(),
+      tip_on(htmltools::tags$button("B", disabled = NA), "b", when_disabled = "why") |> htmltools::findDependencies()
+    )
+    for (dep in deps) {
+      expect_false(grepl("<script|<style", dep$head %||% "", ignore.case = TRUE), info = dep$name)
+    }
     def_html <- as.character(htmltools::renderTags(tip_define(csp_card = tip_template(tip_text("x"))))$html)
-    expect_false(grepl("<script", def_html, ignore.case = TRUE))
+    expect_false(grepl("<style", def_html, ignore.case = TRUE))
+    # The one script is a JSON data block, which a browser does not run.
+    scripts <- regmatches(def_html, gregexpr("<script[^>]*>", def_html))[[1]]
+    expect_true(all(grepl("type=\"application/json\"", scripts, fixed = TRUE)))
   })
 
   it("isolates tip_define() template registries across separate Shiny sessions in one R process", {

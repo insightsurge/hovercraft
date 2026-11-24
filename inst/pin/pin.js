@@ -4,11 +4,14 @@
 // buttons over the hint's top-right corner as a separate element, and gives the keyboard a pin key. It uses only the
 // engine's public doors: the hint event, `pin(el, { by, via })`, the part mark (an element that carries it counts as
 // part of the hint, so the pointer moving onto it does not close the hint, and moving off it closes the hint the way a
-// pointer leaving the hint does) and the hint box's class. R passes the names in `start()`, so none is typed here twice.
+// pointer leaving the hint does) and the hint box's class. R gives the names as data in a <meta name="hovercraft-pin-config">, so none is typed here twice and nothing is inline.
 (() => {
   if (window.HovercraftPin) return;
 
   let names = null;
+  // A <meta>'s content is base64 of JSON (see tip_meta_value() in R/runtime.R).
+  const decode = (content) =>
+    JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(content), (c) => c.charCodeAt(0))));
   const STRIP = 'hovercraft-pin-strip';
   // How long a strip stays after its hint was told to close, so it fades with the hint and never outlives it.
   const LINGER = 600;
@@ -139,4 +142,6 @@
       document.addEventListener('keydown', onKey);
     },
   });
+  const meta = document.querySelector('meta[name="hovercraft-pin-config"]');
+  if (meta) window.HovercraftPin.start(decode(meta.content));
 })();

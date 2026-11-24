@@ -115,13 +115,17 @@ describe("tip_template_fields()", {
 describe("tip_define()", {
   withr::defer(tip_reset())
 
-  it("returns a script that defines each template under the engine's global, with the dependency", {
+  it("returns a data block that defines each template, which the runtime script reads, with the dependency", {
     tip_reset()
     got <- tip_define(diff = tip_template(tip_title("{{ label }}")), plain = list(list(type = "text", text = "x")))
     html <- as.character(got)
-    expect_match(html, paste0(tip_names()$global, ".define(\"diff\", ["), fixed = TRUE)
-    expect_match(html, paste0(tip_names()$global, ".define(\"plain\", ["), fixed = TRUE)
+    expect_match(html, "{\"op\":\"define\",\"name\":\"diff\",\"blocks\":[", fixed = TRUE)
+    expect_match(html, "{\"op\":\"define\",\"name\":\"plain\",\"blocks\":[", fixed = TRUE)
+    # A JSON block, not a script: a browser does not run it, and a policy that allows no inline script does not block it.
+    expect_match(html, "^<script type=\"application/json\" data-hovercraft-ops=\"\">", perl = TRUE)
+    expect_no_match(html, "Hovercraft.define", fixed = TRUE)
     expect_identical(htmltools::findDependencies(got)[[1]]$name, "hovercraft")
+    expect_identical(htmltools::findDependencies(got)[[2]]$name, "hovercraft-runtime")
   })
 
   it("remembers the templates, with their fields", {
@@ -132,7 +136,7 @@ describe("tip_define()", {
 
   it("accepts one bare block as a template", {
     tip_reset()
-    expect_match(as.character(tip_define(one = list(type = "text", text = "x"))), "define(\"one\"", fixed = TRUE)
+    expect_match(as.character(tip_define(one = list(type = "text", text = "x"))), "\"name\":\"one\"", fixed = TRUE)
   })
 
   it("keeps a value from closing the script", {
@@ -167,8 +171,8 @@ describe("tip_define()", {
     expect_no_warning(
       tip_define(!!paste0(ns_nested, "-card") := tip_template(tip_text("Nested")))
     )
-    expect_match(as.character(a), "define(\"mod_a-card\"", fixed = TRUE)
-    expect_match(as.character(b), "define(\"mod_b-card\"", fixed = TRUE)
+    expect_match(as.character(a), "\"name\":\"mod_a-card\"", fixed = TRUE)
+    expect_match(as.character(b), "\"name\":\"mod_b-card\"", fixed = TRUE)
     expect_identical(tip_known()[["mod_a-card"]]$fields, "a")
     expect_identical(tip_known()[["mod_b-card"]]$fields, "b")
     expect_error(tip_define(`-card` = tip_template(tip_text("a"))), class = "hovercraft_error_name")

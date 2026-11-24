@@ -23,10 +23,25 @@ variables such as \code{list("--hovercraft-tip-bg" = "#1b3a6b")}. A string that 
 looks like CSS, and \code{style} takes no CSS.}
 }
 \value{
-An \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}}; with a \code{style} that sets something, a list of two: the engine and
-\code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as the engine's
-attributes on the page. Put it once in the page's UI, for example
-\code{bslib::page_fluid(tip_dependency(style = "sober"), ...)}.
+A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}
+that sets something, \code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as
+the engine's attributes on the page, and last \code{hovercraft-runtime}, which starts the engine and the layers. Put it
+once in the page's UI, for example \code{bslib::page_fluid(tip_dependency(style = "sober"), ...)}.
+
+Nothing in them is inline script or style: they are files and data, so a page served with
+\verb{Content-Security-Policy: script-src 'self'; style-src 'self'} works. A style sheet that is made from a theme is
+written to a file in the R session's temporary folder and served from there. The scripts read their names and
+\code{\link[=tip_define]{tip_define()}}'s templates from JSON, which a browser does not run, and set styles through the browser's style
+object, which a policy on inline markup does not cover.
+
+What such a page still needs, because it is not hovercraft's markup:
+\itemize{
+\item a policy that has \code{default-src} or \code{img-src} must also allow \verb{data:} images, or the lock and the pin button,
+which are drawn from small \verb{data:} images, are not drawn (their words still are);
+\item a \code{style} attribute written in markup, such as the width that \code{\link[shiny:actionButton]{shiny::actionButton()}} and \code{\link[shiny:plotOutput]{shiny::plotOutput()}}
+write, is blocked by \verb{style-src 'self'} whoever writes it. \verb{style-src-attr 'unsafe-inline'} allows them, and
+nothing else, or the page can use classes and a style sheet instead.
+}
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}

@@ -145,10 +145,12 @@ describe("tip_update()", {
 describe("tip_on(events = )", {
   attrs <- function(tag) unlist(tag$attribs)
 
-  it("writes the events attribute only when asked, and the engine's dependency carries the Shiny layer", {
+  it("writes the events attribute only when asked, and the runtime dependency carries the Shiny layer", {
     got <- tip_on(button(), "Runs", id = "run_tip", events = "hint")
     expect_identical(attrs(got)[[tip_shiny_attribute()]], "hint")
-    expect_match(htmltools::findDependencies(got)[[1]]$head, "HovercraftShiny.start", fixed = TRUE)
+    runtime <- Filter(function(d) d$name == "hovercraft-runtime", htmltools::findDependencies(got))[[1]]
+    expect_true("shiny.js" %in% runtime$script)
+    expect_null(runtime$head)
     plain <- tip_on(button(), "Runs", id = "run_tip")
     expect_false(tip_shiny_attribute() %in% names(plain$attribs))
   })
@@ -180,7 +182,7 @@ describe("tip_on(events = )", {
   })
 
   it("writes the layer's names from the engine's contract, not its own", {
-    config <- jsonlite::fromJSON(sub("^.*Shiny\\.start\\(([^\n]*)\\);</script>.*$", "\\1", tip_shiny_head()))
+    config <- jsonlite::fromJSON(jsonlite::toJSON(tip_runtime_config(), auto_unbox = TRUE))
     expect_identical(config$attributes$id, tip_attribute("id"))
     expect_identical(config$attributes$open, tip_contract()$attributes$open)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)

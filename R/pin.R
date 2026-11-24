@@ -100,6 +100,7 @@ tip_pin_dependency <- function() {
     key = tip_pin_key(),
     labels = list(pin = "Pin this tip")
   )
+  # The names are data in a <meta>, which inst/pin/pin.js reads when it loads; no inline script starts it.
   htmltools::htmlDependency(
     name = "hovercraft-pin",
     version = as.character(getNamespaceVersion("hovercraft")),
@@ -107,11 +108,7 @@ tip_pin_dependency <- function() {
     package = "hovercraft",
     script = "pin.js",
     stylesheet = "pin.css",
-    head = sprintf(
-      "<script>%sPin.start(%s);</script>",
-      tip_names()$global,
-      jsonlite::toJSON(config, auto_unbox = TRUE)
-    ),
+    meta = list("hovercraft-pin-config" = tip_meta_value(config)),
     all_files = FALSE
   )
 }
