@@ -3,7 +3,13 @@
 
 # The engine's page contract (attribute names, events, presets), from a file every install has, so the studio never
 # writes one of the engine's names itself.
-studio_contract <- function() jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
+studio_cache <- new.env()
+studio_contract <- function() {
+  if (is.null(studio_cache$contract)) {
+    studio_cache$contract <- jsonlite::read_json(system.file("engine", "tip.json", package = "hovercraft"))
+  }
+  studio_cache$contract
+}
 
 # A CSS selector for the tag whose tip has the id `id` (the id given to tip_on(id =)).
 tip_target <- function(id) sprintf("[%s=\"%s\"]", studio_contract()$attributes$id, id)
@@ -109,7 +115,7 @@ steps_server <- function(input, session, plate, steps) {
   }
   shiny::observeEvent(input$studio_tick, {
     t <- input$studio_tick
-    if (!identical(t$plate, plate) || !is.numeric(t$i) || t$i < 0 || t$i >= length(steps)) {
+    if (!identical(t$plate, plate) || !checkmate::test_int(t$i, lower = 0, upper = length(steps) - 1)) {
       return()
     }
     i <- as.integer(t$i)

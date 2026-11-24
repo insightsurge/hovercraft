@@ -1,10 +1,13 @@
 # Plate 8, Tables: tips on the rows, cells and headers of a DT or reactable table, each from its own row.
 
 tables_widgets <- c("DT" = "DT", "reactable" = "reactable")
+
+# The widget the plate opens on: DT when it is installed, else reactable.
+tables_default <- function() if (requireNamespace("DT", quietly = TRUE)) "DT" else "reactable"
 tables_parts <- c("rows" = "rows", "rows and headers" = "headers", "rows and a cell" = "cells")
 
 tables_code <- function(settings) {
-  widget <- choice(settings$widget, tables_widgets, "DT")
+  widget <- choice(settings$widget, tables_widgets, tables_default())
   parts <- choice(settings$parts, tables_parts, "rows")
   data <- paste0(
     "branches <- data.frame(\n",
@@ -71,7 +74,7 @@ plate_tables_ui <- function() {
     log_empty = "Table tips send no inputs yet.",
     controls = htmltools::tagList(
       "Draw the table with",
-      choice_set("tables_widget", "Widget", tables_widgets),
+      choice_set("tables_widget", "Widget", tables_widgets, tables_default()),
       "and put tips on",
       choice_set("tables_parts", "Parts", tables_parts)
     )
@@ -82,7 +85,7 @@ plate_tables_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "tables", tables_steps())
   code <- shiny::reactive(tables_code(list(widget = input$tables_widget, parts = input$tables_parts)))
   missing <- shiny::reactive({
-    widget <- choice(input$tables_widget, tables_widgets, "DT")
+    widget <- choice(input$tables_widget, tables_widgets, tables_default())
     if (!requireNamespace(widget, quietly = TRUE)) widget
   })
   plate_code(input, output, session, "tables", code, draw = FALSE)

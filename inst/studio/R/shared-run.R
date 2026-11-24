@@ -62,10 +62,12 @@ as_ui <- function(x) {
 
 # Runs a plate's server code as it is shown: every expression, with hovercraft's exports, the session and its inputs in
 # reach, as in a reader's own server function.
-run_server_code <- function(code, input, session, exports = studio_exports()) {
+run_server_code <- function(code, input, session, ..., exports = studio_exports()) {
   env <- new.env(parent = exports)
   env$input <- input
   env$session <- session
+  # What the shown code reads from the page's UI code, such as its data.
+  list2env(list(...), envir = env)
   for (expr in parse(text = code, keep.source = FALSE)) {
     eval(expr, env)
   }

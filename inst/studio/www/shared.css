@@ -220,12 +220,21 @@ p {
   align-items: baseline;
   gap: 10px;
 }
+.note-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.note-head h3 {
+  margin: 0;
+}
+.note-head button {
+  margin-left: auto;
+}
 .note h3 .aside {
   font-weight: 400;
   color: var(--ink-2);
-  margin-left: auto;
-}
-.note h3 button {
   margin-left: auto;
 }
 

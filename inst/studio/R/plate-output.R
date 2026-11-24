@@ -102,9 +102,9 @@ output_render_body <- function(mode) {
   )
 }
 
-# The server's code for a mode: which region is open (from the pin and hint inputs; a hint never takes the plot away
-# from a pinned tip), and the render.
-output_server_code <- function(mode) {
+# The server's code that says which region is open, from the pin and hint inputs (a hint never takes the plot away
+# from a pinned tip). Shown in the code note, and run by the server as it is shown.
+output_observer_code <- function() {
   weeks <- paste0(
     "weeks <- list(\n",
     paste0("  ", names(studio_weeks), " = c(", vapply(studio_weeks, paste, "", collapse = ", "), ")", collapse = ",\n"),
@@ -134,11 +134,16 @@ output_server_code <- function(mode) {
       "      if (input[[paste0(id, \"_hint\")]]$state == \"shown\" && is.null(pinned())) open(region)",
       "    })",
       "  })",
-      "}",
-      "output$region_trend <- shiny::renderPlot({",
-      output_render_body(mode),
-      "})"
+      "}"
     ),
+    collapse = "\n"
+  )
+}
+
+# The server's whole code for a mode: the observers, then the render.
+output_server_code <- function(mode) {
+  paste(
+    c(output_observer_code(), "output$region_trend <- shiny::renderPlot({", output_render_body(mode), "})"),
     collapse = "\n"
   )
 }
@@ -210,52 +215,15 @@ plate_output_server <- function(input, output, session) {
     ui_code = shiny::reactive(output_ui_code()),
     server_code = shiny::reactive(output_server_code(input$output_mode))
   )
-  # The server below does what output_server_code() shows: the same rule for which region is open, and the render
-  # body run from its text. Around it, it tells the log what it drew and what it kept.
-  open <- shiny::reactiveVal("North")
-  pinned <- shiny::reactiveVal(NULL)
-  # What the plot was last drawn for, and whether its tip has closed since: a pin after a close that draws nothing new
-  # is a kept plot.
+  # The shown code, run as it is shown: the observers from their text, then a render whose body is run from its
+  # text. Around them, and outside the shown code, the studio counts the plot's draws and tells the log what it drew.
+  env <- run_server_code(output_observer_code(), input, session, regions = studio_regions)
   seen <- new.env()
+  seen$draws <- 0L
   seen$drawn_for <- NULL
-  seen$closed <- FALSE
-  for (region in studio_regions$region) {
-    local({
-      region <- region
-      id <- paste0("region_", tolower(region))
-      shiny::observeEvent(input[[paste0(id, "_tip")]], {
-        value <- input[[paste0(id, "_tip")]]
-        if (identical(value$state, "closed")) {
-          seen$closed <- TRUE
-          if (identical(pinned(), region)) pinned(NULL)
-        }
-        if (!identical(value$state, "pinned")) {
-          return()
-        }
-        if (
-          identical(seen$drawn_for, region) &&
-            seen$closed &&
-            identical(value$by, "reader") &&
-            identical(choice(input$output_mode, output_modes, "plot"), "plot")
-        ) {
-          log_line(session, "output", "output$region_trend", paste("kept for", region, "(not drawn again)"), "out")
-          ticks$check("studio:kept", paste0("the server kept the plot for ", region))
-        }
-        seen$closed <- FALSE
-        pinned(region)
-        open(region)
-      })
-      shiny::observeEvent(input[[paste0(id, "_hint")]], {
-        if (identical(input[[paste0(id, "_hint")]]$state, "shown") && is.null(pinned())) open(region)
-      })
-    })
-  }
-  env <- new.env(parent = baseenv())
-  env$weeks <- studio_weeks
-  env$open <- open
-  env$input <- input
+  seen$closed <- character()
   output$region_trend <- shiny::renderPlot({
-    region <- open()
+    region <- env$open()
     mode <- choice(input$output_mode, output_modes, "plot")
     body <- parse(text = paste(c("{", output_render_body(mode), "}"), collapse = "\n"), keep.source = FALSE)[[1]]
     if (mode == "empty") {
@@ -264,10 +232,51 @@ plate_output_server <- function(input, output, session) {
     } else if (mode == "error" && !isTRUE(input$region_trend_retry > 0)) {
       log_line(session, "output", "output$region_trend", paste("error for", region), "out")
     } else {
+      seen$draws <- seen$draws + 1L
       seen$drawn_for <- region
       log_line(session, "output", "output$region_trend", paste("drawn for", region), "out")
     }
     eval(body, env)
+  })
+  # "Kept": a region's tip pinned again after it closed, and a second later the plot has not been drawn again and is
+  # still the one drawn for that region. Decided from the draws counted above, after Shiny has had time to draw.
+  pending <- shiny::reactiveVal(NULL)
+  for (region in studio_regions$region) {
+    local({
+      region <- region
+      name <- paste0("region_", tolower(region), "_tip")
+      shiny::observeEvent(input[[name]], {
+        value <- input[[name]]
+        if (identical(value$state, "closed")) {
+          seen$closed <- union(seen$closed, region)
+        }
+        if (identical(value$state, "pinned") && identical(value$by, "reader")) {
+          if (region %in% seen$closed) {
+            pending(list(region = region, draws = seen$draws, at = Sys.time()))
+          }
+          seen$closed <- setdiff(seen$closed, region)
+        }
+      })
+    })
+  }
+  shiny::observe({
+    p <- pending()
+    if (is.null(p)) {
+      return()
+    }
+    wait <- 1.2 - as.numeric(difftime(Sys.time(), p$at, units = "secs"))
+    if (wait > 0) {
+      shiny::invalidateLater(ceiling(wait * 1000) + 50)
+      return()
+    }
+    pending(NULL)
+    kept <- seen$draws == p$draws &&
+      identical(seen$drawn_for, p$region) &&
+      identical(shiny::isolate(choice(input$output_mode, output_modes, "plot")), "plot")
+    if (kept) {
+      log_line(session, "output", "output$region_trend", paste("kept for", p$region, "(not drawn again)"), "out")
+      ticks$check("studio:kept", paste0("the server kept the plot for ", p$region))
+    }
   })
   ids <- paste0("region_", tolower(studio_regions$region))
   log_inputs(input, session, "output", c(paste0(ids, "_tip"), "region_trend_retry"))

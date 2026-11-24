@@ -39,6 +39,11 @@ describe("tip_studio()", {
     expect_identical(plain$httpHandler(list(QUERY_STRING = "")), "")
   })
 
+  it("asks R whether the session is interactive: one TRUE or FALSE", {
+    expect_identical(tip_studio_interactive(), interactive())
+    expect_true(checkmate::test_flag(tip_studio_interactive()))
+  })
+
   it("runs the app only in an interactive session", {
     skip_if_not_installed("shiny")
     skip_if_not_installed("bslib")
@@ -125,6 +130,40 @@ describe("the studio's page", {
   })
 })
 
+describe("the studio's server", {
+  it("starts every plate's server and draws every figure and note, with no undefined name", {
+    skip_if_not_installed("shiny")
+    skip_if_not_installed("bslib")
+    skip_if_not_installed("DT")
+    studio <- load_studio()
+    shiny::testServer(studio$studio_server, {
+      session$setInputs(page_mode = "light", studio_ready = 1)
+      for (id in studio$studio_plates$id) {
+        expect_no_error(output[[paste0(id, "_figure")]])
+        expect_no_error(output[[paste0(id, "_notes")]])
+      }
+      # A choice on each plate, and the hint, pin and copy inputs a reader sends, reach the observers.
+      session$setInputs(
+        start_preset = "dense",
+        basics_marker = "corner",
+        templates_record = "SUP-2304",
+        more_on = "hover",
+        pins_copy = "off",
+        disabled_state = "ready",
+        output_mode = "empty",
+        tables_parts = "headers",
+        visits_hint = list(state = "shown", by = "reader"),
+        col_wait_min_tip = list(state = "pinned", by = "reader"),
+        region_north_tip = list(state = "pinned", by = "reader"),
+        onboarding_hint = list(state = "shown", by = "host", via = "command"),
+        srv_show = 1,
+        studio_tick = list(plate = "tables", i = 0, on = TRUE)
+      )
+      expect_no_error(output$basics_figure)
+    })
+  })
+})
+
 describe("the code each plate shows", {
   studio <- load_studio()
   exports <- studio$studio_exports()
@@ -174,6 +213,26 @@ describe("the code each plate shows", {
     pins <- studio$pins_code(list(copy = "off"))
     expect_no_match(pins, "copy = TRUE", fixed = TRUE)
     expect_match(studio$pins_code(list(copy = "on")), "copy = TRUE", fixed = TRUE)
+  })
+
+  it("gives the default code for a value the plate does not offer", {
+    hostile <- "x\"); system(\"id\"); \""
+    cases <- list(
+      list(studio$basics_code, c("marker", "placement", "look")),
+      list(studio$templates_code, c("record", "slots")),
+      list(studio$more_code, c("more_on", "pin")),
+      list(studio$pins_code, c("placement", "copy")),
+      list(studio$tables_code, c("widget", "parts"))
+    )
+    for (case in cases) {
+      for (name in case[[2]]) {
+        settings <- stats::setNames(list(hostile), name)
+        expect_identical(case[[1]](settings), case[[1]](list()), info = name)
+      }
+    }
+    expect_identical(studio$start_look_code(hostile, hostile), studio$start_look_code("sober", "fade"))
+    expect_identical(studio$output_server_code(hostile), studio$output_server_code("plot"))
+    expect_identical(studio$disabled_server_code(hostile), studio$disabled_server_code("loading"))
   })
 
   it("does not run code that leans on something outside the exports", {

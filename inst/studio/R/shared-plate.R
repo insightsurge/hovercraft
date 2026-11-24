@@ -66,14 +66,11 @@ plate <- function(
 code_note <- function(id, code) {
   htmltools::tags$section(
     class = "note",
-    htmltools::h3(
-      "R code",
-      htmltools::tags$button(
-        type = "button",
-        class = "btn-quiet js-copy",
-        `aria-label` = "Copy the R code",
-        "Copy"
-      )
+    # The button sits beside the heading, not inside it, so the heading reads "R code".
+    htmltools::div(
+      class = "note-head",
+      htmltools::h3("R code"),
+      htmltools::tags$button(type = "button", class = "btn-quiet js-copy", `aria-label` = "Copy the R code", "Copy")
     ),
     htmltools::tags$pre(class = "code", `data-code` = id, `data-rev` = "0", tabindex = "0", code)
   )
