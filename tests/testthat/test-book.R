@@ -153,7 +153,7 @@ describe("the book's page", {
       expect_match(page, paste0("data-plate=\"", id, "\" data-search=\"[^\"]+\""))
     }
     for (title in book$book_parts$title) {
-      expect_match(page, paste0("<h2>", title, "</h2>"), fixed = TRUE)
+      expect_match(page, paste0("<span>", title, "</span>\n?\\s*</h2>"))
     }
     # A search finds a section by a function or an argument it shows.
     expect_match(page, "data-plate=\"output\" data-search=\"[^\"]*keep_alive", perl = TRUE)

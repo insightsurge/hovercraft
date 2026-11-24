@@ -167,6 +167,14 @@ main {
 .plate + .plate {
   margin-top: 40px;
 }
+/* A jump to a section (an index link, ?section=) skips the section's own top padding (56px) and the page's scroll
+   padding (24px), so its first heading, or a part's "Part n", lands level with the wordmark, about 40px down. The
+   phone keeps its own spacing under the bar. */
+@media (min-width: 1100px) {
+  .plate {
+    scroll-margin-top: -80px;
+  }
+}
 /* The plate's number and title stay pinned at the top while the plate is in view, like a running head; the figure
    stays pinned under it. The head is as wide as the plate, so the margin passes under it too. */
 .plate-head {
@@ -176,13 +184,16 @@ main {
   min-height: var(--head-h);
   padding: 40px 0 28px;
   background: var(--paper);
+  /* The number and the title share one line, as in the index, so the number never runs into the index's column. */
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
 }
-.plate-no {
-  position: absolute;
-  right: calc(100% + 22px);
-  top: calc(40px - 0.08em);
+.plate-no,
+.part-head .part-no {
+  flex: none;
   margin: 0;
-  font: 300 var(--s5) / 1 var(--serif);
+  font: 300 var(--s4) / 1.08 var(--serif);
   color: var(--blue);
   font-variant-numeric: lining-nums;
 }
@@ -605,16 +616,6 @@ main {
     padding-top: 40px;
   }
   /* The number and the title share one line, as in the index. */
-  .plate-head {
-    display: flex;
-    align-items: baseline;
-    gap: 10px;
-  }
-  .plate-no {
-    position: static;
-    flex: none;
-    font-size: var(--s2);
-  }
   .plate-kicker {
     display: inline;
   }
@@ -796,7 +797,10 @@ main {
     font-size: var(--s2);
     gap: 4px 18px;
   }
-  .plate-head h3 {
+  .plate-head h3,
+  .plate-no,
+  .part-head h2,
+  .part-head .part-no {
     font-size: var(--s3);
   }
   .plate .lede {
@@ -1210,18 +1214,33 @@ body {
 }
 
 /* A part's own heading, on its first section: a small kicker over the section, as a book's part title. */
+/* A part's title is as large as its sections' titles: "Part 4" in blue says it is a part, as "4.1" says a section is
+   one. A hairline above sets one part off from the last. */
 .part-head {
   padding: 8px 0 0;
   font-family: var(--sans);
 }
-.part-head .part-no {
-  margin: 0;
-  font: 500 var(--s-1) / 1.4 var(--sans);
-  color: var(--blue);
+.part-head + .plate-head {
+  padding-top: 32px;
+}
+.plate + .plate .part-head {
+  margin-top: 24px;
+  padding-top: 40px;
+  border-top: 1px solid var(--rule);
+}
+/* On a desktop the hairline sits at the very top of a part's first section, so a jump to it lands "Part n" level
+   with the wordmark (see .plate's scroll margin). */
+@media (min-width: 1100px) {
+  .plate + .plate .part-head {
+    margin-top: 0;
+  }
 }
 .part-head h2 {
-  margin: 2px 0 4px;
-  font: 400 var(--s3) / 1.15 var(--serif);
+  display: flex;
+  align-items: baseline;
+  gap: 0.45em;
+  margin: 0 0 6px;
+  font: 400 var(--s4) / 1.08 var(--serif);
   color: var(--ink);
 }
 .part-head .part-lede {

@@ -77,8 +77,7 @@ part_head <- function(at) {
   htmltools::div(
     class = "part-head",
     id = paste0("part-", part$n),
-    htmltools::p(class = "part-no", paste("Part", part$n)),
-    htmltools::h2(part$title),
+    htmltools::h2(htmltools::span(class = "part-no", paste("Part", part$n)), htmltools::span(part$title)),
     htmltools::p(class = "part-lede", part$lede)
   )
 }

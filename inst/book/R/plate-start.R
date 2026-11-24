@@ -29,7 +29,12 @@ start_hero_code <- function() {
   )
   more <- paste(
     "Each part of this tip is a section of the book: the template, badge and fields (2.1), the pin and Copy",
-    "(3.1), this long form (3.2), the editorial look and the slide (4.1), the icon (4.4)."
+    "(3.1), this long form (3.2), the editorial look and the slide (4.1), the book's colours (4.3), the icon (4.4)."
+  )
+  theme <- code_call(
+    "tip_theme",
+    light = code_list(list(bg = "#ffffff", ink = "#1b1f24", line = "#8fb2cf", code_bg = "#e2eaf1")),
+    dark = code_list(list(bg = "#173b5e", ink = "#eef3f7", line = "#4b7aa3", code_bg = "#0f2c47"))
   )
   word <- code_call(
     "tip_on",
@@ -37,7 +42,7 @@ start_hero_code <- function() {
     template = code_str("hovercraft"),
     record = code_list(record),
     more = code_str(more),
-    style = code_call("tip_style", code_str("editorial"), motion = code_str("slide")),
+    style = code_call("tip_style", code_str("editorial"), motion = code_str("slide"), theme = "book_colours"),
     marker = code_call("tip_marker", code_str("icon")),
     pin = "TRUE",
     id = code_str("hero"),
@@ -47,6 +52,8 @@ start_hero_code <- function() {
     c(
       "# The tip on the word hovercraft, in the title above",
       code_call("tip_define", hovercraft = template),
+      "# The book's own colours, light and dark",
+      paste0("book_colours <- ", theme),
       code_call("htmltools::h1", class = code_str("hero"), word)
     ),
     collapse = "\n"
@@ -113,6 +120,9 @@ start_covers <- c(
   "tip_code(copy)",
   "tip_style(preset)",
   "tip_style(motion)",
+  "tip_style(theme)",
+  "tip_theme(light)",
+  "tip_theme(dark)",
   "tip_style(theme)",
   "tip_theme(light)",
   "tip_theme(dark)",
