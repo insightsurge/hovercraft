@@ -44,6 +44,14 @@
 * `tip_table(rows = , cells = , headers = )` takes a `tip_output()` given by id and parks it from the table's own script; one given as a tag stops with an error that says to put the tag in the UI. In a table, `tip_spec(more = )` opens the long form on hover without a `more_on`, since a cell has no pin; `more_on = "pin"` stops with an error anywhere but the spec for `rows` of a table with `pin = TRUE` (#63, #57).
 * `tip_on(more_on = )` and `tip_spec(more_on = )` warn once when there is no `more`. `tip_badge(status = )` takes a placeholder only as the whole value: `"pre {{ tone }}"` stops with the status error instead of always drawing a plain badge (#57, #65).
 * A pinned tip with a long form starts the long form with a hairline, as the hover form does, and clips its box while it grows, so the long form no longer draws outside the box. The output a `more` template holds is put in the page's body by the script, not written into the head (#57).
+* `tip_show()`, `tip_hide()` and `tip_update()` (experimental) take `row` and `column` for the tips of a `tip_table()`:
+  `row` alone is a row, `row` and `column` a cell, `column` alone a header cell. `row` is the position of the row in the
+  data the table has now; `column` is a data column's name or position, and a name that is not a column is an error that
+  lists the columns. In `tip_update()`, `NULL` now leaves a value as it is, `NA` takes it away and `""` clears the
+  `text`; its values are named arguments after `text`. A call made in a reactive flush, such as an observer, is sent when
+  the flush is over, so `tip_show()` in the same observer as the `renderUI()` that draws the tag reaches the new tag; a
+  call from outside a flush, such as a `later` callback, is sent at once. No server call pins a tip or closes a pin
+  (#114).
 * `tip_on()` has rules a frozen API needs. A second call on a tag replaces the old tip whole, `id`, `events`, `pin` and
   `when_disabled` included, and warns once (class `hovercraft_warning_retip`) when the old tip had an `id`, `events` or a
   pin and the new call names none of `id`, `events` and `pin` (`pin = FALSE` counts as naming it). `pin = "click"` stops with an error on a control or a tag that holds one, and says
