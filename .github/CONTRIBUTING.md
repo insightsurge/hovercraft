@@ -97,7 +97,7 @@ per feature. A pull request that changes an export or an argument updates the st
   layout and Guide me.
 - **One source of truth.** Each plate builds its R code as text from its choices (`<id>_code()`); the margin shows
   that text and the figure is the same text, run with only the package's exports in reach. A plate's server code
-  (Live output's render, Disabled's update, From the server's observers) is run from its shown text the same way.
+  (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the same way.
   Code that would fail in a reader's app fails in the studio too. The one exception is the page's look on the Start
   plate: a dependency loads once per page, so the studio writes the attribute and variable that
   `tip_dependency(style = )` writes, with the names from the engine's `tip.json`.

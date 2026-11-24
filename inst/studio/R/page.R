@@ -126,7 +126,7 @@ studio_page <- function(query) {
     htmltools::tags$nav(
       class = "toc-sheet",
       id = "toc-sheet",
-      `aria-label` = "Plates",
+      `aria-label` = "Plates, as a list to open",
       studio_toc(),
       theme_set("theme_sheet")
     ),
