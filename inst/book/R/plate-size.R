@@ -10,12 +10,6 @@ size_hint <- paste(
   "Median time from a ticket opening to its first reply, over the last 7 days. The clock runs in business hours",
   "only, so a ticket opened on Friday evening starts counting on Monday morning."
 )
-size_more <- paste(
-  "**How it is counted.** Tickets opened Monday 00:00 to Sunday 23:59, UTC. The clock runs from 08:00 to 18:00 local",
-  "time, Monday to Friday.\n\nAuto-closed spam (3.1% of tickets) is left out. A reply from a bot does not stop the",
-  "clock; a reply from a person does.\n\n**Source.** The helpdesk export, refreshed every hour."
-)
-
 size_code <- function(settings) {
   gap <- choice(settings$gap, size_gaps, "10")
   max_width <- choice(settings$max_width, size_max_widths, "320")
@@ -23,14 +17,9 @@ size_code <- function(settings) {
   class <- choice(settings$class, size_classes, "card-tip")
   code_call(
     "tip_on",
-    code_call(
-      "htmltools::tags$span",
-      code_str("Median wait"),
-      class = code_str("target"),
-      tabindex = code_str("0")
-    ),
+    code_word("Median wait", class = "target"),
     code_str(size_hint),
-    more = code_str(size_more),
+    more = code_str(book_wait_more),
     style = code_call(
       "tip_style",
       gap = gap,
@@ -45,8 +34,6 @@ size_code <- function(settings) {
 }
 
 size_steps <- function() {
-  gap <- function(input) identical(input$size_gap %||% "10", "18")
-  widest <- function(input) identical(input$size_max_width %||% "320", "440")
   list(
     step(
       paste(
@@ -55,7 +42,7 @@ size_steps <- function() {
       ),
       "the hint touches the tag, or the gap changes when the hint is long.",
       tip_target("size_wait"),
-      on_hint("size_wait", when = gap)
+      on_hint("size_wait", when = chose("size_gap", "18", "10"))
     ),
     step(
       paste(
@@ -64,7 +51,7 @@ size_steps <- function() {
       ),
       "the hint grows past the widest value, or stays narrow.",
       "#size_max_width",
-      on_hint("size_wait", when = widest)
+      on_hint("size_wait", when = chose("size_max_width", "440", "320"))
     ),
     step(
       "Pin it with its corner button or P: the long form opens and the tip grows to the widest pin, wider than a hint.",

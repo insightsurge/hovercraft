@@ -12,41 +12,42 @@ start_hero_code <- function() {
     pages = "Shiny, bslib, DT, reactable",
     code = "tip_on(\n  htmltools::span(\"word\", tabindex = \"0\"),\n  \"What the word means.\"\n)"
   )
+  template <- code_call(
+    "tip_template",
+    head = code_call(
+      "list",
+      code_call("tip_title", code_str("{{ name }}")),
+      code_call("tip_badge", code_str("{{ stage }}"), status = code_str("{{ tone }}"))
+    ),
+    body = code_call(
+      "list",
+      code_call("tip_text", code_str("{{ about }}")),
+      code_call("tip_fields", Shows = code_str("{{ shows }}"), "Works in" = code_str("{{ pages }}")),
+      code_call("tip_code", code_str("code"), language = code_str("r"), copy = "TRUE")
+    ),
+    foot = code_call("tip_text", code_str("Pin it, then Copy: that line is a first tip of your own."))
+  )
+  more <- paste(
+    "Each part of this tip is a section of the book: the template, badge and fields (2.1), the pin and Copy",
+    "(3.1), this long form (3.2), the editorial look and the slide (4.1), the icon (4.4)."
+  )
+  word <- code_call(
+    "tip_on",
+    code_word("hovercraft"),
+    template = code_str("hovercraft"),
+    record = code_list(record),
+    more = code_str(more),
+    style = code_call("tip_style", code_str("editorial"), motion = code_str("slide")),
+    marker = code_call("tip_marker", code_str("icon")),
+    pin = "TRUE",
+    id = code_str("hero"),
+    events = code_value(c("hint", "pin", "copy"))
+  )
   paste(
     c(
       "# The tip on the word hovercraft, in the title above",
-      "tip_define(",
-      "  hovercraft = tip_template(",
-      "    head = list(tip_title(\"{{ name }}\"), tip_badge(\"{{ stage }}\", status = \"{{ tone }}\")),",
-      "    body = list(",
-      "      tip_text(\"{{ about }}\"),",
-      "      tip_fields(Shows = \"{{ shows }}\", \"Works in\" = \"{{ pages }}\"),",
-      "      tip_code(\"code\", language = \"r\", copy = TRUE)",
-      "    ),",
-      "    foot = tip_text(\"Pin it, then Copy: that line is a first tip of your own.\")",
-      "  )",
-      ")",
-      "htmltools::h1(",
-      "  class = \"hero\",",
-      "  tip_on(",
-      "    htmltools::span(\"hovercraft\", tabindex = \"0\"),",
-      "    template = \"hovercraft\",",
-      paste0("    record = ", code_list(record), ","),
-      paste0(
-        "    more = ",
-        code_str(paste(
-          "Each part of this tip is a section of the book: the template, badge and fields (2.1), the pin and Copy",
-          "(3.1), this long form (3.2), the editorial look and the slide (4.1), the icon (4.4)."
-        )),
-        ","
-      ),
-      "    style = tip_style(\"editorial\", motion = \"slide\"),",
-      "    marker = tip_marker(\"icon\"),",
-      "    pin = TRUE,",
-      "    id = \"hero\",",
-      "    events = c(\"hint\", \"pin\", \"copy\")",
-      "  )",
-      ")"
+      code_call("tip_define", hovercraft = template),
+      code_call("htmltools::h1", class = code_str("hero"), word)
     ),
     collapse = "\n"
   )
@@ -57,23 +58,21 @@ start_figure_code <- function() {
   word <- function(text, tip, id) {
     code_call(
       "tip_on",
-      code_call("htmltools::tags$span", code_str(text), tabindex = code_str("0")),
+      code_word(text),
       code_str(tip),
       marker = code_str("underline"),
       id = code_str(id),
       events = code_str("hint")
     )
   }
-  sentence <- code_call(
-    "htmltools::p",
-    code_str("Week 46: the North region logged"),
+  sentence <- code_sentence(
+    "Week 46: the North region logged",
     word("4,812 visits", "Visits that ended in a booking or a reply, Monday to Sunday.", "visits"),
-    code_str("and stood"),
+    "and stood",
     word("6% above target", "Target: **4,540** visits a week, from the Q4 plan.", "target"),
-    code_str("while the"),
+    "while the",
     word("median wait", "Time from a ticket opening to its first reply, in business hours.", "wait_term"),
-    code_str("rose to 4 h 12 min."),
-    class = code_str("specimen-text")
+    "rose to 4 h 12 min."
   )
   paste(c("# A tip of plain words on each figure of a sentence", sentence), collapse = "\n")
 }
@@ -114,6 +113,9 @@ start_covers <- c(
   "tip_code(copy)",
   "tip_style(preset)",
   "tip_style(motion)",
+  "tip_style(theme)",
+  "tip_theme(light)",
+  "tip_theme(dark)",
   "tip_marker(type)"
 )
 

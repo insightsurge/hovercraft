@@ -35,12 +35,7 @@ more_code <- function(settings) {
     "min",
     "median_wait",
     "Median time from a ticket opening to its first reply, last 7 days.",
-    paste(
-      "**How it is counted.** Tickets opened Monday 00:00 to Sunday 23:59, UTC. The clock runs in business hours",
-      "only: 08:00 to 18:00 local time, Monday to Friday.\n\nAuto-closed spam (3.1% of tickets) is left out. A reply",
-      "from a bot does not stop the clock; a reply from a person does.\n\n**Source.** The helpdesk export, refreshed",
-      "every hour."
-    ),
+    book_wait_more,
     if (more_on != "pin") more_on,
     pin
   )
@@ -77,13 +72,12 @@ more_covers <- c(
 )
 
 more_steps <- function() {
-  on <- function(value) function(input) identical(input$more_on %||% "pin", value)
   list(
     step(
       "Rest on *Median wait*: one line, and a sign that there is more.",
       "the long text shows while it opens on pin.",
       tip_target("median_wait"),
-      on_hint("median_wait", when = on("pin"))
+      on_hint("median_wait", when = chose("more_on", "pin", "pin"))
     ),
     step(
       "Pin it: it grows into the long form in place.",
@@ -98,7 +92,7 @@ more_steps <- function() {
       ),
       "a long tip runs off the screen.",
       "#more_on",
-      on_hint("median_wait", when = on("hover"))
+      on_hint("median_wait", when = chose("more_on", "hover", "pin"))
     ),
     step(
       "Escape closes the pinned tip, and focus goes back to the figure.",

@@ -1,17 +1,7 @@
 # Plate 3.3, What your server hears: the three inputs a tip can send (`events =`), the `kind` each carries, and a small
 # server that reads them.
 
-inputs_events <- c(
-  "hint" = "hint",
-  "hint and pin" = "pin",
-  "hint, pin and copy" = "all"
-)
 inputs_kinds <- c("metric" = "metric", "review_item" = "review_item", "none given" = "none")
-
-# The events a choice asks for.
-inputs_events_of <- function(x) {
-  switch(choice(x, inputs_events, "all"), hint = "hint", pin = c("hint", "pin"), all = c("hint", "pin", "copy"))
-}
 
 # The kind the first tip should send for a choice: the word chosen, or the engine's own when none is given.
 inputs_kind_of <- function(x) {
@@ -20,20 +10,9 @@ inputs_kind_of <- function(x) {
 }
 
 inputs_code <- function(settings) {
-  events <- inputs_events_of(settings$events)
+  events <- events_of(settings$events)
   kind <- choice(settings$kind, inputs_kinds, "metric")
-  column <- book_columns[book_columns$name == "wait_min", ]
-  data <- paste0(
-    "column <- data.frame(\n",
-    paste0(
-      "  ",
-      c("name", "about", "snippet"),
-      " = ",
-      vapply(column[c("name", "about", "snippet")], function(x) code_chr(as.character(x)), ""),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
+  data <- code_df("column", book_columns[book_columns$name == "wait_min", c("name", "about", "snippet")])
   define <- code_call(
     "tip_define",
     inputs_column = code_call(
@@ -48,7 +27,7 @@ inputs_code <- function(settings) {
   )
   metric <- code_call(
     "tip_on",
-    code_call("htmltools::tags$span", code_str("Median wait"), tabindex = code_str("0"), class = code_str("col-chip")),
+    code_word("Median wait", class = "col-chip"),
     code_str("Median time from a ticket opening to its first reply."),
     kind = if (kind != "none") code_str(kind),
     pin = "TRUE",
@@ -57,12 +36,7 @@ inputs_code <- function(settings) {
   )
   tagged <- code_call(
     "tip_on",
-    code_call(
-      "htmltools::tags$span",
-      "column$name",
-      tabindex = code_str("0"),
-      class = code_str("col-chip")
-    ),
+    code_word(I("column$name"), class = "col-chip"),
     template = code_str("inputs_column"),
     record = "column",
     kind = code_str("column"),
@@ -198,7 +172,7 @@ plate_inputs_ui <- function() {
     log_title = "Inputs sent, and what the server heard",
     controls = htmltools::tagList(
       "Ask for",
-      choice_set("inputs_events", "Events", inputs_events, "all"),
+      choice_set("inputs_events", "Events", event_choices, "all"),
       "and give the first tip the kind",
       choice_set("inputs_kind", "Kind", inputs_kinds)
     )

@@ -10,12 +10,7 @@ server_ui_code <- function() {
     c(
       code_call(
         "tip_on",
-        code_call(
-          "htmltools::tags$span",
-          code_str("Week picker"),
-          tabindex = code_str("0"),
-          class = code_str("target")
-        ),
+        code_word("Week picker", class = "target"),
         code_str(server_first),
         id = code_str("onboarding"),
         events = code_str("hint")

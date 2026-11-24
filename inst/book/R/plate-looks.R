@@ -15,37 +15,40 @@ looks_page_code <- function(preset, motion) {
 
 # The figure as code: one word in each preset. style = on a tag beats the page's look.
 looks_figure_code <- function() {
-  paste0(
-    "# One word in each look: style = on a tag beats the page's look\n",
-    "looks <- tip_presets()\n",
-    "htmltools::p(\"The five looks, each on its own word.\", class = \"strip-title\")\n",
-    "htmltools::tags$ul(\n",
-    "  class = \"strip\",\n",
-    "  lapply(seq_len(nrow(looks)), function(i) {\n",
-    "    htmltools::tags$li(tip_on(\n",
-    "      htmltools::tags$span(looks$name[[i]], tabindex = \"0\"),\n",
-    "      paste0(\"**\", looks$label[[i]], \".** \", looks$about[[i]]),\n",
-    "      style = looks$name[[i]],\n",
-    "      id = paste0(\"look_\", looks$name[[i]]),\n",
-    "      events = \"hint\"\n",
-    "    ))\n",
-    "  })\n",
-    ")\n",
-    "# A word with no look of its own takes the page's\n",
+  strip <- code_strip(
+    "The five looks, each on its own word.",
+    "seq_len(nrow(looks))",
+    "i",
     code_call(
-      "htmltools::p",
-      code_str("And this"),
-      code_call(
-        "tip_on",
-        code_call("htmltools::tags$span", code_str("page word"), tabindex = code_str("0")),
-        code_str("No **style** here: this tip takes the page's look."),
-        marker = code_str("underline"),
-        id = code_str("look_page"),
-        events = code_str("hint")
-      ),
-      code_str("takes the page's look."),
-      class = code_str("specimen-text")
+      "tip_on",
+      code_word(I("looks$name[[i]]")),
+      "paste0(\"**\", looks$label[[i]], \".** \", looks$about[[i]])",
+      style = "looks$name[[i]]",
+      id = "paste0(\"look_\", looks$name[[i]])",
+      events = code_str("hint")
     )
+  )
+  page <- code_sentence(
+    "And this",
+    code_call(
+      "tip_on",
+      code_word("page word"),
+      code_str("No **style** here: this tip takes the page's look."),
+      marker = code_str("underline"),
+      id = code_str("look_page"),
+      events = code_str("hint")
+    ),
+    "takes the page's look."
+  )
+  paste(
+    c(
+      "# One word in each look: style = on a tag beats the page's look",
+      "looks <- tip_presets()",
+      strip,
+      "# A word with no look of its own takes the page's",
+      page
+    ),
+    collapse = "\n"
   )
 }
 
@@ -64,13 +67,13 @@ looks_steps <- function() {
       "Choose *editorial* for the page, then rest on *page word*: it takes the serif look; the five words keep theirs.",
       "a tip keeps the old look.",
       "#looks_preset",
-      on_hint("look_page", when = function(input) identical(input$looks_preset, "editorial"))
+      on_hint("look_page", when = chose("looks_preset", "editorial", "sober"))
     ),
     step(
       "Choose *a slide*, then rest on *page word*: the tip moves a few pixels as it fades in.",
       "no motion, or motion although the system asks for less.",
       "#looks_motion",
-      on_hint("look_page", when = function(input) identical(input$looks_motion, "slide"))
+      on_hint("look_page", when = chose("looks_motion", "slide", "fade"))
     ),
     step(
       "Switch the page to dark, then rest on *page word*: page and tips turn together.",

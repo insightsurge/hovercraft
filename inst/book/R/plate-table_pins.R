@@ -2,59 +2,14 @@
 # (`tip_table(pin =, events =, id =)`).
 
 table_pins_pins <- c("pinnable" = "on", "hover only" = "off")
-table_pins_events <- c("hint" = "hint", "hint and pin" = "pin", "hint, pin and copy" = "all")
 
-# The base of the tips' ids: a row's tip is named `<base>/row/<n>`, with n the row's place in the data (from 1).
-table_pins_base <- "table_pins_rows"
-table_pins_rows <- function() paste0(table_pins_base, "/row/", seq_len(nrow(table_pins_queues)))
-
-# Four queues of a support desk, and the query behind each: made-up.
-table_pins_queues <- data.frame(
-  queue = c("Billing", "Booking", "Account", "Other"),
-  open = c(42, 118, 27, 9),
-  wait_min = c(95, 212, 64, 40),
-  query = c(
-    "subset(tickets, queue == 'Billing')",
-    "subset(tickets, queue == 'Booking')",
-    "subset(tickets, queue == 'Account')",
-    "subset(tickets, queue == 'Other')"
-  )
-)
-
-table_pins_events_of <- function(x) {
-  switch(choice(x, table_pins_events, "all"), hint = "hint", pin = c("hint", "pin"), all = c("hint", "pin", "copy"))
-}
+# The table's id, and its rows' tip ids: `table_pins_rows/row/<n>`.
+table_pins_id <- "table_pins_rows"
+table_pins_rows <- function() table_row_ids(table_pins_id, nrow(book_queues))
 
 table_pins_code <- function(settings) {
-  widget <- choice(settings$widget, c("DT", "reactable"), tables_default())
   pin <- choice(settings$pin, table_pins_pins, "on")
-  events <- table_pins_events_of(settings$events)
-  data <- paste0(
-    "queues <- data.frame(\n",
-    paste0(
-      "  ",
-      names(table_pins_queues),
-      " = ",
-      vapply(
-        table_pins_queues,
-        function(x) {
-          if (is.character(x)) {
-            do.call(code_call, c(list("c"), as.list(vapply(x, code_str, "", USE.NAMES = FALSE))))
-          } else {
-            paste0("c(", paste(x, collapse = ", "), ")")
-          }
-        },
-        ""
-      ),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
-  table <- if (widget == "DT") {
-    code_call("DT::datatable", "queues", rownames = "FALSE", options = "list(dom = \"t\")")
-  } else {
-    code_call("reactable::reactable", "queues")
-  }
+  events <- events_of(settings$events)
   rows <- code_call(
     "tip_template",
     head = code_call("tip_title", code_str("{{ queue }}")),
@@ -68,10 +23,10 @@ table_pins_code <- function(settings) {
     "tip_table",
     rows = rows,
     pin = if (pin == "on") "TRUE",
-    id = code_str(table_pins_base),
+    id = code_str(table_pins_id),
     events = code_chr(events)
   )
-  paste0(data, "\n\n", table, " |>\n  ", gsub("\n", "\n  ", tipped, fixed = TRUE))
+  table_code("queues", book_queues[c("queue", "open", "wait_min", "query")], table_default(), tipped)
 }
 
 table_pins_covers <- c(
@@ -164,7 +119,7 @@ plate_table_pins_ui <- function() {
       "Make the rows",
       choice_set("table_pins_pin", "Pin", table_pins_pins),
       "and send",
-      choice_set("table_pins_events", "Events", table_pins_events, "all")
+      choice_set("table_pins_events", "Events", event_choices, "all")
     )
   )
 }
@@ -172,28 +127,7 @@ plate_table_pins_ui <- function() {
 plate_table_pins_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "table_pins", table_pins_steps())
   code <- shiny::reactive(table_pins_code(list(pin = input$table_pins_pin, events = input$table_pins_events)))
-  plate_code(input, output, session, "table_pins", code, draw = FALSE)
-  exports <- book_exports()
-  result <- shiny::reactive({
-    if (!requireNamespace(tables_default(), quietly = TRUE)) {
-      return(list(ui = NULL, warnings = character(), error = "This plate needs the DT or reactable package."))
-    }
-    run_code(code(), exports)
-  })
-  output$table_pins_figure <- shiny::renderUI(result()$ui)
-  output$table_pins_notes <- shiny::renderUI(notes_ui(result()))
-  # A row's input has a slash in its name, so the log writes it as input[["..."]], which R reads.
-  for (suffix in c("_hint", "_tip", "_copy")) {
-    for (row in table_pins_rows()) {
-      local({
-        name <- paste0(row, suffix)
-        shiny::observeEvent(
-          input[[name]],
-          log_line(session, "table_pins", paste0("input[[\"", name, "\"]]"), input[[name]]),
-          ignoreInit = TRUE
-        )
-      })
-    }
-  }
+  plate_code(input, output, session, "table_pins", code, needs = table_default)
+  log_inputs(input, session, "table_pins", c(outer(table_pins_rows(), c("_hint", "_tip", "_copy"), paste0)))
   ticks
 }

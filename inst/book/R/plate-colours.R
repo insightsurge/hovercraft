@@ -49,12 +49,7 @@ colours_code <- function(settings) {
   tag <- function(style) {
     code_call(
       "tip_on",
-      code_call(
-        "htmltools::tags$span",
-        code_str("Median wait"),
-        class = code_str("target"),
-        tabindex = code_str("0")
-      ),
+      code_word("Median wait", class = "target"),
       code_str(colours_text),
       style = style,
       id = code_str("colours_wait"),
@@ -94,7 +89,6 @@ colours_code <- function(settings) {
 }
 
 colours_steps <- function() {
-  palette_is <- function(value) function(input) identical(input$colours_palette %||% "harbour", value)
   list(
     step(
       "Rest on *Median wait*: the tip takes the palette's fill and words, and its corner.",
@@ -112,7 +106,7 @@ colours_steps <- function() {
       on_hint(
         "colours_wait",
         when = function(input) {
-          identical(input$page_mode, "dark") && identical(input$colours_mode %||% "auto", "auto")
+          identical(input$page_mode, "dark") && chose("colours_mode", "auto", "auto")(input)
         }
       )
     ),
@@ -128,7 +122,7 @@ colours_steps <- function() {
         when = function(input) {
           identical(input$colours_mode, "dark") &&
             !identical(input$page_mode, "dark") &&
-            !palette_is("bslib")(input)
+            !chose("colours_palette", "bslib", "harbour")(input)
         }
       )
     ),
@@ -144,7 +138,7 @@ colours_steps <- function() {
       "Choose *a bslib theme*, then rest on the tag: the tip takes the colours of the theme given as `style =`.",
       "the tip keeps the page's colours.",
       tip_target("colours_wait"),
-      on_hint("colours_wait", when = palette_is("bslib"))
+      on_hint("colours_wait", when = chose("colours_palette", "bslib", "harbour"))
     )
   )
 }

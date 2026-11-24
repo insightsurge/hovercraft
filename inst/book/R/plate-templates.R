@@ -107,7 +107,7 @@ templates_code <- function(settings) {
   define <- do.call(code_call, c(list("tip_define"), stats::setNames(list(built$template), built$name)))
   use <- code_call(
     "tip_on",
-    code_call("htmltools::tags$span", code_str("SUP-2291"), tabindex = code_str("0")),
+    code_word("SUP-2291"),
     template = code_str(built$name),
     record = code_list(built$record),
     marker = code_str("underline"),
@@ -121,13 +121,7 @@ templates_code <- function(settings) {
       define,
       "",
       "# One tag and its record",
-      code_call(
-        "htmltools::p",
-        code_str("The ticket"),
-        use,
-        code_str("is the oldest open one."),
-        class = code_str("specimen-text")
-      )
+      code_sentence("The ticket", use, "is the oldest open one.")
     ),
     collapse = "\n"
   )
@@ -148,19 +142,18 @@ templates_covers <- c(
 )
 
 templates_steps <- function() {
-  kind <- function(value) function(input) identical(input$templates_kind %||% "line", value)
   list(
     step(
       "Rest on the ticket with *one line*: a single sentence from the record, and no title.",
       "`{{ ... }}` shown as typed.",
       tip_target("templates_tip"),
-      on_hint("templates_tip", when = kind("line"))
+      on_hint("templates_tip", when = chose("templates_kind", "line", "line"))
     ),
     step(
       "Choose *fields*, then rest on the ticket: a title, then Owner, Region and Opened as label and value pairs.",
       "a label without its value, or a value in the wrong row.",
       "#templates_kind",
-      on_hint("templates_tip", when = kind("fields"))
+      on_hint("templates_tip", when = chose("templates_kind", "fields", "line"))
     ),
     step(
       paste(
@@ -169,7 +162,7 @@ templates_steps <- function() {
       ),
       "the badge's colour is the only sign of its status.",
       "#templates_kind",
-      on_hint("templates_tip", when = kind("badge"))
+      on_hint("templates_tip", when = chose("templates_kind", "badge", "line"))
     ),
     step(
       paste(
@@ -178,13 +171,13 @@ templates_steps <- function() {
       ),
       "it shows NA, null or undefined.",
       "#templates_kind",
-      on_hint("templates_tip", when = kind("number"))
+      on_hint("templates_tip", when = chose("templates_kind", "number", "line"))
     ),
     step(
       "Choose *steps*, then rest on the ticket: three numbered lines, not the typed `1.` and `2.`.",
       "the list runs together on one line.",
       "#templates_kind",
-      on_hint("templates_tip", when = kind("steps"))
+      on_hint("templates_tip", when = chose("templates_kind", "steps", "line"))
     )
   )
 }

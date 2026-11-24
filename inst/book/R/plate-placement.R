@@ -10,35 +10,31 @@ placement_sides <- c(
 
 placement_code <- function(settings) {
   side <- choice(settings$side, placement_sides, "auto")
-  featured <- code_call(
-    "htmltools::p",
-    code_str("The tip of"),
+  featured <- code_sentence(
+    "The tip of",
     code_call(
       "tip_on",
-      code_call("htmltools::tags$span", code_str("this word"), tabindex = code_str("0")),
+      code_word("this word"),
       code_str("Opens **where you chose**. With *auto* it takes the side with room."),
       placement = code_str(side),
       marker = code_str("underline"),
       id = code_str("placement_main"),
       events = code_str("hint")
     ),
-    code_str("opens where you chose."),
-    class = code_str("specimen-text")
+    "opens where you chose."
   )
-  fixed <- paste0(
-    "htmltools::p(\"Fixed at each side, to compare:\", class = \"strip-title\")\n",
-    "htmltools::tags$ul(\n",
-    "  class = \"strip\",\n",
-    "  lapply(c(\"top\", \"bottom\", \"left\", \"right\"), function(side) {\n",
-    "    htmltools::tags$li(tip_on(\n",
-    "      htmltools::tags$span(side, tabindex = \"0\"),\n",
-    "      paste0(\"Asked to open on the \", side, \".\"),\n",
-    "      placement = side,\n",
-    "      id = paste0(\"placement_\", side),\n",
-    "      events = \"hint\"\n",
-    "    ))\n",
-    "  })\n",
-    ")"
+  fixed <- code_strip(
+    "Fixed at each side, to compare:",
+    code_chr(c("top", "bottom", "left", "right")),
+    "side",
+    code_call(
+      "tip_on",
+      code_word(I("side")),
+      "paste0(\"Asked to open on the \", side, \".\")",
+      placement = "side",
+      id = "paste0(\"placement_\", side)",
+      events = code_str("hint")
+    )
   )
   paste(
     c("# placement = \"auto\" is the default; a chosen side flips when there is no room", featured, "", fixed),
@@ -49,25 +45,24 @@ placement_code <- function(settings) {
 placement_covers <- c("tip_on(tag)", "tip_on(text)", "tip_on(placement)")
 
 placement_steps <- function() {
-  side <- function(value) function(input) identical(input$placement_side %||% "auto", value)
   list(
     step(
       "Rest on *this word* with *where it fits*: the tip opens on the side the engine finds room.",
       "no tip, or a tip cut off by the stage.",
       tip_target("placement_main"),
-      on_hint("placement_main", when = side("auto"))
+      on_hint("placement_main", when = chose("placement_side", "auto", "auto"))
     ),
     step(
       "Choose *above*, then rest on the word: the tip opens above it.",
       "it opens on another side while there is room above.",
       "#placement_side",
-      on_hint("placement_main", when = side("top"))
+      on_hint("placement_main", when = chose("placement_side", "top", "auto"))
     ),
     step(
       "Choose *to the left*, then rest on the word: the tip opens on its left, arrow towards the word.",
       "it opens on the right, or the arrow points away.",
       "#placement_side",
-      on_hint("placement_main", when = side("left"))
+      on_hint("placement_main", when = chose("placement_side", "left", "auto"))
     ),
     step(
       "Rest on *right* in the row below: a tag fixed at one side opens on that side, whatever you chose above.",

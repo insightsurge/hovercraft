@@ -7,23 +7,7 @@ output_keep_alives <- c("kept when it closes" = "true", "destroyed when it close
 
 output_ui_code <- function(keep_alive = "true") {
   keep_alive <- if (identical(choice(keep_alive, output_keep_alives, "true"), "false")) "FALSE" else "TRUE"
-  data <- paste0(
-    "regions <- data.frame(\n",
-    paste0(
-      "  ",
-      names(book_regions),
-      " = ",
-      vapply(
-        book_regions,
-        function(x) {
-          if (is.character(x)) code_chr(x) else paste0("c(", paste(x, collapse = ", "), ")")
-        },
-        ""
-      ),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
+  data <- code_df("regions", book_regions)
   define <- code_call(
     "tip_define",
     region = code_call(
@@ -40,15 +24,12 @@ output_ui_code <- function(keep_alive = "true") {
       )
     )
   )
-  define <- sub("Week 46 = ", "`Week 46` = ", define, fixed = TRUE)
-  rows <- paste0(
-    "htmltools::tags$ul(\n",
-    "  class = \"regions\",\n",
-    "  lapply(seq_len(nrow(regions)), function(i) {\n",
-    "    ",
-    gsub(
-      "\n",
-      "\n    ",
+  rows <- code_call(
+    "htmltools::tags$ul",
+    class = code_str("regions"),
+    code_lapply(
+      "seq_len(nrow(regions))",
+      "i",
       code_call(
         "tip_on",
         code_call(
@@ -63,10 +44,8 @@ output_ui_code <- function(keep_alive = "true") {
         pin = "TRUE",
         id = "paste0(\"region_\", tolower(regions$region[[i]]))",
         events = code_chr(c("hint", "pin"))
-      ),
-      fixed = TRUE
-    ),
-    "\n  })\n)"
+      )
+    )
   )
   paste(
     c(
@@ -108,11 +87,7 @@ output_render_body <- function(mode) {
 # The server's code that says which region is open, from the pin and hint inputs (a hint never takes the plot away
 # from a pinned tip). Shown in the code note, and run by the server as it is shown.
 output_observer_code <- function() {
-  weeks <- paste0(
-    "weeks <- list(\n",
-    paste0("  ", names(book_weeks), " = c(", vapply(book_weeks, paste, "", collapse = ", "), ")", collapse = ",\n"),
-    "\n)"
-  )
+  weeks <- paste0("weeks <- ", do.call(code_call, c(list("list"), lapply(book_weeks, code_value), list(width = 0L))))
   paste(
     c(
       weeks,

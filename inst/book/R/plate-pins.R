@@ -7,17 +7,7 @@ pins_copy <- c("a Copy button" = "on", "no Copy button" = "off")
 pins_code <- function(settings) {
   placement <- choice(settings$placement, pins_placements, "auto")
   copy <- choice(settings$copy, pins_copy, "on")
-  data <- paste0(
-    "columns <- data.frame(\n",
-    paste0(
-      "  ",
-      names(book_columns),
-      " = ",
-      vapply(book_columns, code_chr, ""),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
+  data <- code_df("columns", book_columns)
   define <- code_call(
     "tip_define",
     column = code_call(
@@ -37,42 +27,37 @@ pins_code <- function(settings) {
     )
   )
   place <- if (placement != "auto") code_str(placement)
-  chips <- paste0(
-    "htmltools::div(\n",
-    "  class = \"cols\",\n",
-    "  lapply(seq_len(nrow(columns)), function(i) {\n",
-    "    ",
-    gsub(
-      "\n",
-      "\n    ",
-      code_call(
-        "tip_on",
-        code_call("htmltools::tags$span", "columns$name[[i]]", tabindex = code_str("0"), class = code_str("col-chip")),
+  chip <- function(label, ..., id, events) {
+    code_call(
+      "tip_on",
+      code_word(label, class = "col-chip"),
+      ...,
+      placement = place,
+      pin = "TRUE",
+      id = id,
+      events = code_chr(events)
+    )
+  }
+  chips <- code_call(
+    "htmltools::div",
+    class = code_str("cols"),
+    code_lapply(
+      "seq_len(nrow(columns))",
+      "i",
+      chip(
+        I("columns$name[[i]]"),
         template = code_str("column"),
         record = "columns[i, ]",
-        placement = place,
-        pin = "TRUE",
         id = "paste0(\"col_\", columns$name[[i]])",
-        events = code_chr(c("hint", "pin", "copy"))
-      ),
-      fixed = TRUE
+        events = c("hint", "pin", "copy")
+      )
     ),
-    "\n  }),\n  ",
-    gsub(
-      "\n",
-      "\n  ",
-      code_call(
-        "tip_on",
-        code_call("htmltools::tags$span", code_str("booked"), tabindex = code_str("0"), class = code_str("col-chip")),
-        code_str("TRUE when the visit ended in a booking."),
-        placement = place,
-        pin = "TRUE",
-        id = code_str("col_booked"),
-        events = code_chr(c("hint", "pin"))
-      ),
-      fixed = TRUE
-    ),
-    "\n)"
+    chip(
+      "booked",
+      code_str("TRUE when the visit ended in a booking."),
+      id = code_str("col_booked"),
+      events = c("hint", "pin")
+    )
   )
   paste(c(data, "", "# Once in the page's UI", define, "", "# A pinnable chip per column", chips), collapse = "\n")
 }

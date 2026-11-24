@@ -10,14 +10,6 @@ columns_settings <- c(
 columns_names <- c("open" = "open", "wait_min" = "wait_min", "owner" = "owner")
 columns_targets <- c("cells" = "cells", "header" = "headers")
 
-# Four queues of a support desk: made-up numbers.
-columns_queues <- data.frame(
-  queue = c("Billing", "Booking", "Account", "Other"),
-  open = c(42, 118, 27, 9),
-  wait_min = c(95, 212, 64, 40),
-  owner = c("R. Okafor", "L. Perrin", "A. Haddad", "unassigned")
-)
-
 # What each column's tip says, on a cell and on its header.
 columns_words <- list(
   cells = c(
@@ -36,32 +28,7 @@ columns_long <- c(
   headers = "Counted over the last 7 days, business hours only. Auto-closed spam is left out."
 )
 
-columns_data_code <- function() {
-  paste0(
-    "queues <- data.frame(\n",
-    paste0(
-      "  ",
-      names(columns_queues),
-      " = ",
-      vapply(
-        columns_queues,
-        function(x) {
-          if (is.character(x)) {
-            do.call(code_call, c(list("c"), as.list(vapply(x, code_str, "", USE.NAMES = FALSE))))
-          } else {
-            paste0("c(", paste(x, collapse = ", "), ")")
-          }
-        },
-        ""
-      ),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
-}
-
 columns_code <- function(settings) {
-  widget <- choice(settings$widget, c("DT", "reactable"), tables_default())
   setting <- choice(settings$setting, columns_settings, "placement")
   column <- choice(settings$column, columns_names, "wait_min")
   target <- choice(settings$target, columns_targets, "cells")
@@ -86,12 +53,7 @@ columns_code <- function(settings) {
       list(placement = code_str("bottom"), style = code_str("editorial"), marker = code_str("corner"))
     )
   )
-  table <- if (widget == "DT") {
-    code_call("DT::datatable", "queues", rownames = "FALSE", options = "list(dom = \"t\")")
-  } else {
-    code_call("reactable::reactable", "queues")
-  }
-  paste0(columns_data_code(), "\n\n", table, " |>\n  ", gsub("\n", "\n  ", tipped, fixed = TRUE))
+  table_code("queues", book_queues[c("queue", "open", "wait_min", "owner")], table_default(), tipped)
 }
 
 columns_covers <- c(
@@ -174,16 +136,6 @@ plate_columns_server <- function(input, output, session) {
     target = input$columns_target
   ))
   code <- shiny::reactive(columns_code(settings()))
-  plate_code(input, output, session, "columns", code, draw = FALSE)
-  exports <- book_exports()
-  result <- shiny::reactive({
-    widget <- tables_default()
-    if (!requireNamespace(widget, quietly = TRUE)) {
-      return(list(ui = NULL, warnings = character(), error = "This plate needs the DT or reactable package."))
-    }
-    run_code(code(), exports)
-  })
-  output$columns_figure <- shiny::renderUI(result()$ui)
-  output$columns_notes <- shiny::renderUI(notes_ui(result()))
+  plate_code(input, output, session, "columns", code, needs = table_default)
   ticks
 }

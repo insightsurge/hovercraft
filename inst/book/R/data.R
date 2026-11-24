@@ -117,3 +117,25 @@ book_branches <- data.frame(
   opened = c(2019, 2022, 2015),
   staff = c(6, 4, 9)
 )
+
+# Four queues of a support desk, and the query behind each (sections 6.2 and 6.3).
+book_queues <- data.frame(
+  queue = c("Billing", "Booking", "Account", "Other"),
+  open = c(42, 118, 27, 9),
+  wait_min = c(95, 212, 64, 40),
+  owner = c("R. Okafor", "L. Perrin", "A. Haddad", "unassigned"),
+  query = c(
+    "subset(tickets, queue == 'Billing')",
+    "subset(tickets, queue == 'Booking')",
+    "subset(tickets, queue == 'Account')",
+    "subset(tickets, queue == 'Other')"
+  )
+)
+
+# How the median wait is counted: the long form of its tip (sections 3.2 and 4.2).
+book_wait_more <- paste(
+  "**How it is counted.** Tickets opened Monday 00:00 to Sunday 23:59, UTC. The clock runs in business hours",
+  "only: 08:00 to 18:00 local time, Monday to Friday.\n\nAuto-closed spam (3.1% of tickets) is left out. A reply",
+  "from a bot does not stop the clock; a reply from a person does.\n\n**Source.** The helpdesk export, refreshed",
+  "every hour."
+)

@@ -32,7 +32,7 @@ markers_code <- function(settings) {
   icon <- choice(settings$icon, markers_icons, "builtin")
   phrase <- code_call(
     "tip_on",
-    code_call("htmltools::tags$span", code_str("4,812 visits"), tabindex = code_str("0")),
+    code_word("4,812 visits"),
     code_str("Visits that ended in a booking or a reply, Monday to Sunday."),
     marker = markers_phrase_marker(kind, line, icon),
     id = code_str("markers_phrase"),
@@ -40,7 +40,7 @@ markers_code <- function(settings) {
   )
   heading <- code_call(
     "tip_on",
-    code_call("htmltools::tags$span", code_str("Visits by region"), tabindex = code_str("0")),
+    code_word("Visits by region"),
     code_str("One row for each region, summed over the week."),
     marker = code_str("icon"),
     id = code_str("markers_heading"),
@@ -56,20 +56,13 @@ markers_code <- function(settings) {
   )
   code_call(
     "htmltools::div",
-    code_call(
-      "htmltools::p",
-      code_str("Last week the North region logged"),
-      phrase,
-      code_str("from walk-in and online bookings."),
-      class = code_str("specimen-text")
-    ),
+    code_sentence("Last week the North region logged", phrase, "from walk-in and online bookings."),
     code_call("htmltools::p", heading, class = code_str("strip-title")),
     box
   )
 }
 
 markers_steps <- function() {
-  kind_is <- function(value) function(input) identical(input$markers_kind %||% "underline", value)
   list(
     step(
       paste(
@@ -78,19 +71,19 @@ markers_steps <- function() {
       ),
       "the line runs across the whole paragraph, or is not in the text's colour.",
       tip_target("markers_phrase"),
-      on_hint("markers_phrase", when = kind_is("underline"))
+      on_hint("markers_phrase", when = chose("markers_kind", "underline", "underline"))
     ),
     step(
       "Choose *an icon*, then rest on the phrase: a small icon follows the words, the built-in one or your ?.",
       "the icon is read out by a screen reader, or it sits on the next line.",
       tip_target("markers_phrase"),
-      on_hint("markers_phrase", when = kind_is("icon"))
+      on_hint("markers_phrase", when = chose("markers_kind", "icon", "underline"))
     ),
     step(
       "Choose *a corner*, then rest on the phrase: a small triangle sits in the top corner of the words.",
       "no mark, or the triangle covers a letter.",
       tip_target("markers_phrase"),
-      on_hint("markers_phrase", when = kind_is("corner"))
+      on_hint("markers_phrase", when = chose("markers_kind", "corner", "underline"))
     ),
     step(
       paste(

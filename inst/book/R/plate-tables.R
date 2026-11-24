@@ -1,44 +1,20 @@
 # Plate 8, Tables: tips on the rows, cells and headers of a DT or reactable table, each from its own row.
 
-tables_widgets <- c("DT" = "DT", "reactable" = "reactable")
-
-# The widget the plate opens on: DT when it is installed, else reactable.
-# The table package a section draws with: DT when it is installed, else reactable. Sections 6.2 and 6.3 use it too.
-tables_default <- function() if (requireNamespace("DT", quietly = TRUE)) "DT" else "reactable"
 tables_parts <- c("rows" = "rows", "rows and headers" = "headers", "rows and a cell" = "cells")
 
 tables_placements <- c("where they fit" = "auto", "to the right" = "right", "below" = "bottom")
 tables_styles <- c("the page's look" = "page", "sober" = "sober", "editorial" = "editorial")
 tables_pins <- c("only on rest" = "off", "pinnable, with inputs sent" = "on")
 
+# The ids of the rows' tips: the table's id is `branches`.
+tables_rows <- function() table_row_ids("branches", nrow(book_branches))
+
 tables_code <- function(settings) {
   placement <- choice(settings$placement, tables_placements, "auto")
   style <- choice(settings$style, tables_styles, "page")
   pin <- choice(settings$pin, tables_pins, "off")
-  widget <- choice(settings$widget, tables_widgets, tables_default())
+  widget <- choice(settings$widget, table_widgets, table_default())
   parts <- choice(settings$parts, tables_parts, "rows")
-  data <- paste0(
-    "branches <- data.frame(\n",
-    paste0(
-      "  ",
-      names(book_branches),
-      " = ",
-      vapply(
-        book_branches,
-        function(x) {
-          if (is.character(x)) code_chr(x) else paste0("c(", paste(x, collapse = ", "), ")")
-        },
-        ""
-      ),
-      collapse = ",\n"
-    ),
-    "\n)"
-  )
-  table <- if (widget == "DT") {
-    code_call("DT::datatable", "branches", rownames = "FALSE", options = "list(dom = \"t\")")
-  } else {
-    code_call("reactable::reactable", "branches")
-  }
   tipped <- code_call(
     "tip_table",
     rows = code_str("**{{ branch }}.** Opened {{ opened }}, {{ staff }} staff."),
@@ -51,7 +27,7 @@ tables_code <- function(settings) {
     pin = if (pin == "on") "TRUE",
     events = if (pin == "on") code_chr(c("hint", "pin"))
   )
-  paste0(data, "\n\n", table, " |>\n  ", gsub("\n", "\n  ", tipped, fixed = TRUE))
+  table_code("branches", book_branches, widget, tipped)
 }
 
 tables_covers <- c(
@@ -85,9 +61,13 @@ tables_steps <- function() {
       "#tables_widget"
     ),
     step(
-      "Choose *pinnable, with inputs sent*, then pin a row with its corner button or P: the tip stays open.",
+      paste(
+        "Choose *pinnable, with inputs sent*, then pin a row with its corner button or P: the tip stays open, and",
+        "`input[[\"branches/row/<n>_tip\"]]` arrives."
+      ),
       "a click on the row pins it, or the row's tip has no pin button.",
-      "#tables_pin"
+      "#tables_pin",
+      on_pin(tables_rows())
     ),
     step(
       "Choose *to the right*, then *sober*, and rest on a row: the tip opens on that side, in that look.",
@@ -102,15 +82,15 @@ plate_tables_ui <- function() {
     "tables",
     lede = "Tips on DT and reactable rows, cells and headers, each filled in from its own row.",
     caption = paste(
-      "Three branches and their week. The row tips send their hint and pin inputs under ids the package builds, so",
-      "these steps are ticked by hand."
+      "Three branches and their week. With pinnable, each row's tip sends its hint and pin inputs, named after the",
+      "table's id and the row's place in the data."
     ),
     steps = tables_steps(),
     code = code_text(tables_code(list())),
-    log_empty = "The book does not follow a table tip's inputs: the ids are the package's own.",
+    log_empty = "Nothing yet. Choose pinnable, then rest on a row.",
     controls = htmltools::tagList(
       "Draw the table with",
-      choice_set("tables_widget", "Widget", tables_widgets, tables_default()),
+      choice_set("tables_widget", "Widget", table_widgets, table_default()),
       "and put tips on",
       choice_set("tables_parts", "Parts", tables_parts),
       "; open them",
@@ -136,19 +116,14 @@ plate_tables_server <- function(input, output, session) {
       )
     )
   )
-  missing <- shiny::reactive({
-    widget <- choice(input$tables_widget, tables_widgets, tables_default())
-    if (!requireNamespace(widget, quietly = TRUE)) widget
-  })
-  plate_code(input, output, session, "tables", code, draw = FALSE)
-  exports <- book_exports()
-  result <- shiny::reactive({
-    if (!is.null(missing())) {
-      return(list(ui = NULL, warnings = character(), error = paste0("This plate needs the ", missing(), " package.")))
-    }
-    run_code(code(), exports)
-  })
-  output$tables_figure <- shiny::renderUI(result()$ui)
-  output$tables_notes <- shiny::renderUI(notes_ui(result()))
+  plate_code(
+    input,
+    output,
+    session,
+    "tables",
+    code,
+    needs = shiny::reactive(choice(input$tables_widget, table_widgets, table_default()))
+  )
+  log_inputs(input, session, "tables", c(outer(tables_rows(), c("_hint", "_tip"), paste0)))
   ticks
 }

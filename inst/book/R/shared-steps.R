@@ -36,6 +36,10 @@ fields_match <- function(value, ...) {
   ))
 }
 
+# A test of the page's settings for a proof's `when`: TRUE while the choice set `name` holds `value`. `default` is
+# the set's first choice, which the page holds before the reader picks one.
+chose <- function(name, value, default) function(input) identical(input[[name]] %||% default, value)
+
 # Proofs from the tip inputs. `by = "reader"` by default: a tip closed and pinned again by the page (a look change),
 # or closed because its tag was drawn again (`by = "data"`), never ticks a step.
 on_hint <- function(id, state = "shown", reason = NULL, via = NULL, by = "reader", when = NULL) {
