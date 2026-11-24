@@ -357,7 +357,8 @@ describe("the icons drawn from data: images, under a policy with default-src", {
     made <- serve_page(build, policy = policy, env = parent.frame())
     page <- local_page(made$url, parent.frame(), init = watch)
     expect_true(page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global)))
-    for (id in c("marked", "pinnable", "off")) {
+    # The last hover is on the tag that is pinnable, so the pin button is on screen when the wait looks for it.
+    for (id in c("marked", "off", "pinnable")) {
       page$hover(paste0("#", id))
     }
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
