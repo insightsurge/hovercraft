@@ -30,14 +30,59 @@ tip_contract <- function() {
   tip_state$contract
 }
 
-# The templates this session has defined with tip_define(), by name: their fields. Kept so tip_on() can check a record
-# against a template; it is cleared by tip_reset() (tests, and a session that starts a new page).
-tip_known <- function() {
-  if (is.null(tip_state$templates)) list() else tip_state$templates
+# The Shiny session that is running, or NULL outside one (and when Shiny is not installed).
+tip_session <- function() {
+  if (requireNamespace("shiny", quietly = TRUE)) shiny::getDefaultReactiveDomain() else NULL
 }
 
+# Where tip_define() keeps what it has seen, so that tip_on() can check a record against a template. Inside a Shiny
+# session the templates are that session's own (in the session's `userData`), so two sessions of one app that define one
+# name with different fields do not change each other's checks. Outside a session, at the page's UI and in tests, they
+# are the process's, which every session also sees: the UI of an app is built once and serves all its sessions.
+tip_session_templates <- function(create = FALSE) {
+  session <- tip_session()
+  if (is.null(session) || !is.environment(session$userData)) {
+    return(NULL)
+  }
+  key <- "hovercraft_templates"
+  if (is.null(session$userData[[key]]) && create) {
+    session$userData[[key]] <- new.env(parent = emptyenv())
+  }
+  session$userData[[key]]
+}
+
+# The templates defined so far, by name: their fields. The session's own come over the process's.
+tip_known <- function() {
+  known <- if (is.null(tip_state$templates)) list() else tip_state$templates
+  own <- tip_session_templates()
+  if (is.null(own)) {
+    return(known)
+  }
+  for (name in ls(own, all.names = TRUE)) {
+    known[[name]] <- own[[name]]
+  }
+  known
+}
+
+# Keeps one template's fields and body in the registry of the running session, or the process's outside one.
+tip_known_set <- function(name, value) {
+  own <- tip_session_templates(create = TRUE)
+  if (is.null(own)) {
+    tip_state$templates[[name]] <- value
+  } else {
+    own[[name]] <- value
+  }
+  invisible()
+}
+
+# Forgets the templates: the process's, and those of the running session. For tests, and a session that starts a page
+# again.
 tip_reset <- function() {
   tip_state$templates <- NULL
+  own <- tip_session_templates()
+  if (!is.null(own)) {
+    rm(list = ls(own, all.names = TRUE), envir = own)
+  }
   invisible()
 }
 

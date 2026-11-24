@@ -82,15 +82,30 @@ describe("production checks (strict CSP and multi-session R state)", {
   })
 
   it("isolates tip_define() template registries across separate Shiny sessions in one R process", {
-    testthat::skip("known: tip_state$templates is a process-global env shared across Shiny sessions")
     skip_if_not_installed("shiny")
     tip_reset()
     withr::defer(tip_reset())
-    # Session A defines "shared" with field `a`; Session B defines "shared" with field `b`.
-    tip_define(shared = tip_template(tip_text("A: {{ a }}")))
-    expect_no_warning(tip_define(shared = tip_template(tip_text("B: {{ b }}"))))
-    # Session A later renders a tip using its own field `a`.
-    expect_no_error(tip_on(htmltools::tags$button("A"), template = "shared", record = list(a = 1L)))
+    one <- shiny::MockShinySession$new()
+    two <- shiny::MockShinySession$new()
+    # Session one defines "shared" with field `a`; session two defines "shared" with field `b`.
+    shiny::withReactiveDomain(one, tip_define(shared = tip_template(tip_text("A: {{ a }}"))))
+    shiny::withReactiveDomain(two, expect_no_warning(tip_define(shared = tip_template(tip_text("B: {{ b }}")))))
+    button <- function() htmltools::tags$button("Go")
+    # Each session is checked against its own definition, not the other's.
+    shiny::withReactiveDomain(one, {
+      expect_no_error(tip_on(button(), template = "shared", record = list(a = 1L)))
+      expect_error(tip_on(button(), template = "shared", record = list(b = 1L)), class = "hovercraft_error_field")
+    })
+    shiny::withReactiveDomain(two, {
+      expect_no_error(tip_on(button(), template = "shared", record = list(b = 1L)))
+      expect_error(tip_on(button(), template = "shared", record = list(a = 1L)), class = "hovercraft_error_field")
+    })
+    # A template defined outside a session (the page's UI) is known to every session, which may replace it for itself.
+    tip_define(page_wide = tip_template(tip_text("{{ x }}")))
+    shiny::withReactiveDomain(one, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    shiny::withReactiveDomain(two, expect_no_error(tip_on(button(), template = "page_wide", record = list(x = 1L))))
+    # The page-wide registry did not take the sessions' definitions.
+    expect_identical(names(tip_known()), "page_wide")
   })
 })
 

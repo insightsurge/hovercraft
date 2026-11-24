@@ -22,6 +22,12 @@ it with \code{ns()} (for example \code{tip_define(!!ns("row") := tip_template(..
 own templates without overwriting each other. Defining the same name again replaces the earlier template under it,
 with a warning when the blocks differ.
 }
+\details{
+The templates are also kept in R, so that \code{\link[=tip_on]{tip_on()}} can check a record against them. Defined in a Shiny session (in
+\code{renderUI()} or a module's server), they belong to that session: two sessions of one app may define one name with
+different fields and each is checked against its own. Defined where the UI is built, they belong to the process and
+every session is checked against them; a session may define the name again for itself.
+}
 \examples{
 tip_define(
   diff = tip_template(
