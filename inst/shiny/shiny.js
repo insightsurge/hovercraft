@@ -60,6 +60,7 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
+        kind: d.kind ?? null,
       }),
     },
     pin: {
@@ -72,6 +73,7 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
+        kind: d.kind ?? null,
       }),
     },
     copy: {
@@ -82,6 +84,7 @@
         ok: d.ok === true,
         by: d.by ?? null,
         via: d.via ?? null,
+        kind: d.kind ?? null,
       }),
     },
   };

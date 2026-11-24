@@ -133,6 +133,17 @@ local_page <- function(html_file, env = parent.frame()) {
     }
     invisible()
   }
+  # A finger tap at a point, with touch emulation on for the tap only: the page gets touch pointer events, then the click.
+  touch_tap <- function(x, y) {
+    session$Emulation$setTouchEmulationEnabled(enabled = TRUE)
+    session$Input$dispatchTouchEvent(type = "touchStart", touchPoints = list(list(x = x, y = y)))
+    session$Input$dispatchTouchEvent(type = "touchEnd", touchPoints = list())
+    invisible()
+  }
+  touch_off <- function() {
+    session$Emulation$setTouchEmulationEnabled(enabled = FALSE)
+    invisible()
+  }
   # Sets the window's size, as a phone has it: `viewport(320, 640)`; `viewport(900, 700)` puts it back.
   viewport <- function(width, height) {
     session$Emulation$setDeviceMetricsOverride(width = width, height = height, deviceScaleFactor = 1, mobile = FALSE)
@@ -142,6 +153,8 @@ local_page <- function(html_file, env = parent.frame()) {
     evaluate = evaluate,
     viewport = viewport,
     mouse = mouse,
+    touch_tap = touch_tap,
+    touch_off = touch_off,
     emulate = emulate,
     resize = resize,
     wait_until = wait_until,

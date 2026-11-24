@@ -47,6 +47,32 @@ describe("tip_on(pin = )", {
     expect_identical(attrs(again)[[tip_attribute("pin")]], "true")
   })
 
+  it("makes the tagged item announce the pin key, and takes it away with the pin", {
+    got <- tip_on(button(), "Runs", id = "run_tip", pin = TRUE)
+    expect_identical(attrs(got)[["aria-keyshortcuts"]], toupper(tip_pin_key()))
+    expect_identical(attrs(tip_on(button(), "Runs", id = "run_tip", pin = "click"))[["aria-keyshortcuts"]], "P")
+    expect_false("aria-keyshortcuts" %in% names(tip_on(button(), "Runs")$attribs))
+    off <- tip_on(got, "Runs", pin = FALSE)
+    expect_false("aria-keyshortcuts" %in% names(off$attribs))
+    # A key shortcut the page wrote itself stays.
+    own <- tip_on(htmltools::tags$button("Run", id = "r", `aria-keyshortcuts` = "Alt+R"), "Runs", pin = FALSE)
+    expect_identical(attrs(own)[["aria-keyshortcuts"]], "Alt+R")
+  })
+
+  it("keeps a pin and its id when the tag is tipped again without a pin argument, and drops both with pin = FALSE", {
+    first <- tip_on(button(), "One", id = "run_tip", pin = TRUE)
+    again <- tip_on(first, "Two")
+    expect_identical(attrs(again)[[tip_attribute("pin")]], "manual")
+    expect_identical(attrs(again)[[tip_attribute("id")]], "run_tip")
+    expect_identical(attrs(again)[[tip_names()$attribute]], "Two")
+    off <- tip_on(first, "Two", pin = FALSE)
+    expect_false(tip_attribute("pin") %in% names(off$attribs))
+    # With a new id and no pin argument, the new id is the pin's.
+    renamed <- tip_on(first, "Two", id = "other_tip")
+    expect_identical(attrs(renamed)[[tip_attribute("id")]], "other_tip")
+    expect_identical(attrs(renamed)[[tip_attribute("pin")]], "manual")
+  })
+
   it("lets more_on = \"pin\" follow the pin argument", {
     expect_no_error(tip_on(button(), "Short", more = "Long", pin = TRUE))
     expect_error(tip_on(button(), "Short", more = "Long"), class = "hovercraft_error_pin")
@@ -62,6 +88,7 @@ describe("tip_on(kind = )", {
     got <- tip_on(button(), "Runs", kind = "review_item")
     expect_identical(attrs(got)[[tip_attribute("kind")]], "review_item")
     expect_false(tip_attribute("kind") %in% names(tip_on(button(), "Runs")$attribs))
+    expect_false(tip_attribute("kind") %in% names(tip_on(got, "Again")$attribs))
     for (bad in c("Review", "review item", "_a", "a__b", "")) {
       expect_error(tip_on(button(), "Runs", kind = bad), class = "hovercraft_error_argument")
     }

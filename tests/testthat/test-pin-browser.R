@@ -79,19 +79,32 @@ describe("pins in a Shiny app", {
             record = list(label = "Query", sql = "SELECT 1;"),
             id = "e_tip",
             pin = TRUE,
+            kind = "review_item",
             events = c("pin", "copy")
           ),
+          tip_on(
+            row("row_f", "Row F"),
+            "Row F slides in.",
+            id = "f_tip",
+            pin = TRUE,
+            style = tip_style(motion = "slide")
+          ),
+          shiny::actionButton("show_a", "Show A"),
+          shiny::actionButton("open_modal", "Open modal"),
           htmltools::tags$input(id = "field", type = "text", placeholder = "type here"),
           module_ui("m"),
           shiny::verbatimTextOutput("seen_a"),
           shiny::verbatimTextOutput("seen_b"),
           shiny::verbatimTextOutput("seen_c"),
-          shiny::verbatimTextOutput("seen_e")
+          shiny::verbatimTextOutput("seen_e"),
+          shiny::verbatimTextOutput("seen_modal")
         )
       )
       server <- function(input, output, session) {
         output$seen_a <- shiny::renderText(show(list(
           hint = input$a_tip_hint$state,
+          hint_by = input$a_tip_hint$by,
+          hint_reason = input$a_tip_hint$reason,
           pin = input$a_tip_tip,
           click = !is.null(input$row_click)
         )))
@@ -101,7 +114,20 @@ describe("pins in a Shiny app", {
           pin = input$c_tip_tip,
           copy = input$c_tip_copy
         )))
-        output$seen_e <- shiny::renderText(show(list(pin = input$e_tip_tip$state, copy = input$e_tip_copy)))
+        output$seen_e <- shiny::renderText(show(list(
+          pin = input$e_tip_tip$state,
+          pin_kind = input$e_tip_tip$kind,
+          copy = input$e_tip_copy
+        )))
+        output$seen_modal <- shiny::renderText(show(input$modal_tip_tip$state))
+        shiny::observeEvent(input$show_a, tip_show("a_tip"))
+        shiny::observeEvent(input$open_modal, {
+          shiny::showModal(shiny::modalDialog(
+            tip_on(row("row_modal", "Modal row"), "Modal tip", id = "modal_tip", pin = TRUE, events = "pin"),
+            title = "A modal",
+            easyClose = TRUE
+          ))
+        })
         module_server("m")
       }
       shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
@@ -150,7 +176,7 @@ describe("pins in a Shiny app", {
   # The first line of the hint's words, as a rectangle, and the second line's top (or NA): where the strip must not be.
   lines <- function() {
     jsonlite::fromJSON(page$evaluate(sprintf(
-      "(() => { const hint = document.querySelector('%s'); const rows = new Map(); const walk = document.createTreeWalker(hint, NodeFilter.SHOW_TEXT); for (let n = walk.nextNode(); n; n = walk.nextNode()) { const range = document.createRange(); range.selectNodeContents(n); for (const r of range.getClientRects()) { const key = Math.round(r.top); rows.set(key, Math.max(rows.get(key) ?? 0, r.right)); } } const tops = [...rows.keys()].sort((a, b) => a - b); return JSON.stringify({ first_right: rows.get(tops[0]), second_top: tops[1] ?? null, count: tops.length }); })()",
+      "(() => { const hint = document.querySelector('%s'); const rows = new Map(); const walk = document.createTreeWalker(hint, NodeFilter.SHOW_TEXT); for (let n = walk.nextNode(); n; n = walk.nextNode()) { const range = document.createRange(); range.selectNodeContents(n); for (const r of range.getClientRects()) { const key = Math.round(r.top); const row = rows.get(key) ?? { left: Infinity, right: 0 }; row.left = Math.min(row.left, r.left); row.right = Math.max(row.right, r.right); rows.set(key, row); } } const tops = [...rows.keys()].sort((a, b) => a - b); return JSON.stringify({ first_left: rows.get(tops[0]).left, first_right: rows.get(tops[0]).right, second_top: tops[1] ?? null, second_right: tops[1] === undefined ? null : rows.get(tops[1]).right, count: tops.length }); })()",
       hint_box
     )))
   }
@@ -181,19 +207,22 @@ describe("pins in a Shiny app", {
     expect_lt(hint$right - button$right, 8)
     expect_lt(button$top - hint$top, 8)
     expect_lt(lines()$first_right, button$left)
+    # A one-sentence tip keeps its one line, with the button at the end of it.
+    expect_equal(lines()$count, 1)
   })
 
-  it("keeps the button beside the first line of a tip of several lines, and clear of the second", {
+  it("keeps the button beside the first line of a tip of several lines, and the words clear of it", {
     reset()
     page$hover("#row_d")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') !== null"))
     expect_gt(lines()$count, 1)
     button <- rect(strip)
     expect_lt(lines()$first_right, button$left)
-    expect_lte(button$bottom, lines()$second_top + 1)
+    # Every line of the first block keeps clear of the button, also a second line that the button reaches down beside.
+    expect_lte(lines()$second_right, button$left)
   })
 
-  it("does not pin when the item itself is clicked: its own click runs and a tap shows the hint", {
+  it("does not pin when the item itself is clicked, and its own click runs", {
     reset()
     before <- page$evaluate("window.rowClicks || 0")
     page$click("#row_a")
@@ -281,10 +310,10 @@ describe("pins in a Shiny app", {
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
     expect_true(seen(
       "seen_e",
-      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\"\\}"
+      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\",\"kind\":\"review_item\"\\}"
     ))
     expect_equal(page$evaluate("window.copyFired"), 1)
-    expect_true(seen("seen_e", "\"pin\":\"pinned\""))
+    expect_true(seen("seen_e", "\"pin\":\"pinned\",\"pin_kind\":\"review_item\""))
     page$press("Escape")
   })
 
@@ -298,16 +327,152 @@ describe("pins in a Shiny app", {
     page$press("Escape")
   })
 
-  it("draws the button the same with reduced motion, and moves nothing", {
+  # Follows the strip against the hint on every animation frame from now on: where its corner is, and the two opacities.
+  follow <- function() {
+    page$evaluate(
+      "window.follow = []; (function loop() { const s = document.querySelector('.hovercraft-pin-strip'); const h = document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])'); if (s && h) { const a = s.getBoundingClientRect(), b = h.getBoundingClientRect(); window.follow.push([a.right - b.right, a.top - b.top, parseFloat(getComputedStyle(s).opacity), parseFloat(getComputedStyle(h).opacity)]); } if (window.follow.length < 400) requestAnimationFrame(loop); })(); 0"
+    )
+  }
+  followed <- function() jsonlite::fromJSON(page$evaluate("JSON.stringify(window.follow)"))
+
+  it("keeps the button in the hint's corner and as visible as the hint while the hint slides in", {
+    reset()
+    follow()
+    view("row_f")
+    page$hover("#row_f")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    Sys.sleep(0.6)
+    got <- followed()
+    expect_gt(nrow(got), 5)
+    # The corner never moves against the hint, on the first frame or the last.
+    expect_lt(diff(range(got[, 1])), 1.5)
+    expect_lt(diff(range(got[, 2])), 1.5)
+    # It follows the hint's fade at most a frame or two behind, and ends as visible as the hint.
+    expect_lt(max(abs(got[, 3] - got[, 4])), 0.3)
+    expect_lt(abs(tail(got[, 3] - got[, 4], 1)), 0.02)
+    expect_gt(min(got[, 3]), -0.01)
+  })
+
+  it("draws the hint and the button without animation when the reader asks for reduced motion", {
     reset()
     page$emulate("prefers-reduced-motion", "reduce")
+    follow()
+    view("row_f")
+    page$hover("#row_f")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    Sys.sleep(0.5)
+    got <- followed()
+    expect_gt(nrow(got), 5)
+    expect_gte(min(got[, 4]), 0.99)
+    expect_gte(min(got[, 3]), 0.99)
+    expect_lt(diff(range(got[, 1])), 1.5)
+    page$emulate("prefers-reduced-motion", "no-preference")
+  })
+
+  it("writes nothing to the button while the hint stands still", {
+    reset()
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    expect_equal(
-      page$evaluate("document.querySelector('.hovercraft-pin-strip').getAnimations({ subtree: true }).length"),
-      0
+    Sys.sleep(0.6)
+    page$evaluate(
+      "window.writes = 0; new MutationObserver((records) => { window.writes += records.length; }).observe(document.querySelector('.hovercraft-pin-strip'), { attributes: true }); 0"
     )
-    page$emulate("prefers-reduced-motion", "no-preference")
+    Sys.sleep(0.8)
+    expect_equal(page$evaluate("window.writes"), 0)
+  })
+
+  it("closes the hint, as a reader's leave, when the pointer goes from the button to the page", {
+    reset()
+    page$hover("#row_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip)
+    Sys.sleep(0.4)
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
+    page$mouse(690, 520, FALSE)
+    expect_true(seen("seen_a", "\"hint\":\"hidden\",\"hint_by\":\"reader\",\"hint_reason\":\"leave\""))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') === null"))
+  })
+
+  it("keeps a hint that the server asked to show open when the pointer passes over the button", {
+    reset()
+    view("show_a")
+    press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+    press_button("show_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip)
+    Sys.sleep(0.3)
+    page$mouse(690, 520, FALSE)
+    Sys.sleep(1)
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
+    expect_true(seen("seen_a", "\"hint\":\"shown\",\"hint_by\":\"host\""))
+    page$press("Escape")
+  })
+
+  it("shows the hint on a tap and does not pin; the button then pins, and a tap away closes the hint", {
+    reset()
+    box <- rect("#row_a")
+    page$touch_tap((box$left + box$right) / 2, (box$top + box$bottom) / 2)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_box)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
+    page$touch_tap(690, 520)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", hint_box)))
+    box <- rect("#row_a")
+    page$touch_tap((box$left + box$right) / 2, (box$top + box$bottom) / 2)
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    button <- rect(strip)
+    page$touch_tap((button$left + button$right) / 2, (button$top + button$bottom) / 2)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    page$touch_off()
+    page$press("Escape")
+  })
+
+  it("shows the button on an item that pins by a click too, and names the tip's kind in the inputs", {
+    reset()
+    page$hover("#row_b")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    reset()
+    view("row_e")
+    page$hover("#row_e")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip, click = TRUE)
+    expect_true(seen("seen_e", "\"pin_kind\":\"review_item\""))
+    page$press("Escape")
+  })
+
+  it("keeps the button in the corner of a hint inside a modal, above it", {
+    reset()
+    page$evaluate("document.getElementById('open_modal').click()")
+    expect_true(page$wait_until(
+      "document.getElementById('row_modal') !== null && document.getElementById('row_modal').getBoundingClientRect().width > 0"
+    ))
+    Sys.sleep(0.6)
+    page$hover("#row_modal")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    button <- rect(strip)
+    top <- page$evaluate(sprintf(
+      "(() => { const e = document.elementFromPoint(%s, %s); return !!e?.closest('.hovercraft-pin-strip-button'); })()",
+      (button$left + button$right) / 2,
+      (button$top + button$bottom) / 2
+    ))
+    expect_true(top)
+    mouse_at(strip, click = TRUE)
+    expect_true(seen("seen_modal", "pinned"))
+    page$press("Escape")
+    page$evaluate("document.querySelector('.modal.show .btn-close, [data-bs-dismiss=\"modal\"]')?.click(); 0")
+    Sys.sleep(0.6)
+  })
+
+  it("puts the button in the left corner, and the room beside it, on a right-to-left page", {
+    reset()
+    page$evaluate("document.documentElement.dir = 'rtl'")
+    page$hover("#row_d")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    hint <- rect(hint_box)
+    button <- rect(strip)
+    expect_lt(button$left - hint$left, 8)
+    expect_gt(lines()$first_left, button$right - 1)
+    page$evaluate("document.documentElement.dir = 'ltr'")
   })
 
   it("keeps the button inside the hint and the window at 320 px", {
