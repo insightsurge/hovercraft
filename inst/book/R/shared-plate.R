@@ -176,11 +176,11 @@ choice_set <- function(id, legend, choices, selected = choices[[1]]) {
     if (identical(choices[[i]], selected)) {
       radio <- htmltools::tagAppendAttributes(radio, checked = NA)
     }
-    # The slash stays on the line of the word after it.
+    # The slash stays on the line of the word before it, so a row that wraps never starts with one.
     htmltools::span(
       class = "pick",
-      if (i > 1L) htmltools::span(class = "sep", `aria-hidden` = "true", "/"),
-      htmltools::tags$label(radio, htmltools::span(words[[i]]))
+      htmltools::tags$label(radio, htmltools::span(words[[i]])),
+      if (i < length(choices)) htmltools::span(class = "sep", `aria-hidden` = "true", "/")
     )
   })
   htmltools::tags$fieldset(

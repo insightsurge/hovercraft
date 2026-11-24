@@ -134,6 +134,10 @@
   border: 1px solid var(--rule);
   border-radius: 6px;
 }
+.toc-search input::placeholder {
+  color: var(--ink-2);
+  opacity: 1;
+}
 .toc-search input:focus-visible {
   outline: 2px solid var(--blue);
   outline-offset: 1px;
@@ -202,8 +206,9 @@ main {
   font-size: var(--s1);
   line-height: 1.5;
   color: var(--ink);
-  max-width: 36em;
+  max-width: 34em;
   margin: 0 0 44px;
+  text-wrap: pretty;
 }
 .plate .lede em {
   font-style: italic;
@@ -716,11 +721,16 @@ main {
   #start {
     padding-top: 40px;
   }
+  /* The number and the title share one line, as in the index. */
+  .plate-head {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+  }
   .plate-no {
     position: static;
-    display: inline;
+    flex: none;
     font-size: var(--s2);
-    margin-right: 10px;
   }
   .plate-kicker {
     display: inline;
@@ -731,7 +741,8 @@ main {
   /* Under the phone's fixed bar, with less room above. */
   .plate-head {
     top: var(--bar-h);
-    padding: 12px 0 10px;
+    min-height: 0;
+    padding: 12px 0 16px;
   }
   .plate-body {
     display: block;
@@ -1040,24 +1051,6 @@ main {
 .g-fold .g-step {
   margin: 0 auto 0 0;
 }
-.g-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  min-height: 28px;
-  min-width: 28px;
-  padding: 0 8px;
-  cursor: pointer;
-  font: 500 0.78rem / 1 var(--sans);
-  color: var(--blue);
-  background: none;
-  /* Boxed like a chosen word in a sentence, so it reads as a button. */
-  border: 1px solid var(--blue);
-  border-radius: 3px;
-}
-.g-btn:hover {
-  background: var(--wash);
-}
 .g-said {
   flex-basis: 100%;
   margin: 6px 0 0;
@@ -1356,4 +1349,17 @@ body {
   max-width: 40em;
   color: var(--ink-2);
   font-size: var(--s0);
+}
+
+/* Prose and captions wrap without a lone last word; headings balance their lines. */
+.specimen-text,
+.specimen figcaption,
+.legend-line,
+.part-head .part-lede,
+.colophon {
+  text-wrap: pretty;
+}
+.part-head h2,
+.plate-head h3 {
+  text-wrap: balance;
 }

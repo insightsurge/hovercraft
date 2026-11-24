@@ -114,7 +114,8 @@ p {
   margin: 0 0 0.8em;
 }
 
-/* Choice sets: a run of words where the chosen one is boxed in blue. Used in the index and in every legend. */
+/* Choice sets: a run of words a reader can pick from. An open word has a dotted underline; the chosen one sits on
+   a soft fill in blue. No outline, so a choice never looks like a button. Used in the index and every legend. */
 .choice {
   display: inline;
   border: 0;
@@ -138,9 +139,16 @@ p {
   line-height: 1.5;
   white-space: nowrap;
 }
+.choice label > span {
+  text-decoration: underline dotted var(--blue-soft);
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
 .choice label:hover {
   color: var(--ink);
-  border-color: var(--rule);
+}
+.choice label:hover > span {
+  text-decoration-color: var(--blue);
 }
 .choice input {
   position: absolute;
@@ -153,8 +161,11 @@ p {
   color: var(--blue);
 }
 .choice label:has(input:checked) {
-  border-color: var(--blue);
+  background: var(--wash);
   color: var(--blue);
+}
+.choice label:has(input:checked) > :where(span) {
+  text-decoration: none;
 }
 .choice label:has(input:focus-visible) {
   outline: 2px solid var(--blue);
@@ -245,10 +256,18 @@ p {
   background: var(--wash);
   border-radius: 3px;
   font: 400 0.72rem / 1.6 var(--mono);
-  white-space: pre;
+  white-space: pre-wrap;
   overflow-x: auto;
   color: var(--ink);
   tab-size: 2;
+}
+/* A line longer than the margin wraps with its continuation indented, so it still reads as one line of code. */
+.code .ln {
+  display: block;
+  min-height: 1.6em;
+  padding-left: 4ch;
+  text-indent: -4ch;
+  overflow-wrap: anywhere;
 }
 .code .s {
   color: var(--blue);
@@ -270,18 +289,31 @@ p {
   color: var(--ink);
 }
 
-.btn-quiet {
-  font: 500 0.76rem / 1 var(--sans);
+/* Every button of the book's own chrome (Copy, Close, Back, Next) is this one: a thin blue box, filled on hover
+   and when its action is done. The outline is kept for buttons only. */
+.btn-quiet,
+.g-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 28px;
+  min-width: 28px;
+  padding: 0 10px;
+  font: 500 0.78rem / 1 var(--sans);
   color: var(--blue);
   background: none;
   border: 1px solid var(--blue);
   border-radius: 3px;
-  min-height: 24px;
-  padding: 4px 8px;
   cursor: pointer;
 }
-.btn-quiet:hover {
+.btn-quiet:hover,
+.g-btn:hover {
   background: var(--wash);
+}
+.btn-quiet:focus-visible,
+.g-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
 }
 .btn-quiet[data-done] {
   background: var(--blue);

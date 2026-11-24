@@ -40,20 +40,27 @@
   };
 
   /* ---- The code note: R code painted as spans, with a revision per plate ------------------------------------ */
-  // Comments, strings and the names of called functions get a class; everything else is plain text.
+  // Comments, strings and the names of called functions get a class; everything else is plain text. Each line is a
+  // block of its own, so a line too long for the margin wraps under itself (shared.css); Copy takes `data-raw`, the
+  // code exactly as the server sent it.
   const TOKEN = /(#[^\n]*)|("(?:[^"\\]|\\.)*")|([A-Za-z_.][\w.]*(?:::[\w.$]+)?(?=\())/g;
   const paint = (pre, text) => {
     pre.replaceChildren();
-    let at = 0;
-    for (const m of text.matchAll(TOKEN)) {
-      if (m.index > at) pre.append(text.slice(at, m.index));
-      const span = document.createElement('span');
-      span.className = m[1] ? 'c' : m[2] ? 's' : 'f';
-      span.textContent = m[0];
-      pre.append(span);
-      at = m.index + m[0].length;
+    for (const line of text.split('\n')) {
+      const ln = document.createElement('span');
+      ln.className = 'ln';
+      let at = 0;
+      for (const m of line.matchAll(TOKEN)) {
+        if (m.index > at) ln.append(line.slice(at, m.index));
+        const span = document.createElement('span');
+        span.className = m[1] ? 'c' : m[2] ? 's' : 'f';
+        span.textContent = m[0];
+        ln.append(span);
+        at = m.index + m[0].length;
+      }
+      ln.append(line.slice(at));
+      pre.append(ln);
     }
-    pre.append(text.slice(at));
     pre.dataset.raw = text;
   };
   const revs = {};

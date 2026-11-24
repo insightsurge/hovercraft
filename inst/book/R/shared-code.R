@@ -14,8 +14,9 @@ code_chr <- function(x) {
 }
 
 # One call as text. `...` are the arguments as code (strings), named or not; NULL and "" are left out. The call fits on
-# one line when it is short; otherwise every argument gets its own line, indented two spaces.
-code_call <- function(fn, ..., width = 100L) {
+# one line when it is short; otherwise every argument gets its own line, indented two spaces. The width is about what
+# the margin shows on one line, so the code reads there without wrapping.
+code_call <- function(fn, ..., width = 56L) {
   args <- list(...)
   args <- args[!vapply(args, function(a) is.null(a) || identical(a, ""), NA)]
   if (!length(args)) {

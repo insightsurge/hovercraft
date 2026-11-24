@@ -63,7 +63,7 @@ markers_code <- function(settings) {
       code_str("from walk-in and online bookings."),
       class = code_str("specimen-text")
     ),
-    code_call("htmltools::tags$h5", heading, class = code_str("strip-title")),
+    code_call("htmltools::p", heading, class = code_str("strip-title")),
     box
   )
 }

@@ -4,7 +4,7 @@
 
 # Building the page runs the book's code, whose tip_define() calls register templates in this R process; forget them
 # when this file ends, so a later test file starts with none.
-withr::defer(tip_reset(), testthat::teardown_env())
+withr::defer(tip_reset())
 
 # The book's files, loaded as Shiny loads them: every file in R/, in order, into one environment.
 load_book <- function() {
