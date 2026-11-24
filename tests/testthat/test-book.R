@@ -277,6 +277,21 @@ describe("the code each section shows", {
     expect_identical(book$disabled_server_code(hostile), book$disabled_server_code("loading"))
   })
 
+  it("writes made-up data as code that gives the same data back", {
+    for (name in c("book_queues", "book_columns", "book_regions", "book_branches")) {
+      data <- get(name, envir = book)
+      env <- new.env()
+      eval(parse(text = book$code_df("x", data)), env)
+      expect_identical(env$x, data, info = name)
+    }
+  })
+
+  it("puts an argument name R can't read bare between backticks", {
+    code <- book$code_call("tip_fields", "Week 46" = "\"a\"", Owner = "\"b\"")
+    expect_match(code, "`Week 46` = \"a\"", fixed = TRUE)
+    expect_identical(names(as.list(parse(text = code)[[1]]))[-1], c("Week 46", "Owner"))
+  })
+
   it("does not run code that leans on something outside the exports", {
     expect_match(book$run_code("tip_contract()", exports)$error, "tip_contract")
   })
@@ -380,6 +395,12 @@ describe("the test steps and their proofs", {
     shiny::testServer(tables, {
       session$setInputs(book_tick = list(plate = "tables", i = 1, on = TRUE))
       expect_identical(session$userData$tables$done(), 1L)
+      # A pinnable row sends its pin under the table's id: the reader's own pin ticks the pin step.
+      pin <- function(by) stats::setNames(list(list(state = "pinned", by = by)), "branches/row/2_tip")
+      do.call(session$setInputs, pin("host"))
+      expect_identical(session$userData$tables$done(), 1L)
+      do.call(session$setInputs, pin("reader"))
+      expect_identical(session$userData$tables$done(), c(1L, 3L))
     })
   })
 
