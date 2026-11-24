@@ -53,7 +53,7 @@ describe("tip_table() on a DT table", {
 
   it("tells the layer at which position of a row's data each field the tips name sits", {
     got <- tip_table(dt(), rows = "**{{ team }}**: {{ wins | number:0 }} wins")
-    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1})", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1}, true)", fixed = TRUE)
   })
 
   it("marks rows through the engine's own attribute names", {
@@ -71,9 +71,19 @@ describe("tip_table() on a DT table", {
     expect_match(js(got$x$options$initComplete), "\"2\":{\"attrs\"", fixed = TRUE)
   })
 
+  it("tells the layer which columns DT escapes, so it can give a tip the value as it is in the data", {
+    created <- function(widget) js(tip_table(widget, rows = "{{ team }} {{ note }}")$x$options$createdRow)
+    expect_match(created(dt()), "{\"team\":0,\"note\":3}, true)", fixed = TRUE)
+    expect_match(created(dt(escape = FALSE)), "{\"team\":0,\"note\":3}, false)", fixed = TRUE)
+    # By column name or by number: the 0-based positions of the escaped columns (the row names column counts).
+    expect_match(created(dt(escape = "team")), "{\"team\":0,\"note\":3}, [0])", fixed = TRUE)
+    expect_match(created(dt(escape = c(2, 4))), "{\"team\":0,\"note\":3}, [1,3])", fixed = TRUE)
+    expect_match(created(DT::datatable(scores, escape = "team")), "[1])", fixed = TRUE)
+  })
+
   it("asks for no record when no tip reads the row", {
     got <- tip_table(dt(), rows = "A fixed note")
-    expect_match(js(got$x$options$createdRow), "dtRecord(data, null)", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, null, true)", fixed = TRUE)
   })
 
   it("counts the row names column in the positions when the table has one", {
@@ -81,7 +91,7 @@ describe("tip_table() on a DT table", {
     defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
     expect_identical(defs[[1]]$targets, 2L)
     expect_identical(names(got$x$data)[[1]], " ")
-    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"wins\":2})", fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"wins\":2}, true)", fixed = TRUE)
   })
 
   it("writes the placement and the fixed kind as the engine's attributes", {
@@ -121,7 +131,11 @@ describe("tip_table() on a DT table", {
   it("with an id asks for the data row even when no tip reads the row, and for no record", {
     got <- tip_table(dt(), rows = "A fixed note", id = "league")
     expect_identical(names(got$x$data), names(scores))
-    expect_match(js(got$x$options$createdRow), "dtRecord(data, null), HovercraftTable.dtRow(this, index)", fixed = TRUE)
+    expect_match(
+      js(got$x$options$createdRow),
+      "dtRecord(data, null, true), HovercraftTable.dtRow(this, index)",
+      fixed = TRUE
+    )
   })
 
   it("counts the column of a cell's tip id from the data, not the row names column", {
@@ -158,13 +172,24 @@ describe("tip_table() on a DT table", {
 
   it("accepts a tip_template()", {
     got <- tip_table(dt(), rows = tip_template(tip_title("{{ team }}"), tip_text("{{ wins | number:0 }} wins")))
-    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1})", fixed = TRUE)
+    expect_match(js(got$x$options$createdRow), "dtRecord(data, {\"team\":0,\"wins\":1}, true)", fixed = TRUE)
   })
 
   it("leaves out a cell or a row whose words are NA or empty", {
     got <- tip_table(dt(), rows = NA_character_, cells = c(wins = "{{ wins }}", losses = NA, note = ""))
     expect_null(got$x$options$createdRow)
     expect_length(Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs), 1L)
+  })
+
+  it("stops on a column that holds a list, which is one value per row only in name", {
+    nested <- scores
+    nested$note <- list(1, 2, "x")
+    expect_error(
+      tip_table(DT::datatable(nested, rownames = FALSE), rows = "{{ note }}"),
+      class = "hovercraft_error_record"
+    )
+    # A list column that no tip reads is not the tip's concern.
+    expect_s3_class(tip_table(DT::datatable(nested, rownames = FALSE), rows = "{{ team }}"), "datatables")
   })
 
   it("refuses options it would overwrite", {
@@ -700,7 +725,7 @@ describe("tip_spec(more =, more_on =) in tip_table()", {
       cells = list(team = tip_spec("{{ team }}", more = "{{ note }} ({{ wins }})", more_on = "hover"))
     )
     defs <- Filter(function(def) !is.null(def$createdCell), got_dt$x$options$columnDefs)
-    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"team\":0,\"note\":3,\"wins\":1})", fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"team\":0,\"note\":3,\"wins\":1}, true)", fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), tip_attribute("more_template"), fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), tip_attribute("more_on"), fixed = TRUE)
     expect_length(got_dt$jsHooks$render[[1]]$data$defines, 2L)

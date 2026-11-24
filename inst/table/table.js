@@ -24,10 +24,22 @@
     return JSON.stringify(record);
   };
 
+  // DT escapes the HTML of a string in the columns `escaped` says (true for all, false for none, or a list of column
+  // positions) before it hands a row over, and htmltools escapes only `&`, `<` and `>`. One pass over the text undoes
+  // exactly that: a value that held the text "&amp;" arrives as "&amp;amp;" and comes back as "&amp;", not "&".
+  const ENTITIES = { amp: '&', lt: '<', gt: '>' };
+  const decodeEntities = (text) => text.replace(/&(amp|lt|gt);/g, (_, name) => ENTITIES[name]);
+
   // DT: `fieldAt` maps each field to the position of its column in the row's data (an array).
-  const dtRecord = (data, fieldAt) => {
+  const dtRecord = (data, fieldAt, escaped) => {
     const fields = Object.keys(fieldAt ?? {});
-    return fields.length ? recordFrom(fields, (field) => data?.[fieldAt[field]]) : null;
+    if (!fields.length) return null;
+    return recordFrom(fields, (field) => {
+      const at = fieldAt[field];
+      const value = data?.[at];
+      const undo = escaped === true || (Array.isArray(escaped) && escaped.includes(at));
+      return undo && typeof value === 'string' ? decodeEntities(value) : value;
+    });
   };
 
   // DT: the 1-based data row of the row DT is drawing, or null. In client mode DT's own row index is the data row. In
@@ -119,8 +131,8 @@
     node.remove();
   };
 
-  // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a tip
-  // opens, as `tip_define()` does for a tag of the page's own.
+  // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a
+  // tip opens, as `tip_define()` does for a tag of the page's own.
   const define = (defines, desc, park) => {
     if (desc) descClass = desc;
     for (const [name, blocks] of Object.entries(defines ?? {})) window.Hovercraft?.define(name, JSON.parse(blocks));
@@ -133,13 +145,9 @@
     for (const [index, spec] of Object.entries(specs)) mark(api.column(Number(index)).header(), spec, null, null);
   };
 
-  // reactable keeps no row data in the page, so R puts a class on each row, cell and header cell (its own `rowClass`,
-  // `class` and `headerClass`) that says which data row it shows, and the row's class also holds its record (see
-  // `rowClass`); this reads the classes and marks the element. React reuses the elements when the table is sorted,
-  // filtered, paged or given new data, which changes the class, so a change of class marks again.
-  // reactable: the class of a row. `rowInfo` is reactable's own (`index` is the row's place in the current data, `values`
-  // its values by column id). The class says the data row and carries the record as base64url of its UTF-8 JSON, so it
-  // changes with the data and nothing is kept in the page.
+  // reactable: the class of a row. `rowInfo` is reactable's own: `index` is the row's place in the current data and
+  // `values` its values by column id. The class says the data row and carries the record as base64url of its UTF-8
+  // JSON, so it changes with the data and nothing is kept in the page.
   const toBase64Url = (text) =>
     btoa(unescape(encodeURIComponent(text)))
       .replace(/\+/g, '-')
@@ -156,6 +164,10 @@
     return `${own} hovercraft-rec-${toBase64Url(recordFrom(fields, (field) => rowInfo.values?.[field]))}`;
   };
 
+  // reactable keeps no row data in the page, so R puts a class on each row, cell and header cell (its own `rowClass`,
+  // `class` and `headerClass`) that says which data row it shows, and the row's class also holds its record (see
+  // `rowClass`); this reads the classes and marks the element. React reuses the elements when the table is sorted,
+  // filtered, paged or given new data, which changes the class, so a change of class marks again.
   const reactable = (el, cfg) => {
     // The record a row's class holds, or null: a cell reads its row's.
     const recordOf = (node) => {
