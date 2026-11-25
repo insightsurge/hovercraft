@@ -344,8 +344,81 @@
     captureShell(id, wrapper);
     const holder = getPark(doc);
     if (holder && !wrapper.closest('.hc-output') && wrapper.parentElement !== holder) {
-      holder.append(wrapper);
+      // The region that holds the tag drew again: its new output replaces the one parked before, which would be a second
+      // element with the same id, bound to nothing.
+      dropParked(holder, id, outputEl);
+      // A mark where the output was says whether the region that made it is still in the page (see `reapParked`).
+      const mark = doc.createElement('span');
+      mark.hidden = true;
+      wrapper.before(mark);
+      parkMarks.set(id, mark);
+      // The output is in the page again, so what a closing tip does with it is the ordinary thing (see `destroy`).
+      const rec = outputs.get(id);
+      if (rec) rec.orphaned = false;
+      // A tip that is open holds the old output: the new one takes its place there, so the page has one element with the
+      // id, and the old one is let go. Of several boxes that asked for the output, the one that holds the node is `slot`.
+      const tip = rec?.live.find((box) => box.root === rec.slot && box.root.isConnected);
+      if (tip) {
+        releaseNode(tip.hostEl, tip.wrapper);
+        tip.hostEl.append(wrapper);
+        // The boxes that wait for the node hand it on when they take it over, so all of them point to the new one.
+        for (const box of rec.live) [box.wrapper, box.outputEl] = [wrapper, outputEl];
+        refreshOutput(tip.hostEl, outputEl, id);
+      } else {
+        holder.append(wrapper);
+      }
     }
+  };
+
+  // Shiny lets go of a node (its outputs and inputs), then the node leaves the page.
+  const releaseNode = (host, node) => {
+    const shiny = host.ownerDocument.defaultView?.Shiny ?? window.Shiny;
+    if (shiny?.unbindAll) shiny.unbindAll(node, true);
+    node.remove();
+  };
+
+  // Output id -> the hidden mark left in the page where the parked output was. When the mark has left the page, the
+  // region that drew the output has gone, and the parked output is no one's.
+  const parkMarks = new Map();
+
+  // Takes the parked outputs with this id out of the page, except `keep`: Shiny lets go of them first, then the node goes.
+  const dropParked = (holder, id, keep = null) => {
+    for (const el of holder.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {
+      if (el === keep) continue;
+      let top = el;
+      while (top.parentElement && top.parentElement !== holder) top = top.parentElement;
+      releaseNode(holder, top);
+    }
+  };
+
+  // Lets go of the parked outputs whose region has left the page (a `renderUI()` that returned nothing, a module removed)
+  // and of what was kept for them. What it finds when the mark of an output has left:
+  // - a new output outside the holder and outside any tip: the region drew again, and `parkId` parks it in the old one's
+  //   place (its `tip_define()` may be outside the region, so nothing else would ask);
+  // - the output inside a tip that is open: the tip keeps it until it closes, and `destroy` then lets it go;
+  // - the output in the holder, or none at all (a tip with `keep_alive = FALSE` took it away): it and what was kept for it
+  //   go now.
+  const reapParked = () => {
+    const holder = document.body?.querySelector(`:scope > .${names?.parkClass ?? 'hc-output-park'}`);
+    for (const [id, mark] of [...parkMarks]) {
+      if (mark.isConnected) continue;
+      parkMarks.delete(id);
+      const current = findOutputEl(document, id);
+      const rec = outputs.get(id);
+      if (current && !holder?.contains(current)) {
+        if (current.closest('.hc-output')) {
+          if (rec) rec.orphaned = true;
+        } else {
+          parkId(id);
+        }
+        continue;
+      }
+      if (holder) dropParked(holder, id);
+      if (rec) clearWait(rec);
+      outputs.delete(id);
+      shells.delete(id);
+    }
+    for (const [html, node] of parkedHtml) if (!node.isConnected) parkedHtml.delete(html);
   };
 
   let outputWatch = null;
@@ -483,8 +556,10 @@
         keep_alive: { type: 'boolean', required: false },
       },
       flatten: () => '',
-      render: (b, _record, ctx) => {
+      render: (b, record, ctx) => {
         const id = typeof b.output === 'string' ? b.output : '';
+        // The engine says which item this box is drawn for in the record; the mount below is not told (it gets the box).
+        const tipId = record?.tip_id;
         const keepAlive = b.keep_alive !== false;
         const doc = ctx.doc;
         const root = doc.createElement('div');
@@ -575,7 +650,9 @@
               },
             };
           }
-          const mine = { root, hostEl };
+          // `wrapper` and `outputEl` are the box's own: a region that draws again while the tip is open puts its new output
+          // in the box (see `parkId`), so what `destroy` lets go of is read from here.
+          const mine = { root, hostEl, wrapper, outputEl };
           takeOver(rec);
           rec.live.push(mine);
           captureShell(id, wrapper);
@@ -598,8 +675,10 @@
           }
           // An output drawn for another item still holds that item's content: show loading until the server answers
           // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
-          // A pinned tip's output says whose it is (`info.id`); with several pins open, "the item that is open" is no one's.
-          const item = info?.id ? find(String(info.id)) : itemOf(info?.box);
+          // The record says whose tip this is, which stays true with several pins open, where "the item that is open" is
+          // no one's; without it, the item that is open.
+          const owner = tipId ?? info?.id;
+          const item = owner ? find(String(owner)) : itemOf(info?.box);
           if (item && rec.item && item !== rec.item && rec.state === 'ready') {
             rec.state = 'loading';
             rec.stale = true;
@@ -618,7 +697,7 @@
           return {
             resize: () => {
               const jq = doc.defaultView?.jQuery ?? window.jQuery;
-              if (jq && outputEl.isConnected) jq(outputEl).trigger('resize');
+              if (jq && mine.outputEl.isConnected) jq(mine.outputEl).trigger('resize');
             },
             mode: () => {
               const jq = doc.defaultView?.jQuery ?? window.jQuery;
@@ -633,20 +712,26 @@
               // A box that stayed open (a pin) gets the node back; a redraw parks it, and the new box asks for it.
               const next = rec.live.at(-1);
               if (!redraw && next?.root.isConnected) {
-                next.hostEl.append(wrapper);
+                next.hostEl.append(mine.wrapper);
+                [next.wrapper, next.outputEl] = [mine.wrapper, mine.outputEl];
                 rec.slot = next.root;
                 applySlotState(id);
-                refreshOutput(next.hostEl, outputEl, id);
+                refreshOutput(next.hostEl, mine.outputEl, id);
                 return;
               }
-              if (!hostEl.contains(wrapper)) return;
-              if (keepAlive || redraw) {
+              if (!hostEl.contains(mine.wrapper)) return;
+              if (rec.orphaned) {
+                // The region that made the output went while this tip held it: no one parks it again, and nothing keeps
+                // its records.
+                releaseNode(hostEl, mine.wrapper);
+                clearWait(rec);
+                outputs.delete(id);
+                shells.delete(id);
+              } else if (keepAlive || redraw) {
                 const holder = getPark(doc);
-                if (holder) holder.append(wrapper);
+                if (holder) holder.append(mine.wrapper);
               } else {
-                const shiny = doc.defaultView?.Shiny ?? window.Shiny;
-                if (shiny?.unbindAll) shiny.unbindAll(wrapper, true);
-                wrapper.remove();
+                releaseNode(hostEl, mine.wrapper);
                 clearWait(rec);
                 rec.state = 'idle';
                 rec.message = '';
@@ -893,14 +978,14 @@
   // Output tags that R hands over as HTML (a `more` template that holds a tag): put in the park holder once there is a
   // body, each only once, and bound by Shiny when it is already running.
   const pendingHtml = [];
-  const parkedHtml = new Set();
+  const parkedHtml = new Map(); // the HTML -> the node that was made from it
   const flushParkHtml = () => {
     if (!document.body || !pendingHtml.length) return;
     const holder = getPark(document);
     for (const html of pendingHtml.splice(0)) {
       if (parkedHtml.has(html)) continue;
-      parkedHtml.add(html);
       holder.insertAdjacentHTML('beforeend', html);
+      parkedHtml.set(html, holder.lastElementChild);
     }
     if (window.Shiny?.shinyapp && window.Shiny.bindAll) window.Shiny.bindAll(holder);
   };
@@ -913,6 +998,8 @@
     // runtime.js, before it closes a pin that went past its pool's limit: the close then reports as the engine's own limit
     // does (reason "replaced", by whoever pinned the new tip) in the pin input.
     replaced: (id, info) => replacedBy.set(String(id), info),
+    // For the tests: what is kept for the outputs that tips hold.
+    stats: () => ({ outputs: outputs.size, shells: shells.size, marks: parkMarks.size }),
     start: (config) => {
       if (names) return;
       names = config;
@@ -944,6 +1031,7 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
       let checking = 0;
       new MutationObserver(() => {
+        reapParked();
         clearTimeout(checking);
         checking = setTimeout(checkIds, 500);
       }).observe(document.documentElement, { childList: true, subtree: true });
