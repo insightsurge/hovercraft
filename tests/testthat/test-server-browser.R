@@ -117,14 +117,7 @@ describe("server calls and the hint input in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   # Waits for the server to have drawn an output with this text, then reads it.
   seen <- function(id, pattern) {
@@ -134,7 +127,7 @@ describe("server calls and the hint input in a Shiny app", {
       jsonlite::toJSON(id, auto_unbox = TRUE)
     ))
   }
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
 
   it("starts and connects", {
     expect_true(up, info = paste(app$read_error(), collapse = "\n"))
@@ -173,7 +166,7 @@ describe("server calls and the hint input in a Shiny app", {
   it("does nothing for a hide when that tip is not the one open", {
     page$hover("#quiet")
     press_button("hide")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$shown(), "A quiet tip")
   })
 
@@ -197,7 +190,7 @@ describe("server calls and the hint input in a Shiny app", {
     expect_true(any(page$shown() == "Hover B"))
     # Not a click: a click away would close the pin by itself.
     page$evaluate("Shiny.setInputValue('hide_a', Date.now())")
-    Sys.sleep(0.6)
+    page$settle()
     expect_true(any(page$shown() == "Hover B"))
   })
 
@@ -230,14 +223,14 @@ describe("server calls and the hint input in a Shiny app", {
     expect_identical(side(), "other")
     page$hover("#quiet")
     press_button("place")
-    Sys.sleep(0.5)
+    page$settle()
     page$hover("#run")
     expect_identical(side(), "right")
   })
 
   it("takes the words away from the server, so the tag has no tip", {
     press_button("clear")
-    Sys.sleep(0.5)
+    page$settle()
     page$hover("#quiet")
     expect_length(page$hover("#run"), 0L)
   })

@@ -173,7 +173,7 @@ describe("server calls on the tips of a table in a Shiny app", {
     expect_true(shows("Wins of Foxes: 5"))
     call("show", "rt", column = "wins")
     expect_true(shows("The wins column"))
-    page$evaluate("document.querySelectorAll('#rt [role=columnheader]')[1].click(); 0")
+    page$click_now("#rt [role=columnheader]:nth-child(2)")
     expect_true(page$wait_until(
       "document.querySelector('#rt .rt-tbody [role=row] [role=cell]')?.textContent.startsWith('Lynx')"
     ))

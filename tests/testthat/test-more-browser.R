@@ -116,14 +116,7 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   css <- tip_names()$css
 
@@ -329,7 +322,7 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     page$emulate("prefers-reduced-motion", "reduce")
     page$hover("#pin_btn")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
-    page$evaluate("document.getElementById('pin_btn').click()")
+    page$click_now("#pin_btn")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s.%s-pin:not([hidden])') !== null", css, css)))
     anim_count <- page$evaluate(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])').getAnimations().length",

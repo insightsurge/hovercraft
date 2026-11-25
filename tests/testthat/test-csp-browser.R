@@ -57,14 +57,7 @@ serve_page <- function(build, policy = csp, env = parent.frame()) {
   )
   withr::defer(app$kill(), envir = env)
   url <- paste0("http://127.0.0.1:", port, "/")
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   list(url = url, up = up, error = function() paste(app$read_error(), collapse = "\n"))
 }
 
@@ -275,17 +268,10 @@ describe("a Shiny page under a strict Content-Security-Policy", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port, "/")
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   # What Shiny alone reports under the policy, to hold the page with tips to.
   plain <- local_page(paste0(url, "?plain"), environment(), init = watch)
-  plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true")
+  expect_true(plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
   baseline <- violations(plain)
   page <- local_page(url, environment(), init = watch)
   css <- tip_names()$css
@@ -307,8 +293,8 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("shows a tip when the server asks, and draws the pin button", {
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
-    page$evaluate("document.getElementById('show').click()")
+    expect_true(page$wait_closed())
+    page$click_now("#show")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     # A hint the server asked for stays until it is closed.
@@ -327,7 +313,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("draws a template, a theme and a long form that arrive through renderUI() after the page has loaded", {
     page$mouse(5, 5, FALSE)
-    page$evaluate("document.getElementById('late').click()")
+    page$click_now("#late")
     expect_true(page$wait_until("document.getElementById('rendered_btn') !== null"))
     expect_match(paste(page$hover("#rendered_btn"), collapse = " "), "rendered.*Late: 7")
     expect_identical(radius(), "15px")
@@ -337,8 +323,8 @@ describe("a Shiny page under a strict Content-Security-Policy", {
 
   it("draws them when they arrive through insertUI() too", {
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
-    page$evaluate("document.getElementById('insert').click()")
+    expect_true(page$wait_closed())
+    page$click_now("#insert")
     expect_true(page$wait_until("document.getElementById('inserted_btn') !== null"))
     expect_match(paste(page$hover("#inserted_btn"), collapse = " "), "inserted.*Late: 7")
     expect_identical(radius(), "17px")
@@ -368,11 +354,12 @@ describe("the icons drawn from data: images, under a policy with default-src", {
   reported <- function(policy) {
     made <- serve_page(build, policy = policy, env = parent.frame())
     page <- local_page(made$url, parent.frame(), init = watch)
-    page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global))
-    for (id in c("marked", "pinnable", "off")) {
+    expect_true(page$wait_until(sprintf("typeof %s === 'object'", tip_names()$global)))
+    # The last hover is on the tag that is pinnable, so the pin button is on screen when the wait looks for it.
+    for (id in c("marked", "off", "pinnable")) {
       page$hover(paste0("#", id))
     }
-    page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     page$hover("#off")
     list(violations = violations(page), page = page)
   }

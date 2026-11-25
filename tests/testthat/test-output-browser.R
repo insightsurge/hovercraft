@@ -154,7 +154,7 @@ describe("tip_output() in a live Shiny app", {
         }
 
         output$spin_out <- shiny::renderText({
-          Sys.sleep(0.25)
+          Sys.sleep(0.25) # a slow render on purpose: the output must stay busy for a moment (this sleeps in the app, not the test)
           "spin-ready"
         })
 
@@ -210,19 +210,15 @@ describe("tip_output() in a live Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   css <- tip_names()$css
 
   close_tip <- function() {
     page$press("Escape", wait = 0.25)
+    # Best effort, as it was: after the Retry that gets no answer (the test "goes back to an error") the tip stays open
+    # on Escape, and the next tests go on with it. A wait that fails here would hide nothing new, but the limit makes it
+    # slow, so it is not an assertion. Reported on the pull request.
     page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css))
   }
 
@@ -274,8 +270,8 @@ describe("tip_output() in a live Shiny app", {
     ))
     close_tip()
     # Change reactive input while parked, then reopen: must refresh to v2!
-    page$evaluate("document.getElementById('bump').click()")
-    Sys.sleep(0.3)
+    page$click_now("#bump")
+    page$settle()
     page$hover("#btn_alive")
     expect_true(page$wait_until(
       "document.querySelector('.hc-tip:not([hidden]) #alive_out')?.textContent === 'alive-v2-n2'"
@@ -421,7 +417,7 @@ describe("tip_output() in ordinary use", {
         }
         output$shared_out <- shiny::renderText({
           item <- open_item()
-          Sys.sleep(0.4)
+          Sys.sleep(0.4) # a slow render on purpose: the output must stay busy for a moment (this sleeps in the app, not the test)
           paste0("shows-item-", item)
         })
         # A render that fails and never reads `input$quiet_out_retry`: Retry cannot make it run again.
@@ -436,6 +432,9 @@ describe("tip_output() in ordinary use", {
   state_of <- "document.querySelector('.hc-tip:not([hidden]) .hc-output')?.dataset.state"
   close_tip <- function() {
     page$press("Escape", wait = 0.25)
+    # Best effort, as it was: after the Retry that gets no answer (the test "goes back to an error") the tip stays open
+    # on Escape, and the next tests go on with it. A wait that fails here would hide nothing new, but the limit makes it
+    # slow, so it is not an assertion. Reported on the pull request.
     page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') === null", css))
   }
 
@@ -505,7 +504,7 @@ describe("tip_output() in ordinary use", {
     page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-retry').click()")
     expect_true(page$wait_until(paste0(state_of, " === 'loading'")))
     # Nothing re-runs the render, so the tip must not stay on "Loading…".
-    expect_true(page$wait_until(paste0(state_of, " === 'error'"), seconds = 10))
+    expect_true(page$wait_until(paste0(state_of, " === 'error'")))
     expect_match(
       page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output-error-msg').textContent"),
       "did not run this output again",
