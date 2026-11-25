@@ -55,12 +55,35 @@
     }
   };
   document.addEventListener(config.events.tip, onTip);
-  // The pin key's announcement goes with the key: an item that says P pins it must not, when the key is off.
+  // The announcement of a key goes with the key: an item that says "P" pins it, "M" opens its long form, and `aria-keyshortcuts`
+  // is a list of keys ("P M", or a page's own "Alt+R P"). When a key is off, only its token goes, from every tip's item, and
+  // the attribute goes when no token is left. The letters are those the pin and More scripts are configured with (their
+  // <meta> may arrive after this script, so they are read when needed); a page without that config has the built-in ones.
+  const KEY_CONFIG = { pin: ['p', 'hovercraft-pin-config'], more: ['m', 'hovercraft-more-config'] };
+  const letterOf = (name) => {
+    const [builtIn, meta] = KEY_CONFIG[name];
+    const found = document.querySelector(`meta[name="${meta}"]`);
+    try {
+      return String((found && decode(found.content).key) || builtIn).toLowerCase();
+    } catch {
+      // A config the page's author wrote by hand: the built-in letter stays.
+      return builtIn;
+    }
+  };
+  const ITEM = ['id', 'pin', 'more', 'moreTemplate']
+    .map((name) => `[${config.attributes[name]}][aria-keyshortcuts]`)
+    .join(', ');
   const stripKeys = (node) => {
-    if (!keysOff.has('pin')) return;
-    const items = node.matches?.(`[${config.attributes.pin}][aria-keyshortcuts]`) ? [node] : [];
-    for (const el of [...items, ...(node.querySelectorAll?.(`[${config.attributes.pin}][aria-keyshortcuts]`) ?? [])])
-      if (/^p$/i.test(el.getAttribute('aria-keyshortcuts'))) el.removeAttribute('aria-keyshortcuts');
+    if (!keysOff.size) return;
+    const letters = new Set([...keysOff].filter((name) => KEY_CONFIG[name]).map(letterOf));
+    const items = node.matches?.(ITEM) ? [node] : [];
+    for (const el of [...items, ...(node.querySelectorAll?.(ITEM) ?? [])]) {
+      const before = el.getAttribute('aria-keyshortcuts').trim().split(/\s+/);
+      const left = before.filter((key) => !letters.has(key.toLowerCase()));
+      if (left.length === before.length) continue;
+      if (left.length) el.setAttribute('aria-keyshortcuts', left.join(' '));
+      else el.removeAttribute('aria-keyshortcuts');
+    }
   };
 
   // The pin listener is registered before the Shiny layer's, so a pin that goes past its pool's limit has closed the

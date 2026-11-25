@@ -353,7 +353,12 @@
     const item = event.target;
     if (detail?.state === 'shown') shown = item;
     else if (detail?.state === 'hidden' && shown === item) shown = null;
-    if (!isHeld(item)) return;
+    if (!isHeld(item)) {
+      // A hint with no long form takes the hint box over: the earlier item's button must not stay on it, as the pin
+      // button's does not.
+      if (detail?.state === 'shown') close(slots.hint, true);
+      return;
+    }
     if (detail?.state === 'shown') {
       // A hint that opens starts short, whatever the last one ended on.
       if (expandedNow(item) && !item.getAttribute(A().open)) setState(item, false);
@@ -442,7 +447,12 @@
 
   // In a pinned tip the button is the last tab stop: Tab from the tip's last button or link goes to it, and Shift+Tab from
   // it goes back. The engine keeps Tab inside the pinned tip, so it is asked first.
-  const stops = (box) => [...box.querySelectorAll('button, a[href]')].filter((n) => !n.hidden && !n.disabled);
+  // The controls the tip's own Tab order goes through: buttons, links and fields (the engine manages their tabindex inside a
+  // pinned tip, so it is not read for them), and anything else a page made focusable. Not a disabled one, and not one that
+  // is not drawn (a control inside a hidden part, such as the Retry button of tip_output() while there is no error, has no
+  // layout box and no reader reaches it).
+  const STOP = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
+  const stops = (box) => [...box.querySelectorAll(STOP)].filter((n) => !n.disabled && n.getClientRects().length > 0);
   const onTab = (event) => {
     if (event.key !== 'Tab' || event.defaultPrevented || event.isComposing) return;
     const active = event.target?.ownerDocument?.activeElement;
