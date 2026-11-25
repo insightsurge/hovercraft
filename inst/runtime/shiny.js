@@ -352,13 +352,17 @@
       mark.hidden = true;
       wrapper.before(mark);
       parkMarks.set(id, mark);
+      // The output is in the page again, so what a closing tip does with it is the ordinary thing (see `destroy`).
+      const rec = outputs.get(id);
+      if (rec) rec.orphaned = false;
       // A tip that is open holds the old output: the new one takes its place there, so the page has one element with the
-      // id, and the old one is let go.
-      const tip = outputs.get(id)?.live.find((box) => box.root.isConnected);
+      // id, and the old one is let go. Of several boxes that asked for the output, the one that holds the node is `slot`.
+      const tip = rec?.live.find((box) => box.root === rec.slot && box.root.isConnected);
       if (tip) {
         releaseNode(tip.hostEl, tip.wrapper);
         tip.hostEl.append(wrapper);
-        [tip.wrapper, tip.outputEl] = [wrapper, outputEl];
+        // The boxes that wait for the node hand it on when they take it over, so all of them point to the new one.
+        for (const box of rec.live) [box.wrapper, box.outputEl] = [wrapper, outputEl];
         refreshOutput(tip.hostEl, outputEl, id);
       } else {
         holder.append(wrapper);

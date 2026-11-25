@@ -112,7 +112,7 @@ describe("a host that Shiny draws again or removes", {
       )
     }
 
-    held_ui <- function(name, keep_alive) {
+    held_ui <- function(name, keep_alive, items = 1L) {
       tip_template_name <- paste0(name, "_t")
       shiny::tagList(
         do.call(
@@ -122,13 +122,16 @@ describe("a host that Shiny draws again or removes", {
             tip_template_name
           )
         ),
-        tip_on(
-          shiny::actionButton(paste0(name, "_btn"), toupper(name)),
-          template = tip_template_name,
-          record = list(n = 1),
-          id = paste0(name, "_tip"),
-          pin = TRUE
-        ),
+        lapply(seq_len(items), function(i) {
+          suffix <- if (i == 1L) "" else i
+          tip_on(
+            shiny::actionButton(paste0(name, "_btn", suffix), toupper(name)),
+            template = tip_template_name,
+            record = list(n = i),
+            id = paste0(name, "_tip", suffix),
+            pin = TRUE
+          )
+        }),
         shiny::uiOutput(name)
       )
     }
@@ -144,6 +147,16 @@ describe("a host that Shiny draws again or removes", {
       held_ui("pkb", keep_alive = TRUE),
       held_ui("pkc", keep_alive = FALSE),
       held_ui("pkd", keep_alive = TRUE),
+      # Two items that share one output, and a region that draws it and defines the template the item uses.
+      held_ui("pkf", keep_alive = TRUE, items = 2L),
+      tip_on(
+        shiny::actionButton("pke_btn", "PKE"),
+        template = "pke_t",
+        record = list(n = 1),
+        id = "pke_tip",
+        pin = TRUE
+      ),
+      shiny::uiOutput("pke"),
       DT::DTOutput("dtp"),
       DT::DTOutput("dt"),
       reactable::reactableOutput("rt")
@@ -205,16 +218,30 @@ describe("a host that Shiny draws again or removes", {
       region <- function(name) {
         output[[name]] <- shiny::renderUI({
           n <- version(input, paste0(name, "_go"))
-          if (isTRUE(input[[paste0(name, "_clear")]] > 0)) {
+          if (isTRUE(input[[paste0(name, "_clear")]] %% 2 == 1)) {
             return(NULL)
           }
           shiny::tagAppendAttributes(shiny::textOutput(paste0(name, "_out")), `data-v` = n)
         })
         output[[paste0(name, "_out")]] <- shiny::renderText(paste("Answer", name))
       }
-      for (name in c("pkb", "pkc", "pkd")) {
+      for (name in c("pkb", "pkc", "pkd", "pkf")) {
         region(name)
       }
+
+      # The template comes with the region, and the item that uses it does not: clearing the region leaves the item and its
+      # open tip, and drawing the region again defines the template again.
+      output$pke <- shiny::renderUI({
+        n <- version(input, "pke_go")
+        if (isTRUE(input$pke_clear %% 2 == 1)) {
+          return(NULL)
+        }
+        shiny::tagList(
+          shiny::span(id = "pke_v", `data-v` = n),
+          tip_define(pke_t = tip_template(tip_text("Held {{ n }}"), tip_output(shiny::textOutput("pke_out"))))
+        )
+      })
+      output$pke_out <- shiny::renderText("Answer pke")
 
       output$dtp <- DT::renderDT(
         {
@@ -398,6 +425,13 @@ describe("a host that Shiny draws again or removes", {
     ))
     expect_identical(count_id("pk_out"), 1L)
     expect_true(bound_once("pk_out"))
+    # Its text is in the tip once, not twice.
+    expect_identical(
+      page$evaluate(
+        "document.querySelector('.hc-tip-pin').textContent.split('The output the tip holds').length - 1"
+      ),
+      1L
+    )
     close_tips()
     set_input("pk_clear", 1L)
     expect_true(page$wait_until("document.getElementById('pk_btn') === null"))
@@ -458,6 +492,59 @@ describe("a host that Shiny draws again or removes", {
     expect_identical(unname(after[["outputs"]]), unname(before[["outputs"]]) - 1L)
     expect_identical(unname(after[["shells"]]), unname(before[["shells"]]) - 1L)
     expect_identical(count_id("pkc_out"), 0L)
+  })
+
+  it("shows the output again when its region is cleared and drawn again while the tip is open, and the tip then closes", {
+    expect_true(page$wait_until("document.getElementById('pke_v') !== null"))
+    expect_true(page$wait_until("document.getElementById('pke_out') !== null"))
+    pin_item("pke_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
+    before <- held_stats()
+    set_input("pke_clear", 1L)
+    expect_true(page$wait_until("document.getElementById('pke_v') === null"))
+    expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]] - 1L)))
+    set_input("pke_clear", 2L)
+    expect_true(page$wait_until("document.getElementById('pke_v') !== null"))
+    expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]])))
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
+    expect_identical(count_id("pke_out"), 1L)
+    close_tips()
+    # The output is parked, whole, and shows when the tip opens again.
+    expect_identical(count_id("pke_out"), 1L)
+    pin_item("pke_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
+    expect_identical(count_id("pke_out"), 1L)
+    expect_true(bound_once("pke_out"))
+    close_tips()
+  })
+
+  it("hands a redrawn output to the box that holds it when two pinned tips share one output", {
+    expect_true(page$wait_until("document.getElementById('pkf_out') !== null"))
+    before <- held_stats()
+    pin_item("pkf_btn")
+    pin_item("pkf_btn2")
+    expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 2"))
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden]) #pkf_out') !== null"))
+    set_input("pkf_go", 2L)
+    expect_true(page$wait_until("document.getElementById('pkf_out')?.dataset.v === '2'"))
+    expect_true(page$wait_until("document.querySelectorAll('[id=\"pkf_out\"]').length === 1"))
+    expect_true(bound_once("pkf_out"))
+    # The box that holds the output closes first (the newest pin), and the other takes it.
+    page$evaluate("window.Hovercraft.close(document.getElementById('pkf_btn2')); 0")
+    expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 1"))
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip-pin:not([hidden]) #pkf_out')?.textContent === 'Answer pkf'"
+    ))
+    expect_identical(count_id("pkf_out"), 1L)
+    expect_true(bound_once("pkf_out"))
+    page$evaluate("window.Hovercraft.close(document.getElementById('pkf_btn')); 0")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden])') === null"))
+    page$settle()
+    expect_identical(count_id("pkf_out"), 1L)
+    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"pkf_out\"]').length"), 1L)
+    after <- held_stats()
+    expect_identical(unname(after[["shells"]]), unname(before[["shells"]]))
+    expect_identical(unname(after[["marks"]]), unname(before[["marks"]]))
   })
 
   it("takes a panel and the watcher of its table back at each close, over 30 pins and redraws", {
