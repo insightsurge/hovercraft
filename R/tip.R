@@ -610,7 +610,13 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' })
 #'
 #' # The built-in words of the tip, with other words, for this tip
-#' tip_on(htmltools::tags$button("Run"), "Runs the **check**", pin = TRUE, id = "run", labels = c(close = "Dismiss"))
+#' tip_on(
+#'   htmltools::tags$button("Run"),
+#'   "Runs the **check**",
+#'   pin = TRUE,
+#'   id = "run",
+#'   labels = c(close = "Dismiss")
+#' )
 #'
 #' # An icon-only button is named from its tip
 #' tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")

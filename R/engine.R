@@ -179,7 +179,9 @@ tip_reset <- function() {
 #' use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 #' use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 #' use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
-#' use_hovercraft(labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more"))
+#' use_hovercraft(
+#'   labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more")
+#' )
 #' @export
 use_hovercraft <- function(style = NULL, max_pins = 1, keys = TRUE, labels = NULL) {
   # What was written: a value left out sends nothing, one that is written (even the default) is seen by the page.

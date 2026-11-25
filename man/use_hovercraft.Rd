@@ -89,7 +89,9 @@ use_hovercraft(style = "modern")
 use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
-use_hovercraft(labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more"))
+use_hovercraft(
+  labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more")
+)
 }
 \seealso{
 Other tooltips:
