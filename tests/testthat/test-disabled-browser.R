@@ -421,7 +421,7 @@ describe("tip_update() on a control with when_disabled", {
           shiny::updateActionButton(session, id, disabled = FALSE)
         }
       )
-      shiny::observeEvent(input$clear, tip_update("tx_tip", text = NULL))
+      shiny::observeEvent(input$clear, tip_update("tx_tip", text = NA))
     }
     shiny::shinyApp(ui, server)
   })

@@ -207,6 +207,11 @@ describe("the code each plate shows", {
     }
   })
 
+  it("calls a table's tip by its row, in code that parses", {
+    expect_match(studio$tables_server_code(), "tip_show(\"branches\", row = 2)", fixed = TRUE)
+    expect_no_error(parse(text = studio$tables_server_code()))
+  })
+
   it("puts each choice in the code, and the code makes the figure that is on screen", {
     attribute <- tip_names()$attribute
     code <- studio$basics_code(list(marker = "corner", placement = "top", look = "editorial"))

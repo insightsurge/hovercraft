@@ -87,7 +87,8 @@ shinyApp(ui, server)
 
 `state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
 "hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
-tip from the server.
+tip from the server; for a table's tip they take the table's `id` with `row` and `column`
+(`tip_show("scores", row = 2, column = "wins")`).
 
 A live Shiny output inside a tip. `tip_output()` puts a plot, a table or any other output in a template; the output is
 drawn while the tip is open:
