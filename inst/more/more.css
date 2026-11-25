@@ -89,3 +89,8 @@
   clip-path: inset(50%);
   white-space: nowrap;
 }
+/* A bottom sheet (a narrow window) has room of its own under its last line, for the phone's home bar; with the button it
+   keeps the room for the button as well, or the button would sit on the last line. */
+.hc-tip.hc-tip-pin[data-side="sheet"][data-hovercraft-more-room] {
+  padding-block-end: calc(36px + env(safe-area-inset-bottom, 0px));
+}
