@@ -6,12 +6,34 @@
 \alias{hovercraft-package}
 \title{hovercraft: tips for Shiny and bslib pages}
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Put a tip on any HTML tag. The tip is plain text, or a named template filled from the values of one item, such as a
 row of a table. Start with \code{\link[=tip_on]{tip_on()}}; name templates with \code{\link[=tip_define]{tip_define()}} and build
 them with \code{\link[=tip_template]{tip_template()}} and the block functions (\code{\link[=tip_title]{tip_title()}} and friends). The tips are drawn by one small
 JavaScript file that ships with the package, so nothing needs installing in the browser.
 }
+\section{Stable and experimental}{
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} in 0.1.x: \code{\link[=tip_on]{tip_on()}} with \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one
+pinned tip at a time), \code{more} and a preset name as \code{style}; \code{\link[=use_hovercraft]{use_hovercraft()}} with a preset name; \code{\link[=tip_presets]{tip_presets()}};
+\code{\link[=tip_template]{tip_template()}}, \code{\link[=tip_define]{tip_define()}}, \code{\link[=tip_title]{tip_title()}}, \code{\link[=tip_text]{tip_text()}}, \code{\link[=tip_badge]{tip_badge()}}, \code{\link[=tip_fields]{tip_fields()}} and \code{\link[=tip_code]{tip_code()}}. The
+names of the inputs (\verb{_hint}, \verb{_pin}, \verb{_pinned}, \verb{_copy}, \verb{_retry}) do not change.
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} and free to change: \code{\link[=tip_table]{tip_table()}} and \code{\link[=tip_spec]{tip_spec()}}; \code{events} and the fields of
+the input values; \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}; \code{when_disabled}; \code{\link[=tip_output]{tip_output()}}; \code{\link[=tip_style]{tip_style()}},
+\code{\link[=tip_theme]{tip_theme()}} and \code{\link[=tip_marker]{tip_marker()}}, and \code{style} or \code{marker} given those objects; \code{\link[=tip_more]{tip_more()}}; \code{max_pins} and \code{keys}
+of \code{\link[=use_hovercraft]{use_hovercraft()}}.
+}
+
+\section{Known limits}{
+
+Each is also on the page of the function it belongs to. Server calls reach only tags that are on the page and drawn
+at that moment. A pin closes when its item is removed or hidden by a tab, a conditional panel or a sidebar, and a
+\code{DT} table in server mode has only the rows of the current page on the screen. The inputs are \code{NULL} until their
+first event. A page without Shiny (R Markdown, Quarto, a static page) has no inputs, server calls or live outputs.
+On a viewport narrower than 600 pixels the engine keeps one pin at a time. A tag inside
+\code{bslib::tooltip()} or \code{bslib::popover()} keeps the tip that bslib draws. Reconnecting an app is untested.
+}
+
 \seealso{
 Useful links:
 \itemize{

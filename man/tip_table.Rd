@@ -73,12 +73,16 @@ The widget, with the tips added.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-An experimental spike, built on top of the tip engine: the API may change in upcoming releases. Gives the rows of a
+Built on top of the tip engine, and experimental: the API may change in upcoming releases. Gives the rows of a
 table made by \code{DT::datatable()} or \code{reactable::reactable()} a tip drawn from the row's own values, and
 optionally a tip of their own to chosen cells and header cells. The tips follow the data row, so sorting, filtering
 and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 }
 \details{
+Known limits: \code{row} is the position in the data the table has now, so a pin follows the row number after
+\code{replaceData()} or a redraw; a \code{DT} table in server mode has only the rows of the current page on the screen; and
+about a millisecond of R time and some script time for each row on every change of the data, so page a long table.
+
 A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
 beside the text and not far to its left; there is no argument for it. A target that needs its own settings (style,

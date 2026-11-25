@@ -71,7 +71,8 @@ tip_output_park_class <- function() paste0(sub("-tip$", "", tip_names()$css), "-
 #' Puts any Shiny output — a plot, a `DT` or `reactable` table, a `gt` table, a chart or `uiOutput()` — inside a
 #' [tip_template()]. Give `output` as the Shiny output id (with `ns()` inside a module, such as `ns("detail_plot")`),
 #' or as the output tag itself (such as `shiny::plotOutput(ns("detail_plot"))` or one wrapped in a loader like
-#' `shinycssloaders::withSpinner()`).
+#' `shinycssloaders::withSpinner()`). It needs Shiny: on a page without a server (R Markdown, Quarto, a static page)
+#' the output stays empty.
 #'
 #' When `output` is given as an id string, place the matching `*Output()` tag in your UI (plain or wrapped in a loader
 #' such as `shinycssloaders`); hovercraft parks it out of sight until a tip opens and moves it

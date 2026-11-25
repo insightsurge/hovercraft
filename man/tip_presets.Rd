@@ -11,7 +11,7 @@ A data frame with one row for each preset and the columns \code{name}, \code{lab
 \code{about} (one sentence on what it is for).
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 Lists the presets the tip engine ships, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}, or as the first
 argument of \code{\link[=tip_style]{tip_style()}}. The name of a preset is stable; its values may be tuned between releases.
 }

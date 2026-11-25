@@ -44,12 +44,13 @@ factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen t
 else in a row is written into the page; for a template not seen here, every column goes, so choose them with
 \code{data[i, c("label", "n")]}.}
 
-\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How this tag's tip looks, or \code{NULL} (the default) to take the
-page's. A preset name from \code{\link[=tip_presets]{tip_presets()}} (\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a
-style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins,
-value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
-\code{\link[=tip_style]{tip_style()}}. A list of CSS variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so on one
-tag it stops with an error: give it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
+\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} as a preset name, \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} as a style
+object. How this tag's tip looks, or \code{NULL} (the default) to take the page's. A preset name from \code{\link[=tip_presets]{tip_presets()}}
+(\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a style: a \code{\link[=tip_theme]{tip_theme()}} or a
+\code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins, value by value. A list is not
+taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see \code{\link[=tip_style]{tip_style()}}. A list of CSS
+variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so on one tag it stops with an error:
+give it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where the tip opens: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} (the default)
 for the page's choice, which is \code{"auto"} unless a tagged ancestor sets a side. A chosen side flips to the other
@@ -62,7 +63,7 @@ an underline or give an icon, or a tag, which is used as the icon (\code{marker 
 \code{tip_marker("icon", icon = ...)}). See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells of a table, use the
 \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
 
-\item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one
+\item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one
 non-empty string with no whitespace, so \code{ns("baseline_tip")} works in a module. Give it a different id from every
 other tip source on the page. \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} find the tip by it, and \code{events} names
 the inputs after it.}
@@ -86,7 +87,9 @@ on \code{"pinned"}). A \code{"state"} of \code{"updated"} is not a pin: an app t
 \code{"pin"} also keeps \verb{input$<id>_pinned}, \code{TRUE} while the tip is pinned and \code{FALSE} after, sent in the same batch
 as \verb{_pin} and as a plain value, so an equal value does not fire an observer again; read it with
 \code{isTRUE(input$run_pinned)}. The values of \code{state} may grow in a later version, so an app should not assume it
-knows them all.
+knows them all. Every one of these inputs is \code{NULL} until its first event; in \code{shiny::testServer()} set them with
+\code{session$setInputs()}, and in \code{shinytest2} with \code{set_inputs(..., allow_no_input_binding_ = TRUE)}. On a page
+without Shiny (R Markdown, Quarto, a static page) \code{events} does nothing.
 \code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
 pressed: \code{field} (the record field the code came from), \code{block} (the code block's place among the tip's code
 blocks, from 0), \code{ok} (\code{TRUE} when the browser let the copy happen), \code{by} (\code{"reader"}) and \code{via} (\code{"click"} or
@@ -124,7 +127,7 @@ the cells of a \code{d-grid} keep their width. Not covered: a control that is a 
 put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
 that needs no wrapper, which asks the tip engine for a keyboard stop of its own.}
 
-\item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Extra content for the long form of the tip, or \code{NULL} (the default)
+\item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Extra content for the long form of the tip, or \code{NULL} (the default)
 for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}), a \code{\link[=tip_template]{tip_template()}}, or
 a \code{\link[=tip_more]{tip_more()}} that also says when the long form shows. \code{NA} and \code{""} count as none. Words and a template are the
 same as \code{tip_more()} with its default: the tip is short, and a "More" button in it (and the M key) opens the long
@@ -132,7 +135,7 @@ form in the same tip, with no pin and no \code{id}. See \code{\link[=tip_more]{t
 \code{"pin"} the tag must be able to pin and have an \code{id} (either \verb{id =} or the tag's own HTML \code{id}), otherwise
 \code{tip_on()} stops with an error.}
 
-\item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Whether a reader can keep this tip open: \code{NULL} (the
+\item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Whether a reader can keep this tip open, one at a time: \code{NULL} (the
 default) or \code{FALSE} for a tip that only shows on hover or focus (\code{FALSE} is "never", whatever a level above says),
 \code{TRUE} for a tip that is pinned by the small
 pin button in the corner of the tip, or by the pin key, and \code{"click"} for a tip that a click on the tagged item
@@ -160,7 +163,7 @@ The tag, with the tip's attributes and the engine's dependency added; with a mar
 and the marker's own dependency; with \code{when_disabled}, inside a wrapper that holds the reason.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 Gives one HTML tag a tip that shows after the pointer rests on it, or keyboard focus arrives, and hides when either
 leaves. The tip is plain text, or drawn from a named template (\code{\link[=tip_define]{tip_define()}}) filled in from a record: the values of
 one item, such as a row of a table. The engine's script and CSS are attached to the tag, so it works in a bslib page,
@@ -194,6 +197,28 @@ A tag that already has a \code{title} attribute keeps it, and the browser then s
 \code{tip_on()} warns once, with the class \code{hovercraft_warning_title}, and says to remove the \code{title}; it does not
 remove it itself, because on an icon it may be the only name.
 }
+\section{Stable and experimental}{
+
+\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time), \code{more} and a \code{style} that
+is a preset name are \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}: their names, values and defaults do not change in 0.1.x.
+\code{events} and the fields of the inputs it turns on, \code{when_disabled}, \code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a
+\code{\link[=tip_theme]{tip_theme()}} or a bslib theme, and keeping more than one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}) are
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} and may change.
+}
+
+\section{Known limits}{
+
+\itemize{
+\item A tag inside \code{\link[bslib:tooltip]{bslib::tooltip()}} or \code{\link[bslib:popover]{bslib::popover()}}, or with \code{data-bs-toggle}, keeps the tip that bslib draws.
+\item A pin closes (reason \code{"gone"}) when its item is removed, or hidden by a tab, a conditional panel or a sidebar, and
+it does not come back with the item. A pin whose item only scrolls out of view is hidden and returns when the item
+does.
+\item \code{tip_on()} costs about a millisecond of R time for each tag, and the page's script some time on every change of
+the page: for a long table, page it.
+\item Reconnecting an app (\code{allowReconnect}) is untested.
+}
+}
+
 \examples{
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
 

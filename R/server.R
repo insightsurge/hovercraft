@@ -271,9 +271,10 @@ tip_send <- function(session, what, build) {
 #' the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
 #' (`DT` in client or server mode, `reactable`), so nothing happens until it is on the page.
 #'
-#' A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
-#' the flush that follows it is done, and asks for that flush, so `tip_show()` in the same observer as a `renderUI()`
-#' that draws the tag reaches the new tag, and a call from a callback of `later` is sent too.
+#' A call reaches only a tag that is on the page and drawn at that moment; nothing is queued, and a tag in a hidden tab
+#' opens nothing. On a page without Shiny (R Markdown, Quarto, a static page) the calls stop with an error. Every call
+#' is sent when the flush that follows it is done, and asks for that flush, so `tip_show()` in the same observer as a
+#' `renderUI()` that draws the tag reaches the new tag, and a call from a callback of `later` is sent too.
 #'
 #' A tip opened by `tip_show()` stays open until `tip_hide()` closes it, or until the reader opens another tip, presses
 #' Escape or clicks away. `tip_hide()` closes a hint, the tip that shows on hover or focus, and never a pin: when the

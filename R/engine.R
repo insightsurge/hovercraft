@@ -103,7 +103,8 @@ tip_reset <- function() {
 
 #' The tip engine as an HTML dependency
 #'
-#' `r lifecycle::badge("experimental")`
+#' `r lifecycle::badge("stable")` for the page's `style` given as a preset name; `max_pins` and `keys` are
+#' `r lifecycle::badge("experimental")`.
 #' The engine's script and CSS, ready to add to a page. [tip_on()] and [tip_define()] attach it for you; use this when
 #' you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
 #' with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.

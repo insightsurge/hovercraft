@@ -21,7 +21,8 @@ A block, to give to \code{\link[=tip_template]{tip_template()}}.
 Puts any Shiny output — a plot, a \code{DT} or \code{reactable} table, a \code{gt} table, a chart or \code{uiOutput()} — inside a
 \code{\link[=tip_template]{tip_template()}}. Give \code{output} as the Shiny output id (with \code{ns()} inside a module, such as \code{ns("detail_plot")}),
 or as the output tag itself (such as \code{shiny::plotOutput(ns("detail_plot"))} or one wrapped in a loader like
-\code{shinycssloaders::withSpinner()}).
+\code{shinycssloaders::withSpinner()}). It needs Shiny: on a page without a server (R Markdown, Quarto, a static page)
+the output stays empty.
 }
 \details{
 When \code{output} is given as an id string, place the matching \verb{*Output()} tag in your UI (plain or wrapped in a loader

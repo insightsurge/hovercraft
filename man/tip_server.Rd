@@ -70,9 +70,10 @@ then, the call warns (class \code{hovercraft_warning_table}) and sends nothing. 
 the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
 (\code{DT} in client or server mode, \code{reactable}), so nothing happens until it is on the page.
 
-A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
-the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a \code{renderUI()}
-that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
+A call reaches only a tag that is on the page and drawn at that moment; nothing is queued, and a tag in a hidden tab
+opens nothing. On a page without Shiny (R Markdown, Quarto, a static page) the calls stop with an error. Every call
+is sent when the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a
+\code{renderUI()} that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
 
 A tip opened by \code{tip_show()} stays open until \code{tip_hide()} closes it, or until the reader opens another tip, presses
 Escape or clicks away. \code{tip_hide()} closes a hint, the tip that shows on hover or focus, and never a pin: when the
