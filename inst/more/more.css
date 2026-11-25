@@ -1,4 +1,5 @@
-/* hovercraft's "More" and "Less" button: a small button over the bottom-right corner of a tip, and the room kept for it.
+/* hovercraft's "More" and "Less" control: a small button over the bottom corner of a tip (at its end, or its start; or a
+   text link), and the room kept for it.
    This is hovercraft's own layer, on top of the tip engine; it never changes the engine. The class names are spelt as
    inst/more/more.js writes them (hovercraft-more-strip) and the tip box is the engine's own (hc-tip); test-more.R holds
    both. */
@@ -44,6 +45,22 @@
   outline: 2px solid currentcolor;
   outline-offset: 1px;
 }
+/* A text link instead of the button: a real button (it says "button" and "expanded" to a screen reader, takes Enter and
+   Space and never navigates) with the look of a link. It keeps the button's height, so the room under the last line is
+   the same, and its background, so words that scroll under it stay hidden. */
+.hovercraft-more-strip-link .hovercraft-more-strip-button {
+  min-inline-size: 0;
+  padding-inline: 4px;
+  font-style: italic;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  border-color: transparent;
+}
+.hovercraft-more-strip-link .hovercraft-more-strip-button:hover,
+.hovercraft-more-strip-link .hovercraft-more-strip-button:focus-visible {
+  text-decoration-thickness: 2px;
+}
 @media (forced-colors: active) {
   .hovercraft-more-strip-button {
     border-color: ButtonText;
@@ -51,6 +68,14 @@
     color: CanvasText;
     background: Canvas;
   }
+  .hovercraft-more-strip-link .hovercraft-more-strip-button {
+    border-color: Canvas;
+    color: LinkText;
+  }
+}
+/* With `tip_more(on = "click")` the strip is there and hidden: a click on the item is the control. */
+.hovercraft-more-strip[hidden] {
+  display: none;
 }
 /* Room under the last line for the button. */
 .hc-tip[data-hovercraft-more-room] {

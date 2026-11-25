@@ -48,6 +48,24 @@ describe("the long form's attributes", {
     expect_null(tip_keyshortcuts(FALSE, FALSE))
   })
 
+  it("write the marks of a click and of a button that pins, for the script to read", {
+    click <- tip_more_values("click", text = "Long")
+    expect_named(click, c(tip_more_attribute("held"), tip_more_attribute("click")))
+    pinned <- tip_more_values("button", text = "Long", pin = TRUE)
+    expect_named(pinned, c(tip_more_attribute("held"), tip_more_attribute("pin")))
+    # They are read by name from the dependency's config, not typed in the script.
+    config <- jsonlite::fromJSON(
+      rawToChar(jsonlite::base64_dec(tip_more_dependency()$meta[["hovercraft-more-config"]])),
+      simplifyVector = TRUE
+    )
+    expect_identical(config$attributes$click, tip_more_attribute("click"))
+    expect_identical(config$attributes$pin_too, tip_more_attribute("pin"))
+    expect_identical(config$attributes$as, tip_more_attribute("as"))
+    expect_identical(config$attributes$where, tip_more_attribute("where"))
+    look <- tip_more_values("button", text = "Long", as = "link", where = "start")
+    expect_named(look, c(tip_more_attribute("held"), tip_more_attribute("as"), tip_more_attribute("where")))
+  })
+
   it("hold the template of a long form behind the button, or the engine's attributes for the other moments", {
     behind <- tip_more_values("button", template = "more_abc", label = c(more = "Details"))
     expect_named(behind, c(tip_more_attribute("held-template"), tip_more_attribute("label")))

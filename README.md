@@ -103,8 +103,9 @@ tip from the server; for a table's tip they take the table's `id` with `row` and
 
 A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
 key opens it too (with the focus on the item or the pointer resting on it); "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
-again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"` or `"pin"`) and what
-the buttons say (`label =`); it is experimental:
+again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"`, `"pin"` or `"click"`, a click on the item),
+whether the button pins the tip too (`pin = TRUE`), how the control looks and where it sits (`as = "link"`, an italic
+text link; `where = "start"` or `"end"`) and what the buttons say (`label =`); it is experimental:
 
 ```r
 tip_on(

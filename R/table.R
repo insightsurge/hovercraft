@@ -177,15 +177,35 @@ tip_table_content <- function(
   more_part <- if (!is.null(more_given)) {
     tip_table_template_part(more_given$content, paste0(arg, "$more"), columns, header, call)
   }
-  # Only a row can pin (`pin = TRUE`), so the long form of a table tip waits behind a button unless `tip_more(on = )`
-  # says otherwise, and `on = "pin"` needs a row with a pin.
-  if (!is.null(more_part) && identical(more_given$on, "pin") && !(row && !is.null(own_pin))) {
+  # A click on a row selects it, so a table tip never opens its long form on a click.
+  if (!is.null(more_part) && identical(more_given$on, "click")) {
     tip_abort(
       c(
-        "{.arg {arg}} sets {.arg more} with {.code tip_more(on = \"pin\")}, but this tip cannot pin.",
+        "{.arg {arg}} sets {.arg more} with {.code tip_more(on = \"click\")}, but a click on a table selects a row.",
+        i = "Use the default {.code on = \"button\"}: the More button and the M key open the long form."
+      ),
+      class = "hovercraft_error_more",
+      call = call
+    )
+  }
+  # Only a row can pin (`pin = TRUE`), so the long form of a table tip waits behind a button unless `tip_more(on = )`
+  # says otherwise, and `on = "pin"`, like `pin = TRUE` of `tip_more()`, needs a row with a pin.
+  if (
+    !is.null(more_part) &&
+      (identical(more_given$on, "pin") || more_given$pin) &&
+      !(row && !is.null(own_pin))
+  ) {
+    what <- if (more_given$pin) "{.code tip_more(pin = TRUE)}" else "{.code tip_more(on = \"pin\")}"
+    tip_abort(
+      c(
+        paste0("{.arg {arg}} sets {.arg more} with ", what, ", but this tip cannot pin."),
         i = paste0(
           "Only the tips of {.arg rows} can pin, with {.code tip_spec(pin = TRUE)}. ",
-          "Or use {.code on = \"hover\"} or {.code \"button\"}."
+          if (more_given$pin) {
+            "Or take {.code pin = TRUE} out of {.fn tip_more}."
+          } else {
+            "Or use {.code on = \"hover\"} or {.code \"button\"}."
+          }
         )
       ),
       class = "hovercraft_error_pin",
@@ -199,6 +219,9 @@ tip_table_content <- function(
     more = more_part,
     more_on = if (!is.null(more_part)) more_given$on,
     more_label = if (!is.null(more_part)) more_given$label,
+    more_pin = !is.null(more_part) && more_given$pin,
+    more_as = if (!is.null(more_part)) more_given$as,
+    more_where = if (!is.null(more_part)) more_given$where,
     outputs = unique(c(part$outputs, more_part$outputs)),
     placement = placement,
     style = tip_style_over(own_style, style),
@@ -349,7 +372,17 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   }
   reset <- NULL
   if (!is.null(content$more)) {
-    attrs <- c(attrs, tip_more_values(content$more_on, content$more$name, label = content$more_label))
+    attrs <- c(
+      attrs,
+      tip_more_values(
+        content$more_on,
+        content$more$name,
+        label = content$more_label,
+        pin = content$more_pin,
+        as = content$more_as,
+        where = content$more_where
+      )
+    )
     # The attributes the "More" button writes while the long form is open go when the element is given another row.
     if (identical(content$more_on, "button")) {
       reset <- c(tip_attribute("more"), tip_attribute("more_template"), tip_attribute("more_on"))

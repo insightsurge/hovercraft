@@ -153,11 +153,48 @@
 ---
 
     Code
-      tip_more("y", on = "click")
+      tip_more("y", on = "tap")
     Condition
       Error in `tip_more()`:
-      ! `on` is not right: Must be element of set {'button','hover','pin'}, but is 'click'
-      i Give one of "button", "hover", "pin", or `NULL` for "button".
+      ! `on` is not right: Must be element of set {'button','hover','pin','click'}, but is 'tap'
+      i Give one of "button", "hover", "pin", "click", or `NULL` for "button".
+
+---
+
+    Code
+      tip_more("y", on = "hover", pin = TRUE)
+    Condition
+      Error in `tip_more()`:
+      ! `pin` makes the button pin the tip, but `on = "hover"` has no button.
+      i Take `pin` out, or use `on = "button"`.
+
+---
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", on = "click"))
+    Condition
+      Error in `tip_on()`:
+      ! `tip_more(on = "click")` cannot go on a tag that is a control: a click would open the long form, not use it.
+      i Use the default `on = "button"`: the More button and the M key open it, and a click still works.
+
+---
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", pin = TRUE))
+    Condition
+      Error in `tip_on()`:
+      ! `more` with `tip_more(pin = TRUE)` pins on the button, but the tag cannot pin and has no `id`.
+      i Allow the tip to pin and give it an `id`, or take `pin = TRUE` out of `tip_more()`.
+
+---
+
+    Code
+      tip_on(htmltools::tags$span("x", tabindex = "0"), "x", id = "x", pin = "click",
+      more = tip_more("y", on = "click"))
+    Condition
+      Error in `tip_on()`:
+      ! `pin = "click"` and `tip_more(on = "click")` both take a click on the item.
+      i Use `pin = TRUE`: the pin button and the pin key pin it, and the click opens the long form.
 
 # the tip_on() errors / say what a placement and an id must be
 

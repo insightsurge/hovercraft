@@ -38,6 +38,9 @@
   margin-block: calc(-1 * var(--hovercraft-more-room)) var(--hovercraft-more-gap);
   padding: 0 calc(var(--hovercraft-space-1) * 2.5 + var(--hovercraft-line-width, 1px));
 }
+.hovercraft-more-strip-in.hovercraft-more-strip-start {
+  justify-content: flex-start;
+}
 .hovercraft-more-strip-in .hovercraft-more-strip-button {
   block-size: var(--hovercraft-more-h);
 }
