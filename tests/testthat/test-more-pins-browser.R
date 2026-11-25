@@ -186,7 +186,7 @@ describe("the More button with several pinned tips", {
     expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 1"))
     page$evaluate("document.querySelector('.hc-tip-pin:not([hidden])').focus(); 0")
     page$press("m")
-    Sys.sleep(0.3)
+    page$hold(0.3) # the key must not toggle a pinned tip: nothing happening has no signal
     expect_false(state(page)$one$long)
     press(page, "one")
     expect_true(page$wait_until(paste0("JSON.parse(", boxes_js, ").some((b) => b.long)")))

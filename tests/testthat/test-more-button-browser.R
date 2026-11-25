@@ -155,7 +155,7 @@ describe("the More button on a tag", {
   press_button <- function() {
     at <- centre(strip_button)
     page$mouse(at[[1]], at[[2]], click = TRUE)
-    Sys.sleep(0.5)
+    page$settle()
   }
   box_of <- function(selector = hint_sel) {
     jsonlite::fromJSON(page$evaluate(sprintf(
@@ -171,7 +171,8 @@ describe("the More button on a tag", {
     page$press("Escape", wait = 0.3)
     page$evaluate("document.activeElement?.blur()")
     page$mouse(890, 5, FALSE)
-    Sys.sleep(0.8)
+    expect_true(page$wait_closed())
+    page$settle(0.1)
   }
   seen <- function(name) {
     all <- jsonlite::fromJSON(page$evaluate("document.getElementById('seen').textContent"), simplifyVector = FALSE)
@@ -212,7 +213,7 @@ describe("the More button on a tag", {
     expect_identical(expanded(), "true")
     # The tip is the same one, still open after the pointer has rested for a while, on its side, at its edge, and it grew
     # away from the item (down, as it is below).
-    Sys.sleep(1)
+    page$hold(1) # the tip must still be open after the pointer has rested: no signal for that
     after <- box_of()
     expect_false(is.null(after))
     expect_identical(after$side, "below")
@@ -228,7 +229,7 @@ describe("the More button on a tag", {
   it("closes the long form with Less, and the tip stays open, short, on its side", {
     before <- box_of()
     press_button()
-    Sys.sleep(1)
+    page$settle()
     after <- box_of()
     expect_false(is.null(after))
     expect_identical(button_text(), "More")
@@ -258,7 +259,7 @@ describe("the More button on a tag", {
     short <- box_of()
     expect_identical(short$side, "below")
     press_button()
-    Sys.sleep(1)
+    page$settle()
     long <- box_of()
     expect_false(is.null(long))
     expect_match(long$text, "business hours")
@@ -272,7 +273,7 @@ describe("the More button on a tag", {
     )
     # It scrolls instead of flipping to the other side.
     press_button()
-    Sys.sleep(1)
+    page$settle()
     expect_identical(box_of()$side, "below")
     expect_no_match(box_of()$text, "business hours")
     rest()
@@ -283,7 +284,7 @@ describe("the More button on a tag", {
     fresh <- box_of()
     expect_identical(fresh$side, "above")
     press_button()
-    Sys.sleep(1)
+    page$settle()
     grown <- box_of()
     expect_identical(grown$side, "above")
     # Grown away from the item: the edge that faces it did not move.
@@ -313,7 +314,7 @@ describe("the More button on a tag", {
       "(() => { const e = new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true }); document.activeElement.dispatchEvent(e); return e.defaultPrevented; })()"
     )
     expect_false(prevented)
-    Sys.sleep(0.4)
+    page$hold(0.4) # the key must not toggle anything: nothing happening has no signal
     expect_no_match(box_of()$text, "Long words for the field")
     rest()
   })
@@ -327,7 +328,7 @@ describe("the More button on a tag", {
     page$evaluate(
       "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', repeat: true, bubbles: true, cancelable: true })); 0"
     )
-    Sys.sleep(0.6)
+    page$hold(0.6) # a repeat must not toggle again: nothing happening has no signal
     expect_match(box_of()$text, "Long check words")
     rest()
   })
@@ -442,7 +443,10 @@ describe("the More button on a tag", {
     )
     # A key press on a button is a click: the test sends the click a keyboard would.
     page$evaluate("document.activeElement.click(); 0")
-    Sys.sleep(0.8)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('%s').getAttribute('aria-expanded') === 'true'",
+      strip_button
+    )))
     expect_identical(expanded(), "true")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s').textContent.includes('long form of the pinned')",
@@ -457,7 +461,7 @@ describe("the More button on a tag", {
     page$evaluate(
       "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })); 0"
     )
-    Sys.sleep(0.3)
+    page$settle()
     expect_identical(
       page$evaluate(sprintf("document.querySelector('%s').contains(document.activeElement)", pin_sel)),
       TRUE
@@ -584,7 +588,7 @@ describe("the More button in a DT and a reactable table", {
       case <- case
       it(paste("opens the long form of", case$name, "with More and shrinks it with Less, the tip staying open"), {
         page$mouse(5, 5, FALSE)
-        Sys.sleep(0.6)
+        expect_true(page$wait_closed())
         page$hover(case$cell)
         expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
         expect_no_match(text(), case$long, fixed = TRUE)
@@ -595,7 +599,7 @@ describe("the More button in a DT and a reactable table", {
           hint_sel,
           case$long
         )))
-        Sys.sleep(0.8)
+        page$settle()
         expect_match(text(), case$long, fixed = TRUE)
         at <- centre(strip_button)
         page$mouse(at[[1]], at[[2]], click = TRUE)
@@ -604,17 +608,17 @@ describe("the More button in a DT and a reactable table", {
           hint_sel,
           case$long
         )))
-        Sys.sleep(0.8)
+        page$settle()
         expect_false(identical(text(), ""))
         page$mouse(5, 5, FALSE)
-        Sys.sleep(0.8)
+        expect_true(page$wait_closed())
       })
     })
   }
 
   it("opens and closes the long form of a table cell with the M key, beside the table's own arrow keys", {
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.6)
+    expect_true(page$wait_closed())
     page$evaluate("document.querySelector('#dt tbody tr:first-child td:first-child').focus()")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
     page$press("m", wait = 0.6)

@@ -201,7 +201,7 @@ describe("several pins in a Shiny app", {
 
   it("keeps several pins open inside a modal", {
     close_all()
-    page$evaluate("document.getElementById('modal').click(); 0")
+    page$click_now("#modal")
     expect_true(page$wait_until(
       "document.querySelector('.modal.show') !== null && document.getElementById('m2')?.getClientRects().length > 0"
     ))
