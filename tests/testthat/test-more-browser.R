@@ -30,9 +30,10 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
         stringsAsFactors = FALSE
       )
 
-      # A span that looks like a button: `pin = "click"` is for a tag with no control of its own to click.
+      # A span that looks like a button: `pin = "click"` is for a tag with no control of its own to click, so it has no
+      # `role = "button"` (the engine, and `tip_on()`, take that role for a control).
       pinnable_span <- function(id, label) {
-        htmltools::tags$span(id = id, class = "btn btn-default", tabindex = "0", role = "button", label)
+        htmltools::tags$span(id = id, class = "btn btn-default", tabindex = "0", label)
       }
 
       long_tpl <- tip_template(

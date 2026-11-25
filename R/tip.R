@@ -709,6 +709,16 @@ tip_on <- function(
   more_on <- if (!is.null(more_info)) more_given$on
   if (identical(more_on, "click")) {
     tip_check_more_click(tag)
+    if (identical(pin_value, "true")) {
+      # The engine pins on the click, and `tip_more(on = "click")` opens the long form on the same click.
+      tip_abort(
+        c(
+          "{.code pin = \"click\"} and {.code tip_more(on = \"click\")} both take a click on the item.",
+          i = "Use {.code pin = TRUE}: the pin button and the pin key pin it, and the click opens the long form."
+        ),
+        class = "hovercraft_error_more"
+      )
+    }
   }
   tag_id <- htmltools::tagGetAttribute(tag, "id")
   effective_id <- id %||% tag_id
@@ -736,7 +746,14 @@ tip_on <- function(
       tip_abort(
         c(
           paste0("{.arg more} with ", what, ", but ", why),
-          i = "Allow the tip to pin and give it an {.arg id}, or use {.code on = \"hover\"} or {.code \"button\"}."
+          i = paste(
+            "Allow the tip to pin and give it an {.arg id},",
+            if (more_given$pin) {
+              "or take {.code pin = TRUE} out of {.fn tip_more}."
+            } else {
+              "or use {.code on = \"hover\"} or {.code \"button\"}."
+            }
+          )
         ),
         class = "hovercraft_error_pin"
       )

@@ -76,7 +76,29 @@ tip_check_pin_tag <- function(tag, call = rlang::caller_env()) {
 
 # `pin = "click"` makes a click on the item pin it, which would take a control's own click. A control, or a tag that
 # holds one, takes `pin = TRUE` instead, and the tip's pin button and key do the pinning.
+# The roles the engine treats as a control that acts (its own list), so a tag with one of them takes `pin = TRUE` and
+# the default `tip_more()`, whatever the tag is.
+tip_control_roles <- function() {
+  c(
+    "button",
+    "tab",
+    "link",
+    "menuitem",
+    "menuitemcheckbox",
+    "menuitemradio",
+    "option",
+    "treeitem",
+    "checkbox",
+    "radio",
+    "switch"
+  )
+}
+
 tip_is_control <- function(tag) {
+  role <- tolower(as.character(htmltools::tagGetAttribute(tag, "role") %||% ""))
+  if (any(strsplit(trimws(role), "[[:space:]]+")[[1]] %in% tip_control_roles())) {
+    return(TRUE)
+  }
   type <- tolower(as.character(htmltools::tagGetAttribute(tag, "type") %||% ""))
   editable <- htmltools::tagGetAttribute(tag, "contenteditable")
   switch(

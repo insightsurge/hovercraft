@@ -902,7 +902,7 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
     plain <- tip_table(rt(), rows = tip_spec("{{ team }}", more = "{{ note }}", pin = TRUE), id = "t")
     expect_null(plain$jsHooks$render[[1]]$data$rows$attrs[[tip_more_attribute("pin")]])
     spec <- tip_spec("{{ team }}", more = tip_more("{{ note }}", pin = TRUE))
-    expect_error(tip_table(rt(), rows = spec, id = "t"), "pin = TRUE", class = "hovercraft_error_pin")
+    expect_error(tip_table(rt(), rows = spec, id = "t"), "take `pin = TRUE` out", class = "hovercraft_error_pin")
     expect_error(tip_table(rt(), cells = list(team = more), rows = "x", id = "t"), class = "hovercraft_error_pin")
   })
 

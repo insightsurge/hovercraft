@@ -99,7 +99,7 @@ describe("tip_more() options for opening the long form", {
     expect_identical(state_of(page, "one"), "hint")
   })
 
-  it("opens the long form of a click tip with the M key too, and a click before the tip shows does nothing", {
+  it("opens the long form of a click tip with the M key too, which the item announces", {
     page <- local_page(page_file(use_hovercraft(), span("one", 60, 60, on = "click")), environment())
     expect_true(page$wait_until(ready))
     expect_identical(page$evaluate("document.getElementById('one').getAttribute('aria-keyshortcuts')"), "M")
@@ -109,6 +109,35 @@ describe("tip_more() options for opening the long form", {
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('LONG')", hint_sel)))
     page$press("m")
     expect_true(page$wait_until(sprintf("!document.querySelector('%s')?.textContent.includes('LONG')", hint_sel)))
+  })
+
+  it("shows the short tip first on a tap: the tap that opens the tip does not open the long form too", {
+    page <- local_page(page_file(use_hovercraft(), span("one", 60, 60, on = "click")), environment())
+    expect_true(page$wait_until(ready))
+    at <- jsonlite::fromJSON(page$evaluate(
+      "(() => { const r = document.getElementById('one').getBoundingClientRect(); return JSON.stringify([r.x + r.width / 2, r.y + r.height / 2]); })()"
+    ))
+    withr::defer(page$touch_off())
+    page$touch_tap(at[[1]], at[[2]])
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
+    page$hold(0.5) # the tap must not open the long form: nothing happening has no signal
+    expect_no_match(text_of(page, hint_sel), "LONG")
+    expect_identical(state_of(page, "one"), "hint")
+  })
+
+  it("leaves the click of a control inside the item to the control", {
+    page <- local_page(page_file(use_hovercraft(), span("one", 60, 60, on = "click")), environment())
+    expect_true(page$wait_until(ready))
+    page$evaluate(
+      "(() => { const b = document.createElement('button'); b.id = 'inner'; b.textContent = 'inner'; window.innerClicks = 0; b.addEventListener('click', () => { window.innerClicks += 1; }); document.getElementById('one').append(' ', b); })()"
+    )
+    page$click("#inner")
+    expect_true(page$wait_until("window.innerClicks === 1"))
+    page$hold(0.4) # the control's click must not open the long form: nothing happening has no signal
+    expect_no_match(text_of(page, hint_sel), "LONG")
+    # The item's own words still open it.
+    click_again(page, "#one")
+    expect_true(page$wait_until(long_in(page, hint_sel)))
   })
 
   it("opens a pinned click tip's long form on a click of the item, and that tip has no button to tab to", {
@@ -151,6 +180,16 @@ describe("tip_more() options for opening the long form", {
     expect_true(page$wait_until(long_in(page, hint_sel)))
     page$hold(0.3) # the button must pin nothing: nothing happening has no signal
     expect_identical(state_of(page, "one"), "hint")
+  })
+
+  it("says the long form to a screen reader when the button pins the tip", {
+    page <- local_page(page_file(use_hovercraft(), button("one", 60, 60, pin = TRUE)), environment())
+    expect_true(page$wait_until(ready))
+    page$hover("#one")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-button') !== null"))
+    press_more(page)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-live')?.textContent.includes('LONG')"))
   })
 
   it("pins with the M key too when the tip says so", {

@@ -26,8 +26,8 @@ tip is pinned) or \code{"click"} (a click on the item opens it, with no button).
 
 \item{label}{The words of the buttons, only with \code{"button"}: one string for the "More" button (the "Less" button
 keeps its word), or \code{c(more = "Show all", less = "Show less")}. \code{NULL} gives the built-in "More" and "Less". With
-\code{"hover"} or \code{"pin"} there is no button, so a \code{label} is an error. It beats the \code{more} and \code{less} words of \code{labels}
-(see \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}) for this tip.}
+\code{"hover"}, \code{"pin"} or \code{"click"} there is no button, so a \code{label} is an error. It beats the \code{more} and \code{less} words
+of \code{labels} (see \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}) for this tip.}
 
 \item{pin}{\code{TRUE} makes the "More" button (and the M key) pin the tip as well as open its long form, so the long form
 stays. \code{FALSE}, the default, never pins. Only with \code{"button"}, and only on a tip that can pin: \code{\link[=tip_on]{tip_on()}} with
@@ -70,11 +70,15 @@ control to a keyboard and a screen reader: the link is a real \verb{<button>} st
 \code{role = "button"} and its own key handling to do the same. It is a tab stop in a pinned tip, \code{M} and
 \code{aria-keyshortcuts} work as for the button, and the words are still the ones of \code{label} and \code{labels}.
 
-With \code{on = "click"} a click on the tagged item opens and closes the long form, and the tip has no button: the M key
-does the same from the keyboard. The tip must be open (a click on an item whose tip has not shown yet does
-nothing), and the click never pins. A control, or a tag that holds one (a button, an input, a link, a label ...),
-is refused, because a click on it has its own job, and so is a table: a click on a row selects it. Use the default
-button there.
+With \code{on = "click"} a click on the tagged item opens and closes the long form, and the tip has no button. The item
+should take keyboard focus (\code{tabindex = "0"} on a \verb{<span>} or \verb{<div>}), because the M key is the keyboard route:
+it does the same, and the item announces it as \code{aria-keyshortcuts}. The long form is announced to a screen reader
+when it opens; the item gets no \code{aria-expanded} and no role, since a click on a plain tag is not a control. The
+tip must be open: a click that opens the tip (a first tap on a touch screen) only opens it, short, and the next
+click opens or closes the long form (on a touch screen the engine closes the tip on a second tap, so use the
+default button there). The click never pins, so \code{pin = "click"} with it is an error. A control, or a tag that
+holds one (a button, an input, a link, a label ...), is refused, because a click on it has its own job, and so is
+a table: a click on a row selects it. Use the default button there.
 
 With \code{pin = TRUE} the "More" button, and the M key, also pin the tip, so the long form stays; "Less" then only
 closes the long form and the tip stays pinned. It needs a tip that can pin, the same as \code{on = "pin"}. Today's

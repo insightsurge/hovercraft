@@ -36,11 +36,15 @@ tip_more_places <- function() c("end", "start")
 #' `role = "button"` and its own key handling to do the same. It is a tab stop in a pinned tip, `M` and
 #' `aria-keyshortcuts` work as for the button, and the words are still the ones of `label` and `labels`.
 #'
-#' With `on = "click"` a click on the tagged item opens and closes the long form, and the tip has no button: the M key
-#' does the same from the keyboard. The tip must be open (a click on an item whose tip has not shown yet does
-#' nothing), and the click never pins. A control, or a tag that holds one (a button, an input, a link, a label ...),
-#' is refused, because a click on it has its own job, and so is a table: a click on a row selects it. Use the default
-#' button there.
+#' With `on = "click"` a click on the tagged item opens and closes the long form, and the tip has no button. The item
+#' should take keyboard focus (`tabindex = "0"` on a `<span>` or `<div>`), because the M key is the keyboard route:
+#' it does the same, and the item announces it as `aria-keyshortcuts`. The long form is announced to a screen reader
+#' when it opens; the item gets no `aria-expanded` and no role, since a click on a plain tag is not a control. The
+#' tip must be open: a click that opens the tip (a first tap on a touch screen) only opens it, short, and the next
+#' click opens or closes the long form (on a touch screen the engine closes the tip on a second tap, so use the
+#' default button there). The click never pins, so `pin = "click"` with it is an error. A control, or a tag that
+#' holds one (a button, an input, a link, a label ...), is refused, because a click on it has its own job, and so is
+#' a table: a click on a row selects it. Use the default button there.
 #'
 #' With `pin = TRUE` the "More" button, and the M key, also pin the tip, so the long form stays; "Less" then only
 #' closes the long form and the tip stays pinned. It needs a tip that can pin, the same as `on = "pin"`. Today's
@@ -62,8 +66,8 @@ tip_more_places <- function() c("end", "start")
 #'   `"click"` is not for a table, where a click selects a row.
 #' @param label The words of the buttons, only with `"button"`: one string for the "More" button (the "Less" button
 #'   keeps its word), or `c(more = "Show all", less = "Show less")`. `NULL` gives the built-in "More" and "Less". With
-#'   `"hover"` or `"pin"` there is no button, so a `label` is an error. It beats the `more` and `less` words of `labels`
-#'   (see [tip_on()] and [use_hovercraft()]) for this tip.
+#'   `"hover"`, `"pin"` or `"click"` there is no button, so a `label` is an error. It beats the `more` and `less` words
+#'   of `labels` (see [tip_on()] and [use_hovercraft()]) for this tip.
 #' @param as How the control looks: `"button"` (a small button) or `"link"` (an italic text link). `NULL`, the default,
 #'   is `"button"`. Only with `on = "button"`; with another moment there is no control, so it is an error.
 #' @param where Which side of the bottom of the tip the control sits on: `"end"` or `"start"`, in the reading

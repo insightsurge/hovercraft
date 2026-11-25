@@ -540,12 +540,32 @@ describe("tip_on(more =)", {
       htmltools::tags$a("x", href = "#"),
       htmltools::tags$label("x"),
       htmltools::tags$span("x", contenteditable = "true"),
-      htmltools::tags$div(htmltools::tags$span("x"), htmltools::tags$button("Go"))
+      htmltools::tags$div(htmltools::tags$span("x"), htmltools::tags$button("Go")),
+      # The roles the engine treats as controls that act
+      htmltools::tags$div("x", role = "button", tabindex = "0"),
+      htmltools::tags$span("x", role = "tab"),
+      htmltools::tags$span("x", role = "menuitemcheckbox"),
+      htmltools::tags$span("x", role = "switch"),
+      htmltools::tags$div("x", role = "presentation link"),
+      htmltools::tags$div(htmltools::tags$span("x", role = "checkbox"))
     )
     for (tag in refused) {
       expect_error(tip_on(tag, "Short", more = tip_more("Long", on = "click")), class = "hovercraft_error_more")
     }
     expect_no_error(tip_on(htmltools::tags$div("x", tabindex = "0"), "Short", more = tip_more("Long", on = "click")))
+    expect_no_error(tip_on(htmltools::tags$div("x", role = "group"), "Short", more = tip_more("Long", on = "click")))
+    # The same roles refuse `pin = "click"`, which takes the click as well.
+    expect_error(
+      tip_on(htmltools::tags$div("x", role = "button", tabindex = "0"), "Short", id = "x", pin = "click"),
+      class = "hovercraft_error_pin"
+    )
+    # A click that pins and a click that opens the long form are one click: use the pin button for the pin.
+    expect_error(
+      tip_on(span, "Short", id = "x", pin = "click", more = tip_more("Long", on = "click")),
+      "pin = TRUE",
+      class = "hovercraft_error_more"
+    )
+    expect_no_error(tip_on(span, "Short", id = "x", pin = "click", more = tip_more("Long", on = "button")))
     # A click never pins, also when the tag can pin: the button and the key do.
     both <- tip_on(span, "Short", id = "x", pin = TRUE, more = tip_more("Long", on = "click"))
     expect_identical(htmltools::tagGetAttribute(both, tip_attribute("pin")), "manual")
@@ -572,7 +592,7 @@ describe("tip_on(more =)", {
     expect_null(htmltools::tagGetAttribute(plain, tip_more_attribute("pin")))
     expect_error(
       tip_on(button(), "Short", more = tip_more("Long", pin = TRUE)),
-      "pin = TRUE",
+      "take `pin = TRUE` out",
       class = "hovercraft_error_pin"
     )
     expect_error(

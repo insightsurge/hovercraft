@@ -201,7 +201,11 @@ tip_table_content <- function(
         paste0("{.arg {arg}} sets {.arg more} with ", what, ", but this tip cannot pin."),
         i = paste0(
           "Only the tips of {.arg rows} can pin, with {.code tip_spec(pin = TRUE)}. ",
-          "Or use {.code on = \"hover\"} or {.code \"button\"}."
+          if (more_given$pin) {
+            "Or take {.code pin = TRUE} out of {.fn tip_more}."
+          } else {
+            "Or use {.code on = \"hover\"} or {.code \"button\"}."
+          }
         )
       ),
       class = "hovercraft_error_pin",

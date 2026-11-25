@@ -1,6 +1,7 @@
 // hovercraft's own layer for the long form of a tip, on top of the tip engine; it never changes the engine. A tip made
 // with `tip_more()` (the default, `on = "button"`) holds its long form in attributes of its own; this file draws a
-// "More" / "Less" control over the bottom of the tip (a button in the end corner, or with `as = "link"` a text link at the start), and gives the keyboard the M key. Opening the long form
+// "More" / "Less" control over the bottom of the tip (a button in the end corner, or with `as = "link"` a text link at
+// the start), and gives the keyboard the M key. Opening the long form
 // copies it onto the attributes the engine watches (`-more`, `-more-template`, `-more-on`), and the engine draws the open
 // tip again in place: it keeps the tip open, on its side and at its edge (engine 0.58.0), and sends no event for a hint.
 // A pinned tip drawn again sends `updated`. Like inst/pin/pin.js the button is a separate element that carries the part
@@ -230,31 +231,35 @@
   // The box the reader is in, hint or pinned, for the item: the pinned tip's button when it is pinned.
   const slotFor = (item) => pins.get(item) ?? (slots.hint?.item === item ? slots.hint : null);
 
+  // The engine draws the tip again at once; a moment later what it added to the box is the long form, which is what is
+  // said, and the first block of it, in a pinned tip, starts with a hairline as the hover form does.
+  function announce(o, long, before) {
+    clearTimeout(o.timer);
+    o.timer = setTimeout(() => {
+      if (!current(o)) return;
+      const added = fresh(o.box, before);
+      if (long && o.kind === 'pin' && added[0]) added[0].classList.add('hc-long-first');
+      say(o.item.ownerDocument, long ? added.map((n) => n.textContent.trim()).join(' ') : words(o.item).less);
+    }, 60);
+  }
+
   function toggle(item) {
     const o = slotFor(item);
     const long = !expandedNow(item);
     const before = o ? blocksOf(o.box).map(signature) : [];
     setState(item, long);
-    if (!o) return;
-    clearTimeout(o.timer);
-    // The engine draws the tip again at once; a moment later what it added is the long form, which is what is said, and
-    // the first block of it, in a pinned tip, starts with a hairline as the hover form does.
-    o.timer = setTimeout(() => {
-      // The button that pins the tip hands over from the hint to the pinned tip, which is the box that grew.
-      const at = current(o) ? o : pins.get(item);
-      if (!at) return;
-      const added = fresh(at.box, before);
-      if (long && at.kind === 'pin' && added[0]) added[0].classList.add('hc-long-first');
-      say(item.ownerDocument, long ? added.map((n) => n.textContent.trim()).join(' ') : words(item).less);
-    }, 60);
+    if (o) announce(o, long, before);
+    return before;
   }
 
   // What the button, the M key and (with `on = "click"`) a click do: open or close the long form; with `pin = TRUE` opening
   // it from a hint pins the tip too, so the long form stays. A pinned tip only grows and shrinks.
   function activate(item, via) {
     const opening = !expandedNow(item);
-    toggle(item);
-    if (opening && pinsToo(item) && item.getAttribute(A().open) !== 'pin') window.HovercraftPin?.pin(item, via);
+    const before = toggle(item);
+    if (!opening || !pinsToo(item) || item.getAttribute(A().open) === 'pin') return;
+    // The hint goes when the tip is pinned, and takes its announcement with it: the pinned tip says the long form.
+    if (window.HovercraftPin?.pin(item, via) && pins.has(item)) announce(pins.get(item), true, before);
   }
 
   function start(item, box, kind) {
@@ -414,10 +419,24 @@
 
   // `tip_more(on = "click")`: a click on the item, while its tip is open, opens or closes the long form. It never pins and
   // never takes a click that something else took (R refuses the tags whose click has its own job).
-  const onClick = (event) => {
-    if (event.defaultPrevented || event.button !== 0) return;
+  // The item whose tip was open when the pointer went down: a click that opens the tip (the first tap on a touch screen,
+  // which the engine turns into a hint in the click itself) only opens it, short.
+  let openAtDown = null;
+  const onDown = (event) => {
     const item = itemOf(event.target);
-    if (!item || !isClick(item) || !item.getAttribute(A().open)) return;
+    openAtDown = item?.getAttribute(A().open) ? item : null;
+  };
+  // A control inside the item (a button, a link, a field ...) keeps its click: it is not the item's own.
+  const INNER =
+    'a[href], button, input, select, textarea, summary, label, [role="button"], [role="link"], [role="tab"], [role="checkbox"], [role="radio"], [role="switch"], [role="menuitem"], [role="menuitemcheckbox"], [role="menuitemradio"], [role="option"], [role="treeitem"], [contenteditable]:not([contenteditable="false"]), [tabindex], [onclick]';
+  const onClick = (event) => {
+    const item = itemOf(event.target);
+    const opened = openAtDown === item;
+    openAtDown = null;
+    if (event.defaultPrevented || event.button !== 0) return;
+    if (!item || !isClick(item) || !opened || !item.getAttribute(A().open)) return;
+    const inner = event.target.closest?.(INNER);
+    if (inner && inner !== item && item.contains(inner)) return;
     toggle(item);
   };
 
@@ -456,6 +475,7 @@
       document.addEventListener('pointerover', ready, true);
       document.addEventListener('focusin', ready, true);
       document.addEventListener('keydown', onKey);
+      document.addEventListener('pointerdown', onDown, true);
       document.addEventListener('click', onClick);
       document.addEventListener('keydown', onTab, true);
     },

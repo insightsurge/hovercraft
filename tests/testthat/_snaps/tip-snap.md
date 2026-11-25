@@ -184,7 +184,17 @@
     Condition
       Error in `tip_on()`:
       ! `more` with `tip_more(pin = TRUE)` pins on the button, but the tag cannot pin and has no `id`.
-      i Allow the tip to pin and give it an `id`, or use `on = "hover"` or `"button"`.
+      i Allow the tip to pin and give it an `id`, or take `pin = TRUE` out of `tip_more()`.
+
+---
+
+    Code
+      tip_on(htmltools::tags$span("x", tabindex = "0"), "x", id = "x", pin = "click",
+      more = tip_more("y", on = "click"))
+    Condition
+      Error in `tip_on()`:
+      ! `pin = "click"` and `tip_more(on = "click")` both take a click on the item.
+      i Use `pin = TRUE`: the pin button and the pin key pin it, and the click opens the long form.
 
 # the tip_on() errors / say what a placement and an id must be
 
