@@ -15,14 +15,30 @@
   const STRIP = 'hovercraft-more-strip';
   // How long a button stays after its hint was told to close, so it fades with the hint and never outlives it.
   const LINGER = 600;
-  // What is open now, one button for the hint and one for the pinned tip, so a hint that opens elsewhere leaves the pinned
-  // tip's button alone: { strip, button, box, item, kind, frame, linger, timer, closing, written }.
-  const slots = { hint: null, pin: null };
+  // What is open now: one button for the hint, and one for each pinned tip (the page can keep several pins), so a hint
+  // that opens elsewhere leaves the pinned tips' buttons alone: { strip, button, box, item, kind, tipId, frame, linger,
+  // timer, closing, written }. The pins are kept by their item.
+  const slots = { hint: null };
+  const pins = new Map();
+  // The pin boxes that were closed a moment ago: the engine gives a box that is leaving to the next pin at once, so a
+  // box that is shown and is nobody's is told from a new pin's by this.
+  const leaving = new WeakMap();
+  const LEAVING = 400;
   let live = null;
+  const all = () => [slots.hint, ...pins.values()].filter(Boolean);
+  const current = (o) => (o.kind === 'hint' ? slots.hint === o : pins.get(o.item) === o);
 
   const A = () => names.attributes;
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
-  const pinBox = (doc) => doc.querySelector(`.${names.css}.${names.css}-pin:not([hidden])`);
+  // The box a pin just opened in: the one shown that no button of ours sits on. With several pins open it is the new one;
+  // a box that was closed a moment ago and is still leaving is the last resort, since the engine reuses it at once.
+  const pinBox = (doc) => {
+    const shown = [...doc.querySelectorAll(`.${names.css}.${names.css}-pin:not([hidden])`)];
+    const taken = new Set([...pins.values()].map((o) => o.box));
+    const free = shown.filter((box) => !taken.has(box));
+    const settled = free.filter((box) => Date.now() - (leaving.get(box) ?? 0) > LEAVING);
+    return (settled.length ? settled : free).at(-1) ?? null;
+  };
   // Does the reader's key press land in a field where a letter is a letter? A box, a radio or a button takes no letters.
   const NOT_TEXT = 'checkbox, radio, button, submit, reset, range, color, file, image';
   const editable = (el) =>
@@ -81,7 +97,7 @@
       item.removeAttribute(a.more_on);
       item.removeAttribute(a.state);
     }
-    for (const o of Object.values(slots)) if (o?.item === item) label(o);
+    for (const o of all()) if (o.item === item) label(o);
   }
 
   function label(o) {
@@ -112,11 +128,17 @@
 
   // The button follows the box's rectangle; the engine sends no event when a box moves, grows or fades.
   function place(o) {
-    if (slots[o.kind] !== o) return;
-    const { strip, box } = o;
+    if (!current(o)) return;
+    const { strip, box, item } = o;
     const view = box.ownerDocument.defaultView;
     const style = view.getComputedStyle(box);
     const faded = box.hidden || !box.isConnected || (o.closing && Number.parseFloat(style.opacity) < 0.02);
+    // A table row that the widget gave to another row (its tip id changed) is not the tip this button was made for: the
+    // long form it had goes with the old row, and the new one starts short.
+    if (o.tipId !== item.getAttribute(A().id)) {
+      setState(item, false);
+      return close(o, true);
+    }
     if (faded || !o.item.isConnected) return close(o);
     const r = box.getBoundingClientRect();
     const own = strip.getBoundingClientRect();
@@ -136,14 +158,18 @@
   }
 
   function close(o, keep = false) {
-    if (!o || slots[o.kind] !== o) return;
+    if (!o || !current(o)) return;
     const { strip, box, frame, item, kind } = o;
     box.ownerDocument.defaultView.cancelAnimationFrame(frame);
     clearTimeout(o.linger);
     clearTimeout(o.timer);
     box.removeAttribute(A().room);
     strip.remove();
-    slots[kind] = null;
+    if (kind === 'hint') slots.hint = null;
+    else {
+      pins.delete(item);
+      leaving.set(box, Date.now());
+    }
     if (live) live.textContent = '';
     // The hint is gone: the next time it opens it is short again. A pinned tip keeps what it shows.
     if (!keep && kind === 'hint' && item.getAttribute(A().open) !== 'pin') setState(item, false);
@@ -152,11 +178,11 @@
   // A tip whose item left the page (a renderUI() drew it again) is closed by the engine with an event sent at the
   // document, not at the item: whatever is open for an item that is gone goes.
   const sweep = () => {
-    for (const o of Object.values(slots)) if (o && !o.item.isConnected) close(o, true);
+    for (const o of all()) if (!o.item.isConnected) close(o, true);
   };
 
   // The box the reader is in, hint or pinned, for the item: the pinned tip's button when it is pinned.
-  const slotFor = (item) => (slots.pin?.item === item ? slots.pin : slots.hint?.item === item ? slots.hint : null);
+  const slotFor = (item) => pins.get(item) ?? (slots.hint?.item === item ? slots.hint : null);
 
   function toggle(item) {
     const o = slotFor(item);
@@ -168,7 +194,7 @@
     // The engine draws the tip again at once; a moment later what it added is the long form, which is what is said, and
     // the first block of it, in a pinned tip, starts with a hairline as the hover form does.
     o.timer = setTimeout(() => {
-      if (slots[o.kind] !== o) return;
+      if (!current(o)) return;
       const added = fresh(o.box, before);
       if (long && o.kind === 'pin' && added[0]) added[0].classList.add('hc-long-first');
       say(item.ownerDocument, long ? added.map((n) => n.textContent.trim()).join(' ') : words(item).less);
@@ -178,7 +204,7 @@
   function start(item, box, kind) {
     if (!box || box.hidden) return;
     const doc = item.ownerDocument;
-    close(slots[kind]);
+    close(kind === 'hint' ? slots.hint : pins.get(item));
     const strip = doc.createElement('div');
     strip.className = STRIP;
     strip.setAttribute(A().part, '');
@@ -206,8 +232,11 @@
       }
     }
     box.setAttribute(A().room, '');
-    const o = { strip, button, box, item, kind, frame: 0, linger: 0, timer: 0, closing: false, written: {} };
-    slots[kind] = o;
+    const o = { strip, button, box, item, kind, tipId: item.getAttribute(A().id), frame: 0, linger: 0, timer: 0 };
+    o.closing = false;
+    o.written = {};
+    if (kind === 'hint') slots.hint = o;
+    else pins.set(item, o);
     label(o);
     place(o);
   }
@@ -242,7 +271,7 @@
       start(item, pinBox(item.ownerDocument), 'pin');
     } else if (detail?.state === 'closed') {
       // The pinned tip is gone: the next one starts short.
-      if (slots.pin?.item === item) close(slots.pin, true);
+      close(pins.get(item), true);
       if (!item.getAttribute(A().open)) setState(item, false);
     }
   };
@@ -257,9 +286,12 @@
   // form. In a text field a letter is a letter, so there the key does nothing; and a key held down toggles once.
   const onKey = (event) => {
     if (typeof event.key !== 'string') return;
+    // The page can switch the letter key off (`use_hovercraft(keys = c(more = FALSE))`); the button stays.
+    if (document.documentElement.getAttribute(A().keysOff)?.split(/\s+/).includes('more')) return;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
-    const inTip = slots.pin?.box.contains(active) || slots.pin?.strip.contains(active);
-    const item = inTip ? slots.pin.item : itemOf(active);
+    // The pinned tip that holds the focus (its box or its button), else the tagged item that has it.
+    const held = [...pins.values()].find((o) => o.box.contains(active) || o.strip.contains(active));
+    const item = held ? held.item : itemOf(active);
     if (!item?.getAttribute(A().open)) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     if (event.key.toLowerCase() !== names.key || editable(active)) return;
@@ -271,9 +303,10 @@
   // it goes back. The engine keeps Tab inside the pinned tip, so it is asked first.
   const stops = (box) => [...box.querySelectorAll('button, a[href]')].filter((n) => !n.hidden && !n.disabled);
   const onTab = (event) => {
-    const o = slots.pin;
-    if (event.key !== 'Tab' || !o || event.defaultPrevented || event.isComposing) return;
+    if (event.key !== 'Tab' || event.defaultPrevented || event.isComposing) return;
     const active = event.target?.ownerDocument?.activeElement;
+    const o = [...pins.values()].find((q) => q.box.contains(active) || active === q.button);
+    if (!o) return;
     if (!event.shiftKey && o.box.contains(active)) {
       const list = stops(o.box);
       if (list.length && list[list.length - 1] === active) {

@@ -61,6 +61,8 @@
   // its address: a tag that renderUI() replaces is gone when the engine says its tip closed (by "data"), and the event
   // is then sent at the page, so the tag can no longer say it asked or where it was.
   const asked = { hint: new Map(), pin: new Map() };
+  // The pins that the page's count of pins is about to close, by tip id, with who pinned the new one (see `replaced`).
+  const replacedBy = new Map();
   // What each table has pinned now, by the table's id: the addresses, oldest first (a Map keeps the order it was set in).
   const pinnedBy = new Map();
 
@@ -160,7 +162,11 @@
     if (input.opens && detail.state === input.opens) asked[kind].set(detail.id, { base, address });
     else if (input.closes && detail.state === input.closes) asked[kind].delete(detail.id);
     if (kind === 'pin') sendPinned(detail, base, address);
-    const value = address ? { ...input.value(detail), ...placeOf(address, detail.id) } : input.value(detail);
+    // A pin that the page's own count closed (runtime.js) says what the engine's limit says: replaced, by the reader.
+    const mine = kind === 'pin' && detail.state === input.closes ? replacedBy.get(detail.id) : null;
+    if (mine) replacedBy.delete(detail.id);
+    const shown = mine ? { ...detail, reason: 'replaced', by: mine.by, via: mine.via } : detail;
+    const value = address ? { ...input.value(shown), ...placeOf(address, detail.id) } : input.value(shown);
     // "event" priority: the same value twice in a row (a hint opened, closed, opened) must still reach the server.
     window.Shiny.setInputValue(`${base}${input.suffix}`, value, { priority: 'event' });
   };
@@ -590,7 +596,8 @@
           }
           // An output drawn for another item still holds that item's content: show loading until the server answers
           // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
-          const item = itemOf(info?.box);
+          // A pinned tip's output says whose it is (`info.id`); with several pins open, "the item that is open" is no one's.
+          const item = info?.id ? find(String(info.id)) : itemOf(info?.box);
           if (item && rec.item && item !== rec.item && rec.state === 'ready') {
             rec.state = 'loading';
             rec.stale = true;
@@ -763,14 +770,24 @@
     }
   };
 
+  // The pin boxes that were on show at the last pin event: with several pins open, the box a pin just opened in is the one
+  // that was not there before.
+  let shownPins = new Set();
+  const visiblePins = () => {
+    const cls = names?.css ?? 'hc-tip';
+    return [...document.querySelectorAll(`.${cls}.${cls}-pin:not([hidden])`)];
+  };
   const animatePinGrowth = (event) => {
     const detail = event.detail;
     if (!detail) return;
     if (detail.state === 'closed') {
       cancelGrowth();
+      shownPins = new Set(visiblePins());
       return;
     }
     if (detail.state !== 'pinned') return;
+    const fresh = visiblePins().filter((box) => !shownPins.has(box));
+    shownPins = new Set(visiblePins());
     const prev = lastHint;
     lastHint = null;
     const el = event.target?.nodeType === 1 ? event.target : find(detail.id);
@@ -781,8 +798,7 @@
 
     // Run right after the engine's synchronous pinMotion.enter() and before the first browser paint.
     Promise.resolve().then(() => {
-      const cls = names?.css ?? 'hc-tip';
-      const pinBox = document.querySelector(`.${cls}.${cls}-pin:not([hidden])`);
+      const pinBox = fresh.at(-1) ?? visiblePins().at(-1);
       if (!pinBox) return;
       // The long form starts with a hairline, as in the hover form (the engine draws no wrapper for it when pinned).
       longBlocks(pinBox, prev.blocks)[0]?.classList.add('hc-long-first');
@@ -890,6 +906,9 @@
   };
 
   window.HovercraftShiny = Object.freeze({
+    // runtime.js, before it closes a pin that went past its pool's limit: the close then reports as the engine's own limit
+    // does (reason "replaced", by whoever pinned the new tip) in the pin input.
+    replaced: (id, info) => replacedBy.set(String(id), info),
     start: (config) => {
       if (names) return;
       names = config;

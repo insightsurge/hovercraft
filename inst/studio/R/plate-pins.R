@@ -74,7 +74,11 @@ pins_code <- function(settings) {
     ),
     "\n)"
   )
-  paste(c(data, "", "# Once in the page's UI", define, "", "# A pinnable chip per column", chips), collapse = "\n")
+  keep <- "# use_hovercraft(max_pins = 3) in the page's UI keeps up to three pins open; the default is one"
+  paste(
+    c(data, "", "# Once in the page's UI", keep, define, "", "# A pinnable chip per column", chips),
+    collapse = "\n"
+  )
 }
 
 pins_steps <- function() {
@@ -122,8 +126,8 @@ plate_pins_ui <- function() {
     5,
     "Pins",
     lede = paste(
-      "A pinned tip stays open, so a reader can select its text, copy its code and act on it. One pin per page:",
-      "pinning another closes the first."
+      "A pinned tip stays open, so a reader can select its text, copy its code and act on it. One pin per page, as",
+      "here: pinning another closes the first. use_hovercraft(max_pins = 3) keeps three."
     ),
     caption = paste(
       "The columns of a visits table. Three carry a template with fields and code; booked carries one sentence, so its",

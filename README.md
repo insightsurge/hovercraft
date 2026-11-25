@@ -85,6 +85,8 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
+One pin stays open at a time; `use_hovercraft(max_pins = 3)` in the page's UI keeps up to three (a table can have its own count with `tip_table(max_pins =)`).
+
 `state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
 "hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
 tip from the server; for a table's tip they take the table's `id` with `row` and `column`

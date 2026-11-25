@@ -195,7 +195,9 @@ tip_more_dependency <- function() {
       held_template = tip_more_attribute("held-template"),
       label = tip_more_attribute("label"),
       state = tip_more_attribute("state"),
-      room = tip_more_attribute("room")
+      room = tip_more_attribute("room"),
+      id = tip_attribute("id"),
+      keysOff = tip_keys_off_attribute()
     ),
     events = list(hint = tip_contract()$events$hint$name, tip = tip_contract()$events$tip$name),
     css = tip_names()$css,

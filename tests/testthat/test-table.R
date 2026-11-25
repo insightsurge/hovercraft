@@ -1052,3 +1052,58 @@ describe("tip_table() on the names it is given", {
     expect_s3_class(tip_table(dt(), rows = tip_template(tip_text("{{ team }}"))), "datatables")
   })
 })
+
+describe("tip_table(max_pins =)", {
+  pins <- function(...) tip_spec("{{ team }}", pin = TRUE, ...)
+  ops_of <- function(widget) {
+    deps <- Filter(function(dep) grepl("^hovercraft-pins-", dep$name), widget$dependencies)
+    lapply(deps, function(dep) {
+      jsonlite::fromJSON(rawToChar(jsonlite::base64_dec(dep$meta[["hovercraft-ops"]])), simplifyVector = FALSE)[[1]]
+    })
+  }
+
+  it("gives the table its own count, carried in a dependency of its own", {
+    for (widget in list(dt(), rt())) {
+      got <- tip_table(widget, rows = pins(), id = "scores", max_pins = 2)
+      expect_identical(ops_of(got), list(list(op = "tablePins", id = "scores", max = 2L)))
+    }
+  })
+
+  it("adds nothing for NULL, which counts the table's pins in the app's limit", {
+    got <- tip_table(dt(), rows = pins(), id = "scores")
+    expect_length(ops_of(got), 0L)
+  })
+
+  it("names the table's id as the inputs know it, with the module's prefix", {
+    session <- shiny::MockShinySession$new()
+    got <- shiny::withReactiveDomain(
+      session,
+      tip_table(dt(), rows = pins(), id = "scores", max_pins = 3)
+    )
+    expect_identical(ops_of(got)[[1]]$id, session$ns("scores"))
+  })
+
+  it("takes a whole number from 1 to 10", {
+    for (bad in list(0, 11, 1.5, NA, "2", c(1, 2))) {
+      expect_error(
+        tip_table(dt(), rows = pins(), id = "scores", max_pins = bad),
+        class = "hovercraft_error_argument"
+      )
+    }
+    expect_no_error(tip_table(dt(), rows = pins(), id = "scores", max_pins = 10))
+  })
+
+  it("needs the table's id and a rows spec that pins, and says which is missing", {
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "max_pins")
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "id")
+    expect_error(tip_table(dt(), rows = "{{ team }}", id = "scores", max_pins = 2), "max_pins")
+    expect_error(tip_table(dt(), rows = tip_spec("{{ team }}"), id = "scores", max_pins = 2), "pin")
+    expect_error(tip_table(dt(), cells = c(wins = "{{ wins }}"), id = "scores", max_pins = 2), "rows")
+  })
+
+  it("is refused as a misspelt argument no longer: it is an argument", {
+    expect_true("max_pins" %in% names(formals(tip_table)))
+    expect_null(formals(tip_table)$max_pins)
+  })
+})

@@ -127,6 +127,8 @@
   // else on the page (WCAG 2.1.4). A key event with no key (the browser's autofill sends them) is none of ours.
   const onKey = (event) => {
     if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key) return;
+    // The page can switch the letter key off (`use_hovercraft(keys = c(pin = FALSE))`); the button stays.
+    if (document.documentElement.getAttribute(names.attributes.keysOff)?.split(/\s+/).includes('pin')) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
     const item = active?.closest?.(`[${names.attributes.pin}]`);

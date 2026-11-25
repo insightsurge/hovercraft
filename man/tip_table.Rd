@@ -13,7 +13,8 @@ tip_table(
   style = NULL,
   placement = NULL,
   marker = NULL,
-  id = NULL
+  id = NULL,
+  max_pins = NULL
 )
 }
 \arguments{
@@ -58,6 +59,14 @@ row, cell and header cell gets its own tip id derived from it, which follows the
 filtering and paging; how that id is built is not part of the API: \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}
 take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL} gives the tips no id. A pin or events
 given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}. The engine's kind of the tips is not yours to set.}
+
+\item{max_pins}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How many of this table's rows can be pinned at once, a whole
+number from 1 to 10, or \code{NULL} (the default). \code{NULL} counts the table's pins in the app's limit
+(\code{use_hovercraft(max_pins =)}): a row pin can close a pin elsewhere, and the other way round. A number gives the
+table its own count, outside the app's: a row pinned past it closes the table's oldest pin and no other, and a pin
+elsewhere never closes one of the table's rows. It needs a \code{rows} spec that pins (\code{\link[=tip_spec]{tip_spec()}} with \code{pin = TRUE})
+and the table's \code{id}. All the pins open together, the app's and every table's, cannot pass 10, the engine's cap.
+On a viewport narrower than 600 pixels the engine keeps one pin at a time, whatever the counts say.}
 }
 \value{
 The widget, with the tips added.
@@ -121,8 +130,9 @@ is third now, so do not keep it as a record's id;
 \verb{input$<id>_pinned} (with \code{events = "pin"}) is what is pinned now: a list of such addresses (\code{target}, \code{row},
 \code{column}, \code{id}), the oldest pin first. It is \code{NULL} until the first pin event, and an empty list once nothing is
 pinned. It is sent in the same batch as \verb{_pin}, and a value equal to the one before does not fire an observer again.
-Read it with \code{length(input$scores_pinned)}; a table keeps one pin at a time for now. For a tag of \code{\link[=tip_on]{tip_on()}} with
-\code{events = "pin"}, \verb{input$<id>_pinned} is \code{TRUE} or \code{FALSE} (read it with \code{isTRUE(input$run_pinned)}).
+Read it with \code{length(input$scores_pinned)}: it holds as many addresses as the table has pins open (see \code{max_pins}).
+For a tag of \code{\link[=tip_on]{tip_on()}} with \code{events = "pin"}, \verb{input$<id>_pinned} is \code{TRUE} or \code{FALSE} (read it with
+\code{isTRUE(input$run_pinned)}).
 
 \verb{input$<id>_pin} and \verb{input$<id>_hint} are told apart by \code{state}, whose values may grow in a later version. A pin's
 \code{state} is \code{"pinned"}, \code{"closed"} or \code{"updated"} (the tip is pinned and was drawn again because its words changed:

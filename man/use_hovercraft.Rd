@@ -4,7 +4,7 @@
 \alias{use_hovercraft}
 \title{The tip engine as an HTML dependency}
 \usage{
-use_hovercraft(style = NULL)
+use_hovercraft(style = NULL, max_pins = 1, keys = TRUE)
 }
 \arguments{
 \item{style}{How the tips look on the whole page, or \code{NULL} (the default) to take the page's own bslib variables,
@@ -21,11 +21,29 @@ A tag's own \code{style} (see \code{\link[=tip_on]{tip_on()}}) beats the page's,
 list is not taken: give \code{tip_theme()} the roles, or \code{tip_style(theme = list(...))} a list of roles or of CSS
 variables such as \code{list("--hovercraft-tip-bg" = "#1b3a6b")}. A string that holds \code{:} or \verb{;} is not a style: it
 looks like CSS, and \code{style} takes no CSS.}
+
+\item{max_pins}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How many pinned tips the app keeps open, a whole number
+from 1 to 10; the default, \code{1}, is one at a time. At the limit the oldest pin closes when a new one opens.
+Give it once, in the app's UI: a second \code{use_hovercraft()} with another number is seen by the page, which
+warns in the browser's console and keeps the first (a call that leaves \code{max_pins} out says nothing, so give it
+explicitly, even \code{1}, to be seen). A \code{\link[=tip_table]{tip_table()}} with its own \code{max_pins} has its own count, outside this
+one. All the pins open together, the app's and the tables', cannot pass 10, the engine's cap. On a viewport
+narrower than 600 pixels the engine shows a pin as a bottom sheet and keeps one at a time, so \code{max_pins = 3}
+means one there.}
+
+\item{keys}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The letter keys of a tip: \code{TRUE} (the default) for all, \code{FALSE} for
+none, or a named logical vector with one switch per key, \code{c(pin = FALSE)} or \code{c(more = FALSE)}; a key left out
+stays on. \code{pin} is the key that pins the tagged item (P), which works only while the focus is on the item and
+never inside a field; \code{more} is the key that opens a tip's long form (M), which \code{tip_more()} adds. Escape always
+closes a tip. Switching \code{pin} off takes the key's announcement (\code{aria-keyshortcuts}) off the items too; the pin
+button stays. Give it once: a second \code{use_hovercraft(keys = )} that differs warns in the console and the first
+holds.}
 }
 \value{
 A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}
 that sets something, \code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as
-the engine's attributes on the page, and last \code{hovercraft-runtime}, which starts the engine and the layers. Put it
+the engine's attributes on the page, with a \code{max_pins} or \code{keys} that is given one of their own, and last
+\code{hovercraft-runtime}, which starts the engine and the layers. Put it
 once in the page's UI, for example \code{bslib::page_fluid(use_hovercraft(style = "sober"), ...)}.
 
 Nothing in them is inline script or style: they are files and data, so a page served with
@@ -57,6 +75,7 @@ use_hovercraft()
 use_hovercraft(style = "modern")
 use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
+use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
 }
 \seealso{
 Other tooltips:
