@@ -70,7 +70,7 @@
       return builtIn;
     }
   };
-  const ITEM = ['id', 'pin', 'more', 'moreTemplate']
+  const ITEM = ['id', 'pin', 'more', 'moreTemplate', 'held', 'heldTemplate']
     .map((name) => `[${config.attributes[name]}][aria-keyshortcuts]`)
     .join(', ');
   const stripKeys = (node) => {

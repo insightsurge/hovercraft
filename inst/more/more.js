@@ -180,8 +180,14 @@
       setState(o.item, false);
       return close(o, true);
     }
-    // A button in a panel under a table row is in the flow, after the box: it has nowhere to be placed.
+    // A button in a panel under a table row is in the flow, after the box: it has nowhere to be placed, but it has the
+    // box's colours, which the page's own would not give it on a themed or dark panel.
     if (o.inPanel) {
+      put(o, 'color', style.color);
+      if (o.written.bg !== style.backgroundColor) {
+        o.written.bg = style.backgroundColor;
+        strip.style.setProperty('--hovercraft-more-bg', style.backgroundColor);
+      }
       o.frame = view.requestAnimationFrame(() => place(o));
       return;
     }
@@ -268,7 +274,7 @@
     close(kind === 'hint' ? slots.hint : pins.get(item));
     // A pinned tip drawn in a panel under a table row (`data-side="in"`) has its button after the box, in the flow, as a
     // sibling (a redraw of the tip rebuilds what is inside the box, and a button that floats would float off a scrolling
-    // table); Escape on it closes its own tip, not the newest one.
+    // table). Escape on the button of any pinned tip closes its own tip, not the newest one.
     const inPanel = box.dataset.side === 'in';
     const strip = doc.createElement('div');
     // With `on = "click"` there is no button: the strip stays, hidden, so the tip's life cycle is the same.
@@ -297,7 +303,7 @@
       activate(o.item, e.detail === 0 ? 'key' : 'click');
     });
     strip.append(button);
-    if (inPanel) {
+    if (inPanel || kind === 'pin') {
       strip.addEventListener('keydown', (e) => {
         if (e.key !== 'Escape' || e.defaultPrevented) return;
         e.preventDefault();
@@ -447,12 +453,13 @@
 
   // In a pinned tip the button is the last tab stop: Tab from the tip's last button or link goes to it, and Shift+Tab from
   // it goes back. The engine keeps Tab inside the pinned tip, so it is asked first.
-  // The controls the tip's own Tab order goes through: buttons, links and fields (the engine manages their tabindex inside a
-  // pinned tip, so it is not read for them), and anything else a page made focusable. Not a disabled one, and not one that
-  // is not drawn (a control inside a hidden part, such as the Retry button of tip_output() while there is no error, has no
-  // layout box and no reader reaches it).
-  const STOP = 'button, a[href], input, select, textarea, [tabindex]:not([tabindex="-1"])';
-  const stops = (box) => [...box.querySelectorAll(STOP)].filter((n) => !n.disabled && n.getClientRects().length > 0);
+  // The controls the engine's own Tab order goes through: its buttons and links, that is, and not one that is not drawn (a
+  // control inside a hidden part, such as the Retry button of tip_output() while there is no error, has no layout box and
+  // no reader reaches it).
+  const stops = (box) =>
+    [...box.querySelectorAll('button, a[href]')].filter(
+      (n) => !n.hidden && !n.disabled && n.getClientRects().length > 0,
+    );
   const onTab = (event) => {
     if (event.key !== 'Tab' || event.defaultPrevented || event.isComposing) return;
     const active = event.target?.ownerDocument?.activeElement;

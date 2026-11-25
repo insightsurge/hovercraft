@@ -81,6 +81,117 @@ describe("the page scripts on a static page", {
     expect_true(page$wait_until("document.getElementById('late').getAttribute('aria-keyshortcuts') === null"))
   })
 
+  it("takes the M key out of an item that has More and no tip id or pin", {
+    for (keys in list(c(more = FALSE), FALSE)) {
+      page <- local_page(
+        page_file(
+          use_hovercraft(keys = keys),
+          tip_on(htmltools::tags$button("Bare", id = "bare"), "Text", more = "Long")
+        ),
+        environment()
+      )
+      expect_true(page$wait_until("window.HovercraftRuntime !== undefined"))
+      expect_true(page$wait_until("document.getElementById('bare').getAttribute('aria-keyshortcuts') === null"))
+    }
+  })
+
+  it("opens a hint short that is shown again while the last one is still fading", {
+    page <- local_page(
+      page_file(
+        use_hovercraft(),
+        place(
+          tip_on(htmltools::tags$button("Long", id = "lg"), "Short words", more = "Long form words", id = "lg"),
+          "left: 60px; top: 100px;"
+        )
+      ),
+      environment()
+    )
+    expect_true(page$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    page$hover("#lg")
+    expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 1"))
+    page$evaluate("document.querySelector('.hovercraft-more-strip-button').click(); 0")
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])')?.textContent.includes('Long form words') === true"
+    ))
+    # The pointer leaves; as soon as the engine has closed the hint, the page shows it again (its button still fades).
+    page$mouse(890, 690)
+    expect_true(page$wait_until("document.getElementById('lg').getAttribute('data-hovercraft-tip-open') === null"))
+    page$evaluate("window.Hovercraft.show(document.getElementById('lg')); 0")
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])')?.textContent.includes('Short words') === true"
+    ))
+    expect_identical(
+      page$evaluate(
+        "document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])').textContent.includes('Long form words')"
+      ),
+      FALSE
+    )
+    expect_identical(page$evaluate("document.querySelector('.hovercraft-more-strip-button').textContent"), "More")
+  })
+
+  it("closes the pin whose More button has the focus on Escape, not the newest pin", {
+    page <- local_page(
+      page_file(
+        use_hovercraft(max_pins = 3),
+        place(
+          tip_on(htmltools::tags$button("One", id = "one"), "Short one", more = "Long one", id = "one", pin = TRUE),
+          "left: 40px; top: 60px;"
+        ),
+        place(
+          tip_on(htmltools::tags$button("Two", id = "two"), "Short two", more = "Long two", id = "two", pin = TRUE),
+          "left: 400px; top: 60px;"
+        )
+      ),
+      environment()
+    )
+    expect_true(page$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    for (id in c("one", "two")) {
+      page$evaluate(sprintf(
+        "window.Hovercraft.pin(document.getElementById('%s'), { by: 'reader', via: 'key' }); 0",
+        id
+      ))
+    }
+    expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 2"))
+    # The button that sits on the box of the first (older) pin takes the focus.
+    page$evaluate(
+      "(() => { const box = [...document.querySelectorAll('.hc-tip-pin:not([hidden])')].find((b) => b.textContent.includes('Short one')); const r = box.getBoundingClientRect(); [...document.querySelectorAll('.hovercraft-more-strip-button')].find((b) => { const q = b.getBoundingClientRect(); return q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom; }).focus(); })()"
+    )
+    page$press("Escape", wait = 0.2)
+    expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 1"))
+    expect_true(page$wait_until(
+      "document.querySelector('.hc-tip-pin:not([hidden])').textContent.includes('Short two')"
+    ))
+    expect_identical(page$evaluate("document.getElementById('one').hasAttribute('data-hovercraft-tip-open')"), FALSE)
+  })
+
+  it("keeps the room for the button under the last line of a bottom sheet", {
+    page <- local_page(
+      page_file(
+        use_hovercraft(),
+        place(
+          tip_on(
+            htmltools::tags$button("Sheet", id = "sh"),
+            "Short words for the sheet that are a few lines long when the window is narrow.",
+            more = "Long form words for the sheet that are a few lines long when the window is narrow.",
+            id = "sh",
+            pin = TRUE
+          ),
+          "left: 20px; top: 100px;"
+        )
+      ),
+      environment()
+    )
+    expect_true(page$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    page$resize(375, 700)
+    page$evaluate("window.Hovercraft.pin(document.getElementById('sh'), { by: 'reader', via: 'key' }); 0")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin[data-side=\"sheet\"]:not([hidden])') !== null"))
+    expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 1"))
+    # The button starts below the last text of the sheet.
+    expect_true(page$wait_until(
+      "(() => { const box = document.querySelector('.hc-tip-pin[data-side=\"sheet\"]'); const texts = box.querySelectorAll('.hc-tip-text'); const b = document.querySelector('.hovercraft-more-strip-button').getBoundingClientRect(); return b.top >= texts[texts.length - 1].getBoundingClientRect().bottom; })()"
+    ))
+  })
+
   it("closes the More button of a hint at once when the next hint has no long form", {
     page <- local_page(
       page_file(
@@ -89,9 +200,7 @@ describe("the page scripts on a static page", {
           tip_on(htmltools::tags$button("Long", id = "lg"), "Short words", more = "Long form words", id = "lg"),
           "left: 60px; top: 100px;"
         ),
-        place(tip_on(htmltools::tags$button("Plain", id = "pl"), "Plain words", id = "pl"), "left: 200px; top: 100px;"),
-        # The page script is not ready before the engine has drawn the first hint.
-        NULL
+        place(tip_on(htmltools::tags$button("Plain", id = "pl"), "Plain words", id = "pl"), "left: 200px; top: 100px;")
       ),
       environment()
     )
@@ -143,6 +252,7 @@ describe("the page scripts in a Shiny app", {
         ),
         shiny::textOutput("live"),
         DT::DTOutput("dt"),
+        DT::DTOutput("dtp"),
         tip_on(htmltools::tags$button("Plain", id = "pl", type = "button"), "Plain pinned tip", pin = TRUE, id = "pl")
       )
       server <- function(input, output, session) {
@@ -157,6 +267,15 @@ describe("the page scripts in a Shiny app", {
             id = "late_tip"
           )
         })
+        output$dtp <- DT::renderDT(
+          tip_table(
+            DT::datatable(scores, rownames = FALSE, options = list(dom = "t")),
+            rows = tip_spec("**{{ team }}**", more = "The long form of {{ team }}.", pin = TRUE, to = "in_place"),
+            id = "dtp",
+            style = tip_style(theme = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff"), mode = "light"))
+          ),
+          server = FALSE
+        )
         output$dt <- DT::renderDT(
           tip_table(
             DT::datatable(scores, rownames = FALSE, options = list(dom = "t")),
@@ -217,7 +336,7 @@ describe("the page scripts in a Shiny app", {
     page$evaluate("document.getElementById('tx').disabled = false; 0")
   })
 
-  it("makes More the next tab stop after the tip's last visible control, and back", {
+  it("sends Shift+Tab from More to the tip's last visible control", {
     pin_tag("out")
     expect_true(page$wait_until(sprintf(
       "%s.some((b) => b.textContent.includes('the docs')) && document.querySelectorAll('.hovercraft-more-strip-button').length === 1",
@@ -228,10 +347,7 @@ describe("the page scripts in a Shiny app", {
       page$evaluate("document.querySelector('.hc-tip-pin .hc-output-retry')?.closest('[hidden]') !== null"),
       TRUE
     )
-    page$evaluate("document.querySelector('.hc-tip-pin a[href]').focus(); 0")
-    page$press("Tab", wait = 0.2)
-    expect_true(page$wait_until("document.activeElement?.classList.contains('hovercraft-more-strip-button')"))
-    # Back from More to the link, not to a button nobody can see.
+    # Back from More to the link, not to a button nobody can see (the Retry button is the last of the tip's buttons).
     page$evaluate("document.querySelector('.hovercraft-more-strip-button').focus(); 0")
     page$evaluate(
       "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })); 0"
@@ -262,6 +378,24 @@ describe("the page scripts in a Shiny app", {
     )
     expect_true(page$wait_until(sprintf("(%s)('Foxes') === 1", on_box)))
     expect_identical(page$evaluate(sprintf("(%s)('Plain pinned')", on_box)), 0L)
+    close_all()
+  })
+
+  it("gives the More button of an in-place panel the colours of the panel's box", {
+    pin_key("#dtp tbody tr[data-hovercraft-tip-id=\"dtp/row/1\"]")
+    expect_true(page$wait_until(
+      "document.querySelector('#dtp [data-hovercraft-panel] .hovercraft-more-strip-button') !== null"
+    ))
+    colours <- "
+      (() => {
+        const box = document.querySelector('#dtp [data-hovercraft-panel] .hc-tip');
+        const button = document.querySelector('#dtp [data-hovercraft-panel] .hovercraft-more-strip-button');
+        return JSON.stringify([getComputedStyle(box).color, getComputedStyle(box).backgroundColor, getComputedStyle(button).color, getComputedStyle(button).backgroundColor]);
+      })()"
+    expect_true(page$wait_until(sprintf(
+      "(() => { const c = JSON.parse(%s); return c[0] === c[2] && c[1] === c[3]; })()",
+      colours
+    )))
     close_all()
   })
 })

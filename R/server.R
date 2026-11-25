@@ -31,7 +31,9 @@ tip_runtime_config <- function() {
       address = tip_table_address_attribute(),
       kind = tip_attribute("kind"),
       more = tip_attribute("more"),
-      moreTemplate = tip_attribute("more_template")
+      moreTemplate = tip_attribute("more_template"),
+      held = tip_more_attribute("held"),
+      heldTemplate = tip_more_attribute("held-template")
     ),
     global = tip_names()$global,
     css = tip_names()$css,
