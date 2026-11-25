@@ -719,10 +719,15 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' Put tips on the rows, cells and headers of a table
 #'
 #' `r lifecycle::badge("experimental")`
-#' An experimental spike, built on top of the tip engine: the API may change in upcoming releases. Gives the rows of a
+#' Built on top of the tip engine, and experimental: the API may change in upcoming releases. Gives the rows of a
 #' table made by `DT::datatable()` or `reactable::reactable()` a tip drawn from the row's own values, and
 #' optionally a tip of their own to chosen cells and header cells. The tips follow the data row, so sorting, filtering
 #' and paging need no code of yours: each row is its own record, whatever place it has on the screen.
+#'
+#' Known limits: `row` is the position in the data the table has now, so a pin follows the row number after
+#' `replaceData()` or a redraw; a `DT` table in server mode has only the rows of the current page on the screen; and
+#' the table's script does some work for each row on the screen on every change of the data, so page a long table (the
+#' R time of `tip_table()` does not grow with the rows).
 #'
 #' A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 #' its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
@@ -731,7 +736,7 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' with
 #' `{{ column }}` placeholders, or of a [tip_template()]; every placeholder is checked against the table's columns, and
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
-#' so it takes words only.
+#' so it takes words, or a [tip_template()] with no placeholders.
 #'
 #' Tips also show for the keyboard. A row, a cell or a header cell cannot take focus by itself, so `tip_table()` gives
 #' the table one tab stop, and the arrow keys move between the rows, cells and header cells that have a tip: left and
@@ -826,7 +831,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   the cells of that column. Each entry is a string, a
 #'   [tip_template()] or a [tip_spec()]; `NA` and `""` give that column no tip. Use a list to mix them:
 #'   `list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")`.
-#' @param headers The same for the header cells; words only, so a [tip_spec()] here holds words with no placeholders.
+#' @param headers The same for the header cells; a header has no row to read from, so a [tip_spec()] here holds words
+#'   or a [tip_template()] with no placeholders.
 #' @param style How every tip in the table looks, or `NULL` (the default) to take the page's: whatever `style` takes in
 #'   [tip_on()] (a preset name, a [tip_style()], a [tip_theme()] or a [bslib::bs_theme()]). A [tip_spec()] with its own
 #'   `style` beats it for that target. A row's own style also reaches the cells in that row that have none of their
@@ -840,16 +846,16 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   marker (the default). A [tip_spec()] with its own `marker` beats it. A row takes no marker, and a table draws only
 #'   the corner for now: `"underline"`, `"icon"` and an icon of your own stop with an error. A cell with a marker is
 #'   highlighted while its tip is open. See [tip_marker()].
-#' @param id The id this table's Shiny inputs hang on (`input$<id>_pin`), and the base of its tips' ids: one non-empty
-#'   string with no whitespace. It is the table's id, not one tip's. Inside a module, give the plain id: `tip_table()`
-#'   adds the module's prefix from the session the table is drawn in, as [tip_show()] does, so `id = "scores"` in
-#'   module `"mod1"` is `input[["mod1-scores_pin"]]`. An id that already has the prefix (`session$ns("scores")`) is left
-#'   alone, and outside a session (a static page) the id is used as given. Give it a different id from every other tip
-#'   source on the page: two tables with one id make the page warn in the browser console. With an `id`, every marked
-#'   row, cell and header cell gets its own tip id derived from it, which follows the data row through sorting,
-#'   filtering and paging; how that id is built is not part of the API: [tip_show()], [tip_hide()] and [tip_update()]
-#'   take the table's `id` with `row` and `column` instead. `NULL` gives the tips no id. A pin or events
-#'   given to `rows` (see [tip_spec()]) need an `id`. The engine's kind of the tips is not yours to set.
+#' @param id The id this table's Shiny inputs hang on (`input$<id>_pin`), and the base of its tips' ids: one
+#'   non-empty string with no whitespace and no `:`. It is the table's id, not one tip's. Inside a module, give the
+#'   plain id: `tip_table()` adds the module's prefix from the session the table is drawn in, as [tip_show()] does,
+#'   so `id = "scores"` in module `"mod1"` is `input[["mod1-scores_pin"]]`. An id that already has the prefix
+#'   (`session$ns("scores")`) is left alone, and outside a session (a static page) the id is used as given. Give it
+#'   a different id from every other tip source on the page: two tables with one id make the page warn in the
+#'   browser console. With an `id`, every marked row, cell and header cell gets its own tip id derived from it,
+#'   which follows the data row through sorting, filtering and paging; how that id is built is not part of the API:
+#'   [tip_show()], [tip_hide()] and [tip_update()] take the table's `id` with `row` and `column` instead. `NULL`
+#'   gives the tips no id. A pin or events given to `rows` (see [tip_spec()]) need an `id`.
 #' @param max_pins `r lifecycle::badge("experimental")` How many of this table's rows can be pinned at once, a whole
 #'   number from 1 to 10, or `NULL` (the default). `NULL` counts the table's pins in the app's limit
 #'   (`use_hovercraft(max_pins =)`): a row pin can close a pin elsewhere, and the other way round. A number gives the

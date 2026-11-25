@@ -37,7 +37,7 @@ tip_update(
 }
 \arguments{
 \item{id}{The tip's id: the \code{id} given to \code{\link[=tip_on]{tip_on()}}, or, with \code{row} or \code{column}, the \code{id} given to \code{\link[=tip_table]{tip_table()}},
-without the module's namespace. One non-empty string with no whitespace.}
+without the module's namespace. One non-empty string with no whitespace and no \code{:}.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
@@ -70,19 +70,23 @@ then, the call warns (class \code{hovercraft_warning_table}) and sends nothing. 
 the widget hides has no tip. A row that is not on the table's current page has no element yet, in any paged table
 (\code{DT} in client or server mode, \code{reactable}), so nothing happens until it is on the page.
 
-A call reaches only a tag that is on the page and drawn at that moment; nothing is queued. Every call is sent when
-the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a \code{renderUI()}
-that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
+A call reaches only a tag that is on the page and drawn at that moment; nothing is queued, and a tag in a hidden tab
+opens nothing. On a page without Shiny (R Markdown, Quarto, a static page) the calls stop with an error. Every call
+is sent when the flush that follows it is done, and asks for that flush, so \code{tip_show()} in the same observer as a
+\code{renderUI()} that draws the tag reaches the new tag, and a call from a callback of \code{later} is sent too.
 
 A tip opened by \code{tip_show()} stays open until \code{tip_hide()} closes it, or until the reader opens another tip, presses
 Escape or clicks away. \code{tip_hide()} closes a hint, the tip that shows on hover or focus, and never a pin: when the
 tip of this id is not the hint that is open (another tip's hint is, or this one is pinned or closed), it does
 nothing. No server call pins a tip or closes a pin.
 
-\code{tip_update()} rewrites the tag's tip attributes. It takes the same values as \code{\link[=tip_on]{tip_on()}} and changes only what is
-named: \code{NULL} leaves a value as it is, \code{NA} takes it away, and for \code{text}, \code{""} clears the words. An open tip draws
-its new words, template or record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs
-the \code{template} in the same call, so that only the columns the template names are sent to the page; to change the
+\code{tip_update()} rewrites the tag's tip attributes. It takes the values of \code{\link[=tip_on]{tip_on()}} that change a tip (\code{text},
+\code{template}, \code{record} and \code{placement}) and changes only what is named: \code{NULL} leaves a value as it is, \code{NA} takes it
+away, and for \code{text}, \code{""} clears the words. \code{template} is the name of a template or a \code{\link[=tip_template]{tip_template()}}, which is
+sent with the call (not one that holds a \code{\link[=tip_output]{tip_output()}}, which needs the tag's own \code{\link[=tip_on]{tip_on()}}); \code{text} with
+\code{{{ field }}} placeholders is filled from \code{record}, as in \code{\link[=tip_on]{tip_on()}}. An open tip draws its new words, template or
+record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs a \code{template}, or \code{text}
+with placeholders, in the same call, so that only the columns it names are sent to the page; to change the
 template alone, leave \code{record} out and the tag keeps the record it has. \code{tip_update()} leaves a \code{style} or \code{marker}
 alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the old name; give such a
 button its own \code{aria-label}. The new tip lasts until the tag is drawn again, for example by \code{renderUI()}.

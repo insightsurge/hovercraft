@@ -46,6 +46,8 @@ describe("server calls and the hint input in a Shiny app", {
         shiny::actionButton("missing", "Missing"),
         shiny::actionButton("swap", "Swap"),
         shiny::uiOutput("swap_ui"),
+        tip_on(shiny::actionButton("tplb", "Tpl"), "Old words", id = "tpl_tip"),
+        shiny::actionButton("tpl_go", "Tpl go"),
         shiny::actionButton("redraw", "Redraw"),
         shiny::uiOutput("late_ui"),
         shiny::verbatimTextOutput("swap_seen"),
@@ -85,6 +87,14 @@ describe("server calls and the hint input in a Shiny app", {
         shiny::observeEvent(input$redraw, {
           ticks(ticks() + 1)
           tip_show("late_tip")
+        })
+        shiny::observeEvent(input$tpl_go, {
+          tip_update(
+            "tpl_tip",
+            text = NA,
+            template = tip_template(tip_title("Hi {{ who }}"), tip_text("{{ n }} items")),
+            record = list(who = "Ada", n = 3)
+          )
         })
         shiny::observeEvent(input$place, tip_update("run_tip", placement = "right"))
         shiny::observeEvent(input$missing, {
@@ -248,5 +258,18 @@ describe("server calls and the hint input in a Shiny app", {
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 2'",
       tip_names()$css
     )))
+  })
+
+  it("changes a tip to a template that comes with the call, drawn from the record that comes with it", {
+    press_button("tpl_go")
+    # The call is sent after its flush: wait for the tag to hold the template before the pointer rests on it.
+    expect_true(page$wait_until(
+      "document.getElementById('tplb').closest('[data-hovercraft-tip-template]') !== null"
+    ))
+    shown <- page$hover("#tplb")
+    expect_match(paste(shown, collapse = " "), "Hi Ada")
+    expect_match(paste(shown, collapse = " "), "3 items")
+    expect_no_match(paste(shown, collapse = " "), "Old words")
+    expect_identical(page$problems(), character())
   })
 })

@@ -10,7 +10,7 @@ tip_block <- function(type, ...) {
 
 #' Blocks for a tip's template
 #'
-#' `r lifecycle::badge("experimental")`
+#' `r lifecycle::badge("stable")`
 #' The parts a template is made of. `tip_title()` is the first line, `tip_text()` a paragraph of markdown,
 #' `tip_badge()` a short label, `tip_fields()` a list of label and value pairs, and `tip_code()` a piece of code shown
 #' as text. Text and values may hold placeholders, `{{ field }}` or `{{ field | number:2 }}`, filled from the record of
