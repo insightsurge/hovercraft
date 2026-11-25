@@ -495,15 +495,18 @@
       if (panels.size && panelTables.has(el)) syncPanels(el, panelTables.get(el));
     };
     let queued = false;
+    const mine = renew(el, 'reactable');
     const later = () => {
       if (queued) return;
       queued = true;
       requestAnimationFrame(() => {
         queued = false;
+        // A frame asked for before the next render took over must not mark the rows with this render's words.
+        if (mine.signal.aborted) return;
         apply();
       });
     };
-    renew(el, 'reactable').watch(new MutationObserver(later), el, {
+    mine.watch(new MutationObserver(later), el, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -593,6 +596,7 @@
         queued = true;
         requestAnimationFrame(() => {
           queued = false;
+          if (mine.signal.aborted) return;
           settle();
         });
       }),
