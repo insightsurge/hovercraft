@@ -420,6 +420,36 @@ describe("the page's pin settings", {
     expect_identical(open_count(page), 0L)
   })
 
+  it("pins the focused item when the tip on show is another item's and the pointer is not on it", {
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_length(page$hover("#one"), 1L)
+    # The pointer leaves and the focus moves on at once, as a reader does, while the tip of "one" is still on show.
+    page$mouse(5, 5, FALSE)
+    page$evaluate("document.getElementById('two').focus(); 0")
+    page$press("p", wait = 0.2)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+    page$press("Escape")
+    # A tip that the page opens (tip_show() does it) is not under the pointer: the key stays with the focused item.
+    page$mouse(5, 5, FALSE)
+    page$evaluate("document.getElementById('two').focus(); window.Hovercraft.show(document.getElementById('one')); 0")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null",
+      tip_names()$css,
+      tip_names()$css
+    )))
+    page$press("p", wait = 0.2)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+  })
+
   it("pins once for a key held down, on the item whose tip was shown", {
     page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))

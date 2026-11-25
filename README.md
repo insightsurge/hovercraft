@@ -63,7 +63,7 @@ A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | perc
 missing or blank shows a dash. Mistakes in a template, such as a placeholder that never closes, stop with an error when
 the template is made, not later in the browser.
 
-A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too, with the focus on the item or while its tip is shown; the tip
+A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too, with the focus on the item or the pointer resting on it; the tip
 then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_pin`, here
 `input$run_pin`:
 
@@ -98,7 +98,7 @@ tip from the server; for a table's tip they take the table's `id` with `row` and
 (`tip_show("scores", row = 2, column = "wins")`).
 
 A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
-key opens it too (with the focus on the item or while its tip is shown); "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
+key opens it too (with the focus on the item or the pointer resting on it); "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
 again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"` or `"pin"`) and what
 the buttons say (`label =`); it is experimental:
 

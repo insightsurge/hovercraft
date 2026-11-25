@@ -133,10 +133,10 @@ tip_reset <- function() {
 #'   means one there.
 #' @param keys `r lifecycle::badge("experimental")` The letter keys of a tip: `TRUE` (the default) for all, `FALSE` for
 #'   none, or a named logical vector with one switch per key, `c(pin = FALSE)` or `c(more = FALSE)`; a key left out
-#'   stays on. `pin` is the key that pins the tagged item (P), which works while the focus is on the item or its tip
-#'   is shown (by hover, focus or tap), and never inside a field; `more` is the key that opens a tip's long form (M),
-#'   which `tip_more()` adds. Both work from a hover, so this is the page's switch: it turns a key off for every
-#'   reader, and there is no switch for one reader. Escape always closes a tip. Switching `pin` off takes the key's
+#'   stays on. `pin` is the key that pins the tagged item (P), which works while the focus is on the item or the
+#'   pointer rests on it, and never inside a field; `more` is the key that opens a tip's long form (M), which
+#'   `tip_more()` adds. Both work from a hover, so this is the page's switch: it turns a key off for every reader,
+#'   and there is no switch for one reader. Escape always closes a tip. Switching `pin` off takes the key's
 #'   announcement (`aria-keyshortcuts`) off the items too; the pin button stays. Give it once: a second
 #'   `use_hovercraft(keys = )` that differs warns in the console and the first holds.
 #'

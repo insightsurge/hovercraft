@@ -354,10 +354,11 @@
     if (item && !item.getAttribute(A().open) && expandedNow(item)) setState(item, false);
   };
 
-  // The M key opens and closes the long form of the tip that is open: of the pinned tip that holds the focus (also the
-  // item of a pinned tip); else of the item whose tip is shown, by hover, focus or tap (with the focus on one item and the
-  // tip shown for another, the shown tip wins, since it is the tip the reader sees); else of the item that holds the
-  // focus. In a text field a letter is a letter, so there the key does nothing; and a key held down toggles once.
+  // The M key opens and closes the long form of the tip that is open: of the pinned tip that holds the focus (also
+  // the item of a pinned tip); else of the item whose tip is shown while the pointer is on it (the tip the reader
+  // sees; a tip still fading after the pointer left, or one a tap or tip_show() opened, does not count, and with the
+  // focus on another item the one under the pointer wins); else of the item that holds the focus. In a text field a
+  // letter is a letter, so there the key does nothing; and a key held down toggles once.
   const onKey = (event) => {
     if (typeof event.key !== 'string') return;
     // The page can switch the letter key off (`use_hovercraft(keys = c(more = FALSE))`); the button stays.
@@ -367,9 +368,10 @@
     // The pinned tip that holds the focus (its box or its button), else the tagged item that has it.
     const held = [...pins.values()].find((o) => o.box.contains(active) || o.strip.contains(active));
     const focused = held ? held.item : itemOf(active);
-    // The shown tip's item itself, never an ancestor of it: the key acts on the tip that is shown.
-    const hinted = isHeld(shown) ? shown : null;
-    const item = held || focused?.getAttribute(A().open) === 'pin' ? focused : shown ? hinted : focused;
+    // The item under the pointer whose tip is shown, itself and never an ancestor of it: the key acts on the tip that is seen.
+    const hovered = shown?.matches(':hover') ? shown : null;
+    const hinted = isHeld(hovered) ? hovered : null;
+    const item = held || focused?.getAttribute(A().open) === 'pin' ? focused : hovered ? hinted : focused;
     if (!item?.getAttribute(A().open)) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     if (event.key.toLowerCase() !== names.key || editable(deepFocus(active))) return;

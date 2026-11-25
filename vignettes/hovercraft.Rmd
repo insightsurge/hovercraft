@@ -88,7 +88,7 @@ knitr::include_graphics(c("figures/template-light.png", "figures/template-dark.p
 
 `more` holds a long form that waits behind a "More" button at the bottom of the tip. The button opens the long form in
 the same tip, and "Less" closes it again. The tip stays open, on its side, and grows away from the item; with the focus on
-the item or while its tip is shown, the `M` key does the same as the button, except in a text field. The next time the tip opens it is short again,
+the item or the pointer resting on it, the `M` key does the same as the button, except in a text field. The next time the tip opens it is short again,
 and a pinned tip has the same buttons. Nothing needs a pin or an `id`:
 
 ```{r}

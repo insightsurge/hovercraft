@@ -118,8 +118,8 @@ tip_check_pin_click <- function(tag, call = rlang::caller_env()) {
   invisible()
 }
 
-# The pin key: one letter, used while the focus is on the tagged item or its tip is shown, never in a field. A page
-# can switch it off with `use_hovercraft(keys = )`; a reader has no switch. The tagged item announces it
+# The pin key: one letter, used while the focus is on the tagged item or the pointer rests on it, never in a field. A
+# page can switch it off with `use_hovercraft(keys = )`; a reader has no switch. The tagged item announces it
 # (`aria-keyshortcuts`) where a keyboard and a screen reader meet the item; the layer listens for it.
 tip_pin_key <- function() "p"
 

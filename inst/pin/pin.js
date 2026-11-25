@@ -145,11 +145,12 @@
     }
   };
 
-  // The pin key: a single letter. It pins the item whose tip is shown, by hover, focus or tap: the tip the reader sees. With
-  // the focus on one item and the tip shown for another, the shown tip wins; an item that is pinned and holds the focus
-  // keeps the key; with no tip shown, the item that holds the focus. It never acts while the focus is in a field, and
-  // a key held down pins once. Where the page switches the key off, it does nothing. A key event with no key (the
-  // browser's autofill sends them) is none of ours.
+  // The pin key: a single letter. It pins the item whose tip is shown while the pointer is on that item (the tip the
+  // reader sees); a tip that is still fading after the pointer left, or one a tap or tip_show() opened, does not
+  // count. With the focus on one item and the pointer on another, the item under the pointer wins; an item that is
+  // pinned and holds the focus keeps the key; otherwise the item that holds the focus. It never acts while the focus
+  // is in a field, and a key held down pins once. Where the page switches the key off, it does nothing. A key event
+  // with no key (the browser's autofill sends them) is none of ours.
   const onKey = (event) => {
     if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key || event.repeat) return;
     // The page can switch the letter key off (`use_hovercraft(keys = c(pin = FALSE))`); the button stays.
@@ -158,9 +159,10 @@
     if (shown && !shown.isConnected) shown = null;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
     const focused = active?.closest?.(`[${names.attributes.pin}]`);
-    // The item itself, never an ancestor of it: the key acts on the tip that is shown.
-    const hinted = shown?.hasAttribute(names.attributes.pin) ? shown : null;
-    const item = focused?.getAttribute(names.attributes.open) === 'pin' ? focused : shown ? hinted : focused;
+    // The item under the pointer whose tip is shown, itself and never an ancestor of it: the key acts on the tip that is seen.
+    const hovered = shown?.matches(':hover') ? shown : null;
+    const hinted = hovered?.hasAttribute(names.attributes.pin) ? hovered : null;
+    const item = focused?.getAttribute(names.attributes.open) === 'pin' ? focused : hovered ? hinted : focused;
     if (!item || editable(deepFocus(active)) || item.matches(':disabled, [aria-disabled="true"]')) return;
     if (pinItem(item, 'key')) event.preventDefault();
   };
