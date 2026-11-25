@@ -88,6 +88,20 @@ describe("pins in a Shiny app", {
             pin = TRUE,
             style = tip_style(motion = "slide")
           ),
+          tip_on(
+            row(
+              "row_g",
+              "Row G",
+              tip_on(
+                htmltools::tags$span("Cell G", id = "cell_g", style = "margin-left: 4rem", class = "px-1 border"),
+                "Cell G is a plain tip.",
+                id = "g_cell_tip"
+              )
+            ),
+            "Row G is pinnable.",
+            id = "g_tip",
+            pin = TRUE
+          ),
           shiny::actionButton("show_a", "Show A"),
           shiny::actionButton("open_modal", "Open modal"),
           htmltools::tags$input(id = "field", type = "text", placeholder = "type here"),
@@ -202,6 +216,18 @@ describe("pins in a Shiny app", {
     expect_lt(lines()$first_right, button$left)
     # A one-sentence tip keeps its one line, with the button at the end of it.
     expect_equal(lines()$count, 1)
+  })
+
+  it("closes the strip at once when moving from a pinnable item to a plain-tip item inside it", {
+    reset()
+    view("row_g")
+    expect_identical(page$hover("#row_g"), "Row G is pinnable.")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') !== null"))
+    mouse_at("#cell_g")
+    expect_true(page$wait_until(
+      sprintf("document.querySelector('%s')?.textContent?.includes('Cell G is a plain tip.')", hint_box)
+    ))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') === null", seconds = 0.2))
   })
 
   it("keeps the button beside the first line of a tip of several lines, and the words clear of it", {
