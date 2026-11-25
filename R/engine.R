@@ -141,11 +141,14 @@ tip_reset <- function() {
 #'
 #' @param labels `r lifecycle::badge("experimental")` The words the tips show themselves on the whole page, or `NULL`
 #'   (the default) for the built-in ones. A named character vector, such as `c(copy = "Copy code", close = "Dismiss")`;
-#'   a word left out keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. A `{label}`,
-#'   `{n}` or `{first}` in a word is filled in by the page. An unknown key stops with an error that lists the keys. A
-#'   tag's own `labels` (see [tip_on()]) beat the page's, key by key, and `tip_more(label = )` beats both for the
-#'   buttons of one tip. A second `use_hovercraft(labels = )` adds its words to the first, and a key that both give
-#'   takes the later one. Useful for a page in another language.
+#'   a word left out keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Three keys
+#'   take placeholders, which the page fills in: `pinned` takes `{label}` (the name of the item), `code_line` takes
+#'   `{first}` (the first line of the code) and `code_lines` and `code_lines_empty` take `{n}` (the number of lines;
+#'   `code_lines` takes `{first}` too); other braces stay as written. An unknown key, an empty or blank word, or a value
+#'   that is not words stops with an error; the unknown key's error lists the keys. A tag's own `labels` (see
+#'   [tip_on()]) beat the page's, key by key, and `tip_more(label = )` beats both for the buttons of one tip. Unlike
+#'   `keys`, where the first call holds, a second `use_hovercraft(labels = )` adds its words to the first, and a key
+#'   that both give takes the later one. Useful for a page in another language.
 #'
 #' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
 #'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as

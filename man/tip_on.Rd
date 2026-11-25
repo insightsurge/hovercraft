@@ -164,13 +164,17 @@ in Chrome only.}
 \item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tip shows itself, such as "Copy", "Close", "More"
 and the pin button's name, for this tag's tip and every tip inside the tag, or \code{NULL} (the default) to take the
 page's words (see \code{\link[=use_hovercraft]{use_hovercraft()}}). A named character vector, such as \code{c(close = "Dismiss")}; a word left out
-keeps its built-in one. The keys, with their built-in words, are \code{copy} ("Copy"), \code{copied} ("Copied"), \code{copy_failed} ("Copy failed"), \code{close} ("Close"), \code{not_available} ("Not available:"), \code{pinned} ("{label}: details pinned. Tab to reach them."), \code{code_line} ("code: {first}"), \code{code_line_empty} ("code, 1 line"), \code{code_lines} ("code, {n} lines, starting {first}"), \code{code_lines_empty} ("code, {n} lines"), \code{more} ("More"), \code{more_pinned} ("More when pinned"), \code{less} ("Less"), \code{pin} ("Pin this tip"). \code{{label}}, \code{{n}} and
-\code{{first}} in a word are filled in by the page: in \code{pinned} the name of the item, in the \verb{code_*} words the number
-of lines and the first line. An unknown key stops with an error that lists the keys. The nearest words win, key by
-key: a tag's \code{labels} beat the page's, and a tag inside another tag with \code{labels} uses the nearer one.
+keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Three keys take
+placeholders, which the page fills in: \code{pinned} takes \code{{label}} (the name of the item), \code{code_line} takes \code{{first}}
+(the first line of the code) and \code{code_lines} and \code{code_lines_empty} take \code{{n}} (the number of lines; \code{code_lines}
+takes \code{{first}} too); other braces stay as written. An unknown key, an empty or blank word, or a value that is not
+words stops with an error; the unknown key's error lists the keys. The nearest words win, key by key: a tag's
+\code{labels} beat the page's, and a tag inside another tag with \code{labels} uses the nearer one.
 \code{tip_more(label = )} still sets the words of the "More" and "Less" buttons of one tip, and beats \code{labels} there.
-The words go with the tag: a second \code{tip_on()} on it replaces them with its own. To change them for a
-\code{\link[=tip_table]{tip_table()}}, give them to \code{\link[=use_hovercraft]{use_hovercraft()}} or put the table inside a tag with \code{labels}.}
+The words go with the tag, so \code{labels} needs a tip on the call (\code{text}, \code{template} or \code{when_disabled}); a second
+\code{tip_on()} on the tag replaces them with its own. With \code{when_disabled}, they are also on the wrapper, so
+"Not available:" changes while the control is off. For a \code{\link[=tip_table]{tip_table()}}, give the words to \code{\link[=use_hovercraft]{use_hovercraft()}}: a
+table is marked by its own script, and only a tag that has a tip of its own can carry \code{labels} around it.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,

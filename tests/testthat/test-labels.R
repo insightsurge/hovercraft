@@ -26,6 +26,33 @@ describe("the keys of the page's words", {
     }
   })
 
+  it("say which keys take placeholders, and only those", {
+    braces <- Filter(function(word) grepl("{", word, fixed = TRUE), tip_label_defaults())
+    expect_identical(
+      lapply(braces, function(word) regmatches(word, gregexpr("\\{[a-z]+\\}", word))[[1]]),
+      list(
+        pinned = "{label}",
+        code_line = "{first}",
+        code_lines = c("{n}", "{first}"),
+        code_lines_empty = "{n}"
+      )
+    )
+  })
+
+  it("keep the braces of the built-in words in the help pages, which check clean", {
+    for (page in c("tip_on", "use_hovercraft")) {
+      file <- testthat::test_path("..", "..", "man", paste0(page, ".Rd"))
+      skip_if_not(file.exists(file), "the help sources are not here")
+      expect_length(tools::checkRd(file), 0L)
+      out <- withr::local_tempfile()
+      tools::Rd2txt(file, out = out)
+      text <- gsub("[[:space:]]+", " ", paste(readLines(out), collapse = " "))
+      for (word in c("{label}: details pinned.", "code: {first}", "code, {n} lines, starting {first}")) {
+        expect_true(grepl(word, text, fixed = TRUE), info = paste(page, word))
+      }
+    }
+  })
+
   it("write the attribute after the engine's prefix", {
     expect_identical(tip_labels_attribute(), paste0("data-", tip_names()$prefix, "-labels"))
   })
@@ -55,6 +82,7 @@ describe("tip_check_labels()", {
       "no names" = c("a", "b"),
       "an NA" = c(close = NA_character_),
       "an empty word" = c(close = ""),
+      "a blank word" = c(close = "  "),
       "a number" = c(close = 1),
       "a repeated name" = c(close = "a", close = "b"),
       "an empty list" = list(),
@@ -63,6 +91,11 @@ describe("tip_check_labels()", {
     for (what in names(bad)) {
       expect_error(tip_check_labels(bad[[what]]), class = "hovercraft_error_argument", info = what)
     }
+  })
+
+  it("prints a key with braces as it is, not as cli would read it", {
+    error <- expect_error(tip_check_labels(c("{boom" = "x")), class = "hovercraft_error_labels")
+    expect_match(conditionMessage(error), "{boom", fixed = TRUE)
   })
 
   it("stops on a key that is not a label, names the valid keys and guesses a misspelt one", {
@@ -123,6 +156,34 @@ describe("tip_on(labels = )", {
     first <- tipped(labels = c(close = "Schliessen"))
     gone <- tip_on(first, NA_character_)
     expect_null(htmltools::tagGetAttribute(gone, tip_labels_attribute()))
+  })
+
+  it("stops when the call gives no tip for the words to go with", {
+    for (text in list(NA_character_, "")) {
+      expect_error(
+        tip_on(htmltools::tags$button("a"), text, labels = c(close = "Dismiss")),
+        class = "hovercraft_error_labels"
+      )
+    }
+    expect_error(tip_on(htmltools::tags$button("a"), labels = c(close = "Dismiss")), class = "hovercraft_error_tip")
+  })
+
+  it("is on the wrapper of a disabled control as well, and goes when the tip is made again without it", {
+    off <- htmltools::tags$button("Run", disabled = NA)
+    tag <- tip_on(off, "Runs it", when_disabled = "Pick data", labels = c(not_available = "Nicht verfuegbar:"))
+    expect_identical(
+      jsonlite::fromJSON(htmltools::tagGetAttribute(tag, tip_labels_attribute()), simplifyVector = FALSE),
+      list(not_available = "Nicht verfuegbar:")
+    )
+    expect_identical(
+      tag$children[[1]]$attribs[[tip_labels_attribute()]],
+      htmltools::tagGetAttribute(tag, tip_labels_attribute())
+    )
+    only_reason <- tip_on(off, when_disabled = "Pick data", labels = c(close = "Zu"))
+    expect_false(is.null(htmltools::tagGetAttribute(only_reason, tip_labels_attribute())))
+    again <- tip_on(tag, "Runs it", when_disabled = "Pick data")
+    expect_null(htmltools::tagGetAttribute(again, tip_labels_attribute()))
+    expect_null(htmltools::tagGetAttribute(again$children[[1]], tip_labels_attribute()))
   })
 })
 

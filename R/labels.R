@@ -18,7 +18,7 @@ tip_labels_attribute <- function() paste0("data-", tip_names()$prefix, "-labels"
 # What the help pages say about `labels`: every key with its built-in word, made from the list above so it cannot drift.
 tip_label_help <- function() {
   defaults <- tip_label_defaults()
-  paste0("`", names(defaults), "` (\"", defaults, "\")", collapse = ", ")
+  paste0("`", names(defaults), "` (`", defaults, "`)", collapse = ", ")
 }
 
 # The words as a named list, or NULL for none. A named character vector, or a list of strings, whose names are keys of
@@ -30,8 +30,12 @@ tip_check_labels <- function(labels, arg = "labels", call = rlang::caller_env())
   if (is.list(labels) && all(vapply(labels, function(x) is.character(x) && length(x) == 1L, TRUE))) {
     labels <- unlist(labels)
   }
+  result <- checkmate::check_character(labels, any.missing = FALSE, min.chars = 1L, min.len = 1L, names = "unique")
+  if (isTRUE(result) && !all(nzchar(trimws(labels)))) {
+    result <- "Must not hold a blank word."
+  }
   tip_arg(
-    checkmate::check_character(labels, any.missing = FALSE, min.chars = 1L, min.len = 1L, names = "unique"),
+    result,
     arg,
     paste0(
       "Give a named character vector of words, such as {.code c(close = \"Dismiss\")}, with a different name for ",
@@ -44,7 +48,9 @@ tip_check_labels <- function(labels, arg = "labels", call = rlang::caller_env())
   if (length(unknown)) {
     # The closest key, when one is a typo away: "clsoe" is "close".
     closest <- vapply(unknown, tip_closest_label, "", keys = keys)
-    guesses <- paste0("Did you mean \"", closest[nzchar(closest)], "\" for \"", unknown[nzchar(closest)], "\"?")
+    guesses <- tip_escape(
+      paste0("Did you mean \"", closest[nzchar(closest)], "\" for \"", unknown[nzchar(closest)], "\"?")
+    )
     tip_abort(
       c(
         paste0(

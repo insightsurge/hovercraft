@@ -533,13 +533,17 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' @param labels `r lifecycle::badge("experimental")` The words the tip shows itself, such as "Copy", "Close", "More"
 #'   and the pin button's name, for this tag's tip and every tip inside the tag, or `NULL` (the default) to take the
 #'   page's words (see [use_hovercraft()]). A named character vector, such as `c(close = "Dismiss")`; a word left out
-#'   keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. `{label}`, `{n}` and
-#'   `{first}` in a word are filled in by the page: in `pinned` the name of the item, in the `code_*` words the number
-#'   of lines and the first line. An unknown key stops with an error that lists the keys. The nearest words win, key by
-#'   key: a tag's `labels` beat the page's, and a tag inside another tag with `labels` uses the nearer one.
+#'   keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Three keys take
+#'   placeholders, which the page fills in: `pinned` takes `{label}` (the name of the item), `code_line` takes `{first}`
+#'   (the first line of the code) and `code_lines` and `code_lines_empty` take `{n}` (the number of lines; `code_lines`
+#'   takes `{first}` too); other braces stay as written. An unknown key, an empty or blank word, or a value that is not
+#'   words stops with an error; the unknown key's error lists the keys. The nearest words win, key by key: a tag's
+#'   `labels` beat the page's, and a tag inside another tag with `labels` uses the nearer one.
 #'   `tip_more(label = )` still sets the words of the "More" and "Less" buttons of one tip, and beats `labels` there.
-#'   The words go with the tag: a second `tip_on()` on it replaces them with its own. To change them for a
-#'   [tip_table()], give them to [use_hovercraft()] or put the table inside a tag with `labels`.
+#'   The words go with the tag, so `labels` needs a tip on the call (`text`, `template` or `when_disabled`); a second
+#'   `tip_on()` on the tag replaces them with its own. With `when_disabled`, they are also on the wrapper, so
+#'   "Not available:" changes while the control is off. For a [tip_table()], give the words to [use_hovercraft()]: a
+#'   table is marked by its own script, and only a tag that has a tip of its own can carry `labels` around it.
 #'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 #'   and the marker's own dependency; with `when_disabled`, inside a wrapper that holds the reason.
@@ -732,6 +736,15 @@ tip_on <- function(
     if (is.null(text)) {
       tip_abort("Give {.arg text} or {.arg template}; there is nothing to show.", class = "hovercraft_error_tip")
     }
+    if (!is.null(labels)) {
+      tip_abort(
+        c(
+          "{.arg labels} goes with a tip, and this call gives none: {.arg text} is empty.",
+          i = "Give {.arg text} or {.arg template}, or give the words to {.fn use_hovercraft} for the whole page."
+        ),
+        class = "hovercraft_error_labels"
+      )
+    }
     return(tip_strip_tip(tag)) # a missing or empty text is no tip: the earlier one, if any, goes
   }
   if (!has_text && is.null(template) && is.null(inline) && !identical(marker$type, "none")) {
@@ -854,7 +867,9 @@ tip_on <- function(
   }
   if (!is.null(when_disabled)) {
     place <- if (!is.null(placement)) stats::setNames(list(placement), tip_attribute("placement"))
-    tag <- tip_disabled_wrap(tag, when_disabled, c(look$attribs, place), wrapper)
+    # The wrapper is the tip's item while the control is disabled, so the words go on it too.
+    words <- if (!is.null(labels)) stats::setNames(list(tip_json(labels)), tip_labels_attribute())
+    tag <- tip_disabled_wrap(tag, when_disabled, c(look$attribs, place, words), wrapper)
     deps <- c(deps, list(tip_disabled_dependency()))
   }
   htmltools::attachDependencies(tag, c(deps, list(tip_runtime_dependency())), append = TRUE)

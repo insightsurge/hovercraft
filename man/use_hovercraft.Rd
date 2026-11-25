@@ -42,11 +42,14 @@ holds.}
 
 \item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tips show themselves on the whole page, or \code{NULL}
 (the default) for the built-in ones. A named character vector, such as \code{c(copy = "Copy code", close = "Dismiss")};
-a word left out keeps its built-in one. The keys, with their built-in words, are \code{copy} ("Copy"), \code{copied} ("Copied"), \code{copy_failed} ("Copy failed"), \code{close} ("Close"), \code{not_available} ("Not available:"), \code{pinned} ("{label}: details pinned. Tab to reach them."), \code{code_line} ("code: {first}"), \code{code_line_empty} ("code, 1 line"), \code{code_lines} ("code, {n} lines, starting {first}"), \code{code_lines_empty} ("code, {n} lines"), \code{more} ("More"), \code{more_pinned} ("More when pinned"), \code{less} ("Less"), \code{pin} ("Pin this tip"). A \code{{label}},
-\code{{n}} or \code{{first}} in a word is filled in by the page. An unknown key stops with an error that lists the keys. A
-tag's own \code{labels} (see \code{\link[=tip_on]{tip_on()}}) beat the page's, key by key, and \code{tip_more(label = )} beats both for the
-buttons of one tip. A second \code{use_hovercraft(labels = )} adds its words to the first, and a key that both give
-takes the later one. Useful for a page in another language.}
+a word left out keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Three keys
+take placeholders, which the page fills in: \code{pinned} takes \code{{label}} (the name of the item), \code{code_line} takes
+\code{{first}} (the first line of the code) and \code{code_lines} and \code{code_lines_empty} take \code{{n}} (the number of lines;
+\code{code_lines} takes \code{{first}} too); other braces stay as written. An unknown key, an empty or blank word, or a value
+that is not words stops with an error; the unknown key's error lists the keys. A tag's own \code{labels} (see
+\code{\link[=tip_on]{tip_on()}}) beat the page's, key by key, and \code{tip_more(label = )} beats both for the buttons of one tip. Unlike
+\code{keys}, where the first call holds, a second \code{use_hovercraft(labels = )} adds its words to the first, and a key
+that both give takes the later one. Useful for a page in another language.}
 }
 \value{
 A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}

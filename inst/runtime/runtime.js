@@ -83,7 +83,12 @@
       return null;
     }
   };
-  const engineKeys = () => Object.keys(engine?.tooltip?.(null, root)?.tooltip_labels ?? {});
+  // The engine's keys, read once: they are the same for every scope.
+  let keysOfEngine = null;
+  const engineKeys = () => {
+    keysOfEngine ??= Object.keys(engine?.tooltip?.(null, root)?.tooltip_labels ?? {});
+    return keysOfEngine;
+  };
   const labelsApplied = new WeakMap();
   const applyLabels = (node) => {
     const text = node.getAttribute(labelsAttribute);

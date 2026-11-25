@@ -192,6 +192,7 @@ tip_disabled_wrap <- function(tag, when_disabled, attribs = list(), wrapper = NU
   own <- c(
     vapply(c("preset", "class", "placement"), tip_attribute, ""),
     tip_theme_attribute(),
+    tip_labels_attribute(),
     tip_disabled_attribute()
   )
   wrapper$attribs[names(wrapper$attribs) %in% own] <- NULL
