@@ -344,8 +344,50 @@
     captureShell(id, wrapper);
     const holder = getPark(doc);
     if (holder && !wrapper.closest('.hc-output') && wrapper.parentElement !== holder) {
+      // The region that holds the tag drew again: its new output replaces the one parked before, which would be a second
+      // element with the same id, bound to nothing.
+      dropParked(holder, id, outputEl);
+      // A mark where the output was says whether the region that made it is still in the page (see `reapParked`).
+      const mark = doc.createElement('span');
+      mark.hidden = true;
+      wrapper.before(mark);
+      parkMarks.set(id, mark);
       holder.append(wrapper);
     }
+  };
+
+  // Output id -> the hidden mark left in the page where the parked output was. When the mark has left the page, the
+  // region that drew the output has gone, and the parked output is no one's.
+  const parkMarks = new Map();
+
+  // Takes the parked outputs with this id out of the page, except `keep`: Shiny lets go of them first, then the node goes.
+  const dropParked = (holder, id, keep = null) => {
+    const shiny = holder.ownerDocument.defaultView?.Shiny ?? window.Shiny;
+    for (const el of holder.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {
+      if (el === keep) continue;
+      let top = el;
+      while (top.parentElement && top.parentElement !== holder) top = top.parentElement;
+      if (shiny?.unbindAll) shiny.unbindAll(top, true);
+      top.remove();
+    }
+  };
+
+  // Lets go of the parked outputs whose region has left the page (a `renderUI()` that returned nothing, a module removed)
+  // and of what was kept for them. A region that drew again has a new output, which `parkId` parks in the old one's place.
+  const reapParked = () => {
+    const holder = document.body?.querySelector(`:scope > .${names?.parkClass ?? 'hc-output-park'}`);
+    for (const [id, mark] of [...parkMarks]) {
+      if (mark.isConnected) continue;
+      parkMarks.delete(id);
+      const current = findOutputEl(document, id);
+      if (!holder || !current || !holder.contains(current)) continue;
+      dropParked(holder, id);
+      const rec = outputs.get(id);
+      if (rec) clearWait(rec);
+      outputs.delete(id);
+      shells.delete(id);
+    }
+    for (const [html, node] of parkedHtml) if (!node.isConnected) parkedHtml.delete(html);
   };
 
   let outputWatch = null;
@@ -483,8 +525,10 @@
         keep_alive: { type: 'boolean', required: false },
       },
       flatten: () => '',
-      render: (b, _record, ctx) => {
+      render: (b, record, ctx) => {
         const id = typeof b.output === 'string' ? b.output : '';
+        // The engine says which item this box is drawn for in the record; the mount below is not told (it gets the box).
+        const tipId = record?.tip_id;
         const keepAlive = b.keep_alive !== false;
         const doc = ctx.doc;
         const root = doc.createElement('div');
@@ -598,8 +642,10 @@
           }
           // An output drawn for another item still holds that item's content: show loading until the server answers
           // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
-          // A pinned tip's output says whose it is (`info.id`); with several pins open, "the item that is open" is no one's.
-          const item = info?.id ? find(String(info.id)) : itemOf(info?.box);
+          // The record says whose tip this is, which stays true with several pins open, where "the item that is open" is
+          // no one's; without it, the item that is open.
+          const owner = tipId ?? info?.id;
+          const item = owner ? find(String(owner)) : itemOf(info?.box);
           if (item && rec.item && item !== rec.item && rec.state === 'ready') {
             rec.state = 'loading';
             rec.stale = true;
@@ -893,14 +939,14 @@
   // Output tags that R hands over as HTML (a `more` template that holds a tag): put in the park holder once there is a
   // body, each only once, and bound by Shiny when it is already running.
   const pendingHtml = [];
-  const parkedHtml = new Set();
+  const parkedHtml = new Map(); // the HTML -> the node that was made from it
   const flushParkHtml = () => {
     if (!document.body || !pendingHtml.length) return;
     const holder = getPark(document);
     for (const html of pendingHtml.splice(0)) {
       if (parkedHtml.has(html)) continue;
-      parkedHtml.add(html);
       holder.insertAdjacentHTML('beforeend', html);
+      parkedHtml.set(html, holder.lastElementChild);
     }
     if (window.Shiny?.shinyapp && window.Shiny.bindAll) window.Shiny.bindAll(holder);
   };
@@ -944,6 +990,7 @@
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
       let checking = 0;
       new MutationObserver(() => {
+        reapParked();
         clearTimeout(checking);
         checking = setTimeout(checkIds, 500);
       }).observe(document.documentElement, { childList: true, subtree: true });
