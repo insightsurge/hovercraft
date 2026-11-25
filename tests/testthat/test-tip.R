@@ -564,6 +564,9 @@ describe("tip_more()", {
     expect_error(tip_more("Long", label = c(more = "a", more = "b")), class = "hovercraft_error_argument")
     expect_error(tip_more("Long", label = c("a", "b")), class = "hovercraft_error_argument")
     expect_error(tip_more("Long", labell = "a"), class = "hovercraft_error_argument")
+    expect_error(tip_more(), "missing", class = "hovercraft_error_argument")
+    expect_error(tip_more("", label = "a"), "empty", class = "hovercraft_error_argument")
+    expect_error(tip_more(NA, label = "a"), class = "hovercraft_error_argument")
   })
 
   it("takes a label only with the button", {

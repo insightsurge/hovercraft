@@ -109,8 +109,15 @@
     if (openAttribute && el.getAttribute(openAttribute) === pinnedValue) window.Hovercraft?.close(el);
   };
 
+  // A tip that waits behind a "More" button has the engine's long-form attributes while it is open (inst/more/more.js).
+  // They belong to the row it was open for: once the element is another row's, or has no tip, they go.
+  const reset = (el, spec) => {
+    for (const name of spec.reset ?? []) el.removeAttribute(name);
+  };
+
   const unmark = (el, spec) => {
     release(el);
+    reset(el, spec);
     forget(el);
     const was = el.hasAttribute(spec.record) || el.hasAttribute(Object.keys(spec.attrs)[0]);
     for (const name of Object.keys(spec.attrs)) el.removeAttribute(name);
@@ -139,6 +146,7 @@
     let changed = false;
     if (spec.id && el.hasAttribute(spec.id.attribute) && el.getAttribute(spec.id.attribute) !== identity(spec, row)) {
       release(el);
+      reset(el, spec);
     }
     for (const [name, value] of Object.entries(spec.attrs)) changed = put(el, name, value) || changed;
     const before = el.getAttribute(spec.record);

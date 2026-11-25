@@ -59,6 +59,16 @@ tip_more_ons <- function() c("button", "hover", "pin")
 #' @export
 tip_more <- function(content, ..., on = NULL, label = NULL) {
   call <- rlang::current_env()
+  if (missing(content)) {
+    tip_abort(
+      c(
+        "{.arg content} is missing: a {.fn tip_more} needs the words of the long form.",
+        i = "Give the words, a {.fn tip_template}, or {.code NA} for no long form."
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
   tip_check_dots(..., args = c("content", "on", "label"))
   if (!tip_content_ok(content)) {
     tip_abort(
@@ -77,7 +87,22 @@ tip_more <- function(content, ..., on = NULL, label = NULL) {
     call
   )
   label <- tip_check_more_label(label, on, call)
+  if (!is.null(label) && tip_more_empty(content)) {
+    tip_abort(
+      c(
+        "{.arg label} names the words of the buttons, but {.arg content} is empty, so there is no long form.",
+        i = "Give the words of the long form, or take {.arg label} out."
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
   structure(list(content = content, on = on, label = label), class = "hovercraft_more")
+}
+
+# Words that are NA or "" are no long form.
+tip_more_empty <- function(content) {
+  is.atomic(content) && length(content) == 1L && (is.na(content) || identical(content, ""))
 }
 
 # The words of the buttons as a named character vector (`more`, `less`), or NULL. One unnamed string is the "More" word.

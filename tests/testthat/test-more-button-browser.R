@@ -85,6 +85,31 @@ describe("the More button on a tag", {
         ),
         place(
           tip_on(
+            shiny::actionButton("pb", "Pin B"),
+            "Short second pinned tip",
+            more = "The long form of the second pin.",
+            id = "pb_tip",
+            pin = TRUE
+          ),
+          "top: 260px; left: 560px;"
+        ),
+        place(shiny::uiOutput("dyn"), "top: 260px; left: 300px;"),
+        place(
+          tip_on(shiny::checkboxInput("ck", "Check"), "Short check tip", more = "Long check words."),
+          "top: 360px; left: 300px;"
+        ),
+        place(
+          tip_on(
+            shiny::actionButton("po", "Output"),
+            "Short output tip",
+            more = tip_template(tip_text("Above the output."), tip_output(shiny::textOutput("more_txt"))),
+            id = "po_tip",
+            pin = TRUE
+          ),
+          "top: 360px; left: 60px;"
+        ),
+        place(
+          tip_on(
             shiny::actionButton("hv", "Hover"),
             "Short hover tip",
             more = tip_more("Long hover words.", on = "hover"),
@@ -95,6 +120,13 @@ describe("the More button on a tag", {
         shiny::verbatimTextOutput("seen")
       )
       server <- function(input, output, session) {
+        output$dyn <- shiny::renderUI({
+          if (isTRUE(input$hide)) {
+            return(NULL)
+          }
+          tip_on(shiny::actionButton("dy", "Dynamic"), "Short dynamic tip", more = "Long dynamic words.", id = "dy_tip")
+        })
+        output$more_txt <- shiny::renderText("Hello from the output")
         output$seen <- shiny::renderText({
           everything <- shiny::reactiveValuesToList(input)
           at <- grepl("_(pin|hint)$", names(everything))
@@ -286,6 +318,20 @@ describe("the More button on a tag", {
     rest()
   })
 
+  it("takes the M key on a check box, which takes no letters, and holds it down toggles once", {
+    page$evaluate("document.getElementById('ck').focus()")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
+    page$press("m", wait = 0.7)
+    expect_match(box_of()$text, "Long check words")
+    # A key held down sends repeats: they do not toggle again.
+    page$evaluate(
+      "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', repeat: true, bubbles: true, cancelable: true })); 0"
+    )
+    Sys.sleep(0.6)
+    expect_match(box_of()$text, "Long check words")
+    rest()
+  })
+
   it("says the buttons' own words", {
     wait_hint("#lb")
     expect_identical(button_text(), "Show all")
@@ -356,6 +402,121 @@ describe("the More button on a tag", {
     page$press("m", wait = 0.7)
     expect_false(has_long())
     page$press("Escape", wait = 0.4)
+  })
+
+  it("keeps a pinned tip's button and its M key when a hint opens somewhere else", {
+    page$evaluate("document.getElementById('pb').focus()")
+    page$press("p", wait = 0.8)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
+    pinned_buttons <- function() page$evaluate(sprintf("document.querySelectorAll('%s').length", strip_button))
+    expect_identical(pinned_buttons(), 1L)
+    # A hint opens on another item: the pinned tip keeps its button, and the hint has its own.
+    wait_hint("#go")
+    expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length === 2", strip_button)))
+    page$evaluate("document.getElementById('pb').focus()")
+    page$press("m", wait = 0.8)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('%s').textContent.includes('long form of the second pin')",
+      pin_sel
+    )))
+    page$press("m", wait = 0.8)
+    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0.4)
+    rest()
+    expect_identical(pinned_buttons(), 0L)
+  })
+
+  it("makes the pinned tip's button a tab stop after the tip's own, and the buttons say their state", {
+    page$evaluate("document.getElementById('pn').focus()")
+    page$press("p", wait = 0.8)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
+    last_stop <- sprintf(
+      "(() => { const l = [...document.querySelector('%s').querySelectorAll('button, a[href]')]; return l[l.length - 1]; })()",
+      pin_sel
+    )
+    page$evaluate(sprintf("%s.focus()", last_stop))
+    page$press("Tab", wait = 0.5)
+    expect_identical(
+      page$evaluate(sprintf("document.activeElement === document.querySelector('%s')", strip_button)),
+      TRUE
+    )
+    # A key press on a button is a click: the test sends the click a keyboard would.
+    page$evaluate("document.activeElement.click(); 0")
+    Sys.sleep(0.8)
+    expect_identical(expanded(), "true")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('%s').textContent.includes('long form of the pinned')",
+      pin_sel
+    )))
+    # Focus is still on the button, which says Less now; Shift+Tab goes back into the tip.
+    expect_identical(
+      page$evaluate(sprintf("document.activeElement === document.querySelector('%s')", strip_button)),
+      TRUE
+    )
+    expect_identical(button_text(), "Less")
+    page$evaluate(
+      "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'Tab', shiftKey: true, bubbles: true, cancelable: true })); 0"
+    )
+    Sys.sleep(0.3)
+    expect_identical(
+      page$evaluate(sprintf("document.querySelector('%s').contains(document.activeElement)", pin_sel)),
+      TRUE
+    )
+    page$press("Escape", wait = 0.4)
+  })
+
+  it("starts the long form of a pinned tip with a hairline, and takes it away with Less", {
+    page$evaluate("document.getElementById('pn').focus()")
+    page$press("p", wait = 0.8)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
+    hairlines <- function() page$evaluate(sprintf("document.querySelectorAll('%s .hc-long-first').length", pin_sel))
+    expect_identical(hairlines(), 0L)
+    press_button()
+    expect_true(page$wait_until(sprintf("document.querySelectorAll('%s .hc-long-first').length === 1", pin_sel)))
+    press_button()
+    expect_true(page$wait_until(sprintf("document.querySelectorAll('%s .hc-long-first').length === 0", pin_sel)))
+    page$press("Escape", wait = 0.4)
+  })
+
+  it("says only the long form to a screen reader, and clears it when the tip goes", {
+    live <- function() page$evaluate("document.querySelector('.hovercraft-more-strip-live')?.textContent ?? ''")
+    # "Short middle tip" would show if the short form were read again; the long words hold "Unless" nowhere, so the check
+    # is on what is said.
+    wait_hint("#go")
+    press_button()
+    expect_true(page$wait_until(
+      "(document.querySelector('.hovercraft-more-strip-live')?.textContent ?? '').includes('business hours')"
+    ))
+    expect_no_match(live(), "Short tip", fixed = TRUE)
+    press_button()
+    expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-live')?.textContent === 'Less'"))
+    press_button()
+    rest()
+    expect_true(page$wait_until("(document.querySelector('.hovercraft-more-strip-live')?.textContent ?? '') === ''"))
+  })
+
+  it("removes the button when a renderUI() draws the item again, with no error", {
+    wait_hint("#dy")
+    press_button()
+    expect_match(box_of()$text, "Long dynamic words")
+    page$evaluate("Shiny.setInputValue('hide', true, { priority: 'event' })")
+    expect_true(page$wait_until("document.getElementById('dy') === null"))
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", strip_button)))
+    expect_identical(page$problems(), character())
+  })
+
+  it("shows a Shiny output that the long form of a pinned tip holds", {
+    page$evaluate("document.getElementById('po').focus()")
+    page$press("p", wait = 0.8)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
+    press_button()
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('%s').textContent.includes('Hello from the output')",
+      pin_sel
+    )))
+    press_button()
+    page$press("Escape", wait = 0.4)
+    expect_identical(page$problems(), character())
   })
 })
 

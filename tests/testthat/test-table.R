@@ -733,7 +733,9 @@ describe("tip_spec(more =) in tip_table()", {
     defs <- Filter(function(def) !is.null(def$createdCell), got_dt$x$options$columnDefs)
     expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"team\":0,\"note\":3,\"wins\":1}, true)", fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), held_template(), fixed = TRUE)
-    expect_no_match(js(defs[[1]]$createdCell), tip_attribute("more_on"), fixed = TRUE)
+    # The engine's attributes are not written; they are what the button writes, and the layer takes them off a reused row.
+    expect_no_match(js(defs[[1]]$createdCell), sprintf("\"%s\":", tip_attribute("more_on")), fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), sprintf("\"reset\":[\"%s\"", tip_attribute("more")), fixed = TRUE)
     expect_match(js(defs[[1]]$createdCell), "\"aria-keyshortcuts\":\"M\"", fixed = TRUE)
     expect_length(got_dt$jsHooks$render[[1]]$data$defines, 2L)
     expect_true("hovercraft-more" %in% vapply(got_dt$dependencies, function(dep) dep$name, ""))
@@ -744,6 +746,14 @@ describe("tip_spec(more =) in tip_table()", {
     expect_null(cfg$cells[["0"]]$attrs[[tip_attribute("more_on")]])
     expect_null(cfg$cells[["0"]]$attrs[[tip_attribute("more_template")]])
     expect_identical(cfg$cells[["0"]]$attrs[["aria-keyshortcuts"]], "M")
+    expect_true(tip_more_attribute("state") %in% unlist(cfg$cells[["0"]]$reset))
+    expect_length(
+      tip_table(
+        rt(),
+        cells = list(team = tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "hover")))
+      )$jsHooks$render[[1]]$data$cells[["0"]]$reset,
+      0L
+    )
     # A header cell has the same default.
     heads <- tip_table(rt(), headers = list(team = tip_spec("The team", more = "More about the team")))
     expect_match(

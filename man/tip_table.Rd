@@ -91,10 +91,10 @@ focus gets a small pin handle in its corner, the same as \code{\link[=tip_on]{ti
 row's tip, and the tip's own close button, \code{Escape} or a click away closes it. The pin key \code{P} pins the tip of the
 row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
 rows pin for now"). A long form (\code{more}) opens with its "More" button, or with the \code{M} key when the focus is on the
-row or on a cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not
-a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which each row that
-can pin announces as \code{aria-keyshortcuts}. A pin follows its row. It stays on a row when \code{DT} sorts (client and
-server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
+row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
+column and not a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which
+each row that can pin announces as \code{aria-keyshortcuts}. A pin follows its row. It stays on a row when \code{DT} sorts
+(client and server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
 \code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row
 leaves the page (a filter or another page in \code{DT}, another page in \code{reactable}), when \code{reactable} shows another row
 in the row's place, when the table goes, and when a click lands elsewhere. The input then says why: \code{DT} closes a

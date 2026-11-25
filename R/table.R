@@ -344,8 +344,14 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
   }
+  reset <- NULL
   if (!is.null(content$more)) {
     attrs <- c(attrs, tip_more_values(content$more_on, content$more$name, label = content$more_label))
+    # The attributes the "More" button writes while the long form is open go when the element is given another row.
+    if (identical(content$more_on, "button")) {
+      reset <- c(tip_attribute("more"), tip_attribute("more_template"), tip_attribute("more_on"))
+      reset <- c(reset, tip_more_attribute("state"))
+    }
   }
   if (!identical(target, "row")) {
     attrs[[tip_attribute("anchor")]] <- "content"
@@ -383,7 +389,13 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
     }
   }
   # `needs`: the fields the tip reads; a record where all of them are blank gets no tip (a cell that holds NA).
-  list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields), id = ident)
+  list(
+    attrs = attrs,
+    record = tip_attribute("record"),
+    needs = as.list(content$fields),
+    id = ident,
+    reset = as.list(reset)
+  )
 }
 
 # The attribute that holds a table tip's address, named after the engine's prefix as the events attribute is.
@@ -698,10 +710,10 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' row's tip, and the tip's own close button, `Escape` or a click away closes it. The pin key `P` pins the tip of the
 #' row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
 #' rows pin for now"). A long form (`more`) opens with its "More" button, or with the `M` key when the focus is on the
-#' row or on a cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not
-#' a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which each row that
-#' can pin announces as `aria-keyshortcuts`. A pin follows its row. It stays on a row when `DT` sorts (client and
-#' server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
+#' row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
+#' column and not a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which
+#' each row that can pin announces as `aria-keyshortcuts`. A pin follows its row. It stays on a row when `DT` sorts
+#' (client and server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
 #' `reactable::updateReactable(data = )` give it new data, with the new values in its tip. It closes when its row
 #' leaves the page (a filter or another page in `DT`, another page in `reactable`), when `reactable` shows another row
 #' in the row's place, when the table goes, and when a click lands elsewhere. The input then says why: `DT` closes a
