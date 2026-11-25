@@ -1200,7 +1200,16 @@ describe("tip_spec(to = ) for the rows of tip_table()", {
 
   it("calls the table layer to make panels, after the table is claimed", {
     got <- tip_table(dt(), rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t")
-    expect_match(got$jsHooks$render[[1]]$code, "HovercraftTable.panels(el, cfg)", fixed = TRUE)
+    code <- got$jsHooks$render[[1]]$code
+    expect_match(code, "HovercraftTable.panels(el, cfg)", fixed = TRUE)
+    expect_lt(
+      regexpr("HovercraftTable.claim(el, cfg.id)", code, fixed = TRUE),
+      regexpr("HovercraftTable.panels(el, cfg)", code, fixed = TRUE)
+    )
+    expect_lt(
+      regexpr("HovercraftTable.panels(el, cfg)", code, fixed = TRUE),
+      regexpr("HovercraftTable.keyboard(el, cfg.kind)", code, fixed = TRUE)
+    )
   })
 
   it("spells the panel's class names as the table layer writes them", {

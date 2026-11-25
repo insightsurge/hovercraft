@@ -211,10 +211,7 @@ describe("the inputs of tip_table() in a Shiny app", {
   })
 
   it("sends the data row of a reactable row after a sort", {
-    page$evaluate("document.querySelector('#rt .rt-th-sort, #rt [role=columnheader][aria-sort]')?.click(); 0")
-    page$evaluate(
-      "[...document.querySelectorAll('#rt [role=columnheader]')].find((h) => h.textContent.trim().startsWith('wins'))?.click(); 0"
-    )
+    page$click_now("#rt [role=columnheader]:nth-child(2)")
     expect_true(page$wait_until(
       "document.querySelector('#rt [role=row][data-hovercraft-tip-id]').textContent.trim().startsWith('Voles')"
     ))

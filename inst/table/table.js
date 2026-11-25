@@ -181,7 +181,7 @@
   // inst/pin/pin.js asks `panelFor()` for). The node belongs to this layer: it is made when the row pins, put back beside
   // its row after every draw (DT drops foreign rows each time), and removed when the pin has really closed.
   let panelCfg = null; // the names, the same for every table on the page
-  const panelTables = new Map(); // a table's widget element -> the id of its table
+  const panelTables = new WeakMap(); // a table's widget element -> the id of its table
   const panels = new Map(); // tip id -> { id, kind, root, tableId, holder, cell, box, live, hadFocus }
   const scrollers = new Map(); // a table's scrolling box -> its ResizeObserver
   let panelEvents = false;
@@ -197,9 +197,19 @@
     p.kind === 'dt'
       ? (p.root.querySelector('.dataTables_scrollBody') ?? p.root.querySelector('.dataTables_wrapper') ?? p.root)
       : (p.root.querySelector('.rt-table') ?? p.root);
+  // A scrolling box that no open panel sits in any more, or that has left the page (a table drawn again), lets its observer go.
+  const pruneScrollers = () => {
+    for (const [box, watcher] of scrollers) {
+      const used = [...panels.values()].some((q) => q.root.isConnected && scrollerOf(q) === box);
+      if (box.isConnected && used) continue;
+      watcher.disconnect();
+      scrollers.delete(box);
+    }
+  };
   const fit = (p) => {
     const box = scrollerOf(p);
     p.box.style.width = `${box.clientWidth}px`;
+    pruneScrollers();
     if (!scrollers.has(box) && typeof ResizeObserver === 'function') {
       const watcher = new ResizeObserver(() => {
         for (const q of panels.values())
@@ -214,7 +224,9 @@
   const seat = (p, item) => {
     const moved = item.nextElementSibling !== p.holder;
     if (moved) item.after(p.holder);
+    // The panel spans the row's visible columns: a `td colspan` in DT, `aria-colspan` on the cell of a reactable grid.
     if (p.kind === 'dt') p.cell.colSpan = Math.max(1, item.cells?.length ?? 1);
+    else p.cell.setAttribute('aria-colspan', String(Math.max(1, item.querySelectorAll('[role="cell"]').length)));
     if (p.live) item.setAttribute('aria-expanded', 'true');
     fit(p);
     return moved;
@@ -250,8 +262,15 @@
     box.addEventListener('focusin', () => {
       p.hadFocus = true;
     });
-    box.addEventListener('focusout', (e) => {
-      if (e.relatedTarget) p.hadFocus = false;
+    // Focus that leaves the panel (to another element, or to nothing by a click on a part that takes none) is not lost with
+    // the panel; a focused node that is removed sends no event, which is what `hadFocus` is for.
+    // A DT draw takes the panel out of the page and the browser may say so with a focusout too. The panel is looked at once
+    // the script that is running has finished (a microtask), by when the draw has put it back: focus that is not in a panel
+    // that is in the page is focus that left it.
+    box.addEventListener('focusout', () => {
+      queueMicrotask(() => {
+        if (p.holder.isConnected && !box.contains(document.activeElement)) p.hadFocus = false;
+      });
     });
     // DT listens on its body for a click on a cell and would select a row or send `cell_clicked` for the panel's cell.
     if (dt)
@@ -276,9 +295,14 @@
   const dropPanel = (id) => {
     const p = panels.get(id);
     if (!p) return;
+    const had = p.hadFocus || p.holder.contains(document.activeElement);
     p.holder.remove();
     panels.delete(id);
-    rowById(p.root, id)?.removeAttribute('aria-expanded');
+    const row = rowById(p.root, id);
+    row?.removeAttribute('aria-expanded');
+    // A reader who was in the panel when it closed goes back to the row, not to the page.
+    if (had && row) row.focus?.({ preventScroll: true });
+    pruneScrollers();
   };
 
   // A pin that has closed takes its panel with it, once it is sure to stay closed: a redraw closes the pin and pins it again
@@ -316,9 +340,10 @@
       p.root = root;
       const lost = p.hadFocus && document.activeElement === document.body;
       const moved = seat(p, item);
-      // DT draws drop the panel and say so (`draw.dt`); reactable's observer calls this on every change of its rows, so
-      // the engine is only told, and the outputs bound again, when the panel really moved.
-      if (p.kind === 'dt' || moved) {
+      // A DT draw drops the panel (`draw.dt`), so it has moved; reactable's observer calls this on every change of its rows.
+      // The engine is only told, and the outputs bound again, when the panel really moved: a column that is shown or hidden
+      // changes the span and nothing else.
+      if (moved) {
         window.Hovercraft?.pin(item, { into: p.box });
         window.Shiny?.bindAll?.(p.box);
         // The panel's own focus target is the engine's box inside it (a region with a tab stop of -1).
@@ -330,7 +355,13 @@
   // The render hook of both widgets: DT puts the panels back after every draw (a sort, a page, a filter, new data, in
   // server mode too) and when a column is shown or hidden; reactable's observer (see `reactable`) does it for its rows.
   const panelsInit = (el, cfg) => {
-    if (!cfg?.panel) return;
+    const jq = window.jQuery;
+    if (!cfg?.panel) {
+      // The table is drawn again without a panel: what it had made goes.
+      panelTables.delete(el);
+      jq?.(el).off('.hovercraftPanel');
+      return;
+    }
     panelCfg = cfg.panel;
     panelTables.set(el, cfg.panel.id);
     if (!panelEvents) {
@@ -339,7 +370,6 @@
     }
     // DT's events are sent at its table and bubble, so one handler on the widget element serves the table whenever it is
     // made (the table may come after this hook) and the next render of the same element replaces it.
-    const jq = window.jQuery;
     if (jq) {
       jq(el)
         .off('.hovercraftPanel')
@@ -538,6 +568,8 @@
     panels: panelsInit,
     panelFor,
     dropPanel,
+    // For the tests: how many observers of a table's width are alive.
+    stats: () => ({ observers: scrollers.size, panels: panels.size }),
     headers,
     reactable,
     keyboard,

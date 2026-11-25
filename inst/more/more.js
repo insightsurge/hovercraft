@@ -32,9 +32,17 @@
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
   // The box a pin just opened in: the one shown that no button of ours sits on. With several pins open it is the new one;
   // a box that was closed a moment ago and is still leaving is the last resort, since the engine reuses it at once.
+  const shownPins = (doc) => [...doc.querySelectorAll(`.${names.css}.${names.css}-pin:not([hidden])`)];
+  // The pin boxes that were on show at the last tip event, of any tip (also one this layer has no button for): a box that
+  // is on show now and was not is the one a pin just opened in, wherever it sits in the page. The boxes are known by the
+  // events, not by their place in the page, which says nothing of whose they are (a panel sits in a table, a floating box
+  // at the end of the body).
+  let knownPins = new WeakSet();
   const pinBox = (doc) => {
-    const shown = [...doc.querySelectorAll(`.${names.css}.${names.css}-pin:not([hidden])`)];
+    const shown = shownPins(doc);
     const taken = new Set([...pins.values()].map((o) => o.box));
+    const fresh = shown.filter((box) => !taken.has(box) && !knownPins.has(box));
+    if (fresh.length === 1) return fresh[0];
     const free = shown.filter((box) => !taken.has(box));
     const settled = free.filter((box) => Date.now() - (leaving.get(box) ?? 0) > LEAVING);
     return (settled.length ? settled : free).at(-1) ?? null;
@@ -151,12 +159,18 @@
     const faded = box.hidden || !box.isConnected || (o.closing && Number.parseFloat(style.opacity) < 0.02);
     // A table row that the widget gave to another row (its tip id changed) is not the tip this button was made for: the
     // long form it had goes with the old row, and the new one starts short.
-    if (!alive(o)) return close(o);
+    if (faded) return close(o);
+    // A pinned tip that outlives its item (a table is drawing its rows again) is the engine's to close, and when it does
+    // its box goes: the button waits for that and does not guess from the page at one moment of a redraw.
+    if (!alive(o)) {
+      if (o.kind === 'hint') return close(o);
+      o.frame = view.requestAnimationFrame(() => place(o));
+      return;
+    }
     if (o.tipId !== o.item.getAttribute(A().id)) {
       setState(o.item, false);
       return close(o, true);
     }
-    if (faded) return close(o);
     // A button in a panel under a table row is in the flow, after the box: it has nowhere to be placed.
     if (o.inPanel) {
       o.frame = view.requestAnimationFrame(() => place(o));
@@ -200,7 +214,7 @@
   // A tip whose item left the page (a renderUI() drew it again) is closed by the engine with an event sent at the
   // document, not at the item: whatever is open for an item that is gone goes.
   const sweep = () => {
-    for (const o of all()) if (!alive(o)) close(o, true);
+    for (const o of all()) if (o.kind === 'hint' && !alive(o)) close(o, true);
   };
 
   // The box the reader is in, hint or pinned, for the item: the pinned tip's button when it is pinned.
@@ -313,15 +327,17 @@
     sweep();
     const detail = event.detail;
     const item = event.target;
-    if (!isHeld(item)) return;
-    if (detail?.state === 'pinned') {
-      close(slots.hint, true);
-      start(item, pinBox(item.ownerDocument), 'pin');
-    } else if (detail?.state === 'closed') {
-      // The pinned tip is gone: the next one starts short.
-      close(pins.get(item), true);
-      if (!item.getAttribute(A().open)) setState(item, false);
+    if (isHeld(item)) {
+      if (detail?.state === 'pinned') {
+        close(slots.hint, true);
+        start(item, pinBox(item.ownerDocument), 'pin');
+      } else if (detail?.state === 'closed') {
+        // The pinned tip is gone: the next one starts short.
+        close(pins.get(item), true);
+        if (!item.getAttribute(A().open)) setState(item, false);
+      }
     }
+    knownPins = new WeakSet(shownPins(document));
   };
 
   // Before the engine opens a hint (it waits a moment), make sure the item starts short.

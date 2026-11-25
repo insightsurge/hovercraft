@@ -173,7 +173,8 @@ A click away does not close a panel: it closes by its close button, \code{Escape
 pin key on a row whose panel is open does nothing. \code{Escape} on a row that has no pin of its own closes the newest
 pin, as for floating pins. With \code{scrollX} the panel stays at the left edge of the visible part. The \code{FixedColumns}
 extension of \code{DT} (it copies the rows) stops with an error; \code{responsive} and \code{RowGroup} of \code{DT}, \code{reactable}'s
-\code{groupBy}, and screen readers are not covered.
+\code{groupBy}, and screen readers are not covered. A click inside a \code{DT} panel is stopped at the panel's row, so a
+handler that the page delegates on \code{document} does not see it.
 
 What works, each checked in a browser:
 \itemize{

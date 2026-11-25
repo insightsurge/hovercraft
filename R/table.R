@@ -881,8 +881,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' pin key on a row whose panel is open does nothing. `Escape` on a row that has no pin of its own closes the newest
 #' pin, as for floating pins. With `scrollX` the panel stays at the left edge of the visible part. The `FixedColumns`
 #' extension of `DT` (it copies the rows) stops with an error; `responsive` and `RowGroup` of `DT`, `reactable`'s
-#' `groupBy`, and screen readers are not covered.
-#'
+#' `groupBy`, and screen readers are not covered. A click inside a `DT` panel is stopped at the panel's row, so a
+#' handler that the page delegates on `document` does not see it.
 #'
 #' What works, each checked in a browser:
 #' * `DT`, in client mode and in server mode under Shiny, with `scrollX`, `scrollY`, `fixedHeader`, `colReorder` and
