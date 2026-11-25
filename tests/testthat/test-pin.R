@@ -117,6 +117,18 @@ describe("the pin layer's files", {
     expect_true(grepl("hovercraft-pin-strip", js, fixed = TRUE))
   })
 
+  it("test for a field with the same selector as the M key's script", {
+    field <- function(file) {
+      text <- paste(readLines(system.file(file, package = "hovercraft")), collapse = " ")
+      regmatches(text, gregexpr("const FIELD =\\s*'[^']*'", text))[[1]]
+    }
+    pin_field <- field("pin/pin.js")
+    expect_length(pin_field, 1L)
+    expect_identical(pin_field, field("more/more.js"))
+    # A box, a radio and a button take no letters; a text input does.
+    expect_match(pin_field, "input:not([type=\"checkbox\"])", fixed = TRUE)
+  })
+
   it("get every name of the engine from R, and write none of the engine's own", {
     expect_false(grepl(tip_names()$attribute, js, fixed = TRUE))
     dependency <- tip_pin_dependency()

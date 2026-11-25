@@ -24,11 +24,11 @@
 
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
 
-  // Does the reader's key press land in a field, where a letter is a letter? The same test as in inst/more/more.js.
-  const editable = (el) =>
-    !!el?.closest?.(
-      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]',
-    );
+  // Does the reader's key press land in a field, where a letter is a letter? A box, a radio or a button takes no letters.
+  // FIELD is the same line in inst/more/more.js and must stay identical (a test compares them).
+  const FIELD =
+    'textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"])';
+  const editable = (el) => !!el?.closest?.(FIELD);
   // The element that really holds the focus, also inside an open shadow root, where the page's activeElement is the host.
   const deepFocus = (el) => {
     let at = el;

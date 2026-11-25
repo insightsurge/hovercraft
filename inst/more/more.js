@@ -51,16 +51,10 @@
     return (settled.length ? settled : free).at(-1) ?? null;
   };
   // Does the reader's key press land in a field where a letter is a letter? A box, a radio or a button takes no letters.
-  // The same test as in inst/pin/pin.js.
-  const NOT_TEXT = 'checkbox, radio, button, submit, reset, range, color, file, image';
-  const editable = (el) =>
-    !!el?.closest?.(
-      `textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], input:not(${NOT_TEXT.split(
-        ', ',
-      )
-        .map((t) => `[type="${t}"]`)
-        .join('):not(')})`,
-    );
+  // FIELD is the same line in inst/pin/pin.js and must stay identical (a test compares them).
+  const FIELD =
+    'textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"])';
+  const editable = (el) => !!el?.closest?.(FIELD);
 
   // An item works this way when it holds a long form for the button.
   const isHeld = (item) =>

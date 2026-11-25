@@ -456,6 +456,20 @@ describe("the page's pin settings", {
     expect_identical(open_count(page), 0L)
   })
 
+  it("pins by the letter key from a hover while the focus is on a check box, which takes no letters", {
+    file <- page_of(use_hovercraft(), pinnable("one"), htmltools::tags$input(id = "ck", type = "checkbox"))
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('ck').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "ck")
+    expect_true(taken(page))
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+  })
+
   it("does not pin by the letter key from a hover when the keys are off", {
     page <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
