@@ -1107,3 +1107,118 @@ describe("tip_table(max_pins =)", {
     expect_null(formals(tip_table)$max_pins)
   })
 })
+
+describe("tip_spec(to = ) for the rows of tip_table()", {
+  rows <- "**{{ team }}**: {{ wins | number:0 }} wins"
+  place <- function(widget) widget$jsHooks$render[[1]]$data
+  deps <- function(widget) vapply(widget$dependencies, function(dep) dep$name, "")
+
+  it("takes NULL, \"float\" and \"in_place\", and \"float\" is NULL", {
+    expect_null(tip_spec(rows)$to)
+    expect_null(tip_spec(rows, to = NULL)$to)
+    expect_null(tip_spec(rows, to = "float")$to)
+    expect_identical(tip_spec(rows, to = "in_place")$to, "in_place")
+    expect_identical(tip_spec(rows, to = "in_place")$to, tip_spec(rows, pin = NULL, to = "in_place")$to)
+    for (bad in list("beside", "", NA_character_, c("float", "in_place"), TRUE, 1)) {
+      expect_error(tip_spec(rows, to = bad), "to", class = "hovercraft_error_argument")
+    }
+  })
+
+  it("is the same table with \"float\" as with no `to`", {
+    plain <- tip_table(rt(), rows = tip_spec(rows, pin = TRUE), id = "t")
+    floats <- tip_table(rt(), rows = tip_spec(rows, pin = TRUE, to = "float"), id = "t")
+    expect_identical(place(plain), place(floats))
+    expect_null(place(plain)$panel)
+    expect_false(tip_table_panel_attribute() %in% names(place(plain)$rows$attrs))
+  })
+
+  it("marks the row and tells the page the names a panel needs, when it opens in place", {
+    got <- place(tip_table(rt(), rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t"))
+    expect_identical(got$rows$attrs[[tip_table_panel_attribute()]], "in_place")
+    expect_true("aria-expanded" %in% unlist(got$rows$reset))
+    expect_identical(got$panel$attribute, tip_table_panel_attribute())
+    expect_identical(got$panel$event, tip_contract()$events$tip$name)
+    expect_identical(got$panel$idAttribute, tip_attribute("id"))
+    expect_identical(got$panel$id, "t")
+    expect_identical(tip_table_panel_attribute(), paste0("data-", tip_names()$prefix, "-table-panel"))
+  })
+
+  it("adds the panel's stylesheet only when a row opens in place", {
+    css <- function(widget) {
+      table <- Filter(function(dep) dep$name == "hovercraft-table", widget$dependencies)[[1]]
+      table$stylesheet
+    }
+    expect_identical(css(tip_table(rt(), rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t")), "table.css")
+    expect_null(css(tip_table(rt(), rows = tip_spec(rows, pin = TRUE), id = "t")))
+    expect_true(file.exists(system.file("table", "table.css", package = "hovercraft")))
+  })
+
+  it("stops without a pin or without the table's id, and says which is missing", {
+    expect_error(
+      tip_table(rt(), rows = tip_spec(rows, to = "in_place"), id = "t"),
+      "a pin",
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_table(rt(), rows = tip_spec(rows, pin = TRUE, to = "in_place")),
+      "table's id",
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_table(rt(), rows = tip_spec(rows, to = "in_place")),
+      "a pin and the table's id",
+      class = "hovercraft_error_pin"
+    )
+  })
+
+  it("stops on cells and headers: only rows open in place for now", {
+    spec <- tip_spec("x", to = "in_place")
+    expect_error(
+      tip_table(rt(), cells = list(wins = spec), id = "t"),
+      "only rows open in place",
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_table(rt(), headers = list(wins = spec), id = "t"),
+      "only rows open in place",
+      class = "hovercraft_error_pin"
+    )
+    expect_no_error(tip_table(rt(), cells = list(wins = tip_spec("x", to = "float")), id = "t"))
+  })
+
+  it("stops on a DT table with the FixedColumns extension, which copies the rows", {
+    skip_if_not_installed("DT")
+    fixed <- DT::datatable(scores, extensions = "FixedColumns", options = list(scrollX = TRUE))
+    expect_error(
+      tip_table(fixed, rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t"),
+      "FixedColumns",
+      class = "hovercraft_error_widget"
+    )
+    expect_no_error(tip_table(fixed, rows = tip_spec(rows, pin = TRUE), id = "t"))
+    expect_no_error(tip_table(dt(), rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t"))
+  })
+
+  it("calls the table layer to make panels, after the table is claimed", {
+    got <- tip_table(dt(), rows = tip_spec(rows, pin = TRUE, to = "in_place"), id = "t")
+    code <- got$jsHooks$render[[1]]$code
+    expect_match(code, "HovercraftTable.panels(el, cfg)", fixed = TRUE)
+    expect_lt(
+      regexpr("HovercraftTable.claim(el, cfg.id)", code, fixed = TRUE),
+      regexpr("HovercraftTable.panels(el, cfg)", code, fixed = TRUE)
+    )
+    expect_lt(
+      regexpr("HovercraftTable.panels(el, cfg)", code, fixed = TRUE),
+      regexpr("HovercraftTable.keyboard(el, cfg.kind)", code, fixed = TRUE)
+    )
+  })
+
+  it("spells the panel's class names as the table layer writes them", {
+    css <- paste(readLines(system.file("table", "table.css", package = "hovercraft")), collapse = "\n")
+    js <- paste(readLines(system.file("table", "table.js", package = "hovercraft")), collapse = "\n")
+    for (name in c("hovercraft-panel-box", "hovercraft-panel-cell", "hovercraft-more-strip-in")) {
+      expect_true(grepl(name, css, fixed = TRUE), info = name)
+    }
+    expect_true(grepl("hovercraft-panel-box", js, fixed = TRUE))
+    expect_true(grepl("data-hovercraft-panel", js, fixed = TRUE))
+  })
+})

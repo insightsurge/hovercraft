@@ -175,6 +175,208 @@
     node.remove();
   };
 
+  // ---- in place: a row's pinned tip drawn as a panel under the row (`tip_spec(to = "in_place")`) -------------------------
+  // A row that carries the panel mark gets its own panel node beside it, never inside it: a `<tr>` after a DT row, a `div`
+  // after a reactable row in its group. The engine draws the pinned tip into that node (`pin(row, { into })`, which
+  // inst/pin/pin.js asks `panelFor()` for). The node belongs to this layer: it is made when the row pins, put back beside
+  // its row after every draw (DT drops foreign rows each time), and removed when the pin has really closed.
+  let panelCfg = null; // the names, the same for every table on the page
+  const panelTables = new WeakMap(); // a table's widget element -> the id of its table
+  const panels = new Map(); // tip id -> { id, kind, root, tableId, holder, cell, box, live, hadFocus }
+  const scrollers = new Map(); // a table's scrolling box -> its ResizeObserver
+  let panelEvents = false;
+
+  const rowById = (root, id) => {
+    if (!panelCfg) return null;
+    const sel = `[${panelCfg.idAttribute}="${CSS.escape(id)}"]`;
+    return (root?.isConnected ? root : document).querySelector(sel);
+  };
+
+  // The panel is as wide as the table's visible box, not its scroll width, so it never runs off a narrow screen.
+  const scrollerOf = (p) =>
+    p.kind === 'dt'
+      ? (p.root.querySelector('.dataTables_scrollBody') ?? p.root.querySelector('.dataTables_wrapper') ?? p.root)
+      : (p.root.querySelector('.rt-table') ?? p.root);
+  // A scrolling box that no open panel sits in any more, or that has left the page (a table drawn again), lets its observer go.
+  const pruneScrollers = () => {
+    for (const [box, watcher] of scrollers) {
+      const used = [...panels.values()].some((q) => q.root.isConnected && scrollerOf(q) === box);
+      if (box.isConnected && used) continue;
+      watcher.disconnect();
+      scrollers.delete(box);
+    }
+  };
+  const fit = (p) => {
+    const box = scrollerOf(p);
+    p.box.style.width = `${box.clientWidth}px`;
+    pruneScrollers();
+    if (!scrollers.has(box) && typeof ResizeObserver === 'function') {
+      const watcher = new ResizeObserver(() => {
+        for (const q of panels.values())
+          if (q.root.isConnected && scrollerOf(q) === box) q.box.style.width = `${box.clientWidth}px`;
+      });
+      watcher.observe(box);
+      scrollers.set(box, watcher);
+    }
+  };
+
+  // Puts the panel right after its row, and says whether it had to be moved there.
+  const seat = (p, item) => {
+    const moved = item.nextElementSibling !== p.holder;
+    if (moved) item.after(p.holder);
+    // The panel spans the row's visible columns: a `td colspan` in DT, `aria-colspan` on the cell of a reactable grid.
+    if (p.kind === 'dt') p.cell.colSpan = Math.max(1, item.cells?.length ?? 1);
+    else p.cell.setAttribute('aria-colspan', String(Math.max(1, item.querySelectorAll('[role="cell"]').length)));
+    if (p.live) item.setAttribute('aria-expanded', 'true');
+    fit(p);
+    return moved;
+  };
+
+  const build = (item, id) => {
+    const doc = item.ownerDocument;
+    const dt = item.matches('tr');
+    const holder = doc.createElement(dt ? 'tr' : 'div');
+    const cell = doc.createElement(dt ? 'td' : 'div');
+    const box = doc.createElement('div');
+    holder.className = 'hovercraft-panel';
+    holder.setAttribute('data-hovercraft-panel', '');
+    cell.className = 'hovercraft-panel-cell';
+    box.className = 'hovercraft-panel-box';
+    if (!dt) {
+      holder.setAttribute('role', 'row');
+      cell.setAttribute('role', 'cell');
+    }
+    cell.append(box);
+    holder.append(cell);
+    const p = {
+      id,
+      kind: dt ? 'dt' : 'rt',
+      root: item.closest('.html-widget') ?? item.parentElement,
+      tableId: panelTables.get(item.closest('.html-widget')) ?? null,
+      holder,
+      cell,
+      box,
+      live: false,
+      hadFocus: false,
+    };
+    box.addEventListener('focusin', () => {
+      p.hadFocus = true;
+    });
+    // Focus that leaves the panel (to another element, or to nothing by a click on a part that takes none) is not lost with
+    // the panel; a focused node that is removed sends no event, which is what `hadFocus` is for.
+    // A DT draw takes the panel out of the page and the browser may say so with a focusout too. The panel is looked at once
+    // the script that is running has finished (a microtask), by when the draw has put it back: focus that is not in a panel
+    // that is in the page is focus that left it.
+    box.addEventListener('focusout', () => {
+      queueMicrotask(() => {
+        if (p.holder.isConnected && !box.contains(document.activeElement)) p.hadFocus = false;
+      });
+    });
+    // DT listens on its body for a click on a cell and would select a row or send `cell_clicked` for the panel's cell.
+    if (dt)
+      for (const type of ['click', 'mousedown', 'dblclick']) holder.addEventListener(type, (e) => e.stopPropagation());
+    return p;
+  };
+
+  // The node the engine draws row `item`'s pinned tip into, or null when the row is not one that opens in place.
+  const panelFor = (item) => {
+    if (!panelCfg || !item?.hasAttribute?.(panelCfg.attribute)) return null;
+    const id = item.getAttribute(panelCfg.idAttribute);
+    if (!id) return null;
+    let p = panels.get(id);
+    if (!p) {
+      p = build(item, id);
+      panels.set(id, p);
+    }
+    seat(p, item);
+    return p.box;
+  };
+
+  const dropPanel = (id) => {
+    const p = panels.get(id);
+    if (!p) return;
+    const had = p.hadFocus || p.holder.contains(document.activeElement);
+    p.holder.remove();
+    panels.delete(id);
+    const row = rowById(p.root, id);
+    row?.removeAttribute('aria-expanded');
+    // A reader who was in the panel when it closed goes back to the row, not to the page.
+    if (had && row) row.focus?.({ preventScroll: true });
+    pruneScrollers();
+  };
+
+  // A pin that has closed takes its panel with it, once it is sure to stay closed: a redraw closes the pin and pins it again
+  // at once, so the panel is checked a frame later, by what the row says, not by the reason.
+  const settle = (id) => {
+    const p = panels.get(id);
+    if (!p) return;
+    const item = rowById(p.root, id);
+    if (item && openAttribute && item.getAttribute(openAttribute) === pinnedValue) return;
+    dropPanel(id);
+  };
+
+  const onPanelTip = (event) => {
+    const detail = event.detail;
+    const p = detail?.id ? panels.get(detail.id) : null;
+    if (!p) return;
+    if (detail.state === 'pinned') {
+      p.live = true;
+      const item = event.target?.nodeType === 1 ? event.target : rowById(p.root, p.id);
+      item?.setAttribute('aria-expanded', 'true');
+    } else if (detail.state === 'closed') {
+      p.live = false;
+      requestAnimationFrame(() => settle(detail.id));
+    }
+  };
+
+  // Puts every open panel of one table back beside its row and tells the engine where it is now. Idempotent: a draw that
+  // changed nothing changes nothing.
+  const syncPanels = (root, tableId) => {
+    for (const p of panels.values()) {
+      if (p.tableId !== tableId || !p.live) continue;
+      const item = rowById(root, p.id);
+      // No row: the engine closes the pin (`gone`), and the panel goes with the close.
+      if (!item) continue;
+      p.root = root;
+      const lost = p.hadFocus && document.activeElement === document.body;
+      const moved = seat(p, item);
+      // A DT draw drops the panel (`draw.dt`), so it has moved; reactable's observer calls this on every change of its rows.
+      // The engine is only told, and the outputs bound again, when the panel really moved: a column that is shown or hidden
+      // changes the span and nothing else.
+      if (moved) {
+        window.Hovercraft?.pin(item, { into: p.box });
+        window.Shiny?.bindAll?.(p.box);
+        // The panel's own focus target is the engine's box inside it (a region with a tab stop of -1).
+        if (lost) p.box.querySelector('[role="region"]')?.focus({ preventScroll: true });
+      }
+    }
+  };
+
+  // The render hook of both widgets: DT puts the panels back after every draw (a sort, a page, a filter, new data, in
+  // server mode too) and when a column is shown or hidden; reactable's observer (see `reactable`) does it for its rows.
+  const panelsInit = (el, cfg) => {
+    const jq = window.jQuery;
+    if (!cfg?.panel) {
+      // The table is drawn again without a panel: what it had made goes.
+      panelTables.delete(el);
+      jq?.(el).off('.hovercraftPanel');
+      return;
+    }
+    panelCfg = cfg.panel;
+    panelTables.set(el, cfg.panel.id);
+    if (!panelEvents) {
+      panelEvents = true;
+      document.addEventListener(panelCfg.event, onPanelTip);
+    }
+    // DT's events are sent at its table and bubble, so one handler on the widget element serves the table whenever it is
+    // made (the table may come after this hook) and the next render of the same element replaces it.
+    if (jq) {
+      jq(el)
+        .off('.hovercraftPanel')
+        .on('draw.dt.hovercraftPanel column-visibility.dt.hovercraftPanel', () => syncPanels(el, cfg.panel.id));
+    }
+  };
+
   // `park` lists the ids of Shiny outputs that the tips hold (`tip_output()`): each is taken out of the page until a
   // tip opens, as `tip_define()` does for a tag of the page's own.
   // The tables on the page, by id. Two tables with one id send their inputs to the same name and their tips answer for
@@ -262,6 +464,7 @@
         if (spec) changed = mark(node, spec, null, null) || changed;
       }
       if (changed) describeAgain(el);
+      if (panels.size && panelTables.has(el)) syncPanels(el, panelTables.get(el));
     };
     let queued = false;
     const later = () => {
@@ -362,6 +565,11 @@
     mark,
     define,
     claim,
+    panels: panelsInit,
+    panelFor,
+    dropPanel,
+    // For the tests: how many observers of a table's width are alive.
+    stats: () => ({ observers: scrollers.size, panels: panels.size }),
     headers,
     reactable,
     keyboard,

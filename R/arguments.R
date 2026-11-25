@@ -90,6 +90,18 @@ tip_check_id <- function(x, arg = "id", null_ok = TRUE, call = rlang::caller_env
   )
 }
 
+# Where a pinned tip of a table is drawn: floating beside its target (NULL or "float") or "in_place", a panel under the
+# row. "float" is NULL: the checks and the page see one value.
+tip_check_to <- function(x, arg = "to", call = rlang::caller_env()) {
+  tip_arg(
+    checkmate::check_choice(x, c("float", "in_place"), null.ok = TRUE),
+    arg,
+    "Give {.code \"float\"} or {.code NULL} for a tip that floats, or {.code \"in_place\"} for a panel under the row.",
+    call
+  )
+  if (identical(x, "in_place")) x
+}
+
 # Where a tip shows: one of the engine's placements, or `NULL` for the page's choice.
 tip_check_placement <- function(x, arg = "placement", call = rlang::caller_env()) {
   places <- unlist(tip_rules()$placement$values)

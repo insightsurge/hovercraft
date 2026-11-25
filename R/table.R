@@ -158,9 +158,11 @@ tip_table_content <- function(
   own_more <- NULL
   own_pin <- NULL
   own_events <- NULL
+  own_to <- NULL
   if (inherits(x, "hovercraft_spec")) {
     own_pin <- x$pin
     own_events <- x$events
+    own_to <- x$to
     placement <- x$placement %||% placement
     own <- x$marker
     own_style <- x$style
@@ -202,7 +204,8 @@ tip_table_content <- function(
     style = tip_style_over(own_style, style),
     marker = tip_table_marker(own, marker, arg, row, call),
     pin = own_pin,
-    events = own_events
+    events = own_events,
+    to = own_to
   )
 }
 
@@ -364,6 +367,12 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   if (!is.null(pin)) {
     attrs[[tip_attribute("pin")]] <- pin
   }
+  # A row whose pinned tip is drawn in place carries the mark the table script reads to make its panel; `aria-expanded`
+  # says so to a screen reader while the panel is open, and goes with the pin.
+  if (identical(content$to, "in_place")) {
+    attrs[[tip_table_panel_attribute()]] <- "in_place"
+    reset <- c(reset, "aria-expanded")
+  }
   keys <- tip_keyshortcuts(!is.null(pin), identical(content$more_on, "button"))
   if (!is.null(keys)) {
     attrs[["aria-keyshortcuts"]] <- keys
@@ -398,6 +407,24 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   )
 }
 
+# The attribute that marks a row whose pinned tip is drawn in place, named after the engine's prefix.
+tip_table_panel_attribute <- function() paste0("data-", tip_names()$prefix, "-table-panel")
+
+# What the table script needs to make panels: the mark's name, the engine's tip event, and the table's id.
+tip_table_panel_config <- function(plan) {
+  if (!identical(plan$rows$to, "in_place")) {
+    return(NULL)
+  }
+  list(
+    panel = list(
+      attribute = tip_table_panel_attribute(),
+      event = tip_contract()$events$tip$name,
+      idAttribute = tip_attribute("id"),
+      id = plan$table_id$id
+    )
+  )
+}
+
 # The attribute that holds a table tip's address, named after the engine's prefix as the events attribute is.
 tip_table_address_attribute <- function() paste0("data-", tip_names()$prefix, "-table-address")
 
@@ -407,14 +434,16 @@ tip_table_dependencies <- function(
   looks = list(),
   pin = FALSE,
   more = FALSE,
-  max_pins = NULL
+  max_pins = NULL,
+  panel = FALSE
 ) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
     version = tip_package_version(),
     src = "table",
     package = "hovercraft",
-    script = "table.js"
+    script = "table.js",
+    stylesheet = if (panel) "table.css"
   )
   widget$dependencies <- c(
     widget$dependencies,
@@ -466,6 +495,16 @@ tip_table_dt <- function(widget, plan, call) {
       call = call
     )
   }
+  if (identical(plan$rows$to, "in_place") && "FixedColumns" %in% unlist(x$extensions)) {
+    tip_abort(
+      c(
+        "{.code to = \"in_place\"} does not work with the {.val FixedColumns} extension: it copies the table's rows.",
+        i = "Take the extension out, or leave {.arg to} out for a tip that floats."
+      ),
+      class = "hovercraft_error_widget",
+      call = call
+    )
+  }
   data <- tip_table_data(widget, "dt")
   position <- function(column) match(column, names(x$data)) - 1L
   fields <- unique(c(plan$rows$fields, unlist(lapply(plan$cells, function(c) c$fields))))
@@ -510,6 +549,7 @@ tip_table_dt <- function(widget, plan, call) {
       "function(el, x, cfg) {",
       "HovercraftTable.define(cfg.defines, cfg.desc, cfg.park, cfg.open);",
       "HovercraftTable.claim(el, cfg.id);",
+      "HovercraftTable.panels(el, cfg);",
       "HovercraftTable.keyboard(el, cfg.kind);",
       "}"
     ),
@@ -521,7 +561,8 @@ tip_table_dt <- function(widget, plan, call) {
         park = as.list(plan$outputs),
         open = tip_table_open()
       ),
-      plan$table_id
+      plan$table_id,
+      tip_table_panel_config(plan)
     )
   )
 }
@@ -596,13 +637,14 @@ tip_table_reactable <- function(widget, plan, call) {
     park = as.list(plan$outputs),
     open = tip_table_open()
   )
-  cfg <- c(cfg, plan$table_id)
+  cfg <- c(cfg, plan$table_id, tip_table_panel_config(plan))
   tip_table_on_render(
     widget,
     paste(
       "function(el, x, cfg) {",
       "HovercraftTable.define(cfg.defines, cfg.desc, cfg.park, cfg.open);",
       "HovercraftTable.claim(el, cfg.id);",
+      "HovercraftTable.panels(el, cfg);",
       "HovercraftTable.reactable(el, cfg);",
       "HovercraftTable.keyboard(el, cfg.kind);",
       "}"
@@ -616,6 +658,16 @@ tip_table_reactable <- function(widget, plan, call) {
 tip_table_check_target <- function(x, arg, call) {
   if (!inherits(x, "hovercraft_spec")) {
     return(invisible())
+  }
+  if (!is.null(x$to)) {
+    tip_abort(
+      c(
+        "{.arg {arg}} has {.code to = \"in_place\"}: only rows open in place for now.",
+        i = "Give {.arg to} to the {.fn tip_spec} of {.arg rows}, or leave it out."
+      ),
+      class = "hovercraft_error_pin",
+      call = call
+    )
   }
   for (what in c("pin", "events")) {
     if (!is.null(x[[what]])) {
@@ -651,6 +703,22 @@ tip_table_check_pin <- function(rows, id, call) {
       class = "hovercraft_error_pin",
       call = call
     )
+  }
+  if (identical(rows$to, "in_place")) {
+    missing <- c(if (is.null(pin)) "a pin", if (is.null(id)) "the table's id")
+    if (length(missing)) {
+      tip_abort(
+        c(
+          "{.code to = \"in_place\"} needs {missing}.",
+          i = paste(
+            "A panel under the row is the row's pinned tip, named by the table's id:",
+            "give {.code rows = tip_spec(\"...\", pin = TRUE, to = \"in_place\")} and {.code id = \"...\"}."
+          )
+        ),
+        class = "hovercraft_error_pin",
+        call = call
+      )
+    }
   }
   for (arg in c(if (!is.null(pin)) "pin", if (!is.null(events)) "events")) {
     if (is.null(id)) {
@@ -747,7 +815,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'
 #' Pins: with `tip_spec(pin = TRUE)` as `rows`, a reader can keep a row's tip open. The tip that shows on hover or
 #' focus gets a small pin handle in its corner, the same as [tip_on()]'s (`pin = TRUE`): a click or tap on it pins the
-#' row's tip, and the tip's own close button, `Escape` or a click away closes it. The pin key `P` pins the tip of the
+#' row's tip, and the tip's own close button, `Escape` or a click away closes it (a click away does not close a panel
+#' that opens in place, see below). The pin key `P` pins the tip of the
 #' row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
 #' rows pin for now"). A long form (`more`) opens with its "More" button, or with the `M` key when the focus is on the
 #' row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
@@ -792,6 +861,28 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' and `"redraw"` (the tip was drawn again with other host slots, `by = "data"`); for a hint, `"leave"` (the pointer
 #' left), `"blur"` (the focus left), `"escape"`, `"outside"`, `"pinned"` (the hint became a pin), `"replaced"`,
 #' `"gone"` and `"host"`. `reason` is `NULL` when a tip opens.
+#'
+#' @section In place:
+#' `r lifecycle::badge("experimental")`
+#' With `tip_spec(to = "in_place", pin = TRUE)` as `rows` (and the table's `id`), a row's pinned tip is drawn as a panel
+#' under its row, as wide as the table's visible part, in `DT` and in `reactable`. The hover tip still floats. The pin
+#' handle or the pin key opens it, and it holds what any pinned tip holds: its blocks, the long form with its "More"
+#' button, a [tip_output()]. The widget's own inputs (`rows_selected`, `cell_clicked`) are not touched by a click in it.
+#'
+#' It follows the pin: `DT` moves the panel with its row when the table sorts, and puts it back after every draw, in
+#' server mode too; a filter or another page that takes the row off the page closes it (`reason` `"gone"`).
+#' `DT::replaceData()` keeps it on the same row number. `reactable` closes it when it shows other rows in the row's
+#' node (`reason` `"host"`), as for a floating pin, and keeps it when it is given new data with
+#' `updateReactable(data = )`. A server-mode `DT` drawn again by `renderDT()` closes it, as it does a floating pin. A
+#' panel counts in `use_hovercraft(max_pins = )` and `tip_table(max_pins = )` like any pin: the oldest closes (`reason`
+#' `"replaced"`) and its panel goes with it.
+#'
+#' A click away does not close a panel: it closes by its close button, `Escape`, the pin limit, or its row going. The
+#' pin key on a row whose panel is open does nothing. `Escape` on a row that has no pin of its own closes the newest
+#' pin, as for floating pins. With `scrollX` the panel stays at the left edge of the visible part. The `FixedColumns`
+#' extension of `DT` (it copies the rows) stops with an error; `responsive` and `RowGroup` of `DT`, `reactable`'s
+#' `groupBy`, and screen readers are not covered. A click inside a `DT` panel is stopped at the panel's row, so a
+#' handler that the page delegates on `document` does not see it.
 #'
 #' What works, each checked in a browser:
 #' * `DT`, in client mode and in server mode under Shiny, with `scrollX`, `scrollY`, `fixedHeader`, `colReorder` and
@@ -1017,6 +1108,7 @@ tip_table <- function(
     marked,
     looks[!duplicated(vapply(looks, function(dep) dep$name, ""))],
     pin = !is.null(plan$rows$pin),
+    panel = identical(plan$rows$to, "in_place"),
     more = any(vapply(
       c(list(plan$rows), plan$cells, plan$headers),
       function(content) identical(content$more_on, "button"),

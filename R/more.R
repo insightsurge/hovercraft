@@ -201,6 +201,7 @@ tip_more_dependency <- function() {
     ),
     events = list(hint = tip_contract()$events$hint$name, tip = tip_contract()$events$tip$name),
     css = tip_names()$css,
+    global = tip_names()$global,
     key = tip_more_key(),
     labels = list(more = "More", less = "Less")
   )
