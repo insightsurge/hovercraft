@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.58.0, built from its source; do not edit.
+// hovercraft tip engine 0.59.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.58.0';
+  const VERSION = '0.59.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -1696,15 +1696,48 @@
         if (reach) box.style.setProperty('--hc-tip-reach', reach);
         else box.style.removeProperty('--hc-tip-reach');
       }
-      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap, item);
-      if (to && keep) keepSpot(box, anchor, keep, item, line);
+      const draw = (reach) => {
+        if (!keep || keep.gone) uncap(box);
+        let to = placeBox(box, anchor, side, x, beside, line, isPin, placement, reach, baseGap, item);
+        if (to && keep && !keep.gone) {
+          keepSpot(box, anchor, keep, item, line);
+          if (isPin && (box.dataset.cap || clashes(box))) {
+            keep.gone = true;
+            uncap(box);
+            to = placeBox(box, anchor, side, x, beside, line, isPin, placement, reach, baseGap, item);
+          }
+        }
+        return to;
+      };
+      const to = draw(arrow ? ARROW : 0);
       const moved = isPin && dodge(box);
       if (point(box, arrow && !moved ? to : null)) return;
       if (arrow) {
-        const bare = placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap, item);
-        if (bare && keep) keepSpot(box, anchor, keep, item, line);
+        draw(0);
         if (isPin) dodge(box);
       }
+    }
+    function olderPins(box) {
+      const { pins } = pageOf(box.ownerDocument);
+      const mine = Math.max(
+        0,
+        pins.findIndex((p) => p.box === box),
+      );
+      const out = [];
+      for (const p of pins.slice(0, mine)) {
+        const left = Number.parseFloat(p.box.style.left);
+        const top = Number.parseFloat(p.box.style.top);
+        const gone = p.into || p.box.hidden || p.box.style.visibility === 'hidden';
+        if (gone || Number.isNaN(left) || Number.isNaN(top)) continue;
+        out.push({ left, top, right: left + p.box.offsetWidth, bottom: top + p.box.offsetHeight });
+      }
+      return out;
+    }
+    function clashes(box) {
+      const left = Number.parseFloat(box.style.left);
+      const top = Number.parseFloat(box.style.top);
+      const [w, h] = [box.offsetWidth, box.offsetHeight];
+      return olderPins(box).some((o) => left < o.right && o.left < left + w && top < o.bottom && o.top < top + h);
     }
     function dodge(box) {
       const doc = box.ownerDocument;
@@ -1831,6 +1864,10 @@
       if (box.dataset.cap) box.scrollTop = at;
     }
     function uncap(box) {
+      if (box.dataset.narrow) {
+        delete box.dataset.narrow;
+        box.style.maxWidth = '';
+      }
       if (!box.dataset.cap) return;
       delete box.dataset.cap;
       box.style.maxHeight = '';
@@ -1948,8 +1985,6 @@
       const doc = anchor.ownerDocument;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
-      const w = box.offsetWidth;
-      const h = box.offsetHeight;
       const row = line ? line.getBoundingClientRect() : null;
       const at = isPin ? null : x;
       const t = row
@@ -1966,23 +2001,61 @@
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
       const g = baseGap + grow;
       const gapX = at === null ? g + 2 : baseGap + 8 + grow;
-      const midX = (t.left + t.right) / 2 - w / 2;
-      const midY = (t.top + t.bottom) / 2 - h / 2;
-      const spots = {
-        top: { left: midX, top: t.top - g - h, fits: t.top - g - h >= 4, side: 'above' },
-        bottom: { left: midX, top: t.bottom + g, fits: t.bottom + g + h <= vh - 4, side: 'below' },
-        left: { left: t.left - gapX - w, top: midY, fits: t.left - gapX - w >= 4, side: 'left' },
-        right: { left: t.right + gapX, top: midY, fits: t.right + gapX + w <= vw - 4, side: 'right' },
+      const older = isPin ? olderPins(box) : [];
+      const sides = (w, h) => {
+        const midX = (t.left + t.right) / 2 - w / 2;
+        const midY = (t.top + t.bottom) / 2 - h / 2;
+        const spots = {
+          top: { left: midX, top: t.top - g - h, fits: t.top - g - h >= 4, side: 'above' },
+          bottom: { left: midX, top: t.bottom + g, fits: t.bottom + g + h <= vh - 4, side: 'below' },
+          left: { left: t.left - gapX - w, top: midY, fits: t.left - gapX - w >= 4, side: 'left' },
+          right: { left: t.right + gapX, top: midY, fits: t.right + gapX + w <= vw - 4, side: 'right' },
+        };
+        const ends = rtl ? ['left', 'right'] : ['right', 'left'];
+        const across = first === 'top' || first === 'bottom' ? ends : ['bottom', 'top'];
+        return [[first, opposite[first]], across].map((names) =>
+          names.map((name) => {
+            const spot = spots[name];
+            return {
+              ...spot,
+              left: Math.max(4, Math.min(spot.left, vw - w - 4)),
+              top: Math.max(4, Math.min(spot.top, vh - h - 4)),
+            };
+          }),
+        );
       };
-      for (const name of [first, opposite[first]]) {
-        const at = spots[name];
-        if (!at.fits) continue;
-        box.dataset.side = at.side;
-        box.style.left = `${Math.round(Math.max(4, Math.min(at.left, vw - w - 4)))}px`;
-        box.style.top = `${Math.round(Math.max(4, Math.min(at.top, vh - h - 4)))}px`;
-        return { l: t.left, r: t.right, t: t.top, b: t.bottom };
+      const over = (spot, w, h) =>
+        older.some((o) => spot.left < o.right && o.left < spot.left + w && spot.top < o.bottom && o.top < spot.top + h);
+      let ruled = false;
+      const find = (every = false) => {
+        const [w, h] = [box.offsetWidth, box.offsetHeight];
+        ruled = false;
+        for (const pair of sides(w, h)) {
+          for (const spot of pair) {
+            if (!spot.fits) continue;
+            if (!over(spot, w, h)) return spot;
+            ruled = true;
+          }
+          if (!ruled && !every) return null;
+        }
+        return null;
+      };
+      let spot = find();
+      if (!spot && ruled) {
+        const w = box.offsetWidth;
+        const narrow = Math.max(Math.min(w, 160), Math.round(w * 0.6));
+        if (narrow < w - 8) {
+          box.style.maxWidth = `${narrow}px`;
+          box.dataset.narrow = 'true';
+          spot = find(true);
+          if (!spot) uncap(box);
+        }
       }
-      return false;
+      if (!spot) return false;
+      box.dataset.side = spot.side;
+      box.style.left = `${Math.round(spot.left)}px`;
+      box.style.top = `${Math.round(spot.top)}px`;
+      return { l: t.left, r: t.right, t: t.top, b: t.bottom };
     }
 
     function room(box, open) {
@@ -2694,7 +2767,7 @@
       const onSize = () => {
         if (page.hint) page.hint.place();
         for (const q of page.pins) {
-          q.place();
+          q.place(true, true);
           resizeLives(q.box);
         }
         if (page.hint) resizeLives(boxesOf(doc).hint);
@@ -3550,6 +3623,7 @@
           old.handle.closePin({ reason: 'replaced', by, via: info.via ?? null }, false, old);
         }
         const from = replaced?.handle === handle ? replaced.id : null;
+        const seed = page.hint?.anchor === n && !pinBeside(n) && !atPointer(n) ? { ...page.hint.spot } : null;
         if (page.hint) page.hint.handle.hideHint(false, { reason: 'pinned', by, via: info.via ?? null, keep: n });
         const rec = c.rec;
         const kind = rec.kind ?? 'row';
@@ -3559,6 +3633,7 @@
         const x = info.via === 'click' ? xOf(n) : null;
         const slot = freePin(doc);
         const pbox = slot.box;
+        uncap(pbox);
         let isSheet = false;
         const seat = (at = n) => {
           pbox.setAttribute('role', into ? 'region' : 'dialog');
@@ -3729,12 +3804,17 @@
             const perItem = typeof focusAt === 'function' || owner === doc.documentElement;
             return nextAfter(doc, perItem && stop ? stop : owner);
           },
-          place: (restyle = true) => {
+          spot: seed?.side ? seed : null,
+          place: (restyle = true, fresh = false) => {
             const a = p.anchor();
             if (!a) return;
             if (restyle) copyMarks(pbox, a);
             if (into) return;
-            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a), a);
+            const line = atPointer(a) ? a : null;
+            const how = `${placementOf(a)}|${arrowOf(a)}|${line ? 1 : 0}`;
+            if (fresh || p.spot?.how !== how) p.spot = null;
+            place(pbox, anchorOf(a), s, x, pinBeside(a), line, true, placementOf(a), arrowOf(a), a, p.spot);
+            if (p.spot?.gone) p.spot = null;
             if (clipped) pbox.style.visibility = 'hidden';
             isSheet = pbox.dataset.side === 'sheet';
             room(pbox, isSheet && pbox.style.visibility !== 'hidden');
@@ -3785,6 +3865,7 @@
                     placementOf(a),
                     arrowOf(a),
                     a,
+                    p.spot,
                   );
                 }
                 startLives(pbox);
