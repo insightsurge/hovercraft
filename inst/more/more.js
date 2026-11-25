@@ -67,12 +67,14 @@
   };
   const expandedNow = (item) => item.getAttribute(A().state) === 'long';
 
-  // The words of the two buttons: the item's own (`label =` in R) over the built-in ones.
+  // The words of the two buttons: the item's own (`tip_more(label =)` in R) over the page's and the tag's `labels =` (the
+  // nearest scope winning) over the built-in ones.
   const words = (item) => {
+    const scoped = { ...names.labels, ...window.HovercraftRuntime?.labels?.(item) };
     try {
-      return { ...names.labels, ...JSON.parse(item.getAttribute(A().label) ?? '{}') };
+      return { ...scoped, ...JSON.parse(item.getAttribute(A().label) ?? '{}') };
     } catch {
-      return names.labels;
+      return scoped;
     }
   };
 

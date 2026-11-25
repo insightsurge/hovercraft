@@ -92,6 +92,10 @@ shinyApp(ui, server)
 
 One pin stays open at a time; `use_hovercraft(max_pins = 3)` in the page's UI keeps up to three (a table can have its own count with `tip_table(max_pins =)`).
 
+The words a tip shows itself ("Copy", "Close", "More", "Pin this tip" and the rest) can be changed, for a page in another
+language: `use_hovercraft(labels = c(close = "Dismiss", copy = "Copy code"))` for the whole page, or `tip_on(labels =)`
+for one tip and what is inside it. The nearest words win, and a wrong key stops with an error that lists the right ones.
+
 `state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
 "hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
 tip from the server; for a table's tip they take the table's `id` with `row` and `column`

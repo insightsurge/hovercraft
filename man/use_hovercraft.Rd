@@ -4,7 +4,7 @@
 \alias{use_hovercraft}
 \title{The tip engine as an HTML dependency}
 \usage{
-use_hovercraft(style = NULL, max_pins = 1, keys = TRUE)
+use_hovercraft(style = NULL, max_pins = 1, keys = TRUE, labels = NULL)
 }
 \arguments{
 \item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} as a preset name, \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} as a style object.
@@ -39,11 +39,22 @@ never inside a field; \code{more} is the key that opens a tip's long form (M), w
 closes a tip. Switching \code{pin} off takes the key's announcement (\code{aria-keyshortcuts}) off the items too; the pin
 button stays. Give it once: a second \code{use_hovercraft(keys = )} that differs warns in the console and the first
 holds.}
+
+\item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tips show themselves on the whole page, or \code{NULL}
+(the default) for the built-in ones. A named character vector, such as \code{c(copy = "Copy code", close = "Dismiss")};
+a word left out keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Three keys
+take placeholders, which the page fills in: \code{pinned} takes \code{{label}} (the name of the item), \code{code_line} takes
+\code{{first}} (the first line of the code) and \code{code_lines} and \code{code_lines_empty} take \code{{n}} (the number of lines;
+\code{code_lines} takes \code{{first}} too); other braces stay as written. An unknown key, an empty or blank word, or a value
+that is not words stops with an error; the unknown key's error lists the keys. A tag's own \code{labels} (see
+\code{\link[=tip_on]{tip_on()}}) beat the page's, key by key, and \code{tip_more(label = )} beats both for the buttons of one tip. Unlike
+\code{keys}, where the first call holds, a second \code{use_hovercraft(labels = )} adds its words to the first, and a key
+that both give takes the later one. Useful for a page in another language.}
 }
 \value{
 A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}
 that sets something, \code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as
-the engine's attributes on the page, with a \code{max_pins} or \code{keys} that is given one of their own, and last
+the engine's attributes on the page, with a \code{max_pins}, \code{keys} or \code{labels} that is given one of their own, and last
 \code{hovercraft-runtime}, which starts the engine and the layers. Put it
 once in the page's UI, for example \code{bslib::page_fluid(use_hovercraft(style = "sober"), ...)}.
 
@@ -66,7 +77,7 @@ nothing else, or the page can use classes and a style sheet instead.
 }
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} for the page's \code{style} given as a preset name; \code{max_pins} and \code{keys} are
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} for the page's \code{style} given as a preset name; \code{max_pins}, \code{keys} and \code{labels} are
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}.
 The engine's script and CSS, ready to add to a page. \code{\link[=tip_on]{tip_on()}} and \code{\link[=tip_define]{tip_define()}} attach it for you; use this when
 you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
@@ -78,6 +89,9 @@ use_hovercraft(style = "modern")
 use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
+use_hovercraft(
+  labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more")
+)
 }
 \seealso{
 Other tooltips:

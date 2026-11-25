@@ -35,7 +35,8 @@ tip_more_ons <- function() c("button", "hover", "pin")
 #'   tip is pinned). `NULL`, the default, is `"button"`. This is the same in a table.
 #' @param label The words of the buttons, only with `"button"`: one string for the "More" button (the "Less" button
 #'   keeps its word), or `c(more = "Show all", less = "Show less")`. `NULL` gives the built-in "More" and "Less". With
-#'   `"hover"` or `"pin"` there is no button, so a `label` is an error.
+#'   `"hover"` or `"pin"` there is no button, so a `label` is an error. It beats the `more` and `less` words of `labels`
+#'   (see [tip_on()] and [use_hovercraft()]) for this tip.
 #' @returns An object of class `hovercraft_more`, to give as `more` to [tip_on()] or [tip_spec()].
 #' @family tooltips
 #' @examples
@@ -203,7 +204,7 @@ tip_more_dependency <- function() {
     css = tip_names()$css,
     global = tip_names()$global,
     key = tip_more_key(),
-    labels = list(more = "More", less = "Less")
+    labels = as.list(tip_label_defaults()[c("more", "less")])
   )
   htmltools::htmlDependency(
     name = "hovercraft-more",
