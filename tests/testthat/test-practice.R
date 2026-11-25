@@ -65,8 +65,7 @@ describe("app frameworks and reverse-proxy dependency structure", {
       htmltools::tags$button("Go"),
       "Short",
       style = tip_style(theme = list(radius = 9)),
-      more = tip_template(tip_text("Long")),
-      more_on = "hover"
+      more = tip_more(tip_template(tip_text("Long")), on = "hover")
     )
     deps <- c(
       use_hovercraft(),

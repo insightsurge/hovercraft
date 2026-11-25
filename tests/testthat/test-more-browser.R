@@ -7,10 +7,11 @@ skip_if_not_installed("pkgload")
 skip_if_not_installed("withr")
 skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 
-# Browser tests for #57: tip_on(more =, more_on =) and tip_spec(more =, more_on =).
+# Browser tests for #57: tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )), on the engine's own moments
+# (pin and hover). The button is tested in test-more-button-browser.R.
 # Covers pin mode, hover mode, table cells, smooth growth, arrow/position/edge/375px, reduced motion,
 # light/dark/presets typography match, never covering the trigger, and preserving keyboard focus.
-describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser", {
+describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in a browser", {
   has_dt <- requireNamespace("DT", quietly = TRUE)
   path <- find.package("hovercraft")
   port <- httpuv::randomPort()
@@ -55,7 +56,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
               n = 1420,
               when = "Today"
             ),
-            more = long_tpl,
+            more = tip_more(long_tpl, on = "pin"),
             id = "pin_tip",
             pin = "click",
             style = "modern"
@@ -63,8 +64,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
           tip_on(
             shiny::actionButton("hover_btn", "Hover me"),
             "Short hover summary",
-            more = "Detailed hover notes for **{{ team }}** ({{ wins | number:0 }} wins).",
-            more_on = "hover",
+            more = tip_more("Detailed hover notes for **{{ team }}** ({{ wins | number:0 }} wins).", on = "hover"),
             record = list(team = "Owls", wins = 7),
             id = "hover_tip",
             style = "sober"
@@ -72,7 +72,10 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
           tip_on(
             pinnable_span("edge_btn", "Edge"),
             "Near edge short",
-            more = "Much longer detail block that must stay inside the viewport without covering the button.",
+            more = tip_more(
+              "Much longer detail block that must stay inside the viewport without covering the button.",
+              on = "pin"
+            ),
             id = "edge_tip",
             pin = "click",
             style = "lively",
@@ -96,8 +99,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
                 cells = list(
                   team = tip_spec(
                     "**{{ team }}**",
-                    more = "Detail: {{ detail }} ({{ wins | number:0 }} wins)",
-                    more_on = "hover",
+                    more = tip_more("Detail: {{ detail }} ({{ wins | number:0 }} wins)", on = "hover"),
                     marker = "corner"
                   )
                 ),
@@ -192,7 +194,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
     expect_true(page$wait_until(sprintf("document.querySelector('.%s.%s-pin:not([hidden])') === null", css, css)))
   })
 
-  it("shows short and long form together on hover when more_on = 'hover' with matching typography", {
+  it("shows short and long form together on hover with tip_more(on = 'hover'), with matching typography", {
     page$hover("#hover_btn")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden]) .%s-more') !== null",
@@ -218,7 +220,7 @@ describe("tip_on(more =, more_on =) and tip_spec(more =, more_on =) in a browser
     page$press("Escape", wait = 0.2)
   })
 
-  it("works on a DT table cell with tip_spec(more =, more_on = 'hover')", {
+  it("works on a DT table cell with tip_spec(more = tip_more(on = 'hover'))", {
     skip_if_not(has_dt, "DT not installed")
     expect_true(page$wait_until("document.querySelector('#tbl tbody td') !== null"))
     page$hover("#tbl tbody tr:first-child td:first-child")

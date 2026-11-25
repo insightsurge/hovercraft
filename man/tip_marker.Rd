@@ -78,6 +78,7 @@ tip_on(
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},

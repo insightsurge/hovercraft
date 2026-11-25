@@ -92,8 +92,7 @@ describe("a page under a strict Content-Security-Policy", {
           tip_on(
             htmltools::tags$button("More", id = "more"),
             "Short",
-            more = tip_template(tip_text("The long form")),
-            more_on = "hover"
+            more = tip_more(tip_template(tip_text("The long form")), on = "hover")
           ),
           tip_on(
             htmltools::tags$button("Pinnable", id = "pinnable"),
@@ -243,8 +242,7 @@ describe("a Shiny page under a strict Content-Security-Policy", {
               template = paste0(id, "_card"),
               record = list(label = id, n = 7),
               style = tip_style(theme = list(radius = radius)),
-              more = tip_template(tip_text(paste("The long form of", id))),
-              more_on = "hover"
+              more = tip_more(tip_template(tip_text(paste("The long form of", id))), on = "hover")
             )
           )
         }

@@ -716,46 +716,78 @@ describe("tip_table(style =)", {
   })
 })
 
-describe("tip_spec(more =, more_on =) in tip_table()", {
-  it("stores more and more_on on tip_spec() and validates them", {
-    s <- tip_spec("{{ team }}", more = "{{ note }}", more_on = "hover")
-    expect_identical(s$more, "{{ note }}")
-    expect_identical(s$more_on, "hover")
+describe("tip_spec(more =) in tip_table()", {
+  held_template <- function() tip_more_attribute("held-template")
+
+  it("stores more on tip_spec(), as words, a template or a tip_more(), and validates it", {
+    s <- tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "hover"))
+    expect_s3_class(s$more, "hovercraft_more")
+    expect_identical(s$more$on, "hover")
+    expect_identical(tip_spec("{{ team }}", more = "{{ note }}")$more, "{{ note }}")
     expect_error(tip_spec("x", more = 1), "more", class = "hovercraft_error_argument")
-    expect_error(tip_spec("x", more = "y", more_on = "click"), "more_on", class = "hovercraft_error_argument")
+    expect_error(tip_spec("x", more = "y", more_on = "hover"), class = "hovercraft_error_argument")
   })
 
-  it("writes more_template and more_on = 'hover' on DT and reactable cells and includes more fields in records", {
-    got_dt <- tip_table(
-      dt(),
-      cells = list(team = tip_spec("{{ team }}", more = "{{ note }} ({{ wins }})", more_on = "hover"))
-    )
+  it("holds the long form behind a button on DT and reactable cells, as the engine's attributes are left off", {
+    got_dt <- tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }} ({{ wins }})")))
     defs <- Filter(function(def) !is.null(def$createdCell), got_dt$x$options$columnDefs)
     expect_match(js(defs[[1]]$createdCell), "dtRecord(data, {\"team\":0,\"note\":3,\"wins\":1}, true)", fixed = TRUE)
-    expect_match(js(defs[[1]]$createdCell), tip_attribute("more_template"), fixed = TRUE)
-    expect_match(js(defs[[1]]$createdCell), tip_attribute("more_on"), fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), held_template(), fixed = TRUE)
+    # The engine's attributes are not written; they are what the button writes, and the layer takes them off a reused row.
+    expect_no_match(js(defs[[1]]$createdCell), sprintf("\"%s\":", tip_attribute("more_on")), fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), sprintf("\"reset\":[\"%s\"", tip_attribute("more")), fixed = TRUE)
+    expect_match(js(defs[[1]]$createdCell), "\"aria-keyshortcuts\":\"M\"", fixed = TRUE)
     expect_length(got_dt$jsHooks$render[[1]]$data$defines, 2L)
+    expect_true("hovercraft-more" %in% vapply(got_dt$dependencies, function(dep) dep$name, ""))
 
-    got_rt <- tip_table(
-      rt(),
-      cells = list(team = tip_spec("{{ team }}", more = tip_template(tip_text("{{ note }}")), more_on = "hover"))
-    )
+    got_rt <- tip_table(rt(), cells = list(team = tip_spec("{{ team }}", more = tip_template(tip_text("{{ note }}")))))
     cfg <- got_rt$jsHooks$render[[1]]$data
+    expect_match(cfg$cells[["0"]]$attrs[[held_template()]], "^table_[a-f0-9]{12}$")
+    expect_null(cfg$cells[["0"]]$attrs[[tip_attribute("more_on")]])
+    expect_null(cfg$cells[["0"]]$attrs[[tip_attribute("more_template")]])
+    expect_identical(cfg$cells[["0"]]$attrs[["aria-keyshortcuts"]], "M")
+    expect_true(tip_more_attribute("state") %in% unlist(cfg$cells[["0"]]$reset))
+    expect_length(
+      tip_table(
+        rt(),
+        cells = list(team = tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "hover")))
+      )$jsHooks$render[[1]]$data$cells[["0"]]$reset,
+      0L
+    )
+    # A header cell has the same default.
+    heads <- tip_table(rt(), headers = list(team = tip_spec("The team", more = "More about the team")))
+    expect_match(
+      heads$jsHooks$render[[1]]$data$headers[["0"]]$attrs[[tip_more_attribute("held-template")]],
+      "^table_[a-f0-9]{12}$"
+    )
+  })
+
+  it("writes the engine's attributes for on = 'hover', with no button and no key", {
+    got <- tip_table(
+      rt(),
+      cells = list(team = tip_spec("{{ team }}", more = tip_more(tip_template(tip_text("{{ note }}")), on = "hover")))
+    )
+    cfg <- got$jsHooks$render[[1]]$data
     expect_match(cfg$cells[["0"]]$attrs[[tip_attribute("more_template")]], "^table_[a-f0-9]{12}$")
     expect_identical(cfg$cells[["0"]]$attrs[[tip_attribute("more_on")]], "hover")
+    expect_null(cfg$cells[["0"]]$attrs[["aria-keyshortcuts"]])
+    expect_false("hovercraft-more" %in% vapply(got$dependencies, function(dep) dep$name, ""))
   })
 
-  it("opens the long form of a table tip on hover when more_on is left out, since a cell has no pin", {
-    got <- tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}")))
-    defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
-    expect_match(js(defs[[1]]$createdCell), sprintf("\"%s\":\"hover\"", tip_attribute("more_on")), fixed = TRUE)
-    got <- tip_table(rt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}")))
-    expect_identical(got$jsHooks$render[[1]]$data$cells[["0"]]$attrs[[tip_attribute("more_on")]], "hover")
+  it("holds the words of the buttons as data, and announces both keys on a row that pins", {
+    got <- tip_table(
+      rt(),
+      rows = tip_spec("{{ team }}", more = tip_more("{{ note }}", label = "Details"), pin = TRUE),
+      id = "t"
+    )
+    attrs <- got$jsHooks$render[[1]]$data$rows$attrs
+    expect_identical(attrs[[tip_more_attribute("label")]], "{\"more\":\"Details\"}")
+    expect_identical(attrs[["aria-keyshortcuts"]], "P M")
   })
 
-  it("stops with a classed pin error when tip_spec() asks for more_on = 'pin' in tip_table()", {
+  it("stops with a classed pin error when tip_more(on = 'pin') is in a target that cannot pin", {
     expect_error(
-      tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin"))),
+      tip_table(dt(), cells = list(team = tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "pin")))),
       class = "hovercraft_error_pin"
     )
   })
@@ -852,10 +884,10 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
   })
 
   it("lets a spec for the rows open its long form on the pin, and only with a pin", {
-    more <- tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin", pin = TRUE)
+    more <- tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "pin"), pin = TRUE)
     got <- tip_table(rt(), rows = more, id = "t")
     expect_identical(got$jsHooks$render[[1]]$data$rows$attrs[[tip_attribute("more_on")]], "pin")
-    spec <- tip_spec("{{ team }}", more = "{{ note }}", more_on = "pin")
+    spec <- tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "pin"))
     expect_error(tip_table(rt(), rows = spec, id = "t"), class = "hovercraft_error_pin")
     expect_error(tip_table(rt(), cells = list(team = more), rows = "x", id = "t"), class = "hovercraft_error_pin")
     expect_error(tip_table(rt(), cells = list(team = spec), rows = "x", id = "t"), class = "hovercraft_error_pin")
@@ -1018,5 +1050,60 @@ describe("tip_table() on the names it is given", {
     # Words that only start with the name, and the template itself, are fine.
     expect_s3_class(tip_table(dt(), rows = "row_tip is"), "datatables")
     expect_s3_class(tip_table(dt(), rows = tip_template(tip_text("{{ team }}"))), "datatables")
+  })
+})
+
+describe("tip_table(max_pins =)", {
+  pins <- function(...) tip_spec("{{ team }}", pin = TRUE, ...)
+  ops_of <- function(widget) {
+    deps <- Filter(function(dep) grepl("^hovercraft-pins-", dep$name), widget$dependencies)
+    lapply(deps, function(dep) {
+      jsonlite::fromJSON(rawToChar(jsonlite::base64_dec(dep$meta[["hovercraft-ops"]])), simplifyVector = FALSE)[[1]]
+    })
+  }
+
+  it("gives the table its own count, carried in a dependency of its own", {
+    for (widget in list(dt(), rt())) {
+      got <- tip_table(widget, rows = pins(), id = "scores", max_pins = 2)
+      expect_identical(ops_of(got), list(list(op = "tablePins", id = "scores", max = 2L)))
+    }
+  })
+
+  it("adds nothing for NULL, which counts the table's pins in the app's limit", {
+    got <- tip_table(dt(), rows = pins(), id = "scores")
+    expect_length(ops_of(got), 0L)
+  })
+
+  it("names the table's id as the inputs know it, with the module's prefix", {
+    session <- shiny::MockShinySession$new()
+    got <- shiny::withReactiveDomain(
+      session,
+      tip_table(dt(), rows = pins(), id = "scores", max_pins = 3)
+    )
+    expect_identical(ops_of(got)[[1]]$id, session$ns("scores"))
+  })
+
+  it("takes a whole number from 1 to 10", {
+    for (bad in list(0, 11, 1.5, NA, "2", c(1, 2))) {
+      expect_error(
+        tip_table(dt(), rows = pins(), id = "scores", max_pins = bad),
+        class = "hovercraft_error_argument"
+      )
+    }
+    expect_no_error(tip_table(dt(), rows = pins(), id = "scores", max_pins = 10))
+  })
+
+  it("needs the table's id and a rows spec that pins, and says which is missing", {
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "max_pins")
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "id")
+    expect_error(tip_table(dt(), rows = "{{ team }}", id = "scores", max_pins = 2), "max_pins")
+    expect_error(tip_table(dt(), rows = tip_spec("{{ team }}"), id = "scores", max_pins = 2), "pin")
+    expect_error(tip_table(dt(), cells = c(wins = "{{ wins }}"), id = "scores", max_pins = 2), "rows")
+  })
+
+  it("is refused as a misspelt argument no longer: it is an argument", {
+    expect_true("max_pins" %in% names(formals(tip_table)))
+    expect_null(formals(tip_table)$max_pins)
   })
 })

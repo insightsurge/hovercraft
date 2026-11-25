@@ -20,6 +20,9 @@ tip_runtime_config <- function() {
   list(
     attributes = list(
       id = tip_attribute("id"),
+      pins = tip_contract()$attributes$pins,
+      pin = tip_attribute("pin"),
+      keysOff = tip_keys_off_attribute(),
       placement = tip_attribute("placement"),
       disabled = tip_disabled_attribute(),
       open = tip_contract()$attributes$open,

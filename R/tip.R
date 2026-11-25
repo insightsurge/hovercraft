@@ -71,10 +71,13 @@ tip_strip_tip <- function(tag) {
     tag$attribs[names(tag$attribs) == "aria-label"] <- NULL
   }
   had_pin <- !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
+  more_attrs <- vapply(c("held", "held-template", "label", "state", "room"), tip_more_attribute, "")
+  had_more <- any(names(tag$attribs) %in% more_attrs[c("held", "held-template")])
   replaced <- c("preset", "class", "placement", "more", "more_template", "more_on", "id", "pin")
-  own <- c(attrs, vapply(replaced, tip_attribute, ""), tip_theme_attribute(), tip_shiny_attribute())
+  own <- c(attrs, vapply(replaced, tip_attribute, ""), tip_theme_attribute(), tip_shiny_attribute(), more_attrs)
+  keys <- htmltools::tagGetAttribute(tag, "aria-keyshortcuts")
   tag$attribs[names(tag$attribs) %in% own] <- NULL
-  if (had_pin && identical(htmltools::tagGetAttribute(tag, "aria-keyshortcuts"), toupper(tip_pin_key()))) {
+  if ((had_pin || had_more) && identical(keys, tip_keyshortcuts(had_pin, had_more))) {
     tag$attribs[names(tag$attribs) == "aria-keyshortcuts"] <- NULL
   }
   tip_drop_deps(tip_marker_clear(tag))
@@ -274,23 +277,6 @@ tip_parse_more <- function(more, call) {
   )
 }
 
-# `more_on` says when the long form opens, so without a `more` it does nothing: say so, once per session.
-tip_warn_more_on <- function(more, more_on, call = rlang::caller_env()) {
-  if (!is.null(more_on) && is.null(more)) {
-    tip_warn(
-      c(
-        "{.arg more_on} is set, but there is no {.arg more}, so it does nothing.",
-        i = "Give {.arg more} the long form, or take {.arg more_on} out."
-      ),
-      class = "hovercraft_warning_more",
-      call = call,
-      .frequency = "once",
-      .frequency_id = "hovercraft_more_on_without_more"
-    )
-  }
-  invisible(NULL)
-}
-
 # Deterministic HTML dependency defining an inline `more` template (no random or per-session ids, safe for bindCache()).
 tip_more_template_dep <- function(template, prefix = "more") {
   body <- tip_blocks_plain(template)
@@ -446,7 +432,8 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   on `"pinned"`). A `"state"` of `"updated"` is not a pin: an app that tests only for `"closed"` should check it.
 #'   `"pin"` also keeps `input$<id>_pinned`, `TRUE` while the tip is pinned and `FALSE` after, sent in the same batch
 #'   as `_pin` and as a plain value, so an equal value does not fire an observer again; read it with
-#'   `isTRUE(input$run_pinned)`.
+#'   `isTRUE(input$run_pinned)`. The values of `state` may grow in a later version, so an app should not assume it
+#'   knows them all.
 #'   `"copy"` sends `input$<id>_copy` each time the Copy button of a code block in the pinned tip is
 #'   pressed: `field` (the record field the code came from), `block` (the code block's place among the tip's code
 #'   blocks, from 0), `ok` (`TRUE` when the browser let the copy happen), `by` (`"reader"`) and `via` (`"click"` or
@@ -485,13 +472,12 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   that needs no wrapper, which asks the tip engine for a keyboard stop of its own.
 #'
 #' @param more `r lifecycle::badge("experimental")` Extra content for the long form of the tip, or `NULL` (the default)
-#'   for none: words (markdown, optionally with `{{ field }}` placeholders filled from `record`) or a [tip_template()].
-#'   `NA` and `""` count as none. When `more_on` is `"pin"` (the default), the tag must be able to pin and have an `id`
-#'   (either `id =` or the tag's own HTML `id`); otherwise `tip_on()` stops with an error.
-#'
-#' @param more_on `r lifecycle::badge("experimental")` When the long form (`more`) opens: `"pin"` (the default, shows a
-#'   short hint on hover and expands to the long form when pinned) or `"hover"` (shows the long form on hover too), or
-#'   `NULL` to use the engine's default (`"pin"`).
+#'   for none: words (markdown, optionally with `{{ field }}` placeholders filled from `record`), a [tip_template()], or
+#'   a [tip_more()] that also says when the long form shows. `NA` and `""` count as none. Words and a template are the
+#'   same as `tip_more()` with its default: the tip is short, and a "More" button in it (and the M key) opens the long
+#'   form in the same tip, with no pin and no `id`. See [tip_more()] for `"hover"`, `"pin"` and the buttons' words; with
+#'   `"pin"` the tag must be able to pin and have an `id` (either `id =` or the tag's own HTML `id`), otherwise
+#'   `tip_on()` stops with an error.
 #'
 #' @param pin `r lifecycle::badge("experimental")` Whether a reader can keep this tip open: `NULL` (the
 #'   default) or `FALSE` for a tip that only shows on hover or focus (`FALSE` is "never", whatever a level above says),
@@ -538,12 +524,18 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   events = c("hint", "pin")
 #' )
 #'
-#' # Short tip on hover with extra detail
+#' # A short tip with a "More" button that opens the long form in the same tip
 #' tip_on(
 #'   htmltools::tags$button("Run"),
 #'   "Runs the **check**",
-#'   more = "Checks every column and prints a summary.",
-#'   more_on = "hover"
+#'   more = "Checks every column and prints a summary."
+#' )
+#'
+#' # The long form shows with the short one
+#' tip_on(
+#'   htmltools::tags$button("Run"),
+#'   "Runs the **check**",
+#'   more = tip_more("Checks every column and prints a summary.", on = "hover")
 #' )
 #'
 #' # A look for this tag only
@@ -590,7 +582,6 @@ tip_on <- function(
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  more_on = NULL,
   pin = NULL
 ) {
   tip_check_one_tag(tag)
@@ -608,7 +599,6 @@ tip_on <- function(
       "events",
       "when_disabled",
       "more",
-      "more_on",
       "pin"
     )
   )
@@ -650,9 +640,9 @@ tip_on <- function(
     tip_check_pin_tag(tag)
   }
   tip_check_events_pin(events, pin_value)
-  tip_check_more_on(more_on)
-  tip_warn_more_on(more, more_on)
-  more_info <- tip_parse_more(more, rlang::current_env())
+  more_given <- tip_more_unpack(more)
+  more_info <- tip_parse_more(more_given$content, rlang::current_env())
+  more_on <- if (!is.null(more_info)) more_given$on
   tag_id <- htmltools::tagGetAttribute(tag, "id")
   effective_id <- id %||% tag_id
   if (!is.null(events) && is.null(effective_id)) {
@@ -667,15 +657,14 @@ tip_on <- function(
   if (!is.null(pin_value)) {
     tip_check_pin_id(effective_id)
   }
-  effective_more_on <- more_on %||% tip_contract()$more$on$default
-  if (!is.null(more_info) && identical(effective_more_on, "pin")) {
+  if (!is.null(more_info) && identical(more_on, "pin")) {
     # A pin already needs an id (checked above), so only a tip with no pin gets here.
     if (is.null(pin_value)) {
       why <- if (is.null(effective_id)) "the tag cannot pin and has no {.arg id}." else "the tag cannot pin."
       tip_abort(
         c(
-          paste0("{.arg more} with {.code more_on = \"pin\"} opens on a pin, but ", why),
-          i = "Allow the tip to pin and give it an {.arg id}, or set {.code more_on = \"hover\"} to show it on hover."
+          paste0("{.arg more} with {.code tip_more(on = \"pin\")} opens on a pin, but ", why),
+          i = "Allow the tip to pin and give it an {.arg id}, or use {.code on = \"hover\"} or {.code \"button\"}."
         ),
         class = "hovercraft_error_pin"
       )
@@ -770,20 +759,19 @@ tip_on <- function(
   }
   if (!is.null(pin_value)) {
     values[[tip_attribute("pin")]] <- pin_value
-    values[["aria-keyshortcuts"]] <- toupper(tip_pin_key())
   }
   more_deps <- list()
   if (!is.null(more_info)) {
-    if (!is.null(more_info$template)) {
-      built_more <- tip_more_template_dep(more_info$template)
-      values[[tip_attribute("more_template")]] <- built_more$name
-      more_deps <- built_more$deps
-    } else {
-      values[[tip_attribute("more")]] <- more_info$text
-    }
+    built_more <- if (!is.null(more_info$template)) tip_more_template_dep(more_info$template)
+    more_deps <- built_more$deps %||% list()
+    values <- c(
+      values,
+      tip_more_values(more_on, built_more$name, more_info$text, more_given$label)
+    )
   }
-  if (!is.null(more_on)) {
-    values[[tip_attribute("more_on")]] <- more_on
+  keys <- tip_keyshortcuts(!is.null(pin_value), identical(more_on, "button"))
+  if (!is.null(keys)) {
+    values[["aria-keyshortcuts"]] <- keys
   }
   look <- tip_style_tag(style)
   # A tip made before is replaced whole: its words, id, events, pin and look. A call that names none of the wiring the
@@ -812,6 +800,9 @@ tip_on <- function(
   deps <- c(list(tip_engine_dependency()), look$deps, inline_deps, more_deps)
   if (!is.null(pin_value)) {
     deps <- c(deps, list(tip_pin_dependency()))
+  }
+  if (identical(more_on, "button")) {
+    deps <- c(deps, list(tip_more_dependency()))
   }
   if (!is.null(when_disabled)) {
     place <- if (!is.null(placement)) stats::setNames(list(placement), tip_attribute("placement"))

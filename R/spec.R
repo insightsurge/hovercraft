@@ -25,16 +25,16 @@
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
 #' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with
-#'   `{{ column }}` placeholders for `rows` and `cells`) or a [tip_template()]. `NA` and `""` mean no long form.
-#' @param more_on When the long form (`more`) opens: `"pin"` or `"hover"`, or `NULL` (the default) for the table's
-#'   choice, `"hover"`. `"pin"` works only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
-#'   target that can pin; anywhere else in a table it stops with an error. Without `more`, `more_on` does nothing and
-#'   gives a warning.
+#'   `{{ column }}` placeholders for `rows` and `cells`), a [tip_template()], or a [tip_more()] that also says when the
+#'   long form shows. `NA` and `""` mean no long form. Words and a template are the same as `tip_more()` with its
+#'   default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. `tip_more(on =
+#'   "pin")` works only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one target that can pin;
+#'   anywhere else in a table it stops with an error.
 #' @param pin Whether a reader can keep this target's tip open: `NULL` (the default) or `FALSE` for no pin, or `TRUE`
 #'   for a pin handle in the corner of the tip and a pin key, as in [tip_on()]. Only the tips of `rows` pin for now: a
 #'   spec with a pin given to `cells` or `headers` stops with "only rows pin for now". A click on a row selects it in
 #'   both widgets, so the `"click"` pin of [tip_on()] is refused in a table. A pin needs the table's `id`. With
-#'   `pin = TRUE`, `more_on = "pin"` opens the long form when the row is pinned.
+#'   `pin = TRUE`, `tip_more(on = "pin")` opens the long form when the row is pinned.
 #' @param events The Shiny inputs this target's tips send: one or more of `"hint"`, `"pin"` and `"copy"`, or `NULL` (the
 #'   default) for none. `"pin"` and `"copy"` belong to a pinned tip, so asking for either without a `pin` stops with an
 #'   error, as in [tip_on()]. Only the tips of `rows` send them for now ("only rows send events for now"), and they need
@@ -51,8 +51,7 @@
 #'     cells = list(
 #'       note = tip_spec(
 #'         "{{ team }}",
-#'         more = "{{ note }}",
-#'         more_on = "hover",
+#'         more = tip_more("{{ note }}", on = "hover"),
 #'         style = "sober",
 #'         placement = "right",
 #'         marker = "corner"
@@ -74,12 +73,11 @@ tip_spec <- function(
   placement = NULL,
   marker = NULL,
   more = NULL,
-  more_on = NULL,
   pin = NULL,
   events = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "more_on", "pin", "events"))
+  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "pin", "events"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -90,19 +88,17 @@ tip_spec <- function(
       call = call
     )
   }
-  if (!is.null(more) && !tip_content_ok(more)) {
+  if (!is.null(more) && !tip_content_ok(more) && !inherits(more, "hovercraft_more")) {
     tip_abort(
       c(
-        "{.arg more} must be a string or a {.fn tip_template}, not {.obj_type_friendly {more}}.",
-        i = "Give the words of the long form, a {.fn tip_template}, or {.code NULL}."
+        "{.arg more} must be a string, a {.fn tip_template} or a {.fn tip_more}, not {.obj_type_friendly {more}}.",
+        i = "Give the words of the long form, a {.fn tip_template}, a {.fn tip_more}, or {.code NULL}."
       ),
       class = "hovercraft_error_argument",
       call = call
     )
   }
   tip_check_placement(placement, call = call)
-  tip_check_more_on(more_on, call = call)
-  tip_warn_more_on(more, more_on, call = call)
   pin <- tip_check_pin(pin, call = call)
   events <- tip_check_events(events, call = call)
   tip_check_events_pin(events, pin, call = call)
@@ -116,7 +112,6 @@ tip_spec <- function(
       placement = placement,
       marker = marker,
       more = more,
-      more_on = more_on,
       pin = pin,
       events = events
     ),

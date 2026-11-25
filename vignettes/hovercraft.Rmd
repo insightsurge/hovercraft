@@ -84,6 +84,25 @@ tip_on(htmltools::tags$button("ADAE"), template = "diff", record = row)
 knitr::include_graphics(c("figures/template-light.png", "figures/template-dark.png"))
 ```
 
+## A short tip with a long form
+
+`more` holds a long form that waits behind a "More" button at the bottom of the tip. The button opens the long form in
+the same tip, and "Less" closes it again. The tip stays open, on its side, and grows away from the item; with the focus on
+the item, the `M` key does the same as the button, except in a text field. The next time the tip opens it is short again,
+and a pinned tip has the same buttons. Nothing needs a pin or an `id`:
+
+```{r}
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  more = "Checks every column and prints a summary. Takes about a minute on the full data."
+)
+```
+
+`tip_more()` (experimental) chooses when the long form shows: `on = "hover"` shows it with the short one, `on = "pin"`
+shows it when the tip is pinned (the tag then needs a `pin` and an `id`), and `label =` changes the words of the
+buttons. A pinned tip that grows sends `input$<id>_pin` with `state = "updated"`; a hover tip that grows sends nothing.
+
 ## A tip on every row of a table
 
 Give each row of a data frame to `tip_on()` as its record: `data[i, ]` is a data frame of one row, which a record may be.

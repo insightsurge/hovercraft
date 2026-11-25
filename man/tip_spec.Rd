@@ -11,7 +11,6 @@ tip_spec(
   placement = NULL,
   marker = NULL,
   more = NULL,
-  more_on = NULL,
   pin = NULL,
   events = NULL
 )
@@ -36,18 +35,16 @@ a column when the table has one, or \code{NULL} (the default) to take the table'
 is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
 
 \item{more}{Extra content for the long form of this tip, or \code{NULL} (the default) for none: words (markdown, with
-\code{{{ column }}} placeholders for \code{rows} and \code{cells}) or a \code{\link[=tip_template]{tip_template()}}. \code{NA} and \code{""} mean no long form.}
-
-\item{more_on}{When the long form (\code{more}) opens: \code{"pin"} or \code{"hover"}, or \code{NULL} (the default) for the table's
-choice, \code{"hover"}. \code{"pin"} works only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
-target that can pin; anywhere else in a table it stops with an error. Without \code{more}, \code{more_on} does nothing and
-gives a warning.}
+\code{{{ column }}} placeholders for \code{rows} and \code{cells}), a \code{\link[=tip_template]{tip_template()}}, or a \code{\link[=tip_more]{tip_more()}} that also says when the
+long form shows. \code{NA} and \code{""} mean no long form. Words and a template are the same as \code{tip_more()} with its
+default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. \code{tip_more(on = "pin")} works only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one target that can pin;
+anywhere else in a table it stops with an error.}
 
 \item{pin}{Whether a reader can keep this target's tip open: \code{NULL} (the default) or \code{FALSE} for no pin, or \code{TRUE}
 for a pin handle in the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin for now: a
 spec with a pin given to \code{cells} or \code{headers} stops with "only rows pin for now". A click on a row selects it in
 both widgets, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} is refused in a table. A pin needs the table's \code{id}. With
-\code{pin = TRUE}, \code{more_on = "pin"} opens the long form when the row is pinned.}
+\code{pin = TRUE}, \code{tip_more(on = "pin")} opens the long form when the row is pinned.}
 
 \item{events}{The Shiny inputs this target's tips send: one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}, or \code{NULL} (the
 default) for none. \code{"pin"} and \code{"copy"} belong to a pinned tip, so asking for either without a \code{pin} stops with an
@@ -77,8 +74,7 @@ DT::datatable(scores) |>
     cells = list(
       note = tip_spec(
         "{{ team }}",
-        more = "{{ note }}",
-        more_on = "hover",
+        more = tip_more("{{ note }}", on = "hover"),
         style = "sober",
         placement = "right",
         marker = "corner"
@@ -99,6 +95,7 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
