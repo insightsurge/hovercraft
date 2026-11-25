@@ -661,57 +661,138 @@ describe("a row's pinned tip drawn in place", {
     close_all()
   })
 
-  # The More/Less button and the close x look part of the card: the button inside the card, the x on the title line.
-  panel_parts <- function(scope) {
+  it("has no console error", {
+    expect_identical(page$problems(), character())
+  })
+})
+
+# The More/Less button and the close x of a panel look part of the card: the button inside the card at its bottom-right,
+# below the text and in line with the padding; the x a comfortable size and centred on the first line (a plain card, and a
+# card with a title that wraps to two lines). Both states of the button, in a narrow column, in DT and in reactable.
+describe("the buttons of a row's panel", {
+  scores <- data.frame(team = c("Owls", "Foxes", "Hares"), wins = c(7, 5, 2))
+  app <- start_app(
+    function(scores) {
+      long <- "The long form of {{ team }}. It runs a few lines so the card has some body to it and wraps at narrow widths."
+      plain <- function() {
+        tip_spec(
+          "**{{ team }}**: {{ wins | number:0 }} wins",
+          pin = TRUE,
+          to = "in_place",
+          more = tip_more(long, on = "button")
+        )
+      }
+      titled <- function() {
+        tip_spec(
+          tip_template(
+            tip_title("{{ team }}: a rather long title that needs two lines at a narrow width, {{ wins }} wins"),
+            tip_text("Short body for {{ team }}.")
+          ),
+          pin = TRUE,
+          to = "in_place",
+          more = tip_more(long, on = "button")
+        )
+      }
+      ui <- bslib::page_fluid(
+        use_hovercraft(max_pins = 6),
+        shiny::div(
+          style = "max-width: 360px",
+          DT::DTOutput("dt"),
+          DT::DTOutput("dtt"),
+          reactable::reactableOutput("rt"),
+          reactable::reactableOutput("rtt")
+        )
+      )
+      server <- function(input, output, session) {
+        dt <- function(rows, id) {
+          DT::renderDT(
+            tip_table(DT::datatable(scores, rownames = FALSE, options = list(dom = "t")), rows = rows, id = id),
+            server = FALSE
+          )
+        }
+        rt <- function(rows, id) {
+          reactable::renderReactable(tip_table(reactable::reactable(scores), rows = rows, id = id))
+        }
+        output$dt <- dt(plain(), "dt")
+        output$dtt <- dt(titled(), "dtt")
+        output$rt <- rt(plain(), "rt")
+        output$rtt <- rt(titled(), "rtt")
+      }
+      shiny::shinyApp(ui, server)
+    },
+    scores = scores
+  )
+  page <- local_page(app$url, environment())
+  close_all <- function() {
+    page$evaluate("window.Hovercraft.close(); 0")
+    expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
+  }
+  row_of <- function(id) {
+    if (startsWith(id, "dt")) {
+      sprintf("#%s tbody tr[data-hovercraft-tip-id=\"%s/row/2\"]", id, id)
+    } else {
+      sprintf("#%s [role=row][data-hovercraft-tip-id=\"%s/row/2\"]", id, id)
+    }
+  }
+  pin_key <- function(selector) {
+    expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", selector)))
+    page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
+    page$press("p", wait = 0.2)
+  }
+  measure <- function(id) {
     jsonlite::fromJSON(page$evaluate(sprintf(
       "(() => {
-        const panel = document.querySelector('%s [data-hovercraft-panel]');
+        const panel = document.querySelector('#%s [data-hovercraft-panel]');
         const card = panel.querySelector('.hc-tip');
         const rect = (el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
-        const line = document.createRange();
-        line.selectNodeContents(card.querySelector('.hc-tip-text'));
-        const first = line.getClientRects()[0];
+        const lines = document.createRange();
+        lines.selectNodeContents(card.querySelector('.hc-tip-title, .hc-tip-text'));
+        const rows = [...lines.getClientRects()];
+        const style = getComputedStyle(card);
         const x = rect(card.querySelector('.hc-tip-close'));
+        const texts = [...card.querySelectorAll('.hc-tip-text')];
         return JSON.stringify({
           card: rect(card),
+          inner_right: card.getBoundingClientRect().right - parseFloat(style.paddingRight) - parseFloat(style.borderRightWidth),
           button: rect(panel.querySelector('.hovercraft-more-strip-in button')),
+          text_bottom: texts[texts.length - 1].getBoundingClientRect().bottom,
           x_centre: (x.top + x.bottom) / 2,
           x_height: x.bottom - x.top,
-          title_centre: (first.top + first.bottom) / 2
+          first_line_centre: (rows[0].top + rows[0].bottom) / 2,
+          first_lines: rows.length
         });
       })()",
-      scope
+      id
     )))
   }
-  for (scope in c("#dtc", "#rt")) {
-    it(paste("draws the More button inside the card and the close x on the title line,", scope), {
-      close_all()
-      pin_key(if (scope == "#dtc") dt_row("dtc", 3) else rt_row(2))
-      expect_true(page$wait_until(sprintf(
-        "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button') !== null",
-        scope
-      )))
-      for (label in c("closed", "open")) {
-        parts <- panel_parts(scope)
-        info <- paste(scope, label, jsonlite::toJSON(parts, auto_unbox = TRUE))
-        expect_gte(parts$button$top, parts$card$top, label = info)
-        expect_lte(parts$button$bottom, parts$card$bottom, label = info)
-        expect_gte(parts$button$left, parts$card$left, label = info)
-        expect_lte(parts$button$right, parts$card$right, label = info)
-        expect_lt(abs(parts$x_centre - parts$title_centre), 2, label = info)
-        expect_gte(parts$x_height, 28, label = info)
-        if (label == "closed") {
-          page$evaluate(sprintf(
-            "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button').click(); 0",
-            scope
-          ))
+  for (id in c("dt", "dtt", "rt", "rtt")) {
+    it(paste("sit inside the card and on its first line:", id), {
+      withr::defer(close_all())
+      pin_key(row_of(id))
+      button <- sprintf("#%s [data-hovercraft-panel] .hovercraft-more-strip-in button", id)
+      expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", button)))
+      for (state in c("closed", "open")) {
+        if (state == "open") {
+          page$evaluate(sprintf("document.querySelector('%s').click(); 0", button))
           expect_true(page$wait_until(sprintf(
-            "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button').getAttribute('aria-expanded') === 'true'",
-            scope
+            "document.querySelector('#%s [data-hovercraft-panel] .hc-tip').textContent.includes('long form of Foxes')",
+            id
           )))
         }
+        m <- measure(id)
+        info <- paste(id, state, jsonlite::toJSON(m, auto_unbox = TRUE))
+        # Inside the card, below the text, and at the right padding line (the strip is not narrowed by the floated x).
+        expect_gte(m$button$top, m$card$top, label = info)
+        expect_lte(m$button$bottom, m$card$bottom, label = info)
+        expect_gte(m$button$top, m$text_bottom, label = info)
+        expect_lte(abs(m$button$right - m$inner_right), 3, label = info)
+        # The x: a target of 28px or more, on the first line.
+        expect_gte(m$x_height, 28, label = info)
+        expect_lte(abs(m$x_centre - m$first_line_centre), 3, label = info)
+        if (id %in% c("dtt", "rtt")) {
+          expect_gte(m$first_lines, 2, label = info)
+        }
       }
-      close_all()
     })
   }
 
