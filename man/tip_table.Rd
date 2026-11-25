@@ -51,10 +51,12 @@ the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own st
 highlighted while its tip is open. See \code{\link[=tip_marker]{tip_marker()}}.}
 
 \item{id}{The id this table's Shiny inputs hang on (\verb{input$<id>_pin}), and the base of its tips' ids: one
-non-empty string with no whitespace and no \code{:}. It is the table's id, not one tip's. Inside a module, give the
-plain id: \code{tip_table()} adds the module's prefix from the session the table is drawn in, as \code{\link[=tip_show]{tip_show()}} does,
-so \code{id = "scores"} in module \code{"mod1"} is \code{input[["mod1-scores_pin"]]}. An id that already has the prefix
-(\code{session$ns("scores")}) is left alone, and outside a session (a static page) the id is used as given. Give it
+non-empty string with no whitespace and no \code{:}. It is the table's id, not one tip's. Inside \code{renderDT()} or
+\code{renderReactable()} in a module's server function, the plain id is enough: \code{tip_table()} adds the module's prefix
+from the session the table is drawn in, as \code{\link[=tip_show]{tip_show()}} does, so \code{id = "scores"} in module \code{"mod1"} is
+\code{input[["mod1-scores_pin"]]}. In a module's UI function, or anywhere else with no session (a static page), nothing
+adds the prefix: give \code{ns("scores")} there. An id that already has the prefix (\code{session$ns("scores")}) is left
+alone. Give it
 a different id from every other tip source on the page: two tables with one id make the page warn in the
 browser console. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it,
 which follows the data row through sorting, filtering and paging; how that id is built is not part of the API:
@@ -82,8 +84,9 @@ and paging need no code of yours: each row is its own record, whatever place it 
 \details{
 Known limits: \code{row} is the position in the data the table has now, so a pin follows the row number after
 \code{replaceData()} or a redraw; a \code{DT} table in server mode has only the rows of the current page on the screen; and
-the table's script does some work for each row on the screen on every change of the data, so page a long table (the
-R time of \code{tip_table()} does not grow with the rows).
+the table's script does some work for each row on the screen on every change of the data, so page a long table.
+\code{tip_table()} reads the table's data once in R (for a \code{reactable} table it parses all the rows) to check the columns
+and values the tips name, so its R time grows with the rows.
 
 A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
@@ -186,7 +189,8 @@ unchanged.
 \code{groupBy} (the rows inside a group have tips, the group's own row has none), \code{details} (the details panel has
 none) and \code{filterable = TRUE} (the tip of a header cell stays on the header cell; the filter box under it has no
 tip and is not described twice). \code{DT}'s filter row has none either.
-\item An \code{id} inside a module: give the plain id and the module's prefix is added (see \code{id}).
+\item An \code{id} inside a module: give the plain id inside \code{renderDT()} or \code{renderReactable()}, and \code{ns()} in the
+module's UI function (see \code{id}).
 \item Tables that Shiny updates with new data: \code{DT::replaceData()} (it works in server mode) with the user's own data
 frame, and \code{reactable::updateReactable(data = )}. The tips follow the new rows, as they do after sorting,
 filtering and paging.

@@ -47,7 +47,9 @@ or position. Both \code{NULL} (the default) for a tip on a tag.}
 \item{session}{The Shiny session; the default is the one the call runs in.}
 
 \item{text, template, record, placement}{For \code{tip_update()}: the new values, as in \code{\link[=tip_on]{tip_on()}}. \code{NULL} (the default)
-leaves a value as it is and \code{NA} takes it away; \code{""} clears the \code{text}. Give at least one.}
+leaves a value as it is and \code{NA} takes it away; \code{""} clears the \code{text}. Give at least one. For a \code{template} that R
+has not seen in this process (it was defined in another session or process), \code{record} sends every column, since R
+cannot know which ones the template names: choose the columns yourself.}
 }
 \value{
 \code{NULL}, invisibly. These functions are called for their effect on the page.
@@ -85,11 +87,13 @@ nothing. No server call pins a tip or closes a pin.
 away, and for \code{text}, \code{""} clears the words. \code{template} is the name of a template or a \code{\link[=tip_template]{tip_template()}}, which is
 sent with the call (not one that holds a \code{\link[=tip_output]{tip_output()}}, which needs the tag's own \code{\link[=tip_on]{tip_on()}}); \code{text} with
 \code{{{ field }}} placeholders is filled from \code{record}, as in \code{\link[=tip_on]{tip_on()}}. An open tip draws its new words, template or
-record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs a \code{template}, or \code{text}
-with placeholders, in the same call, so that only the columns it names are sent to the page; to change the
-template alone, leave \code{record} out and the tag keeps the record it has. \code{tip_update()} leaves a \code{style} or \code{marker}
-alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the old name; give such a
-button its own \code{aria-label}. The new tip lasts until the tag is drawn again, for example by \code{renderUI()}.
+record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs a \code{template}, or \code{text} with
+placeholders, in the same call, so that only the columns it names are sent to the page; to change the template
+alone, leave \code{record} out and the tag keeps the record it has. A \code{template} given without \code{text} also takes the
+tag's plain text away, since plain text beats a template; give \code{text} with it to keep both. \code{tip_update()} leaves a
+\code{style} or \code{marker} alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the
+old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn again, for example by
+\code{renderUI()}.
 
 On a control that has \code{when_disabled}, \code{tip_update()} changes the control's own tip, also while the control is
 disabled. A disabled control still says only "Not available:" and its reason, in the new \code{placement}; the new \code{text},

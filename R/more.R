@@ -341,6 +341,22 @@ tip_keyshortcuts <- function(pin, more_button) {
   if (length(keys)) paste(keys, collapse = " ")
 }
 
+# The attribute is a list of space-separated tokens, and the page may have written some of them. The tokens of a value,
+# or none.
+tip_key_tokens <- function(value) {
+  if (is.null(value) || is.na(value)) {
+    return(character(0))
+  }
+  tokens <- strsplit(trimws(as.character(value)), "[[:space:]]+")[[1]]
+  tokens[nzchar(tokens)]
+}
+
+# The tokens of `keys` that the tag does not announce yet, as one value, or NULL: only hovercraft's own are added, once.
+tip_keys_to_add <- function(keys, tag) {
+  new <- setdiff(tip_key_tokens(keys), tip_key_tokens(htmltools::tagGetAttribute(tag, "aria-keyshortcuts")))
+  if (length(new)) paste(new, collapse = " ")
+}
+
 tip_more_dependency <- function() {
   attrs <- tip_contract()$attributes
   config <- list(

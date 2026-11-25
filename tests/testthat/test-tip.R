@@ -265,6 +265,30 @@ describe("tip_on() against the templates defined in this session", {
     )
   })
 
+  it("warns about an engine name in the record on every route, the long form and the inline words too", {
+    record <- list(label = "x", tip_id = "9")
+    named <- tip_template(tip_text("{{ label }} {{ tip_id }}"))
+    expect_warning(
+      tip_on(button(), "Short", record = record, more = tip_more(named)),
+      class = "hovercraft_warning_engine_name"
+    )
+    expect_warning(
+      tip_on(button(), "{{ label }} {{ tip_id }}", record = record),
+      class = "hovercraft_warning_engine_name"
+    )
+    expect_warning(
+      tip_on(button(), template = named, record = record),
+      class = "hovercraft_warning_engine_name"
+    )
+    # No clash, no warning.
+    expect_no_warning(tip_on(
+      button(),
+      "Short",
+      record = list(label = "x"),
+      more = tip_more(tip_template(tip_text("{{ label }}")))
+    ))
+  })
+
   it("keeps only the columns the template names, and ignores a bad value in another", {
     got <- tip_on(
       htmltools::tags$button("Run", id = "go"),
@@ -504,6 +528,21 @@ describe("tip_on(more =)", {
       htmltools::tagGetAttribute(tip_on(own, "Short", more = tip_more("Long", on = "hover")), "aria-keyshortcuts"),
       "Alt+R"
     )
+  })
+
+  it("checks the tag's own id when events or a pin take the inputs' names from it", {
+    colon <- htmltools::tags$span("x", id = "step:1", tabindex = "0")
+    expect_error(tip_on(colon, "Short", events = "hint"), "step:1", class = "hovercraft_error_argument")
+    expect_error(tip_on(colon, "Short", pin = TRUE), "step:1", class = "hovercraft_error_argument")
+    expect_error(
+      tip_on(htmltools::tags$span("x", id = "a b", tabindex = "0"), "Short", pin = TRUE),
+      class = "hovercraft_error_argument"
+    )
+    # A tip with no events and no pin sends no inputs, so any id will do; an id of the call's own is checked as before.
+    expect_no_error(tip_on(colon, "Short"))
+    expect_no_error(tip_on(colon, "Short", id = "step_1", events = "hint"))
+    expect_error(tip_on(colon, "Short", id = "a:b", events = "hint"), class = "hovercraft_error_argument")
+    expect_no_error(tip_on(htmltools::tags$span("x", id = "step-1", tabindex = "0"), "Short", events = "hint"))
   })
 
   it("stops with a classed error when on is pin without a pinnable tag or id", {

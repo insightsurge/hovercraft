@@ -86,10 +86,15 @@ tip_strip_tip <- function(tag) {
     tip_labels_attribute(),
     more_attrs
   )
-  keys <- htmltools::tagGetAttribute(tag, "aria-keyshortcuts")
+  keys <- tip_key_tokens(htmltools::tagGetAttribute(tag, "aria-keyshortcuts"))
   tag$attribs[names(tag$attribs) %in% own] <- NULL
-  if ((had_pin || had_more) && identical(keys, tip_keyshortcuts(had_pin, had_more))) {
+  # Only the key tokens the earlier tip added go; the page's own stay, and the attribute goes when none is left.
+  if (length(keys) && (had_pin || had_more)) {
+    left <- setdiff(keys, tip_key_tokens(tip_keyshortcuts(had_pin, had_more)))
     tag$attribs[names(tag$attribs) == "aria-keyshortcuts"] <- NULL
+    if (length(left)) {
+      tag <- htmltools::tagAppendAttributes(tag, `aria-keyshortcuts` = paste(left, collapse = " "))
+    }
   }
   tip_drop_deps(tip_marker_clear(tag))
 }
@@ -242,7 +247,14 @@ tip_check_use <- function(template, held, id, call, session = tip_session()) {
       call = call
     )
   }
-  clash <- intersect(intersect(fields, engine), held)
+  tip_warn_engine_clash(fields, held, call)
+  invisible()
+}
+
+# A record column named like a field the engine also fills in (`tip_id`, `tip_index`): the record wins, and the page's
+# author is told. One rule for every route that checks fields against a record.
+tip_warn_engine_clash <- function(fields, held, call) {
+  clash <- intersect(intersect(fields, unlist(tip_rules()$engine_fields)), held)
   if (length(clash)) {
     tip_warn(
       c(
@@ -345,6 +357,7 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
       call = call
     )
   }
+  tip_warn_engine_clash(fields, held, call)
   invisible()
 }
 
@@ -384,11 +397,13 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' remove it itself, because on an icon it may be the only name.
 #'
 #' @section Stable and experimental:
-#' `tag`, `text`, `template`, `record`, `placement`, `id`, `pin` (one pinned tip at a time), `more` and a `style` that
-#' is a preset name are `r lifecycle::badge("stable")`: their names, values and defaults do not change in 0.1.x.
-#' `events` and the fields of the inputs it turns on, `when_disabled`, `marker`, a `style` that is a [tip_style()], a
-#' [tip_theme()] or a bslib theme, and keeping more than one pin (`max_pins` of [use_hovercraft()]) are
-#' `r lifecycle::badge("experimental")` and may change.
+#' `tag`, `text`, `template`, `record`, `placement`, `id`, `pin` (one pinned tip at a time), `more` as words or a
+#' template (a "More" button opens the long form in the same tip) and a `style` that is a preset name are
+#' `r lifecycle::badge("stable")`: their names, values and defaults do not change in 0.1.x. What the button looks like
+#' and the keys are not part of that promise: the look and place of the "More" button, the M key and the P key are
+#' `r lifecycle::badge("experimental")`, like `events` and the fields of the inputs it turns on, `when_disabled`,
+#' `marker`, a `style` that is a [tip_style()], a [tip_theme()] or a bslib theme, a [tip_more()], and keeping more than
+#' one pin (`max_pins` of [use_hovercraft()]). They may change.
 #'
 #' @section Known limits:
 #' * A tag inside [bslib::tooltip()] or [bslib::popover()], or with `data-bs-toggle`, keeps the tip that bslib draws.
@@ -722,6 +737,9 @@ tip_on <- function(
   }
   tag_id <- htmltools::tagGetAttribute(tag, "id")
   effective_id <- id %||% tag_id
+  if (is.null(id) && !is.null(tag_id) && (!is.null(events) || !is.null(pin_value))) {
+    tip_check_tag_id(tag_id)
+  }
   if (!is.null(events) && is.null(effective_id)) {
     tip_abort(
       c(
@@ -879,9 +897,6 @@ tip_on <- function(
     )
   }
   keys <- tip_keyshortcuts(!is.null(pin_value), isTRUE(more_on %in% c("button", "click")))
-  if (!is.null(keys)) {
-    values[["aria-keyshortcuts"]] <- keys
-  }
   look <- tip_style_tag(style)
   # A tip made before is replaced whole: its words, id, events, pin and look. A call that names none of the wiring the
   # old tip had (an id, events, a pin) says so once.
@@ -898,6 +913,10 @@ tip_on <- function(
     )
   }
   tag <- tip_strip_tip(tag)
+  keys <- tip_keys_to_add(keys, tag)
+  if (!is.null(keys)) {
+    values[["aria-keyshortcuts"]] <- keys
+  }
   if (has_text && !text_inline && tip_needs_label(tag)) {
     label <- tip_plain_text(text)
     if (nzchar(label)) {

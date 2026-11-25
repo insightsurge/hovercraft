@@ -222,11 +222,13 @@ remove it itself, because on an icon it may be the only name.
 }
 \section{Stable and experimental}{
 
-\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time), \code{more} and a \code{style} that
-is a preset name are \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}: their names, values and defaults do not change in 0.1.x.
-\code{events} and the fields of the inputs it turns on, \code{when_disabled}, \code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a
-\code{\link[=tip_theme]{tip_theme()}} or a bslib theme, and keeping more than one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}) are
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} and may change.
+\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time), \code{more} as words or a
+template (a "More" button opens the long form in the same tip) and a \code{style} that is a preset name are
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}: their names, values and defaults do not change in 0.1.x. What the button looks like
+and the keys are not part of that promise: the look and place of the "More" button, the M key and the P key are
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}, like \code{events} and the fields of the inputs it turns on, \code{when_disabled},
+\code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a bslib theme, a \code{\link[=tip_more]{tip_more()}}, and keeping more than
+one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}). They may change.
 }
 
 \section{Known limits}{

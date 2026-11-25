@@ -389,6 +389,9 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
       reset <- c(reset, tip_more_attribute("state"))
     }
   }
+  # `tip_update(row =, text =)` and `placement =` write the engine's text and placement on the node, which the widget
+  # may give to another row (reactable reuses nodes): they go with the row. A spec with a placement writes it again.
+  reset <- c(reset, tip_attributes()[["text"]], if (is.null(content$placement)) tip_attribute("placement"))
   if (!identical(target, "row")) {
     attrs[[tip_attribute("anchor")]] <- "content"
   }
@@ -827,8 +830,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'
 #' Known limits: `row` is the position in the data the table has now, so a pin follows the row number after
 #' `replaceData()` or a redraw; a `DT` table in server mode has only the rows of the current page on the screen; and
-#' the table's script does some work for each row on the screen on every change of the data, so page a long table (the
-#' R time of `tip_table()` does not grow with the rows).
+#' the table's script does some work for each row on the screen on every change of the data, so page a long table.
+#' `tip_table()` reads the table's data once in R (for a `reactable` table it parses all the rows) to check the columns
+#' and values the tips name, so its R time grows with the rows.
 #'
 #' A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 #' its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
@@ -926,7 +930,8 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   `groupBy` (the rows inside a group have tips, the group's own row has none), `details` (the details panel has
 #'   none) and `filterable = TRUE` (the tip of a header cell stays on the header cell; the filter box under it has no
 #'   tip and is not described twice). `DT`'s filter row has none either.
-#' * An `id` inside a module: give the plain id and the module's prefix is added (see `id`).
+#' * An `id` inside a module: give the plain id inside `renderDT()` or `renderReactable()`, and `ns()` in the
+#'   module's UI function (see `id`).
 #' * Tables that Shiny updates with new data: `DT::replaceData()` (it works in server mode) with the user's own data
 #'   frame, and `reactable::updateReactable(data = )`. The tips follow the new rows, as they do after sorting,
 #'   filtering and paging.
@@ -972,10 +977,12 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   the corner for now: `"underline"`, `"icon"` and an icon of your own stop with an error. A cell with a marker is
 #'   highlighted while its tip is open. See [tip_marker()].
 #' @param id The id this table's Shiny inputs hang on (`input$<id>_pin`), and the base of its tips' ids: one
-#'   non-empty string with no whitespace and no `:`. It is the table's id, not one tip's. Inside a module, give the
-#'   plain id: `tip_table()` adds the module's prefix from the session the table is drawn in, as [tip_show()] does,
-#'   so `id = "scores"` in module `"mod1"` is `input[["mod1-scores_pin"]]`. An id that already has the prefix
-#'   (`session$ns("scores")`) is left alone, and outside a session (a static page) the id is used as given. Give it
+#'   non-empty string with no whitespace and no `:`. It is the table's id, not one tip's. Inside `renderDT()` or
+#'   `renderReactable()` in a module's server function, the plain id is enough: `tip_table()` adds the module's prefix
+#'   from the session the table is drawn in, as [tip_show()] does, so `id = "scores"` in module `"mod1"` is
+#'   `input[["mod1-scores_pin"]]`. In a module's UI function, or anywhere else with no session (a static page), nothing
+#'   adds the prefix: give `ns("scores")` there. An id that already has the prefix (`session$ns("scores")`) is left
+#'   alone. Give it
 #'   a different id from every other tip source on the page: two tables with one id make the page warn in the
 #'   browser console. With an `id`, every marked row, cell and header cell gets its own tip id derived from it,
 #'   which follows the data row through sorting, filtering and paging; how that id is built is not part of the API:

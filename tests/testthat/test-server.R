@@ -75,6 +75,26 @@ describe("tip_update()", {
     expect_identical(sent$remove, list())
   })
 
+  it("takes the plain text off when a template comes without words, since the text would beat it", {
+    tip_define(plain_swap = tip_template(tip_title("{{ label }}")))
+    text <- tip_attributes()[["text"]]
+    named <- fake_session()
+    tip_update("run_tip", template = "plain_swap", session = named)
+    got <- named$sent()[[1]]$message
+    expect_identical(unlist(got$remove), text)
+    expect_named(got$set, tip_attributes()[["template"]])
+    inline <- fake_session()
+    tip_update("run_tip", template = tip_template(tip_text("Words")), session = inline)
+    expect_identical(unlist(inline$sent()[[1]]$message$remove), text)
+    # Words given with it stay (they beat the template, as in tip_on()); a template taken away leaves the words alone.
+    both <- fake_session()
+    tip_update("run_tip", text = "Words", template = "plain_swap", session = both)
+    expect_identical(both$sent()[[1]]$message$remove, list())
+    gone <- fake_session()
+    tip_update("run_tip", template = NA, session = gone)
+    expect_identical(unlist(gone$sent()[[1]]$message$remove), tip_attributes()[["template"]])
+  })
+
   it("takes the record away with NA, and needs a template to set one", {
     session <- fake_session()
     tip_update("run_tip", record = NA, session = session)
