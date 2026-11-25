@@ -38,7 +38,7 @@ describe("the tip_table() errors", {
     expect_snapshot(
       tip_table(
         dt(),
-        cells = list(wins = tip_spec("x", more = "y", more_on = "pin")),
+        cells = list(wins = tip_spec("x", more = tip_more("y", on = "pin"))),
         rows = tip_spec("x", pin = TRUE),
         id = "t"
       ),

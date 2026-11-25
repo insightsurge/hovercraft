@@ -90,6 +90,19 @@ shinyApp(ui, server)
 tip from the server; for a table's tip they take the table's `id` with `row` and `column`
 (`tip_show("scores", row = 2, column = "wins")`).
 
+A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
+key opens it too; "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
+again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"` or `"pin"`) and what
+the buttons say (`label =`); it is experimental:
+
+```r
+tip_on(
+  actionButton("run", "Run"),
+  "Runs the **check**",
+  more = "Checks every column and prints a summary. Takes about a minute on the full data."
+)
+```
+
 A live Shiny output inside a tip. `tip_output()` puts a plot, a table or any other output in a template; the output is
 drawn while the tip is open:
 

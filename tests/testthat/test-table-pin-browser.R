@@ -62,8 +62,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
               DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2)),
               rows = tip_spec(
                 tip_template(tip_title("{{ team }}"), tip_text("Query used"), tip_code("sql", copy = TRUE)),
-                more = "{{ wins }} wins this season",
-                more_on = "pin",
+                more = tip_more("{{ wins }} wins this season", on = "pin"),
                 pin = TRUE,
                 events = c("pin", "copy")
               ),
