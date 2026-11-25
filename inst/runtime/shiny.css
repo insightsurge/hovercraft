@@ -85,6 +85,15 @@
   color: var(--bs-danger-text-emphasis, #ea868f);
 }
 
+/* The operating system's dark mode, on a page that has no `data-bs-theme` (a tip forced to light stays light). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme]) .hc-output-error:not([data-hovercraft-mode="light"] .hc-output-error) {
+    border-color: var(--bs-danger-border-subtle, #842029);
+    background: var(--bs-danger-bg-subtle, #2c0b0e);
+    color: var(--bs-danger-text-emphasis, #ea868f);
+  }
+}
+
 .hc-output-error[hidden] {
   display: none;
 }

@@ -425,7 +425,9 @@ describe("tip_spec() in tip_table()", {
 
   it("inherits the table's placement when its own is NULL, and writes none when neither has one", {
     got <- tip_table(dt(), rows = tip_spec("{{ team }}"))
-    expect_no_match(js(got$x$options$createdRow), placement_key(), fixed = TRUE)
+    # No placement is written (the `reset` list names it, to clear what `tip_update()` wrote).
+    written <- sub("^.*\"attrs\":(\\{[^}]*\\}).*$", "\\1", js(got$x$options$createdRow))
+    expect_no_match(written, placement_key(), fixed = TRUE)
     got <- tip_table(dt(), rows = tip_spec("{{ team }}"), placement = "top")
     expect_match(js(got$x$options$createdRow), "\"top\"", fixed = TRUE)
   })
@@ -747,19 +749,35 @@ describe("tip_spec(more =) in tip_table()", {
     expect_null(cfg$cells[["0"]]$attrs[[tip_attribute("more_template")]])
     expect_identical(cfg$cells[["0"]]$attrs[["aria-keyshortcuts"]], "M")
     expect_true(tip_more_attribute("state") %in% unlist(cfg$cells[["0"]]$reset))
-    expect_length(
-      tip_table(
-        rt(),
-        cells = list(team = tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "hover")))
-      )$jsHooks$render[[1]]$data$cells[["0"]]$reset,
-      0L
-    )
+    # A long form on hover writes the engine's attributes itself, so nothing of the button's goes (the text and placement
+    # `tip_update()` writes still do).
+    hover <- tip_table(
+      rt(),
+      cells = list(team = tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "hover")))
+    )$jsHooks$render[[1]]$data$cells[["0"]]$reset
+    expect_false(tip_more_attribute("state") %in% unlist(hover))
     # A header cell has the same default.
     heads <- tip_table(rt(), headers = list(team = tip_spec("The team", more = "More about the team")))
     expect_match(
       heads$jsHooks$render[[1]]$data$headers[["0"]]$attrs[[tip_more_attribute("held-template")]],
       "^table_[a-f0-9]{12}$"
     )
+  })
+
+  it("resets what tip_update() writes on a node, so another row never inherits it", {
+    text <- tip_attributes()[["text"]]
+    got <- tip_table(
+      rt(),
+      rows = tip_spec("{{ team }}"),
+      cells = list(team = tip_spec("{{ team }}", placement = "top"))
+    )
+    cfg <- got$jsHooks$render[[1]]$data
+    # `tip_update(row =, text =)` writes the text, and `placement =` the placement; a spec without a placement of its own
+    # resets that too, one with a placement writes it again on every row.
+    expect_true(all(c(text, tip_attribute("placement")) %in% unlist(cfg$rows$reset)))
+    expect_true(text %in% unlist(cfg$cells[["0"]]$reset))
+    expect_false(tip_attribute("placement") %in% unlist(cfg$cells[["0"]]$reset))
+    expect_identical(cfg$cells[["0"]]$attrs[[tip_attribute("placement")]], "top")
   })
 
   it("writes the engine's attributes for on = 'hover', with no button and no key", {

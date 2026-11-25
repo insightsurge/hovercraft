@@ -142,7 +142,7 @@ tip_reset <- function() {
 #'
 #' @param labels `r lifecycle::badge("experimental")` The words the tips show themselves on the whole page, or `NULL`
 #'   (the default) for the built-in ones. A named character vector, such as `c(copy = "Copy code", close = "Dismiss")`;
-#'   a word left out keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Three keys
+#'   a word left out keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Four keys
 #'   take placeholders, which the page fills in: `pinned` takes `{label}` (the name of the item), `code_line` takes
 #'   `{first}` (the first line of the code) and `code_lines` and `code_lines_empty` take `{n}` (the number of lines;
 #'   `code_lines` takes `{first}` too); other braces stay as written. An unknown key, an empty or blank word, or a value

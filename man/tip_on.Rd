@@ -30,15 +30,18 @@ writes the tag's HTML into the tab's value.}
 \item{text}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} One string of markdown (strong, emphasis, code, links, short
 lists), or \code{NULL}. It is shown as written: build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as
 none: the tag comes back without a tip. When \code{record} is given, the \code{{{ field }}} placeholders in the text are
-filled from it, also when a \code{template} is given (as in a template, with one filter at most, \code{number:n} or
-\code{percent:n}); without a record, braces stay as written. Words with placeholders give the tag no \code{aria-label},
+filled from it (as in a template, with one filter at most, \code{number:n} or \code{percent:n}), also when \code{template} is the
+name of a defined template, which is then not used; when \code{template} is a \code{\link[=tip_template]{tip_template()}}, the text is plain
+words and its braces stay as written, since the text beats the template. Without a record, braces stay as
+written. Words with placeholders give the tag no \code{aria-label},
 because they depend on the record.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
 \item{template}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} The name of a template defined with \code{\link[=tip_define]{tip_define()}}, a
 \code{\link[=tip_template]{tip_template()}} made here, or \code{NULL}. A \code{tip_template()} travels with the tag, so it needs no \code{tip_define()}; its
-fields are checked against \code{record}. If \code{text} is given too, the text is the tip (see \code{text}).}
+fields are checked against \code{record}. If \code{text} is given too, the text is the tip and the template is not used
+(see \code{text} for its placeholders).}
 
 \item{record}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} A named list, or a data frame of one row: the values the template's
 placeholders read, one value each. \code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as
@@ -169,7 +172,7 @@ and tap are tested in Chrome only.}
 \item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tip shows itself, such as "Copy", "Close", "More"
 and the pin button's name, for this tag's tip and every tip inside the tag, or \code{NULL} (the default) to take the
 page's words (see \code{\link[=use_hovercraft]{use_hovercraft()}}). A named character vector, such as \code{c(close = "Dismiss")}; a word left out
-keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Three keys take
+keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Four keys take
 placeholders, which the page fills in: \code{pinned} takes \code{{label}} (the name of the item), \code{code_line} takes \code{{first}}
 (the first line of the code) and \code{code_lines} and \code{code_lines_empty} take \code{{n}} (the number of lines; \code{code_lines}
 takes \code{{first}} too); other braces stay as written. An unknown key, an empty or blank word, or a value that is not
@@ -222,11 +225,13 @@ remove it itself, because on an icon it may be the only name.
 }
 \section{Stable and experimental}{
 
-\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time), \code{more} and a \code{style} that
-is a preset name are \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}: their names, values and defaults do not change in 0.1.x.
-\code{events} and the fields of the inputs it turns on, \code{when_disabled}, \code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a
-\code{\link[=tip_theme]{tip_theme()}} or a bslib theme, and keeping more than one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}) are
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} and may change.
+\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time, with its pin button and
+the P key), \code{more} as words or a template (a "More" button opens the long form in the same tip) and a \code{style} that
+is a preset name are \verb{r lifecycle::badge("stable")}: their names, values and defaults do not change in 0.1.x. What
+the long form's button looks like and the keys beyond the pin's are not part of that promise: the look and place
+of the "More" button, the M key and the \code{keys} argument of \code{\link[=use_hovercraft]{use_hovercraft()}} are \verb{r lifecycle::badge("experimental")}, like \code{events} and the fields of the inputs it turns on, \code{when_disabled},
+\code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a bslib theme, a \code{\link[=tip_more]{tip_more()}}, and keeping more
+than one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}). They may change.
 }
 
 \section{Known limits}{

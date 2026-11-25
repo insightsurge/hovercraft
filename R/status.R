@@ -45,7 +45,8 @@ tip_check_status <- function(status, call = rlang::caller_env()) {
 # hovercraft's own stylesheet (inst/runtime/status.css, which test-status.R holds to this function), a small one on top
 # of the engine: it colours a badge by its `tone` from the page's
 # Bootstrap colours (5.3 and later; bslib pages have them, dark mode included). Where a page has no Bootstrap the
-# colours after the commas are used, a light set, and a dark set under `data-bs-theme="dark"`. It only names the
+# colours after the commas are used, a light set, and a dark set under `data-bs-theme="dark"`, a tip's dark mode and the
+# operating system's dark mode. It only names the
 # engine's own public door, the badge's class and its `data-tone` attribute, and the class prefix comes from the
 # engine's names; the after-copy check in test-engine.R fails when a copy of the engine lacks either.
 tip_status_css <- function() {
@@ -62,15 +63,14 @@ tip_status_css <- function() {
     danger = c("#2c0b0e", "#ea868f", "#842029"),
     info = c("#032830", "#6edff6", "#087990")
   )
-  rule <- function(status, fallback, scope = "") {
+  # `scopes` are the selector prefixes of one rule: its selectors share the declarations.
+  rule <- function(status, fallback, scopes = "") {
     sprintf(
       paste0(
-        "%s%s[data-tone=\"%s\"]{background:var(--bs-%s-bg-subtle,%s);",
+        "%s{background:var(--bs-%s-bg-subtle,%s);",
         "color:var(--bs-%s-text-emphasis,%s);border-color:var(--bs-%s-border-subtle,%s)}"
       ),
-      scope,
-      badge,
-      status,
+      paste0(scopes, badge, "[data-tone=\"", status, "\"]", collapse = ","),
       status,
       fallback[[1]],
       status,
@@ -79,9 +79,19 @@ tip_status_css <- function() {
       fallback[[3]]
     )
   }
+  # The dark set holds under the page's `data-bs-theme="dark"`, under a tip's own dark mode, and in the operating
+  # system's dark mode on a page that has no `data-bs-theme` (a tip forced to light mode stays light), as theme.R does.
+  tip <- paste0(".", tip_names()$css)
+  dark_scopes <- c("[data-bs-theme=\"dark\"] ", "[data-hovercraft-mode=\"dark\"] ")
+  system_scope <- paste0(":root:not([data-bs-theme]) ", tip, ":not([data-hovercraft-mode=\"light\"]) ")
   rules <- c(
     vapply(tip_statuses, function(status) rule(status, light[[status]]), ""),
-    vapply(tip_statuses, function(status) rule(status, dark[[status]], "[data-bs-theme=\"dark\"] "), "")
+    vapply(tip_statuses, function(status) rule(status, dark[[status]], dark_scopes), ""),
+    paste0(
+      "@media (prefers-color-scheme:dark){",
+      paste(vapply(tip_statuses, function(status) rule(status, dark[[status]], system_scope), ""), collapse = ""),
+      "}"
+    )
   )
   paste(rules, collapse = "\n")
 }
