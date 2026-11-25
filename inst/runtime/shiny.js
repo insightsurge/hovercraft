@@ -35,7 +35,9 @@
       if (!el) return note(`hide|${id}`, `tip_hide(): no tag with the tip id "${id}" is on the page.`);
       if (el.getAttribute(names.attributes.open) === names.states.hint) window[names.global].hide();
     },
-    update: ({ id, set, remove }) => {
+    update: ({ id, set, remove, define }) => {
+      // A template that came with the call is made on the page before the tag reads its name.
+      for (const template of [define ?? []].flat()) window[names.global].define(template.name, template.blocks);
       const el = find(id);
       if (!el) return note(`update|${id}`, `tip_update(): no tag with the tip id "${id}" is on the page.`);
       // A control with `when_disabled` sits in a wrapper that answers to the control's tip id while the control is off, so

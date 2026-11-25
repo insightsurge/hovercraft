@@ -116,6 +116,66 @@ describe("tip_update()", {
     expect_length(session$sent(), 0L)
   })
 
+  it("takes a tip_template() as tip_on() does: it travels with the message, under the name tip_on() would give it", {
+    tpl <- tip_template(tip_title("{{ label }}"), tip_text("n is {{ n }}"))
+    session <- fake_session()
+    tip_update(
+      "run_tip",
+      text = NA,
+      template = tpl,
+      record = list(label = "ADAE", n = 3, extra = "x"),
+      session = session
+    )
+    got <- session$sent()[[1]]$message
+    name <- got$set[[tip_attributes()[["template"]]]]
+    expect_match(name, "^inline_[a-f0-9]{12}$")
+    expect_identical(
+      name,
+      htmltools::tagGetAttribute(
+        tip_on(button(), template = tpl, record = list(label = "a", n = 1)),
+        tip_attribute("template")
+      )
+    )
+    expect_identical(got$define[[1]]$name, name)
+    expect_identical(got$define[[1]]$blocks[[1]]$type, "title")
+    expect_named(jsonlite::fromJSON(got$set[[tip_attributes()[["record"]]]]), c("label", "n"))
+    expect_identical(unlist(got$remove), tip_attributes()[["text"]])
+    expect_error(
+      tip_update("run_tip", template = tpl, record = list(label = "ADAE"), session = fake_session()),
+      class = "hovercraft_error_field"
+    )
+    # A template alone, with no record, changes the template only.
+    alone <- fake_session()
+    tip_update("run_tip", template = tpl, session = alone)
+    expect_named(alone$sent()[[1]]$message$set, tip_attributes()[["template"]])
+  })
+
+  it("fills {{ field }} in new words when a record comes with them, and keeps plain words as words", {
+    session <- fake_session()
+    tip_update("run_tip", text = "Hello {{ who }}", record = list(who = "Ada", extra = 1), session = session)
+    got <- session$sent()[[1]]$message
+    expect_match(got$set[[tip_attributes()[["template"]]]], "^inline_")
+    expect_false(tip_attributes()[["text"]] %in% names(got$set))
+    expect_identical(unlist(got$remove), tip_attributes()[["text"]])
+    expect_named(jsonlite::fromJSON(got$set[[tip_attributes()[["record"]]]]), "who")
+    expect_error(
+      tip_update("run_tip", text = "Hello {{ who }}", record = list(other = 1), session = fake_session()),
+      class = "hovercraft_error_field"
+    )
+    expect_error(
+      tip_update("run_tip", text = "Hello", record = list(who = "Ada"), session = fake_session()),
+      class = "hovercraft_error_record"
+    )
+  })
+
+  it("does not send a template that holds a tip_output(), which needs the tag's own tip_on()", {
+    skip_if_not_installed("shiny")
+    expect_error(
+      tip_update("run_tip", template = tip_template(tip_output("plot_out")), session = fake_session()),
+      class = "hovercraft_error_template"
+    )
+  })
+
   it("takes a template alone, for a tag that already holds its record", {
     tip_define(diff = tip_template(tip_title("{{ label }}")))
     session <- fake_session()

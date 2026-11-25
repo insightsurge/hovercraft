@@ -15,12 +15,9 @@ tip_define(...)
 Tags to put in the page's UI.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the
-page's UI, once. A name is lower-case letters, digits and \verb{_}, starting with a letter; inside a Shiny module, prefix
-it with \code{ns()} (for example \code{tip_define(!!ns("row") := tip_template(...))}) so two copies of the module keep their
-own templates without overwriting each other. Defining the same name again replaces the earlier template under it,
-with a warning when the blocks differ.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the page's UI, once. Names are page-wide. A name is lower-case letters, digits and \verb{_},
+starting with a letter; inside a Shiny module, prefix it with \code{ns()} (for example \code{tip_define(!!ns("row") := tip_template(...))}) so two copies of the module keep their own templates without overwriting each other. Defining
+the same name again replaces the earlier template under it, with a warning when the blocks differ.
 }
 \details{
 The templates are also kept in R, so that \code{\link[=tip_on]{tip_on()}} can check a record against them. Defined in a Shiny session (in

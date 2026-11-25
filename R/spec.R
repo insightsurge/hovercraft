@@ -44,7 +44,7 @@
 #' @param events The Shiny inputs this target's tips send: one or more of `"hint"`, `"pin"` and `"copy"`, or `NULL` (the
 #'   default) for none. `"pin"` and `"copy"` belong to a pinned tip, so asking for either without a `pin` stops with an
 #'   error, as in [tip_on()]. Only the tips of `rows` send them for now ("only rows send events for now"), and they need
-#'   the table's `id`. The inputs belong to the table, one per event, not one per row: see the `events` section of
+#'   the table's `id`. The inputs belong to the table, one per event, not one per row: see the "Shiny inputs" section of
 #'   [tip_table()].
 #'
 #' @returns An object of class `hovercraft_spec`, to give to [tip_table()].

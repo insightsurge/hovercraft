@@ -57,7 +57,7 @@ both widgets, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} is re
 \item{events}{The Shiny inputs this target's tips send: one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}, or \code{NULL} (the
 default) for none. \code{"pin"} and \code{"copy"} belong to a pinned tip, so asking for either without a \code{pin} stops with an
 error, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} send them for now ("only rows send events for now"), and they need
-the table's \code{id}. The inputs belong to the table, one per event, not one per row: see the \code{events} section of
+the table's \code{id}. The inputs belong to the table, one per event, not one per row: see the "Shiny inputs" section of
 \code{\link[=tip_table]{tip_table()}}.}
 }
 \value{

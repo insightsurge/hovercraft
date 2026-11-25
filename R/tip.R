@@ -339,7 +339,7 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 
 #' Put a tip on a tag
 #'
-#' `r lifecycle::badge("experimental")`
+#' `r lifecycle::badge("stable")`
 #' Gives one HTML tag a tip that shows after the pointer rests on it, or keyboard focus arrives, and hides when either
 #' leaves. The tip is plain text, or drawn from a named template ([tip_define()]) filled in from a record: the values of
 #' one item, such as a row of a table. The engine's script and CSS are attached to the tag, so it works in a bslib page,
@@ -372,36 +372,54 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' `tip_on()` warns once, with the class `hovercraft_warning_title`, and says to remove the `title`; it does not
 #' remove it itself, because on an icon it may be the only name.
 #'
-#' @param tag One HTML tag, such as `htmltools::tags$tr()` or `shiny::actionButton()`. A list of tags, a tag list or
-#'   text stops with an error. To tip a tab, put the tip on the tag that is its title, and give the tab a `value`:
-#'   `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. Without `value`, bslib writes the tag's HTML
-#'   into the tab's value.
-#' @param text One string of markdown (strong, emphasis, code, links, short lists), or `NULL`. It is shown as written:
-#'   build it with [paste0()] or [sprintf()]. `NA` and `""` count as none: the tag comes back without a tip. When
-#'   `record` is given, the `{{ field }}` placeholders in the text are filled from it, also when a `template` is given
-#'   (as in a template, with one filter at most, `number:n` or `percent:n`); without a record, braces stay as written.
-#'   Words with placeholders give the tag no `aria-label`, because they depend on the record.
+#' @section Stable and experimental:
+#' `tag`, `text`, `template`, `record`, `placement`, `id`, `pin` (one pinned tip at a time), `more` and a `style` that
+#' is a preset name are `r lifecycle::badge("stable")`: their names, values and defaults do not change in 0.1.x.
+#' `events` and the fields of the inputs it turns on, `when_disabled`, `marker`, a `style` that is a [tip_style()], a
+#' [tip_theme()] or a bslib theme, and keeping more than one pin (`max_pins` of [use_hovercraft()]) are
+#' `r lifecycle::badge("experimental")` and may change.
+#'
+#' @section Known limits:
+#' * A tag inside [bslib::tooltip()] or [bslib::popover()], or with `data-bs-toggle`, keeps the tip that bslib draws.
+#' * A pin closes (reason `"gone"`) when its item is removed, or hidden by a tab, a conditional panel or a sidebar, and
+#'   it does not come back with the item. A pin whose item only scrolls out of view is hidden and returns when the item
+#'   does.
+#' * `tip_on()` costs about a millisecond of R time for each tag, and the page's script some time on every change of
+#'   the page: for a long table, page it.
+#' * Reconnecting an app (`allowReconnect`) is untested.
+#'
+#' @param tag `r lifecycle::badge("stable")` One HTML tag, such as `htmltools::tags$tr()` or `shiny::actionButton()`. A
+#'   list of tags, a tag list or text stops with an error. To tip a tab, put the tip on the tag that is its title, and
+#'   give the tab a `value`: `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. Without `value`, bslib
+#'   writes the tag's HTML into the tab's value.
+#' @param text `r lifecycle::badge("stable")` One string of markdown (strong, emphasis, code, links, short
+#'   lists), or `NULL`. It is shown as written: build it with [paste0()] or [sprintf()]. `NA` and `""` count as
+#'   none: the tag comes back without a tip. When `record` is given, the `{{ field }}` placeholders in the text are
+#'   filled from it, also when a `template` is given (as in a template, with one filter at most, `number:n` or
+#'   `percent:n`); without a record, braces stay as written. Words with placeholders give the tag no `aria-label`,
+#'   because they depend on the record.
 #' @param ... Must be empty. It makes a misspelt argument an error.
-#' @param template The name of a template defined with [tip_define()], a [tip_template()] made here, or `NULL`. A
-#'   `tip_template()` travels with the tag, so it needs no `tip_define()`; its fields are checked against `record`.
-#'   If `text` is given too, the text is the tip (see `text`).
-#' @param record A named list, or a data frame of one row: the values the template's placeholders read, one value each.
-#'   `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as `YYYY-MM-DDTHH:MM:SSZ` and
-#'   factors as their labels. Once [tip_define()] has seen the template, only the columns it names are kept, so nothing
-#'   else in a row is written into the page; for a template not seen here, every column goes, so choose them with
-#'   `data[i, c("label", "n")]`.
+#' @param template `r lifecycle::badge("stable")` The name of a template defined with [tip_define()], a
+#'   [tip_template()] made here, or `NULL`. A `tip_template()` travels with the tag, so it needs no `tip_define()`; its
+#'   fields are checked against `record`. If `text` is given too, the text is the tip (see `text`).
+#' @param record `r lifecycle::badge("stable")` A named list, or a data frame of one row: the values the template's
+#'   placeholders read, one value each. `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as
+#'   `YYYY-MM-DDTHH:MM:SSZ` and factors as their labels. Once [tip_define()] has seen the template, only the columns it
+#'   names are kept, so nothing else in a row is written into the page; for a template not seen here, every column goes,
+#'   so choose them with `data[i, c("label", "n")]`.
 #'
-#' @param style `r lifecycle::badge("experimental")` How this tag's tip looks, or `NULL` (the default) to take the
-#'   page's. A preset name from [tip_presets()] (`"none"` clears a preset set above), a [tip_style()], or one part of a
-#'   style: a [tip_theme()] or a [bslib::bs_theme()]. The tag's style beats the page's, and a value set nearer wins,
-#'   value by value. A list is not taken, and neither is a string that holds `:` or `;` (`style` takes no CSS); see
-#'   [tip_style()]. A list of CSS variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so on one
-#'   tag it stops with an error: give it to [use_hovercraft()], or use the roles of [tip_theme()].
+#' @param style `r lifecycle::badge("stable")` as a preset name, `r lifecycle::badge("experimental")` as a style
+#'   object. How this tag's tip looks, or `NULL` (the default) to take the page's. A preset name from [tip_presets()]
+#'   (`"none"` clears a preset set above), a [tip_style()], or one part of a style: a [tip_theme()] or a
+#'   [bslib::bs_theme()]. The tag's style beats the page's, and a value set nearer wins, value by value. A list is not
+#'   taken, and neither is a string that holds `:` or `;` (`style` takes no CSS); see [tip_style()]. A list of CSS
+#'   variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so on one tag it stops with an error:
+#'   give it to [use_hovercraft()], or use the roles of [tip_theme()].
 #'
-#' @param placement Where the tip opens: `"auto"`, `"top"`, `"bottom"`, `"left"` or `"right"`, or `NULL` (the default)
-#'   for the page's choice, which is `"auto"` unless a tagged ancestor sets a side. A chosen side flips to the other
-#'   when there is no room, and `"left"` and `"right"` mirror in right-to-left text. On a phone the tip always chooses
-#'   its own side.
+#' @param placement `r lifecycle::badge("stable")` Where the tip opens: `"auto"`, `"top"`, `"bottom"`, `"left"` or
+#'   `"right"`, or `NULL` (the default) for the page's choice, which is `"auto"` unless a tagged ancestor sets a side. A
+#'   chosen side flips to the other when there is no room, and `"left"` and `"right"` mirror in right-to-left text. On a
+#'   phone the tip always chooses its own side.
 #'
 #' @param marker `r lifecycle::badge("experimental")` A visible cue that the tag holds a tip. `NULL` (the default) and
 #'   `"none"` draw none; the others are `"underline"`, `"icon"` or `"corner"`, a [tip_marker()] to choose the line of
@@ -409,8 +427,8 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   `tip_marker("icon", icon = ...)`). See [tip_marker()] for what each draws. For the cells of a table, use the
 #'   `marker` argument of [tip_table()].
 #'
-#' @param id `r lifecycle::badge("experimental")` A Shiny id for this tip, or `NULL` (the default) for none: one
-#'   non-empty string with no whitespace, so `ns("baseline_tip")` works in a module. Give it a different id from every
+#' @param id `r lifecycle::badge("stable")` A Shiny id for this tip, or `NULL` (the default) for none: one non-empty
+#'   string with no whitespace and no `:`, so `ns("baseline_tip")` works in a module. Give it a different id from every
 #'   other tip source on the page. [tip_show()], [tip_hide()] and [tip_update()] find the tip by it, and `events` names
 #'   the inputs after it.
 #'
@@ -433,7 +451,9 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   `"pin"` also keeps `input$<id>_pinned`, `TRUE` while the tip is pinned and `FALSE` after, sent in the same batch
 #'   as `_pin` and as a plain value, so an equal value does not fire an observer again; read it with
 #'   `isTRUE(input$run_pinned)`. The values of `state` may grow in a later version, so an app should not assume it
-#'   knows them all.
+#'   knows them all. Every one of these inputs is `NULL` until its first event; in `shiny::testServer()` set them with
+#'   `session$setInputs()`, and in `shinytest2` with `set_inputs(..., allow_no_input_binding_ = TRUE)`. On a page
+#'   without Shiny (R Markdown, Quarto, a static page) `events` does nothing.
 #'   `"copy"` sends `input$<id>_copy` each time the Copy button of a code block in the pinned tip is
 #'   pressed: `field` (the record field the code came from), `block` (the code block's place among the tip's code
 #'   blocks, from 0), `ok` (`TRUE` when the browser let the copy happen), `by` (`"reader"`) and `via` (`"click"` or
@@ -471,7 +491,8 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
 #'   that needs no wrapper, which asks the tip engine for a keyboard stop of its own.
 #'
-#' @param more `r lifecycle::badge("experimental")` Extra content for the long form of the tip, or `NULL` (the default)
+#' @param more `r lifecycle::badge("stable")` as words or a template, `r lifecycle::badge("experimental")` as a
+#'   [tip_more()]. Extra content for the long form of the tip, or `NULL` (the default)
 #'   for none: words (markdown, optionally with `{{ field }}` placeholders filled from `record`), a [tip_template()], or
 #'   a [tip_more()] that also says when the long form shows. `NA` and `""` count as none. Words and a template are the
 #'   same as `tip_more()` with its default: the tip is short, and a "More" button in it (and the M key) opens the long
@@ -479,7 +500,7 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   `"pin"` the tag must be able to pin and have an `id` (either `id =` or the tag's own HTML `id`), otherwise
 #'   `tip_on()` stops with an error.
 #'
-#' @param pin `r lifecycle::badge("experimental")` Whether a reader can keep this tip open: `NULL` (the
+#' @param pin `r lifecycle::badge("stable")` Whether a reader can keep this tip open, one at a time: `NULL` (the
 #'   default) or `FALSE` for a tip that only shows on hover or focus (`FALSE` is "never", whatever a level above says),
 #'   `TRUE` for a tip that is pinned by the small
 #'   pin button in the corner of the tip, or by the pin key, and `"click"` for a tip that a click on the tagged item

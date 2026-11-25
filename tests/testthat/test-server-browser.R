@@ -46,6 +46,8 @@ describe("server calls and the hint input in a Shiny app", {
         shiny::actionButton("missing", "Missing"),
         shiny::actionButton("swap", "Swap"),
         shiny::uiOutput("swap_ui"),
+        tip_on(shiny::actionButton("tplb", "Tpl"), "Old words", id = "tpl_tip"),
+        shiny::actionButton("tpl_go", "Tpl go"),
         shiny::actionButton("redraw", "Redraw"),
         shiny::uiOutput("late_ui"),
         shiny::verbatimTextOutput("swap_seen"),
@@ -86,6 +88,14 @@ describe("server calls and the hint input in a Shiny app", {
           ticks(ticks() + 1)
           tip_show("late_tip")
         })
+        shiny::observeEvent(input$tpl_go, {
+          tip_update(
+            "tpl_tip",
+            text = NA,
+            template = tip_template(tip_title("Hi {{ who }}"), tip_text("{{ n }} items")),
+            record = list(who = "Ada", n = 3)
+          )
+        })
         shiny::observeEvent(input$place, tip_update("run_tip", placement = "right"))
         shiny::observeEvent(input$missing, {
           tip_show("nope")
@@ -107,14 +117,7 @@ describe("server calls and the hint input in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   # Waits for the server to have drawn an output with this text, then reads it.
   seen <- function(id, pattern) {
@@ -124,7 +127,7 @@ describe("server calls and the hint input in a Shiny app", {
       jsonlite::toJSON(id, auto_unbox = TRUE)
     ))
   }
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
 
   it("starts and connects", {
     expect_true(up, info = paste(app$read_error(), collapse = "\n"))
@@ -163,7 +166,7 @@ describe("server calls and the hint input in a Shiny app", {
   it("does nothing for a hide when that tip is not the one open", {
     page$hover("#quiet")
     press_button("hide")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$shown(), "A quiet tip")
   })
 
@@ -187,7 +190,7 @@ describe("server calls and the hint input in a Shiny app", {
     expect_true(any(page$shown() == "Hover B"))
     # Not a click: a click away would close the pin by itself.
     page$evaluate("Shiny.setInputValue('hide_a', Date.now())")
-    Sys.sleep(0.6)
+    page$settle()
     expect_true(any(page$shown() == "Hover B"))
   })
 
@@ -220,14 +223,14 @@ describe("server calls and the hint input in a Shiny app", {
     expect_identical(side(), "other")
     page$hover("#quiet")
     press_button("place")
-    Sys.sleep(0.5)
+    page$settle()
     page$hover("#run")
     expect_identical(side(), "right")
   })
 
   it("takes the words away from the server, so the tag has no tip", {
     press_button("clear")
-    Sys.sleep(0.5)
+    page$settle()
     page$hover("#quiet")
     expect_length(page$hover("#run"), 0L)
   })
@@ -248,5 +251,18 @@ describe("server calls and the hint input in a Shiny app", {
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 2'",
       tip_names()$css
     )))
+  })
+
+  it("changes a tip to a template that comes with the call, drawn from the record that comes with it", {
+    press_button("tpl_go")
+    # The call is sent after its flush: wait for the tag to hold the template before the pointer rests on it.
+    expect_true(page$wait_until(
+      "document.getElementById('tplb').closest('[data-hovercraft-tip-template]') !== null"
+    ))
+    shown <- page$hover("#tplb")
+    expect_match(paste(shown, collapse = " "), "Hi Ada")
+    expect_match(paste(shown, collapse = " "), "3 items")
+    expect_no_match(paste(shown, collapse = " "), "Old words")
+    expect_identical(page$problems(), character())
   })
 })

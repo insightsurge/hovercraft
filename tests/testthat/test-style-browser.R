@@ -150,7 +150,7 @@ watch_animations <- function(page) {
 open_tip <- function(page, id, click = FALSE) {
   page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({block: 'center', behavior: 'instant'}); 0", id))
   # The page moved under the pointer, which may open another tag's tip: let it settle before the one under test.
-  Sys.sleep(0.8)
+  page$settle(0.3)
   page$evaluate("window.__animations = []; 0")
   shown <- if (click) page$click(paste0("#", id)) else page$hover(paste0("#", id))
   info <- jsonlite::fromJSON(

@@ -42,7 +42,7 @@ describe("the engine on a page that marks its controls again", {
   it("settles, and the page and the tips keep working", {
     expect_true(app$proc$is_alive(), info = paste(app$proc$read_error(), collapse = "\n"))
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-tip-id]').length === 3"))
-    Sys.sleep(1)
+    page$settle(0.5)
     # A few rounds of the page's own observer, and then no more: it was at its cap of 300 when the engine fed it.
     expect_lt(page$evaluate("window.rounds"), 30)
     # The main thread answers, and a tip shows on the pointer.

@@ -284,7 +284,7 @@ tip_style <- function(
 
 #' The presets
 #'
-#' `r lifecycle::badge("experimental")`
+#' `r lifecycle::badge("stable")`
 #' Lists the presets the tip engine ships, to give as `style =` to [tip_on()] and [use_hovercraft()], or as the first
 #' argument of [tip_style()]. The name of a preset is stable; its values may be tuned between releases.
 #'
