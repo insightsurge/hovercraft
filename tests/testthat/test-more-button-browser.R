@@ -306,6 +306,35 @@ describe("the More button on a tag", {
     rest()
   })
 
+  it("opens and closes the long form with the M key while the pointer hovers the item", {
+    wait_hint("#go")
+    expect_false(isTRUE(grepl("business hours", box_of()$text)))
+    page$press("m", wait = 0.6)
+    expect_match(box_of()$text, "business hours")
+    expect_identical(button_text(), "Less")
+    page$press("m", wait = 0.6)
+    expect_no_match(box_of()$text, "business hours")
+    expect_identical(button_text(), "More")
+    rest()
+  })
+
+  it("acts on the item whose hint is on show when the focus is on another, and does nothing from a field", {
+    page$evaluate("document.getElementById('mid').focus()")
+    wait_hint("#go")
+    page$press("m", wait = 0.6)
+    expect_match(box_of()$text, "business hours")
+    rest()
+    page$evaluate("document.getElementById('txt').focus()")
+    wait_hint("#go")
+    prevented <- page$evaluate(
+      "(() => { const e = new KeyboardEvent('keydown', { key: 'm', bubbles: true, cancelable: true }); document.activeElement.dispatchEvent(e); return e.defaultPrevented; })()"
+    )
+    expect_false(prevented)
+    page$hold(0.4) # the key must not toggle anything: nothing happening has no signal
+    expect_no_match(box_of()$text, "business hours")
+    rest()
+  })
+
   it("does not take the M key inside a text field, where a letter is a letter", {
     page$evaluate("document.getElementById('txt').focus()")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))

@@ -155,10 +155,12 @@ put the tip on a \verb{<div>} or \verb{<span>} around it.
 The pin button is drawn over the corner of the tip as a separate element, so a screen reader still gets a tip
 that it only reads; the first block of the tip keeps room for it, so a one-sentence tip has the button at the
 end of its line. The pin key is \code{P}, which the tagged item announces as \code{aria-keyshortcuts}: it pins the tagged
-item while the focus is on the item or inside it, and does nothing while the focus is in a field or anywhere
-else on the page. A screen reader that is in browse mode may take the letter for its own navigation, so check
-the key with the screen reader you support. \code{Escape} closes a pinned tip. Pointer, keyboard and tap are tested
-in Chrome only.}
+item while the focus is on the item or inside it, or while the pointer rests on it and its tip is shown, and does
+nothing while the focus is in a field or while neither holds. When the focus is on one item and the tip shown is
+another's, the key pins the item whose tip is shown, the tip the reader sees; an item that is pinned and holds the
+focus keeps the key. A screen reader that is in browse mode may take the letter for its own navigation, so check
+the key with the screen reader you support. \code{Escape} closes a pinned tip. Pointer, keyboard and tap are tested in
+Chrome only.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,

@@ -176,6 +176,23 @@ describe("the More button with several pinned tips", {
     expect_true(state(page)$one$long)
   })
 
+  it("does nothing on the M key from a hover when the key is switched off, and opens the long form when it is on", {
+    off <- local_page(
+      page_file(use_hovercraft(keys = c(more = FALSE)), item("one", 40, 40, pin = FALSE)),
+      environment()
+    )
+    expect_true(off$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    expect_length(off$hover("#one"), 1L)
+    off$press("m")
+    off$hold(0.3) # the key must not toggle the hint: nothing happening has no signal
+    expect_false(off$evaluate("document.querySelector('.hc-tip:not([hidden])').textContent.includes('LONG')"))
+    on <- local_page(page_file(use_hovercraft(), item("one", 40, 40, pin = FALSE)), environment())
+    expect_true(on$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    expect_length(on$hover("#one"), 1L)
+    on$press("m")
+    expect_true(on$wait_until("document.querySelector('.hc-tip:not([hidden])').textContent.includes('LONG')"))
+  })
+
   it("does nothing on the M key when the key is switched off, and the button still works", {
     page <- local_page(
       page_file(use_hovercraft(keys = c(more = FALSE)), item("one", 40, 40)),

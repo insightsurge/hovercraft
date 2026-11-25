@@ -34,11 +34,11 @@ means one there.}
 
 \item{keys}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The letter keys of a tip: \code{TRUE} (the default) for all, \code{FALSE} for
 none, or a named logical vector with one switch per key, \code{c(pin = FALSE)} or \code{c(more = FALSE)}; a key left out
-stays on. \code{pin} is the key that pins the tagged item (P), which works only while the focus is on the item and
-never inside a field; \code{more} is the key that opens a tip's long form (M), which \code{tip_more()} adds. Escape always
-closes a tip. Switching \code{pin} off takes the key's announcement (\code{aria-keyshortcuts}) off the items too; the pin
-button stays. Give it once: a second \code{use_hovercraft(keys = )} that differs warns in the console and the first
-holds.}
+stays on. \code{pin} is the key that pins the tagged item (P), which works while the focus is on the item or its tip is
+shown by the pointer, and never inside a field; \code{more} is the key that opens a tip's long form (M), which
+\code{tip_more()} adds. Escape always closes a tip. Switching \code{pin} off takes the key's announcement
+(\code{aria-keyshortcuts}) off the items too; the pin button stays. Give it once: a second \code{use_hovercraft(keys = )}
+that differs warns in the console and the first holds.}
 }
 \value{
 A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}

@@ -816,11 +816,12 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' Pins: with `tip_spec(pin = TRUE)` as `rows`, a reader can keep a row's tip open. The tip that shows on hover or
 #' focus gets a small pin handle in its corner, the same as [tip_on()]'s (`pin = TRUE`): a click or tap on it pins the
 #' row's tip, and the tip's own close button, `Escape` or a click away closes it (a click away does not close a panel
-#' that opens in place, see below). The pin key `P` pins the tip of the
-#' row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
+#' that opens in place, see below). The pin key `P` pins the tip of the row that has focus or whose tip is shown by the
+#' pointer, or of the row a focused or hovered cell belongs to; a cell or a header cell has no pin of its own ("only
 #' rows pin for now"). A long form (`more`) opens with its "More" button, or with the `M` key when the focus is on the
-#' row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
-#' column and not a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which
+#' row, a cell or a header cell, or the pointer rests on it and its tip is shown. A tap on a row shows its tip and a
+#' tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab stop and
+#' its columns; keyboard readers use the key, which
 #' each row that can pin announces as `aria-keyshortcuts`. A pin follows its row. It stays on a row when `DT` sorts
 #' (client and server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
 #' `reactable::updateReactable(data = )` give it new data, with the new values in its tip. It closes when its row

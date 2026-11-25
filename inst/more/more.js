@@ -25,6 +25,9 @@
   const leaving = new WeakMap();
   const LEAVING = 400;
   let live = null;
+  // The item whose hint is on show now, held or not, or null: the M key acts on it, since it is the tip the reader sees.
+  // It is cleared the moment the hint is told to close.
+  let shown = null;
   const all = () => [slots.hint, ...pins.values()].filter(Boolean);
   const current = (o) => (o.kind === 'hint' ? slots.hint === o : pins.get(o.item) === o);
 
@@ -307,6 +310,8 @@
     sweep();
     const detail = event.detail;
     const item = event.target;
+    if (detail?.state === 'shown') shown = item;
+    else if (detail?.state === 'hidden' && shown === item) shown = null;
     if (!isHeld(item)) return;
     if (detail?.state === 'shown') {
       // A hint that opens starts short, whatever the last one ended on.
@@ -346,8 +351,10 @@
     if (item && !item.getAttribute(A().open) && expandedNow(item)) setState(item, false);
   };
 
-  // The M key, while the focus is on the item or inside its pinned tip and the tip is open: it opens and closes the long
-  // form. In a text field a letter is a letter, so there the key does nothing; and a key held down toggles once.
+  // The M key opens and closes the long form of the tip that is open: of the pinned tip that holds the focus (also the
+  // item of a pinned tip); else of the item whose hint is on show, by hover or by focus (with the focus on one item and
+  // the pointer on another, the hint's item wins, since it is the tip the reader sees); else of the item that holds the
+  // focus. In a text field a letter is a letter, so there the key does nothing; and a key held down toggles once.
   const onKey = (event) => {
     if (typeof event.key !== 'string') return;
     // The page can switch the letter key off (`use_hovercraft(keys = c(more = FALSE))`); the button stays.
@@ -355,7 +362,10 @@
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
     // The pinned tip that holds the focus (its box or its button), else the tagged item that has it.
     const held = [...pins.values()].find((o) => o.box.contains(active) || o.strip.contains(active));
-    const item = held ? held.item : itemOf(active);
+    const focused = held ? held.item : itemOf(active);
+    // A pinned tip that holds the focus keeps the key; else the hint's item, else the item that has the focus.
+    const item =
+      held || focused?.getAttribute(A().open) === 'pin' ? focused : itemOf(shown?.isConnected ? shown : active);
     if (!item?.getAttribute(A().open)) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     if (event.key.toLowerCase() !== names.key || editable(active)) return;

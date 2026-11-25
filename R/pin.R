@@ -118,14 +118,16 @@ tip_check_pin_click <- function(tag, call = rlang::caller_env()) {
   invisible()
 }
 
-# The pin key: one letter, used only while the focus is on the tagged item (WCAG 2.1.4). The tagged item announces it
-# (`aria-keyshortcuts`) where a keyboard and a screen reader meet the item; the layer listens for it.
+# The pin key: one letter, used while the focus is on the tagged item or its tip is shown by the pointer, never in a
+# field (WCAG 2.1.4). The tagged item announces it (`aria-keyshortcuts`) where a keyboard and a screen reader meet the
+# item; the layer listens for it.
 tip_pin_key <- function() "p"
 
 tip_pin_dependency <- function() {
   config <- list(
     attributes = list(
       pin = tip_attribute("pin"),
+      open = tip_contract()$attributes$open,
       part = tip_contract()$attributes$part,
       id = tip_attribute("id"),
       keysOff = tip_keys_off_attribute()

@@ -18,6 +18,9 @@
   // What is open now: the strip, the hint it sits on, the item the hint is for, the frame loop that follows the hint, and
   // what was last written to the strip.
   let open = null;
+  // The item whose hint is on show now, for any tip (a hover or a focus opens it), or null. The pin key acts on it, since it
+  // is the tip the reader sees; it is cleared the moment the hint is told to close, not when it has faded.
+  let shown = null;
 
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
 
@@ -121,6 +124,8 @@
   const onHint = (event) => {
     const detail = event.detail;
     const item = event.target?.closest?.(`[${names.attributes.pin}]`);
+    if (detail?.state === 'shown') shown = event.target;
+    else if (detail?.state === 'hidden' && shown === event.target) shown = null;
     if (detail?.state === 'shown' && item && event.target === item) show(item);
     else if (detail?.state === 'shown') close();
     else if (detail?.state === 'hidden' && open) {
@@ -131,15 +136,21 @@
     }
   };
 
-  // The pin key: a single letter, so only while the focus is on the tagged item itself (or inside it), never anywhere
-  // else on the page (WCAG 2.1.4). A key event with no key (the browser's autofill sends them) is none of ours.
+  // The pin key: a single letter. It pins the item whose hint is on show (the tip the reader sees, by hover or by focus),
+  // else the item that holds the focus (or has it inside); with the focus on one item and the pointer on another, the
+  // hint's item wins. It never acts while the focus is in a field, and never on a page where no hint is on show and the
+  // focus is elsewhere (WCAG 2.1.4). A key event with no key (the browser's autofill sends them) is none of ours.
   const onKey = (event) => {
     if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key) return;
     // The page can switch the letter key off (`use_hovercraft(keys = c(pin = FALSE))`); the button stays.
     if (document.documentElement.getAttribute(names.attributes.keysOff)?.split(/\s+/).includes('pin')) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
-    const item = active?.closest?.(`[${names.attributes.pin}]`);
+    const focused = active?.closest?.(`[${names.attributes.pin}]`);
+    // An item that is pinned and holds the focus keeps the key; else the hint's item, else the item that has the focus.
+    const hinted = shown?.isConnected ? shown : active;
+    const item =
+      focused?.getAttribute(names.attributes.open) === 'pin' ? focused : hinted?.closest?.(`[${names.attributes.pin}]`);
     if (!item || editable(active) || item.matches(':disabled, [aria-disabled="true"]')) return;
     if (pinItem(item, 'key')) event.preventDefault();
   };

@@ -126,6 +126,7 @@ describe("the pin layer's files", {
       simplifyVector = TRUE
     )
     expect_identical(config$attributes$pin, tip_attribute("pin"))
+    expect_identical(config$attributes$open, tip_contract()$attributes$open)
     expect_identical(config$attributes$part, tip_contract()$attributes$part)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)
     expect_identical(config$css, tip_names()$css)
