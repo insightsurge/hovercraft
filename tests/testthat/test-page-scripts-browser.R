@@ -161,7 +161,12 @@ describe("the page scripts on a static page", {
     expect_true(page$wait_until(
       "document.querySelector('.hc-tip-pin:not([hidden])').textContent.includes('Short two')"
     ))
-    expect_identical(page$evaluate("document.getElementById('one').hasAttribute('data-hovercraft-tip-open')"), FALSE)
+    # The first pin is closed: the item is not pinned. (The focus goes back to it, which may show its hint, so the item
+    # can carry the hint's mark a moment later; the test used to read it before that.)
+    expect_identical(
+      page$evaluate("document.getElementById('one').getAttribute('data-hovercraft-tip-open') === 'pin'"),
+      FALSE
+    )
   })
 
   it("keeps the room for the button under the last line of a bottom sheet", {
