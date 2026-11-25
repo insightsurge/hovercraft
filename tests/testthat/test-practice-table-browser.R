@@ -358,12 +358,27 @@ describe("tip_table() leaves DT's inputs as they are without it", {
       page_rows,
       selected
     )
+    started <- Sys.time()
     ok <- page$wait_until(sprintf(
       "(() => { const t = (document.getElementById('%s')?.textContent ?? '').trim(); return !t.includes('=false') && !t.includes('=FALSE') && new RegExp(%s).test(t) })()",
       id,
       jsonlite::toJSON(want, auto_unbox = TRUE)
     ))
-    expect_true(ok, info = paste(id, report(id)))
+    waited <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+    # A failed wait says how long it waited, the limit it had, what it wanted and what both report lines say now, so a
+    # slow page (the wait ran out while the page was still changing) can be told from inputs that really differ.
+    expect_true(
+      ok,
+      info = sprintf(
+        "%s: waited %.1f s of %.0f s; wanted /%s/; report: %s; report_names: %s",
+        id,
+        waited,
+        browser_timeout / 1000,
+        want,
+        report("report"),
+        report("report_names")
+      )
+    )
     # The two tables send their inputs one after the other, so the line can agree for a moment before the last one
     # arrives: read it again once the page is quiet.
     page$settle()
