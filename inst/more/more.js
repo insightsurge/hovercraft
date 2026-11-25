@@ -64,6 +64,10 @@
     return null;
   };
   const expandedNow = (item) => item.getAttribute(A().state) === 'long';
+  // `tip_more(on = "click")`: a click on the item opens the long form and the tip has no button. `tip_more(pin = TRUE)`:
+  // the button, and the M key, pin the tip as well.
+  const isClick = (item) => item.hasAttribute(A().click);
+  const pinsToo = (item) => item.hasAttribute(A().pin_too);
 
   // The words of the two buttons: the item's own (`tip_more(label =)` in R) over the page's and the tag's `labels =` (the
   // nearest scope winning) over the built-in ones.
@@ -230,11 +234,21 @@
     // The engine draws the tip again at once; a moment later what it added is the long form, which is what is said, and
     // the first block of it, in a pinned tip, starts with a hairline as the hover form does.
     o.timer = setTimeout(() => {
-      if (!current(o)) return;
-      const added = fresh(o.box, before);
-      if (long && o.kind === 'pin' && added[0]) added[0].classList.add('hc-long-first');
+      // The button that pins the tip hands over from the hint to the pinned tip, which is the box that grew.
+      const at = current(o) ? o : pins.get(item);
+      if (!at) return;
+      const added = fresh(at.box, before);
+      if (long && at.kind === 'pin' && added[0]) added[0].classList.add('hc-long-first');
       say(item.ownerDocument, long ? added.map((n) => n.textContent.trim()).join(' ') : words(item).less);
     }, 60);
+  }
+
+  // What the button, the M key and (with `on = "click"`) a click do: open or close the long form; with `pin = TRUE` opening
+  // it from a hint pins the tip too, so the long form stays. A pinned tip only grows and shrinks.
+  function activate(item, via) {
+    const opening = !expandedNow(item);
+    toggle(item);
+    if (opening && pinsToo(item) && item.getAttribute(A().open) !== 'pin') window.HovercraftPin?.pin(item, via);
   }
 
   function start(item, box, kind) {
@@ -246,7 +260,12 @@
     // table); Escape on it closes its own tip, not the newest one.
     const inPanel = box.dataset.side === 'in';
     const strip = doc.createElement('div');
-    strip.className = [STRIP, inPanel && `${STRIP}-in`, kind === 'hint' && `${STRIP}-hint`].filter(Boolean).join(' ');
+    // With `on = "click"` there is no button: the strip stays, hidden, so the tip's life cycle is the same.
+    const click = isClick(item);
+    strip.hidden = click;
+    strip.className = [STRIP, inPanel && !click && `${STRIP}-in`, kind === 'hint' && `${STRIP}-hint`]
+      .filter(Boolean)
+      .join(' ');
     strip.setAttribute(A().part, '');
     const button = doc.createElement('button');
     button.type = 'button';
@@ -258,7 +277,7 @@
     button.addEventListener('mousedown', (e) => e.preventDefault());
     button.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggle(o.item);
+      activate(o.item, e.detail === 0 ? 'key' : 'click');
     });
     strip.append(button);
     if (inPanel) {
@@ -282,7 +301,7 @@
         strip.removeAttribute('popover');
       }
     }
-    if (!inPanel) box.setAttribute(A().room, '');
+    if (!inPanel && !click) box.setAttribute(A().room, '');
     const o = {
       strip,
       button,
@@ -378,7 +397,16 @@
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
     if (event.key.toLowerCase() !== names.key || editable(deepFocus(active))) return;
     event.preventDefault();
-    if (!event.repeat) toggle(item);
+    if (!event.repeat) activate(item, 'key');
+  };
+
+  // `tip_more(on = "click")`: a click on the item, while its tip is open, opens or closes the long form. It never pins and
+  // never takes a click that something else took (R refuses the tags whose click has its own job).
+  const onClick = (event) => {
+    if (event.defaultPrevented || event.button !== 0) return;
+    const item = itemOf(event.target);
+    if (!item || !isClick(item) || !item.getAttribute(A().open)) return;
+    toggle(item);
   };
 
   // In a pinned tip the button is the last tab stop: Tab from the tip's last button or link goes to it, and Shift+Tab from
@@ -388,7 +416,8 @@
     if (event.key !== 'Tab' || event.defaultPrevented || event.isComposing) return;
     const active = event.target?.ownerDocument?.activeElement;
     const o = [...pins.values()].find((q) => q.box.contains(active) || active === q.button);
-    if (!o) return;
+    // A tip opened by a click has no button to go to.
+    if (!o || o.strip.hidden) return;
     if (!event.shiftKey && o.box.contains(active)) {
       const list = stops(o.box);
       if (list.length && list[list.length - 1] === active) {
@@ -415,6 +444,7 @@
       document.addEventListener('pointerover', ready, true);
       document.addEventListener('focusin', ready, true);
       document.addEventListener('keydown', onKey);
+      document.addEventListener('click', onClick);
       document.addEventListener('keydown', onTab, true);
     },
   });

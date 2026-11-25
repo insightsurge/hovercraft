@@ -174,6 +174,8 @@
       document.addEventListener(names.events.hint, onHint);
       document.addEventListener('keydown', onKey);
     },
+    // The door for the More button of `tip_more(pin = TRUE)` (inst/more/more.js): pin an item as the pin button does.
+    pin: (item, via) => !!names && pinItem(item, via),
   });
   const meta = document.querySelector('meta[name="hovercraft-pin-config"]');
   if (meta) window.HovercraftPin.start(decode(meta.content));

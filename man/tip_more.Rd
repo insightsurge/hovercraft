@@ -4,7 +4,7 @@
 \alias{tip_more}
 \title{The long form of a tip, and when it shows}
 \usage{
-tip_more(content, ..., on = NULL, label = NULL)
+tip_more(content, ..., on = NULL, label = NULL, pin = FALSE)
 }
 \arguments{
 \item{content}{The words of the long form (markdown, with \code{{{ field }}} placeholders filled from the tip's record
@@ -12,13 +12,18 @@ or, in a table, from the row), or a \code{\link[=tip_template]{tip_template()}}.
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{on}{When the long form shows: \code{"button"} (a "More" button opens it), \code{"hover"} (at once) or \code{"pin"} (when the
-tip is pinned). \code{NULL}, the default, is \code{"button"}. This is the same in a table.}
+\item{on}{When the long form shows: \code{"button"} (a "More" button opens it), \code{"hover"} (at once), \code{"pin"} (when the
+tip is pinned) or \code{"click"} (a click on the item opens it, with no button). \code{NULL}, the default, is \code{"button"}.
+\code{"click"} is not for a table, where a click selects a row.}
 
 \item{label}{The words of the buttons, only with \code{"button"}: one string for the "More" button (the "Less" button
 keeps its word), or \code{c(more = "Show all", less = "Show less")}. \code{NULL} gives the built-in "More" and "Less". With
 \code{"hover"} or \code{"pin"} there is no button, so a \code{label} is an error. It beats the \code{more} and \code{less} words of \code{labels}
 (see \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}) for this tip.}
+
+\item{pin}{\code{TRUE} makes the "More" button (and the M key) pin the tip as well as open its long form, so the long form
+stays. \code{FALSE}, the default, never pins. Only with \code{"button"}, and only on a tip that can pin: \code{\link[=tip_on]{tip_on()}} with
+\code{pin = TRUE} and an \code{id}, or a row of \code{\link[=tip_table]{tip_table()}} with \code{tip_spec(pin = TRUE)}.}
 }
 \value{
 An object of class \code{hovercraft_more}, to give as \code{more} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=tip_spec]{tip_spec()}}.
@@ -31,16 +36,26 @@ in it opens the long form.
 }
 \details{
 With \code{on = "button"} (the default) a "More" button at the bottom of the short tip opens the long form in the same
-tip, and a "Less" button closes it again. It does not pin, and needs no \code{pin} and no \code{id}. The tip is short again
-the next time it opens. A pinned tip gets the same buttons. The M key opens and closes the long form while the
-keyboard focus is on the tagged item or the pointer rests on it, except while the focus is in a text field, where
-a letter is a letter. When the focus is on one item and the pointer rests on another, the key acts on the item
-under the pointer, the tip the reader sees, not on one around it; a pinned tip that holds the focus keeps the key.
-A tip that a tap or \code{tip_show()} opened does not take the key from the pointer. It is a letter key that works from
-a hover, so a page switches it off for every reader with \code{use_hovercraft(keys = c(more = FALSE))}; there is no
-switch for one reader. A tag with a long form announces the key as \code{aria-keyshortcuts}. The tip stays open and on
-its side when it grows or shrinks, grows away from its item and scrolls when there is no more room, instead of
-flipping to the other side; that is the engine's own behaviour (0.58.0).
+tip, and a "Less" button closes it again. It does not pin (unless \code{pin = TRUE}, below), and needs no tip \code{pin} and
+no \code{id}. The tip is short again the next time it opens. A pinned tip gets the same buttons. The M key opens and
+closes the long form while the keyboard focus is on the tagged item or the pointer rests on it, except while the
+focus is in a text field, where a letter is a letter. When the focus is on one item and the pointer rests on
+another, the key acts on the item under the pointer, the tip the reader sees, not on one around it; a pinned tip
+that holds the focus keeps the key. A tip that a tap or \code{tip_show()} opened does not take the key from the pointer.
+It is a letter key that works from a hover, so a page switches it off for every reader with \code{use_hovercraft(keys = c(more = FALSE))}; there is no switch for one reader. A tag with a long form announces the key as
+\code{aria-keyshortcuts}. The tip stays open and on its side when it grows or shrinks, grows away from its item and
+scrolls when there is no more room, instead of flipping to the other side; that is the engine's own behaviour
+(0.58.0).
+
+With \code{on = "click"} a click on the tagged item opens and closes the long form, and the tip has no button: the M key
+does the same from the keyboard. The tip must be open (a click on an item whose tip has not shown yet does
+nothing), and the click never pins. A control, or a tag that holds one (a button, an input, a link, a label ...),
+is refused, because a click on it has its own job, and so is a table: a click on a row selects it. Use the default
+button there.
+
+With \code{pin = TRUE} the "More" button, and the M key, also pin the tip, so the long form stays; "Less" then only
+closes the long form and the tip stays pinned. It needs a tip that can pin, the same as \code{on = "pin"}. Today's
+default, \code{pin = FALSE}, never pins: a pinned tip stays pinned when it opens its long form.
 
 With \code{on = "hover"} the long form shows at once, with the short one. With \code{on = "pin"} it shows when the tip is
 pinned, so the tip must be able to pin: \code{tip_on(pin = TRUE)} with an \code{id}, or a row of \code{\link[=tip_table]{tip_table()}} with
@@ -55,6 +70,20 @@ tip_on(
   htmltools::tags$button("Run"),
   "Runs the checks.",
   more = tip_more("Takes about a minute on the full data.")
+)
+
+# A click on the item opens the long form, and the More button pins the tip
+tip_on(
+  htmltools::tags$span("Run", tabindex = "0"),
+  "Runs the checks.",
+  more = tip_more("Takes about a minute.", on = "click")
+)
+tip_on(
+  htmltools::tags$button("Run", id = "run"),
+  "Runs the checks.",
+  id = "run_tip",
+  pin = TRUE,
+  more = tip_more("Takes about a minute.", pin = TRUE)
 )
 
 # The long form shows with the short one, and the buttons say other words

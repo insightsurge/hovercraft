@@ -52,6 +52,10 @@
     background: Canvas;
   }
 }
+/* With `tip_more(on = "click")` the strip is there and hidden: a click on the item is the control. */
+.hovercraft-more-strip[hidden] {
+  display: none;
+}
 /* Room under the last line for the button. */
 .hc-tip[data-hovercraft-more-room] {
   padding-block-end: 36px;

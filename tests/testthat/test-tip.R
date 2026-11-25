@@ -522,6 +522,57 @@ describe("tip_on(more =)", {
     expect_no_error(tip_on(button(), "Short", more = "Long"))
   })
 
+  it("opens the long form on a click of a tag whose click does nothing else, and refuses a control", {
+    span <- htmltools::tags$span("Run", tabindex = "0")
+    got <- tip_on(span, "Short", more = tip_more("Long", on = "click"))
+    expect_identical(htmltools::tagGetAttribute(got, held()), "Long")
+    expect_identical(htmltools::tagGetAttribute(got, tip_more_attribute("click")), "true")
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more_on")))
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("pin")))
+    expect_identical(htmltools::tagGetAttribute(got, "aria-keyshortcuts"), "M")
+    expect_true("hovercraft-more" %in% deps_of(got))
+    # The same tags as `pin = "click"` refuses: a control, or a tag that holds one.
+    refused <- list(
+      button(),
+      htmltools::tags$input(type = "text"),
+      htmltools::tags$select(),
+      htmltools::tags$textarea(),
+      htmltools::tags$a("x", href = "#"),
+      htmltools::tags$label("x"),
+      htmltools::tags$span("x", contenteditable = "true"),
+      htmltools::tags$div(htmltools::tags$span("x"), htmltools::tags$button("Go"))
+    )
+    for (tag in refused) {
+      expect_error(tip_on(tag, "Short", more = tip_more("Long", on = "click")), class = "hovercraft_error_more")
+    }
+    expect_no_error(tip_on(htmltools::tags$div("x", tabindex = "0"), "Short", more = tip_more("Long", on = "click")))
+    # A click never pins, also when the tag can pin: the button and the key do.
+    both <- tip_on(span, "Short", id = "x", pin = TRUE, more = tip_more("Long", on = "click"))
+    expect_identical(htmltools::tagGetAttribute(both, tip_attribute("pin")), "manual")
+    expect_identical(htmltools::tagGetAttribute(both, "aria-keyshortcuts"), "P M")
+  })
+
+  it("makes the button pin the tip too only on a tag that can pin", {
+    got <- tip_on(pinnable("run"), "Short", id = "run", pin = TRUE, more = tip_more("Long", pin = TRUE))
+    expect_identical(htmltools::tagGetAttribute(got, tip_more_attribute("pin")), "true")
+    expect_identical(htmltools::tagGetAttribute(got, held()), "Long")
+    expect_identical(htmltools::tagGetAttribute(got, "aria-keyshortcuts"), "P M")
+    plain <- tip_on(pinnable("run"), "Short", id = "run", pin = TRUE, more = "Long")
+    expect_null(htmltools::tagGetAttribute(plain, tip_more_attribute("pin")))
+    expect_error(
+      tip_on(button(), "Short", more = tip_more("Long", pin = TRUE)),
+      "pin = TRUE",
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_on(button(), "Short", id = "x", more = tip_more("Long", pin = TRUE)),
+      class = "hovercraft_error_pin"
+    )
+    # Tipped again without them, the tag loses both marks.
+    again <- tip_on(tip_on(htmltools::tags$span("x", tabindex = "0"), "S", more = tip_more("L", on = "click")), "Short")
+    expect_false(any(grepl("-more", names(again$attribs), fixed = TRUE)))
+  })
+
   it("validates more, on, label and placeholders in more", {
     expect_error(tip_on(button(), "Short", more = 1), class = "hovercraft_error_argument")
     expect_error(tip_on(button(), "Short", more = "{{ bad"), class = "hovercraft_error_placeholder")
@@ -556,7 +607,7 @@ describe("tip_more()", {
   it("stops on a content, a moment or a label that is not one", {
     expect_error(tip_more(1), class = "hovercraft_error_argument")
     expect_error(tip_more(c("a", "b")), class = "hovercraft_error_argument")
-    expect_error(tip_more("Long", on = "click"), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", on = "tap"), class = "hovercraft_error_argument")
     expect_error(tip_more("Long", on = c("hover", "pin")), class = "hovercraft_error_argument")
     expect_error(tip_more("Long", label = 1), class = "hovercraft_error_argument")
     expect_error(tip_more("Long", label = ""), class = "hovercraft_error_argument")
@@ -567,6 +618,21 @@ describe("tip_more()", {
     expect_error(tip_more(), "missing", class = "hovercraft_error_argument")
     expect_error(tip_more("", label = "a"), "empty", class = "hovercraft_error_argument")
     expect_error(tip_more(NA, label = "a"), class = "hovercraft_error_argument")
+  })
+
+  it("takes a click as a moment, and `pin` only with the button", {
+    expect_identical(tip_more("Long", on = "click")$on, "click")
+    expect_false(tip_more("Long")$pin)
+    expect_true(tip_more("Long", pin = TRUE)$pin)
+    expect_true(tip_more("Long", on = "button", pin = TRUE)$pin)
+    for (on in c("hover", "pin", "click")) {
+      expect_error(tip_more("Long", on = on, pin = TRUE), "no button", class = "hovercraft_error_argument")
+    }
+    expect_error(tip_more("Long", pin = NA), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", pin = "yes"), class = "hovercraft_error_argument")
+    expect_error(tip_more("", pin = TRUE), "empty", class = "hovercraft_error_argument")
+    expect_error(tip_more(NA, pin = TRUE), class = "hovercraft_error_argument")
+    expect_no_error(tip_more(NA))
   })
 
   it("takes a label only with the button", {

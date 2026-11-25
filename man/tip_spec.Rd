@@ -45,8 +45,9 @@ is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_tab
 \item{more}{Extra content for the long form of this tip, or \code{NULL} (the default) for none: words (markdown, with
 \code{{{ column }}} placeholders for \code{rows} and \code{cells}), a \code{\link[=tip_template]{tip_template()}}, or a \code{\link[=tip_more]{tip_more()}} that also says when the
 long form shows. \code{NA} and \code{""} mean no long form. Words and a template are the same as \code{tip_more()} with its
-default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. \code{tip_more(on = "pin")} works only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one target that can pin;
-anywhere else in a table it stops with an error.}
+default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. \code{tip_more(on = "pin")} and \code{tip_more(pin = TRUE)} work only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
+target that can pin; anywhere else in a table they stop with an error. \code{tip_more(on = "click")} stops with an error
+in a table, where a click selects a row.}
 
 \item{pin}{Whether a reader can keep this target's tip open: \code{NULL} (the default) or \code{FALSE} for no pin, or \code{TRUE}
 for a pin handle in the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin for now: a

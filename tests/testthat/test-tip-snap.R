@@ -43,7 +43,10 @@ describe("the tip_on() errors", {
     expect_snapshot(tip_on(button(), "x", more = tip_more("y", on = "pin")), error = TRUE)
     expect_snapshot(tip_more("y", on = "hover", label = "Details"), error = TRUE)
     expect_snapshot(tip_more("y", label = c(more = "a", other = "b")), error = TRUE)
-    expect_snapshot(tip_more("y", on = "click"), error = TRUE)
+    expect_snapshot(tip_more("y", on = "tap"), error = TRUE)
+    expect_snapshot(tip_more("y", on = "hover", pin = TRUE), error = TRUE)
+    expect_snapshot(tip_on(button(), "x", more = tip_more("y", on = "click")), error = TRUE)
+    expect_snapshot(tip_on(button(), "x", more = tip_more("y", pin = TRUE)), error = TRUE)
   })
   it("say what a placement and an id must be", {
     expect_snapshot(tip_on(button(), "x", placement = "above"), error = TRUE)
