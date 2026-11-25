@@ -1,6 +1,6 @@
 // hovercraft's own layer for the long form of a tip, on top of the tip engine; it never changes the engine. A tip made
 // with `tip_more()` (the default, `on = "button"`) holds its long form in attributes of its own; this file draws a
-// "More" / "Less" button over the bottom-right corner of the tip, and gives the keyboard the M key. Opening the long form
+// "More" / "Less" control over the bottom of the tip (a button in the end corner, or with `as = "link"` a text link at the start), and gives the keyboard the M key. Opening the long form
 // copies it onto the attributes the engine watches (`-more`, `-more-template`, `-more-on`), and the engine draws the open
 // tip again in place: it keeps the tip open, on its side and at its edge (engine 0.58.0), and sends no event for a hint.
 // A pinned tip drawn again sends `updated`. Like inst/pin/pin.js the button is a separate element that carries the part
@@ -68,6 +68,10 @@
   // the button, and the M key, pin the tip as well.
   const isClick = (item) => item.hasAttribute(A().click);
   const pinsToo = (item) => item.hasAttribute(A().pin_too);
+  // How the control looks and where it sits (`tip_more(as =, where =)`): a button at the end of the bottom of the tip, or
+  // a text link at its start. Both are a real <button>, so a keyboard and a screen reader meet the same control.
+  const looksLikeLink = (item) => item.getAttribute(A().as) === 'link';
+  const sitsAtStart = (item) => (item.getAttribute(A().where) ?? (looksLikeLink(item) ? 'start' : 'end')) === 'start';
 
   // The words of the two buttons: the item's own (`tip_more(label =)` in R) over the page's and the tag's `labels =` (the
   // nearest scope winning) over the built-in ones.
@@ -184,7 +188,9 @@
     const own = strip.getBoundingClientRect();
     const edge = Number.parseFloat(style.borderBottomWidth) || 0;
     const inset = 4;
-    const left = style.direction === 'rtl' ? r.left + edge + inset : r.right - edge - inset - own.width;
+    // The end is the right in a left-to-right tip and the left in a right-to-left one; the start is the other side.
+    const onRight = (style.direction === 'rtl') === sitsAtStart(o.item);
+    const left = onRight ? r.right - edge - inset - own.width : r.left + edge + inset;
     put(o, 'left', `${Math.round(left)}px`);
     put(o, 'top', `${Math.round(r.bottom - edge - inset - own.height)}px`);
     put(o, 'color', style.color);
@@ -263,7 +269,13 @@
     // With `on = "click"` there is no button: the strip stays, hidden, so the tip's life cycle is the same.
     const click = isClick(item);
     strip.hidden = click;
-    strip.className = [STRIP, inPanel && !click && `${STRIP}-in`, kind === 'hint' && `${STRIP}-hint`]
+    strip.className = [
+      STRIP,
+      inPanel && !click && `${STRIP}-in`,
+      kind === 'hint' && `${STRIP}-hint`,
+      looksLikeLink(item) && `${STRIP}-link`,
+      sitsAtStart(item) && `${STRIP}-start`,
+    ]
       .filter(Boolean)
       .join(' ');
     strip.setAttribute(A().part, '');

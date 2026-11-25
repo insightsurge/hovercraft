@@ -71,7 +71,11 @@ tip_strip_tip <- function(tag) {
     tag$attribs[names(tag$attribs) == "aria-label"] <- NULL
   }
   had_pin <- !is.null(htmltools::tagGetAttribute(tag, tip_attribute("pin")))
-  more_attrs <- vapply(c("held", "held-template", "label", "pin", "click", "state", "room"), tip_more_attribute, "")
+  more_attrs <- vapply(
+    c("held", "held-template", "label", "pin", "click", "as", "where", "state", "room"),
+    tip_more_attribute,
+    ""
+  )
   had_more <- any(names(tag$attribs) %in% more_attrs[c("held", "held-template")])
   replaced <- c("preset", "class", "placement", "more", "more_template", "more_on", "id", "pin")
   own <- c(
@@ -504,9 +508,9 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   a [tip_more()] that also says when the long form shows. `NA` and `""` count as none. Words and a template are the
 #'   same as `tip_more()` with its default: the tip is short, and a "More" button in it (and the M key) opens the long
 #'   form in the same tip, with no pin and no `id`. See [tip_more()] for `"hover"`, `"pin"`, `"click"` (a click on the
-#'   item opens it; not on a control), `pin = TRUE` (the button pins the tip too) and the buttons' words; with `"pin"`
-#'   or `pin = TRUE` the tag must be able to pin and have an `id` (either `id =` or the tag's own HTML `id`), otherwise
-#'   `tip_on()` stops with an error.
+#'   item opens it; not on a control), `pin = TRUE` (the button pins the tip too), `as` and `where` (a text link, and
+#'   the side the control sits on) and the buttons' words; with `"pin"` or `pin = TRUE` the tag must be able to pin and
+#'   have an `id` (either `id =` or the tag's own HTML `id`), otherwise `tip_on()` stops with an error.
 #'
 #' @param pin `r lifecycle::badge("stable")` Whether a reader can keep this tip open, one at a time: `NULL` (the
 #'   default) or `FALSE` for a tip that only shows on hover or focus (`FALSE` is "never", whatever a level above says),
@@ -846,7 +850,15 @@ tip_on <- function(
     more_deps <- built_more$deps %||% list()
     values <- c(
       values,
-      tip_more_values(more_on, built_more$name, more_info$text, more_given$label, more_given$pin)
+      tip_more_values(
+        more_on,
+        built_more$name,
+        more_info$text,
+        more_given$label,
+        more_given$pin,
+        more_given$as,
+        more_given$where
+      )
     )
   }
   keys <- tip_keyshortcuts(!is.null(pin_value), isTRUE(more_on %in% c("button", "click")))

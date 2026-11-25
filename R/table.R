@@ -216,6 +216,8 @@ tip_table_content <- function(
     more_on = if (!is.null(more_part)) more_given$on,
     more_label = if (!is.null(more_part)) more_given$label,
     more_pin = !is.null(more_part) && more_given$pin,
+    more_as = if (!is.null(more_part)) more_given$as,
+    more_where = if (!is.null(more_part)) more_given$where,
     outputs = unique(c(part$outputs, more_part$outputs)),
     placement = placement,
     style = tip_style_over(own_style, style),
@@ -368,7 +370,14 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   if (!is.null(content$more)) {
     attrs <- c(
       attrs,
-      tip_more_values(content$more_on, content$more$name, label = content$more_label, pin = content$more_pin)
+      tip_more_values(
+        content$more_on,
+        content$more$name,
+        label = content$more_label,
+        pin = content$more_pin,
+        as = content$more_as,
+        where = content$more_where
+      )
     )
     # The attributes the "More" button writes while the long form is open go when the element is given another row.
     if (identical(content$more_on, "button")) {

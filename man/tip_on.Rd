@@ -135,9 +135,9 @@ for none: words (markdown, optionally with \code{{{ field }}} placeholders fille
 a \code{\link[=tip_more]{tip_more()}} that also says when the long form shows. \code{NA} and \code{""} count as none. Words and a template are the
 same as \code{tip_more()} with its default: the tip is short, and a "More" button in it (and the M key) opens the long
 form in the same tip, with no pin and no \code{id}. See \code{\link[=tip_more]{tip_more()}} for \code{"hover"}, \code{"pin"}, \code{"click"} (a click on the
-item opens it; not on a control), \code{pin = TRUE} (the button pins the tip too) and the buttons' words; with \code{"pin"}
-or \code{pin = TRUE} the tag must be able to pin and have an \code{id} (either \verb{id =} or the tag's own HTML \code{id}), otherwise
-\code{tip_on()} stops with an error.}
+item opens it; not on a control), \code{pin = TRUE} (the button pins the tip too), \code{as} and \code{where} (a text link, and
+the side the control sits on) and the buttons' words; with \code{"pin"} or \code{pin = TRUE} the tag must be able to pin and
+have an \code{id} (either \verb{id =} or the tag's own HTML \code{id}), otherwise \code{tip_on()} stops with an error.}
 
 \item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Whether a reader can keep this tip open, one at a time: \code{NULL} (the
 default) or \code{FALSE} for a tip that only shows on hover or focus (\code{FALSE} is "never", whatever a level above says),

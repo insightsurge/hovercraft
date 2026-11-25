@@ -60,6 +60,10 @@ describe("the long form's attributes", {
     )
     expect_identical(config$attributes$click, tip_more_attribute("click"))
     expect_identical(config$attributes$pin_too, tip_more_attribute("pin"))
+    expect_identical(config$attributes$as, tip_more_attribute("as"))
+    expect_identical(config$attributes$where, tip_more_attribute("where"))
+    look <- tip_more_values("button", text = "Long", as = "link", where = "start")
+    expect_named(look, c(tip_more_attribute("held"), tip_more_attribute("as"), tip_more_attribute("where")))
   })
 
   it("hold the template of a long form behind the button, or the engine's attributes for the other moments", {

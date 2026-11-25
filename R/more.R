@@ -4,6 +4,8 @@
 # engine draws again at once. Keeping the tip where it is when it grows or shrinks is the engine's job (0.58.0).
 
 tip_more_ons <- function() c("button", "hover", "pin", "click")
+tip_more_looks <- function() c("button", "link")
+tip_more_places <- function() c("end", "start")
 
 #' The long form of a tip, and when it shows
 #'
@@ -24,6 +26,15 @@ tip_more_ons <- function() c("button", "hover", "pin", "click")
 #' `aria-keyshortcuts`. The tip stays open and on its side when it grows or shrinks, grows away from its item and
 #' scrolls when there is no more room, instead of flipping to the other side; that is the engine's own behaviour
 #' (0.58.0).
+#'
+#' `as` and `where` choose the look and the place of the control that opens the long form (only with `on = "button"`).
+#' `as = "button"` (the default) is the small button in the bottom corner of the tip, at its end; `as = "link"` is an
+#' italic, underlined text link at the bottom of the tip, at its start. `where` says the side, `"end"` or `"start"`,
+#' and follows the reading direction, so the end is the right in English and the left in Arabic. Both are the same
+#' control to a keyboard and a screen reader: the link is a real `<button>` styled as a link, which says "button" and
+#' "expanded" or "collapsed" to a screen reader, takes Enter and Space, and does not navigate; an `<a>` would need
+#' `role = "button"` and its own key handling to do the same. It is a tab stop in a pinned tip, `M` and
+#' `aria-keyshortcuts` work as for the button, and the words are still the ones of `label` and `labels`.
 #'
 #' With `on = "click"` a click on the tagged item opens and closes the long form, and the tip has no button: the M key
 #' does the same from the keyboard. The tip must be open (a click on an item whose tip has not shown yet does
@@ -53,6 +64,10 @@ tip_more_ons <- function() c("button", "hover", "pin", "click")
 #'   keeps its word), or `c(more = "Show all", less = "Show less")`. `NULL` gives the built-in "More" and "Less". With
 #'   `"hover"` or `"pin"` there is no button, so a `label` is an error. It beats the `more` and `less` words of `labels`
 #'   (see [tip_on()] and [use_hovercraft()]) for this tip.
+#' @param as How the control looks: `"button"` (a small button) or `"link"` (an italic text link). `NULL`, the default,
+#'   is `"button"`. Only with `on = "button"`; with another moment there is no control, so it is an error.
+#' @param where Which side of the bottom of the tip the control sits on: `"end"` or `"start"`, in the reading
+#'   direction. `NULL`, the default, puts a button at the end and a link at the start. Only with `on = "button"`.
 #' @param pin `TRUE` makes the "More" button (and the M key) pin the tip as well as open its long form, so the long form
 #'   stays. `FALSE`, the default, never pins. Only with `"button"`, and only on a tip that can pin: [tip_on()] with
 #'   `pin = TRUE` and an `id`, or a row of [tip_table()] with `tip_spec(pin = TRUE)`.
@@ -79,6 +94,13 @@ tip_more_ons <- function() c("button", "hover", "pin", "click")
 #'   more = tip_more("Takes about a minute.", pin = TRUE)
 #' )
 #'
+#' # A text link at the start of the bottom of the tip, instead of the button
+#' tip_on(
+#'   htmltools::tags$button("Run"),
+#'   "Runs the checks.",
+#'   more = tip_more("Takes about a minute.", as = "link")
+#' )
+#'
 #' # The long form shows with the short one, and the buttons say other words
 #' tip_on(
 #'   htmltools::tags$button("Run"),
@@ -91,7 +113,7 @@ tip_more_ons <- function() c("button", "hover", "pin", "click")
 #'   more = tip_more("Takes about a minute.", label = c(more = "Details", less = "Fewer details"))
 #' )
 #' @export
-tip_more <- function(content, ..., on = NULL, label = NULL, pin = FALSE) {
+tip_more <- function(content, ..., on = NULL, label = NULL, pin = FALSE, as = NULL, where = NULL) {
   call <- rlang::current_env()
   if (missing(content)) {
     tip_abort(
@@ -103,7 +125,7 @@ tip_more <- function(content, ..., on = NULL, label = NULL, pin = FALSE) {
       call = call
     )
   }
-  tip_check_dots(..., args = c("content", "on", "label", "pin"))
+  tip_check_dots(..., args = c("content", "on", "label", "pin", "as", "where"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -122,19 +144,49 @@ tip_more <- function(content, ..., on = NULL, label = NULL, pin = FALSE) {
   )
   label <- tip_check_more_label(label, on, call)
   pin <- tip_check_more_pin(pin, on, call)
-  given <- c(label = !is.null(label), pin = pin)
+  as <- tip_check_more_choice(as, "as", tip_more_looks(), on, call)
+  where <- tip_check_more_choice(where, "where", tip_more_places(), on, call)
+  given <- c(label = !is.null(label), pin = pin, as = !is.null(as), where = !is.null(where))
   if (any(given) && tip_more_empty(content)) {
     first <- names(given)[given][[1]]
     tip_abort(
       c(
-        "{.arg {first}} sets how the long form opens, but {.arg content} is empty, so there is no long form.",
-        i = "Give the words of the long form, or take {.arg {first}} out."
+        paste0(
+          "{.arg ",
+          first,
+          "} sets how the long form opens, but {.arg content} is empty, so there is no long form."
+        ),
+        i = paste0("Give the words of the long form, or take {.arg ", first, "} out.")
       ),
       class = "hovercraft_error_argument",
       call = call
     )
   }
-  structure(list(content = content, on = on, label = label, pin = pin), class = "hovercraft_more")
+  structure(
+    list(content = content, on = on, label = label, pin = pin, as = as, where = where),
+    class = "hovercraft_more"
+  )
+}
+
+# `as` and `where` shape the control, so only the button moment has them; NULL is the default.
+tip_check_more_choice <- function(value, arg, choices, on, call = rlang::caller_env()) {
+  tip_arg(
+    checkmate::check_choice(value, choices, null.ok = TRUE),
+    arg,
+    paste0("Give one of ", paste0("\"", choices, "\"", collapse = ", "), ", or {.code NULL} for the default."),
+    call
+  )
+  if (!is.null(value) && !is.null(on) && !identical(on, "button")) {
+    tip_abort(
+      c(
+        "{.arg {arg}} shapes the control that opens the long form, but {.code on = \"{on}\"} has none.",
+        i = "Take {.arg {arg}} out, or use {.code on = \"button\"}."
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
+  value
 }
 
 # `pin = TRUE` is for the button (or the M key) that opens the long form: with another moment there is none, or the tip
@@ -196,13 +248,20 @@ tip_check_more_label <- function(label, on, call = rlang::caller_env()) {
   label
 }
 
-# What `more` holds, whatever form it was given in: list(content, on, label, pin). `on` is "button" unless `tip_more()`
-# said.
+# What `more` holds, whatever form it was given in: list(content, on, label, pin, as, where). `on` is "button" unless
+# `tip_more()` said; `as` and `where` are NULL for the defaults.
 tip_more_unpack <- function(more) {
   if (inherits(more, "hovercraft_more")) {
-    return(list(content = more$content, on = more$on %||% "button", label = more$label, pin = isTRUE(more$pin)))
+    return(list(
+      content = more$content,
+      on = more$on %||% "button",
+      label = more$label,
+      pin = isTRUE(more$pin),
+      as = more$as,
+      where = more$where
+    ))
   }
-  list(content = more, on = "button", label = NULL, pin = FALSE)
+  list(content = more, on = "button", label = NULL, pin = FALSE, as = NULL, where = NULL)
 }
 
 # A click on the item opens the long form: refused where the click has its own job, with the same test as
@@ -237,8 +296,8 @@ tip_more_key <- function() "m"
 # The attributes a tip carries for its long form. The engine's own (`more`, `more_template`, `more_on`) for "hover" and
 # "pin"; for "button" the long form waits in attributes the script reads, and the script puts it on the engine's when
 # the reader asks (and for "click", where a click on the item asks). `template` is the name of the long form's
-# template, `text` its plain words; `pin` makes the button pin the tip too.
-tip_more_values <- function(on, template = NULL, text = NULL, label = NULL, pin = FALSE) {
+# template, `text` its plain words; `pin` makes the button pin the tip too; `as` and `where` are its look and side.
+tip_more_values <- function(on, template = NULL, text = NULL, label = NULL, pin = FALSE, as = NULL, where = NULL) {
   values <- list()
   if (on %in% c("button", "click")) {
     if (!is.null(template)) {
@@ -251,6 +310,12 @@ tip_more_values <- function(on, template = NULL, text = NULL, label = NULL, pin 
     }
     if (pin) {
       values[[tip_more_attribute("pin")]] <- "true"
+    }
+    if (!is.null(as)) {
+      values[[tip_more_attribute("as")]] <- as
+    }
+    if (!is.null(where)) {
+      values[[tip_more_attribute("where")]] <- where
     }
     if (identical(on, "click")) {
       values[[tip_more_attribute("click")]] <- "true"
@@ -286,6 +351,8 @@ tip_more_dependency <- function() {
       label = tip_more_attribute("label"),
       pin_too = tip_more_attribute("pin"),
       click = tip_more_attribute("click"),
+      as = tip_more_attribute("as"),
+      where = tip_more_attribute("where"),
       state = tip_more_attribute("state"),
       room = tip_more_attribute("room"),
       id = tip_attribute("id"),

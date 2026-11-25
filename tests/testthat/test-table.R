@@ -906,6 +906,24 @@ describe("tip_spec(pin = TRUE, events = ) for the rows of tip_table()", {
     expect_error(tip_table(rt(), cells = list(team = more), rows = "x", id = "t"), class = "hovercraft_error_pin")
   })
 
+  it("writes the look and the side of the control of a row, a cell and a header cell", {
+    link <- tip_more("{{ note }}", as = "link", where = "end")
+    got <- tip_table(
+      rt(),
+      rows = tip_spec("{{ team }}", more = tip_more("{{ note }}", as = "link"), pin = TRUE),
+      cells = list(team = tip_spec("{{ team }}", more = link)),
+      headers = list(team = tip_spec("The team", more = tip_more("About the team", as = "link", where = "end"))),
+      id = "t"
+    )
+    cfg <- got$jsHooks$render[[1]]$data
+    expect_identical(cfg$rows$attrs[[tip_more_attribute("as")]], "link")
+    expect_null(cfg$rows$attrs[[tip_more_attribute("where")]])
+    for (attrs in list(cfg$cells[["0"]]$attrs, cfg$headers[["0"]]$attrs)) {
+      expect_identical(attrs[[tip_more_attribute("as")]], "link")
+      expect_identical(attrs[[tip_more_attribute("where")]], "end")
+    }
+  })
+
   it("refuses a click that opens the long form, because a click on a table selects a row", {
     click <- tip_spec("{{ team }}", more = tip_more("{{ note }}", on = "click"), pin = TRUE)
     expect_error(tip_table(rt(), rows = click, id = "t"), "selects a row", class = "hovercraft_error_more")

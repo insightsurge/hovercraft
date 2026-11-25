@@ -4,7 +4,15 @@
 \alias{tip_more}
 \title{The long form of a tip, and when it shows}
 \usage{
-tip_more(content, ..., on = NULL, label = NULL, pin = FALSE)
+tip_more(
+  content,
+  ...,
+  on = NULL,
+  label = NULL,
+  pin = FALSE,
+  as = NULL,
+  where = NULL
+)
 }
 \arguments{
 \item{content}{The words of the long form (markdown, with \code{{{ field }}} placeholders filled from the tip's record
@@ -24,6 +32,12 @@ keeps its word), or \code{c(more = "Show all", less = "Show less")}. \code{NULL}
 \item{pin}{\code{TRUE} makes the "More" button (and the M key) pin the tip as well as open its long form, so the long form
 stays. \code{FALSE}, the default, never pins. Only with \code{"button"}, and only on a tip that can pin: \code{\link[=tip_on]{tip_on()}} with
 \code{pin = TRUE} and an \code{id}, or a row of \code{\link[=tip_table]{tip_table()}} with \code{tip_spec(pin = TRUE)}.}
+
+\item{as}{How the control looks: \code{"button"} (a small button) or \code{"link"} (an italic text link). \code{NULL}, the default,
+is \code{"button"}. Only with \code{on = "button"}; with another moment there is no control, so it is an error.}
+
+\item{where}{Which side of the bottom of the tip the control sits on: \code{"end"} or \code{"start"}, in the reading
+direction. \code{NULL}, the default, puts a button at the end and a link at the start. Only with \code{on = "button"}.}
 }
 \value{
 An object of class \code{hovercraft_more}, to give as \code{more} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=tip_spec]{tip_spec()}}.
@@ -46,6 +60,15 @@ It is a letter key that works from a hover, so a page switches it off for every 
 \code{aria-keyshortcuts}. The tip stays open and on its side when it grows or shrinks, grows away from its item and
 scrolls when there is no more room, instead of flipping to the other side; that is the engine's own behaviour
 (0.58.0).
+
+\code{as} and \code{where} choose the look and the place of the control that opens the long form (only with \code{on = "button"}).
+\code{as = "button"} (the default) is the small button in the bottom corner of the tip, at its end; \code{as = "link"} is an
+italic, underlined text link at the bottom of the tip, at its start. \code{where} says the side, \code{"end"} or \code{"start"},
+and follows the reading direction, so the end is the right in English and the left in Arabic. Both are the same
+control to a keyboard and a screen reader: the link is a real \verb{<button>} styled as a link, which says "button" and
+"expanded" or "collapsed" to a screen reader, takes Enter and Space, and does not navigate; an \verb{<a>} would need
+\code{role = "button"} and its own key handling to do the same. It is a tab stop in a pinned tip, \code{M} and
+\code{aria-keyshortcuts} work as for the button, and the words are still the ones of \code{label} and \code{labels}.
 
 With \code{on = "click"} a click on the tagged item opens and closes the long form, and the tip has no button: the M key
 does the same from the keyboard. The tip must be open (a click on an item whose tip has not shown yet does
@@ -84,6 +107,13 @@ tip_on(
   id = "run_tip",
   pin = TRUE,
   more = tip_more("Takes about a minute.", pin = TRUE)
+)
+
+# A text link at the start of the bottom of the tip, instead of the button
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the checks.",
+  more = tip_more("Takes about a minute.", as = "link")
 )
 
 # The long form shows with the short one, and the buttons say other words

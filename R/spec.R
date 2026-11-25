@@ -30,13 +30,14 @@
 #' @param marker The visible cue for this target's cells or header cells: `"corner"`, `"none"` to take the marker off
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
-#' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with
-#'   `{{ column }}` placeholders for `rows` and `cells`), a [tip_template()], or a [tip_more()] that also says when the
+#' @param more Extra content for the long form of this tip, or `NULL` (the default) for none: words (markdown, with `{{
+#'   column }}` placeholders for `rows` and `cells`), a [tip_template()], or a [tip_more()] that also says when the
 #'   long form shows. `NA` and `""` mean no long form. Words and a template are the same as `tip_more()` with its
 #'   default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. `tip_more(on =
 #'   "pin")` and `tip_more(pin = TRUE)` work only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
-#'   target that can pin; anywhere else in a table they stop with an error. `tip_more(on = "click")` stops with an error
-#'   in a table, where a click selects a row.
+#'   target that can pin; anywhere else in a table they stop with an error. `tip_more(on = "click")` stops with an
+#'   error in a table, where a click selects a row. `tip_more(as = , where = )` choose the look and side of the
+#'   control, a button or a text link, as in [tip_on()].
 #' @param pin Whether a reader can keep this target's tip open: `NULL` (the default) or `FALSE` for no pin, or `TRUE`
 #'   for a pin handle in the corner of the tip and a pin key, as in [tip_on()]. Only the tips of `rows` pin for now: a
 #'   spec with a pin given to `cells` or `headers` stops with "only rows pin for now". A click on a row selects it in

@@ -8,10 +8,10 @@ skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 describe("tip_more() options for opening the long form", {
   place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
   words <- function(id) paste("LONG words of", id, "that go on for a while, so the tip has to grow to hold them all.")
-  page_file <- function(..., .env = parent.frame()) {
+  page_file <- function(..., dir = NULL, .env = parent.frame()) {
     file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
     htmltools::save_html(
-      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", ...)),
+      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", dir = dir, ...)),
       file
     )
     file
@@ -161,5 +161,210 @@ describe("tip_more() options for opening the long form", {
     page$press("m")
     expect_true(page$wait_until(long_in(page, pin_sel)))
     expect_identical(state_of(page, "one"), "pin")
+  })
+
+  # Where the control sits in the tip: its distance from the tip's left and right edges, and how it looks.
+  control <- function(page) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => { const box = document.querySelector('%s'); const b = document.querySelector('.hovercraft-more-strip-button'); const r = box.getBoundingClientRect(); const q = b.getBoundingClientRect(); const s = getComputedStyle(b); const t = getComputedStyle(box);
+        return JSON.stringify({ from_left: q.left - r.left, from_right: r.right - q.right, bottom_gap: r.bottom - q.bottom, tag: b.tagName, words: b.textContent, expanded: b.getAttribute('aria-expanded'),
+          italic: s.fontStyle, underline: s.textDecorationLine, border: s.borderTopColor, colour: s.color, box_colour: t.color, tab: b.tabIndex, height: q.height }); })()",
+      hint_sel
+    )))
+  }
+  show <- function(page, id = "one") {
+    expect_true(page$wait_until(ready))
+    page$hover(sprintf("#%s", id))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-button') !== null"))
+    page$settle()
+    control(page)
+  }
+
+  it("draws the control as an italic text link at the start when as is a link, and it works like the button", {
+    page <- local_page(page_file(use_hovercraft(), button("one", 60, 60, as = "link", can_pin = FALSE)), environment())
+    got <- show(page)
+    # A real button with the look of a link: italic, underlined, no visible border, in the tip's own colour.
+    expect_identical(got$tag, "BUTTON")
+    expect_identical(got$words, "More")
+    expect_identical(got$expanded, "false")
+    expect_identical(got$italic, "italic")
+    expect_identical(got$underline, "underline")
+    expect_match(got$border, "rgba\\(0, 0, 0, 0\\)")
+    expect_identical(got$colour, got$box_colour)
+    # At the start (the left in English) of the bottom of the tip, not in the corner at its end.
+    expect_lt(got$from_left, 14)
+    expect_gt(got$from_right, got$from_left + 10)
+    expect_gte(got$height, 24)
+    press_more(page)
+    expect_true(page$wait_until(long_in(page, hint_sel)))
+    expect_identical(text_of(page, ".hovercraft-more-strip-button"), "Less")
+    expect_identical(control(page)$expanded, "true")
+    # The M key does the same as the click, and the item announces it.
+    expect_identical(page$evaluate("document.getElementById('one').getAttribute('aria-keyshortcuts')"), "M")
+  })
+
+  it("keeps the button in the corner at the end by default, and puts either control on the side asked for", {
+    cases <- list(
+      list(args = list(), left = FALSE),
+      list(args = list(where = "start"), left = TRUE),
+      list(args = list(as = "link", where = "end"), left = FALSE),
+      list(args = list(as = "link"), left = TRUE)
+    )
+    for (case in cases) {
+      page <- local_page(
+        page_file(use_hovercraft(), do.call(button, c(list("one", 60, 60, can_pin = FALSE), case$args))),
+        environment()
+      )
+      got <- show(page)
+      if (case$left) {
+        expect_lt(got$from_left, 14, label = jsonlite::toJSON(case$args, auto_unbox = TRUE))
+        expect_gt(got$from_right, got$from_left + 10, label = jsonlite::toJSON(case$args, auto_unbox = TRUE))
+      } else {
+        expect_lt(got$from_right, 14, label = jsonlite::toJSON(case$args, auto_unbox = TRUE))
+        expect_gt(got$from_left, got$from_right + 10, label = jsonlite::toJSON(case$args, auto_unbox = TRUE))
+      }
+    }
+  })
+
+  it("follows the reading direction: the start is the right in a right-to-left page", {
+    link <- local_page(
+      page_file(use_hovercraft(), button("one", 60, 60, as = "link", can_pin = FALSE), dir = "rtl"),
+      environment()
+    )
+    got <- show(link)
+    expect_lt(got$from_right, 14)
+    expect_gt(got$from_left, got$from_right + 10)
+    corner <- local_page(
+      page_file(use_hovercraft(), button("one", 60, 60, can_pin = FALSE), dir = "rtl"),
+      environment()
+    )
+    got <- show(corner)
+    expect_lt(got$from_left, 14)
+    expect_gt(got$from_right, got$from_left + 10)
+  })
+
+  it("takes the tip's colour in the dark too, and the words of label", {
+    page <- local_page(
+      page_file(use_hovercraft(), button("one", 60, 60, as = "link", label = "Details", can_pin = FALSE)),
+      environment()
+    )
+    page$emulate("prefers-color-scheme", "dark")
+    got <- show(page)
+    expect_identical(got$words, "Details")
+    expect_identical(got$colour, got$box_colour)
+  })
+
+  it("is a tab stop in a pinned tip, and the key opens and closes the long form there", {
+    page <- local_page(page_file(use_hovercraft(), button("one", 60, 60, as = "link")), environment())
+    expect_true(page$wait_until(ready))
+    page$evaluate("window.Hovercraft.pin(document.getElementById('one'), { by: 'reader', via: 'key' }); 0")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-button') !== null"))
+    expect_identical(page$evaluate("document.querySelector('.hovercraft-more-strip-button').tabIndex"), 0L)
+    expect_identical(page$evaluate("document.querySelector('.hovercraft-more-strip-button').tagName"), "BUTTON")
+    page$evaluate("document.querySelector('%s').focus(); 0" |> sprintf(pin_sel))
+    page$press("m")
+    expect_true(page$wait_until(long_in(page, pin_sel)))
+    page$press("m")
+    expect_true(page$wait_until(sprintf("!%s", long_in(page, pin_sel))))
+  })
+
+  it("refuses as and where where there is no control", {
+    expect_error(tip_more("Long", on = "click", as = "link"), "no control|none", class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", on = "hover", where = "start"), class = "hovercraft_error_argument")
+  })
+})
+
+# The link inside the card of a row's panel (inst/table/table.css): at the start of the card's inner edge, below the text,
+# and at the end when asked.
+describe("the More link in a row's panel", {
+  skip_if_not_installed("DT")
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  skip_if_not_installed("callr")
+  skip_if_not_installed("httpuv")
+  skip_if_not_installed("pkgload")
+  scores <- data.frame(team = c("Owls", "Foxes", "Hares"), wins = c(7, 5, 2))
+  app <- start_app(
+    function(scores) {
+      long <- "The long form of {{ team }}. It runs a few lines so the card has some body to it and wraps at narrow widths."
+      spec <- function(...) {
+        tip_spec("**{{ team }}**: {{ wins }} wins", pin = TRUE, to = "in_place", more = tip_more(long, ...))
+      }
+      ui <- bslib::page_fluid(
+        use_hovercraft(max_pins = 6),
+        shiny::div(style = "max-width: 360px", DT::DTOutput("start"), DT::DTOutput("end"), DT::DTOutput("corner"))
+      )
+      server <- function(input, output, session) {
+        dt <- function(rows, id) {
+          DT::renderDT(
+            tip_table(DT::datatable(scores, rownames = FALSE, options = list(dom = "t")), rows = rows, id = id),
+            server = FALSE
+          )
+        }
+        output$start <- dt(spec(as = "link"), "start")
+        output$end <- dt(spec(as = "link", where = "end"), "end")
+        output$corner <- dt(spec(), "corner")
+      }
+      shiny::shinyApp(ui, server)
+    },
+    scores = scores
+  )
+  page <- local_page(app$url, environment())
+  row_of <- function(id) sprintf("#%s tbody tr[data-hovercraft-tip-id=\"%s/row/2\"]", id, id)
+  measure <- function(id) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => {
+        const panel = document.querySelector('#%s [data-hovercraft-panel]');
+        const card = panel.querySelector('.hc-tip');
+        const b = panel.querySelector('.hovercraft-more-strip-in button');
+        const style = getComputedStyle(card);
+        const r = card.getBoundingClientRect(); const q = b.getBoundingClientRect();
+        const texts = [...card.querySelectorAll('.hc-tip-text')];
+        return JSON.stringify({
+          from_left: q.left - r.left - parseFloat(style.paddingLeft) - parseFloat(style.borderLeftWidth),
+          from_right: r.right - q.right - parseFloat(style.paddingRight) - parseFloat(style.borderRightWidth),
+          inside: q.top >= r.top && q.bottom <= r.bottom,
+          below_text: q.top >= texts[texts.length - 1].getBoundingClientRect().bottom - 1,
+          italic: getComputedStyle(b).fontStyle
+        });
+      })()",
+      id
+    )))
+  }
+  for (case in list(
+    list(id = "start", left = TRUE, italic = "italic"),
+    list(id = "end", left = FALSE, italic = "italic"),
+    list(id = "corner", left = FALSE, italic = "normal")
+  )) {
+    it(paste("sits inside the card, at the", if (case$left) "start" else "end", "of its inner edge:", case$id), {
+      id <- case$id
+      withr::defer({
+        page$evaluate("window.Hovercraft.close(); 0")
+        expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
+      })
+      selector <- row_of(id)
+      expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", selector)))
+      page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
+      page$press("p", wait = 0.2)
+      expect_true(page$wait_until(sprintf(
+        "document.querySelector('#%s [data-hovercraft-panel] .hovercraft-more-strip-in button') !== null",
+        id
+      )))
+      m <- measure(id)
+      info <- paste(id, jsonlite::toJSON(m, auto_unbox = TRUE))
+      expect_true(m$inside, label = info)
+      expect_true(m$below_text, label = info)
+      expect_identical(m$italic, case$italic, label = info)
+      if (case$left) {
+        expect_lte(abs(m$from_left), 4, label = info)
+      } else {
+        expect_lte(abs(m$from_right), 4, label = info)
+      }
+    })
+  }
+
+  it("has no console error", {
+    expect_identical(page$problems(), character())
   })
 })

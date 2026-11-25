@@ -552,6 +552,17 @@ describe("tip_on(more =)", {
     expect_identical(htmltools::tagGetAttribute(both, "aria-keyshortcuts"), "P M")
   })
 
+  it("writes the look and the side of the control on the tag, and takes them off when tipped again", {
+    tag <- tip_on(button(), "Short", more = tip_more("Long", as = "link", where = "end"))
+    expect_identical(htmltools::tagGetAttribute(tag, tip_more_attribute("as")), "link")
+    expect_identical(htmltools::tagGetAttribute(tag, tip_more_attribute("where")), "end")
+    plain <- tip_on(button(), "Short", more = "Long")
+    expect_null(htmltools::tagGetAttribute(plain, tip_more_attribute("as")))
+    expect_null(htmltools::tagGetAttribute(plain, tip_more_attribute("where")))
+    again <- tip_on(tag, "Short only")
+    expect_false(any(grepl("-more", names(again$attribs), fixed = TRUE)))
+  })
+
   it("makes the button pin the tip too only on a tag that can pin", {
     got <- tip_on(pinnable("run"), "Short", id = "run", pin = TRUE, more = tip_more("Long", pin = TRUE))
     expect_identical(htmltools::tagGetAttribute(got, tip_more_attribute("pin")), "true")
@@ -633,6 +644,24 @@ describe("tip_more()", {
     expect_error(tip_more("", pin = TRUE), "empty", class = "hovercraft_error_argument")
     expect_error(tip_more(NA, pin = TRUE), class = "hovercraft_error_argument")
     expect_no_error(tip_more(NA))
+  })
+
+  it("takes the look and the side of the control, only with the button", {
+    got <- tip_more("Long", as = "link", where = "end")
+    expect_identical(got$as, "link")
+    expect_identical(got$where, "end")
+    expect_null(tip_more("Long")$as)
+    expect_null(tip_more("Long")$where)
+    expect_no_error(tip_more("Long", as = "button", where = "start"))
+    expect_error(tip_more("Long", as = "tab"), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", where = "left"), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", as = c("button", "link")), class = "hovercraft_error_argument")
+    for (on in c("hover", "pin", "click")) {
+      expect_error(tip_more("Long", on = on, as = "link"), "no", class = "hovercraft_error_argument")
+      expect_error(tip_more("Long", on = on, where = "start"), class = "hovercraft_error_argument")
+    }
+    expect_error(tip_more("", as = "link"), "empty", class = "hovercraft_error_argument")
+    expect_error(tip_more(NA, where = "end"), class = "hovercraft_error_argument")
   })
 
   it("takes a label only with the button", {
