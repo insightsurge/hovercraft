@@ -661,6 +661,60 @@ describe("a row's pinned tip drawn in place", {
     close_all()
   })
 
+  # The More/Less button and the close x look part of the card: the button inside the card, the x on the title line.
+  panel_parts <- function(scope) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      "(() => {
+        const panel = document.querySelector('%s [data-hovercraft-panel]');
+        const card = panel.querySelector('.hc-tip');
+        const rect = (el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, left: r.left, right: r.right }; };
+        const line = document.createRange();
+        line.selectNodeContents(card.querySelector('.hc-tip-text'));
+        const first = line.getClientRects()[0];
+        const x = rect(card.querySelector('.hc-tip-close'));
+        return JSON.stringify({
+          card: rect(card),
+          button: rect(panel.querySelector('.hovercraft-more-strip-in button')),
+          x_centre: (x.top + x.bottom) / 2,
+          x_height: x.bottom - x.top,
+          title_centre: (first.top + first.bottom) / 2
+        });
+      })()",
+      scope
+    )))
+  }
+  for (scope in c("#dtc", "#rt")) {
+    it(paste("draws the More button inside the card and the close x on the title line,", scope), {
+      close_all()
+      pin_key(if (scope == "#dtc") dt_row("dtc", 3) else rt_row(2))
+      expect_true(page$wait_until(sprintf(
+        "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button') !== null",
+        scope
+      )))
+      for (label in c("closed", "open")) {
+        parts <- panel_parts(scope)
+        info <- paste(scope, label, jsonlite::toJSON(parts, auto_unbox = TRUE))
+        expect_gte(parts$button$top, parts$card$top, label = info)
+        expect_lte(parts$button$bottom, parts$card$bottom, label = info)
+        expect_gte(parts$button$left, parts$card$left, label = info)
+        expect_lte(parts$button$right, parts$card$right, label = info)
+        expect_lt(abs(parts$x_centre - parts$title_centre), 2, label = info)
+        expect_gte(parts$x_height, 28, label = info)
+        if (label == "closed") {
+          page$evaluate(sprintf(
+            "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button').click(); 0",
+            scope
+          ))
+          expect_true(page$wait_until(sprintf(
+            "document.querySelector('%s [data-hovercraft-panel] .hovercraft-more-strip-in button').getAttribute('aria-expanded') === 'true'",
+            scope
+          )))
+        }
+      }
+      close_all()
+    })
+  }
+
   it("has no console error", {
     expect_identical(page$problems(), character())
   })
