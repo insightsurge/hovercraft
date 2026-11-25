@@ -44,6 +44,14 @@
 * `tip_table(rows = , cells = , headers = )` takes a `tip_output()` given by id and parks it from the table's own script; one given as a tag stops with an error that says to put the tag in the UI. In a table, `tip_spec(more = )` opens the long form on hover without a `more_on`, since a cell has no pin; `more_on = "pin"` stops with an error anywhere but the spec for `rows` of a table with `pin = TRUE` (#63, #57).
 * `tip_on(more_on = )` and `tip_spec(more_on = )` warn once when there is no `more`. `tip_badge(status = )` takes a placeholder only as the whole value: `"pre {{ tone }}"` stops with the status error instead of always drawing a plain badge (#57, #65).
 * A pinned tip with a long form starts the long form with a hairline, as the hover form does, and clips its box while it grows, so the long form no longer draws outside the box. The output a `more` template holds is put in the page's body by the script, not written into the head (#57).
+* `use_hovercraft(max_pins = , keys = )` (experimental): `max_pins` keeps up to 10 pinned tips open (the default, 1, is one
+  at a time; at the limit the oldest closes), and `keys` switches the letter keys off, `keys = FALSE` for all or
+  `keys = c(pin = FALSE)` for one (a key left out stays on; Escape always closes; the `more` key comes with `tip_more()`).
+  The number goes to the page in a dependency of its own, and a second, different number warns in the browser's console
+  and the first holds. `tip_table(max_pins = )` gives a table's rows a count of their own, outside the app's: a row pinned
+  past it closes that table's oldest pin and no other. It needs `id` and a `rows` spec that pins. All pins open together
+  cannot pass the engine's cap of 10. A pinned `tip_output()` finds its item by the tip's id, so several pins can share
+  one output (#98).
 * `tip_show()`, `tip_hide()` and `tip_update()` (experimental) take `row` and `column` for the tips of a `tip_table()`:
   `row` alone is a row, `row` and `column` a cell, `column` alone a header cell. `row` is the position of the row in the
   data the table has now; `column` is a data column's name or position (the row names of a `reactable` are not one). A

@@ -389,7 +389,7 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
 # The attribute that holds a table tip's address, named after the engine's prefix as the events attribute is.
 tip_table_address_attribute <- function() paste0("data-", tip_names()$prefix, "-table-address")
 
-tip_table_dependencies <- function(widget, marker = FALSE, looks = list(), pin = FALSE) {
+tip_table_dependencies <- function(widget, marker = FALSE, looks = list(), pin = FALSE, max_pins = NULL) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
     version = tip_package_version(),
@@ -403,6 +403,7 @@ tip_table_dependencies <- function(widget, marker = FALSE, looks = list(), pin =
     list(table),
     if (marker) list(tip_marker_dependency()),
     if (pin) list(tip_pin_dependency()),
+    if (!is.null(max_pins)) list(tip_table_pins_dependency(max_pins$id, max_pins$max)),
     looks
   )
   widget
@@ -646,6 +647,33 @@ tip_table_check_pin <- function(rows, id, call) {
   invisible()
 }
 
+# `max_pins`: the table's own count of pins, a whole number from 1 to 10. It counts the pins of the rows, so it needs a
+# `rows` spec that pins, and it is told to the page by the table's id.
+tip_table_check_max_pins <- function(max_pins, rows, id, call) {
+  if (is.null(max_pins)) {
+    return(invisible())
+  }
+  tip_check_max_pins(max_pins, call = call)
+  missing <- c(
+    if (is.null(id)) "the table's {.arg id}",
+    if (!(inherits(rows, "hovercraft_spec") && !is.null(rows$pin))) "a {.arg rows} spec that pins"
+  )
+  if (length(missing)) {
+    tip_abort(
+      c(
+        "{.arg max_pins} needs {missing}.",
+        i = paste(
+          "It counts the pins of the table's rows by the table's id:",
+          "give {.code id = \"...\"} and {.code rows = tip_spec(\"...\", pin = TRUE)}."
+        )
+      ),
+      class = "hovercraft_error_pin",
+      call = call
+    )
+  }
+  invisible()
+}
+
 # The table's id as the Shiny inputs know it. Inside a module the plain id is taken as the module's own: the module's
 # prefix is added from the session the table is drawn in (what shiny::getDefaultReactiveDomain() gives, also inside
 # DT::renderDT() and reactable::renderReactable()), as tip_show() does. An id that already has the prefix is left as it
@@ -800,6 +828,12 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   filtering and paging; how that id is built is not part of the API: [tip_show()], [tip_hide()] and [tip_update()]
 #'   take the table's `id` with `row` and `column` instead. `NULL` gives the tips no id. A pin or events
 #'   given to `rows` (see [tip_spec()]) need an `id`. The engine's kind of the tips is not yours to set.
+#' @param max_pins `r lifecycle::badge("experimental")` How many of this table's rows can be pinned at once, a whole
+#'   number from 1 to 10, or `NULL` (the default). `NULL` counts the table's pins in the app's limit
+#'   (`use_hovercraft(max_pins =)`): a row pin can close a pin elsewhere, and the other way round. A number gives the
+#'   table its own count, outside the app's: a row pinned past it closes the table's oldest pin and no other, and a pin
+#'   elsewhere never closes one of the table's rows. It needs a `rows` spec that pins ([tip_spec()] with `pin = TRUE`)
+#'   and the table's `id`. All the pins open together, the app's and every table's, cannot pass 10, the engine's cap.
 #' @returns The widget, with the tips added.
 #' @family tooltips
 #' @examplesIf requireNamespace("DT", quietly = TRUE)
@@ -824,7 +858,8 @@ tip_table <- function(
   style = NULL,
   placement = NULL,
   marker = NULL,
-  id = NULL
+  id = NULL,
+  max_pins = NULL
 ) {
   call <- rlang::current_env()
   moved <- intersect(...names(), c("pin", "events"))
@@ -838,7 +873,10 @@ tip_table <- function(
       call = call
     )
   }
-  tip_check_dots(..., args = c("widget", "rows", "cells", "headers", "style", "placement", "marker", "id"))
+  tip_check_dots(
+    ...,
+    args = c("widget", "rows", "cells", "headers", "style", "placement", "marker", "id", "max_pins")
+  )
   kind <- tip_table_kind(widget)
   if (is.na(kind)) {
     tip_abort(
@@ -855,6 +893,7 @@ tip_table <- function(
   rlang::check_installed(if (kind == "dt") "DT" else "reactable")
   tip_check_placement(placement)
   tip_check_id(id)
+  tip_table_check_max_pins(max_pins, rows, id, call)
   id <- tip_table_id(id)
   if (inherits(rows, "hovercraft_spec")) {
     tip_table_check_pin(rows, id, call)
@@ -948,6 +987,7 @@ tip_table <- function(
     widget,
     marked,
     looks[!duplicated(vapply(looks, function(dep) dep$name, ""))],
-    pin = !is.null(plan$rows$pin)
+    pin = !is.null(plan$rows$pin),
+    max_pins = if (!is.null(max_pins)) list(id = id, max = as.integer(max_pins))
   )
 }

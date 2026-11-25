@@ -124,7 +124,12 @@ tip_pin_key <- function() "p"
 
 tip_pin_dependency <- function() {
   config <- list(
-    attributes = list(pin = tip_attribute("pin"), part = tip_contract()$attributes$part, id = tip_attribute("id")),
+    attributes = list(
+      pin = tip_attribute("pin"),
+      part = tip_contract()$attributes$part,
+      id = tip_attribute("id"),
+      keysOff = tip_keys_off_attribute()
+    ),
     events = list(hint = tip_contract()$events$hint$name),
     global = tip_names()$global,
     css = tip_names()$css,
@@ -141,5 +146,64 @@ tip_pin_dependency <- function() {
     stylesheet = "pin.css",
     meta = list("hovercraft-pin-config" = tip_meta_value(config)),
     all_files = FALSE
+  )
+}
+
+# How many pinned tips the app keeps: one whole number from 1 to 10, as an integer.
+tip_check_max_pins <- function(x, arg = "max_pins", call = rlang::caller_env()) {
+  ok <- checkmate::test_int(x, lower = 1, upper = 10, tol = 0)
+  tip_arg(
+    if (ok) TRUE else "Must be one whole number from 1 to 10.",
+    arg,
+    "Give how many pinned tips stay open at once, from 1 (the default) to 10, the engine's cap.",
+    call
+  )
+  as.integer(x)
+}
+
+# The letter keys a tip has: the names, in order, of those switched off. TRUE is none off, FALSE all, and a named
+# logical vector one switch each; a key left out stays on.
+tip_keys <- function() c("pin", "more")
+
+# The attribute on the page's root that lists the keys switched off, named after the engine's prefix like the others.
+tip_keys_off_attribute <- function() paste0("data-", tip_names()$prefix, "-keys-off")
+
+tip_check_keys <- function(keys, call = rlang::caller_env()) {
+  if (checkmate::test_flag(keys) && is.null(names(keys))) {
+    return(if (isTRUE(keys)) character() else tip_keys())
+  }
+  named <- is.logical(keys) && length(keys) > 0L && !anyNA(keys) && !is.null(names(keys)) && all(nzchar(names(keys)))
+  ok <- named && !anyDuplicated(names(keys)) && all(names(keys) %in% tip_keys())
+  tip_arg(
+    if (ok) TRUE else "Must be `TRUE`, `FALSE`, or a named logical vector such as `c(pin = FALSE)`.",
+    "keys",
+    paste0(
+      "Give {.code TRUE} for every key, {.code FALSE} for none, or one switch per key, named ",
+      paste0("{.val ", tip_keys(), "}", collapse = " or "),
+      "; a key left out stays on."
+    ),
+    call
+  )
+  tip_keys()[tip_keys() %in% names(keys)[!keys]]
+}
+
+# The number of pins in a dependency of its own, named by the number: htmltools keeps one dependency of a name, so two
+# numbers are two dependencies, and the runtime script sees both and warns when they differ.
+tip_max_pins_dependency <- function(max_pins) {
+  tip_gen_dependency(paste0("hovercraft-max-pins-", max_pins), ops = list(list(op = "maxPins", value = max_pins)))
+}
+
+tip_keys_dependency <- function(off) {
+  tip_gen_dependency(
+    paste0("hovercraft-keys-", paste(off, collapse = "-")),
+    ops = list(list(op = "keys", off = as.list(off)))
+  )
+}
+
+# A table's own count of pins, by the table's id as the inputs know it.
+tip_table_pins_dependency <- function(id, max) {
+  tip_gen_dependency(
+    paste0("hovercraft-pins-", substr(rlang::hash(list(id, max)), 1L, 12L)),
+    ops = list(list(op = "tablePins", id = id, max = max))
   )
 }

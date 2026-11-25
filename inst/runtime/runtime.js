@@ -19,6 +19,44 @@
   engine?.attach(document);
   layer()?.start(config);
 
+  // How many pins stay open. The engine reads one number from the page's root; the layer counts the rest. `app` is the
+  // app's limit (`use_hovercraft(max_pins =)`, the first one that is given holds), `own` the tables with a count of their
+  // own, by the table's id. With any table of its own the engine's limit is its cap, ten, and the layer closes the oldest
+  // pin of a pool that has gone past its limit: a table's pool is its own rows, the app's is every other pin.
+  const root = document.documentElement;
+  const pinning = { app: 1, set: false, own: new Map() };
+  const keysOff = new Set();
+  const syncPins = () => root.setAttribute(config.attributes.pins, String(pinning.own.size ? 10 : pinning.app));
+  const poolOf = (id) => {
+    for (const table of pinning.own.keys()) if (id.startsWith(`${table}/`)) return table;
+    return null;
+  };
+  const itemOf = (id) => {
+    for (const el of document.querySelectorAll(`[${config.attributes.id}]`))
+      if (el.getAttribute(config.attributes.id) === id) return el;
+    return null;
+  };
+  // A pin that went past its pool's limit: the pool's oldest pins close, never the one that just opened.
+  const onTip = (event) => {
+    const detail = event.detail;
+    if (!pinning.own.size || detail?.state !== 'pinned' || !Array.isArray(detail.ids)) return;
+    const pool = poolOf(String(detail.id));
+    const limit = pool === null ? pinning.app : pinning.own.get(pool);
+    const members = detail.ids.map(String).filter((id) => poolOf(id) === pool);
+    for (const id of members.slice(0, Math.max(0, members.length - limit))) {
+      const el = itemOf(id);
+      if (el) engine?.close(el);
+    }
+  };
+  document.addEventListener(config.events.tip, onTip);
+  // The pin key's announcement goes with the key: an item that says P pins it must not, when the key is off.
+  const stripKeys = (node) => {
+    if (!keysOff.has('pin')) return;
+    const items = node.matches?.(`[${config.attributes.pin}][aria-keyshortcuts]`) ? [node] : [];
+    for (const el of [...items, ...(node.querySelectorAll?.(`[${config.attributes.pin}][aria-keyshortcuts]`) ?? [])])
+      if (/^p$/i.test(el.getAttribute('aria-keyshortcuts'))) el.removeAttribute('aria-keyshortcuts');
+  };
+
   const cssDone = new Set();
   const addCss = (text) => {
     if (typeof CSSStyleSheet === 'function' && 'adoptedStyleSheets' in document) {
@@ -44,6 +82,26 @@
       cssDone.add(op.id);
       addCss(op.text);
     },
+    maxPins: (op) => {
+      if (!pinning.set) {
+        pinning.set = true;
+        pinning.app = op.value;
+        syncPins();
+      } else if (op.value !== pinning.app) {
+        console.warn(
+          `Hovercraft: use_hovercraft(max_pins = ${op.value}) came after max_pins = ${pinning.app}; the first value holds.`,
+        );
+      }
+    },
+    tablePins: (op) => {
+      pinning.own.set(op.id, op.max);
+      syncPins();
+    },
+    keys: (op) => {
+      for (const key of op.off ?? []) keysOff.add(key);
+      root.setAttribute(config.attributes.keysOff, [...keysOff].join(' '));
+      stripKeys(document);
+    },
     // The page's own style: attributes on the page's root, which the engine reads before its settings.
     page: (op) => {
       for (const [name, value] of Object.entries(op.attributes ?? {}))
@@ -66,6 +124,7 @@
   };
   const scan = (node) => {
     if (node.nodeType !== 1) return;
+    stripKeys(node);
     if (node.matches(SOURCES)) read(node);
     for (const element of node.querySelectorAll(SOURCES)) read(element);
   };

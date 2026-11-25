@@ -590,7 +590,8 @@
           }
           // An output drawn for another item still holds that item's content: show loading until the server answers
           // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
-          const item = itemOf(info?.box);
+          // A pinned tip's output says whose it is (`info.id`); with several pins open, "the item that is open" is no one's.
+          const item = info?.id ? find(String(info.id)) : itemOf(info?.box);
           if (item && rec.item && item !== rec.item && rec.state === 'ready') {
             rec.state = 'loading';
             rec.stale = true;
@@ -763,14 +764,24 @@
     }
   };
 
+  // The pin boxes that were on show at the last pin event: with several pins open, the box a pin just opened in is the one
+  // that was not there before.
+  let shownPins = new Set();
+  const visiblePins = () => {
+    const cls = names?.css ?? 'hc-tip';
+    return [...document.querySelectorAll(`.${cls}.${cls}-pin:not([hidden])`)];
+  };
   const animatePinGrowth = (event) => {
     const detail = event.detail;
     if (!detail) return;
     if (detail.state === 'closed') {
       cancelGrowth();
+      shownPins = new Set(visiblePins());
       return;
     }
     if (detail.state !== 'pinned') return;
+    const fresh = visiblePins().filter((box) => !shownPins.has(box));
+    shownPins = new Set(visiblePins());
     const prev = lastHint;
     lastHint = null;
     const el = event.target?.nodeType === 1 ? event.target : find(detail.id);
@@ -781,8 +792,7 @@
 
     // Run right after the engine's synchronous pinMotion.enter() and before the first browser paint.
     Promise.resolve().then(() => {
-      const cls = names?.css ?? 'hc-tip';
-      const pinBox = document.querySelector(`.${cls}.${cls}-pin:not([hidden])`);
+      const pinBox = fresh.at(-1) ?? visiblePins().at(-1);
       if (!pinBox) return;
       // The long form starts with a hairline, as in the hover form (the engine draws no wrapper for it when pinned).
       longBlocks(pinBox, prev.blocks)[0]?.classList.add('hc-long-first');

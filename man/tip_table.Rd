@@ -13,7 +13,8 @@ tip_table(
   style = NULL,
   placement = NULL,
   marker = NULL,
-  id = NULL
+  id = NULL,
+  max_pins = NULL
 )
 }
 \arguments{
@@ -58,6 +59,13 @@ row, cell and header cell gets its own tip id derived from it, which follows the
 filtering and paging; how that id is built is not part of the API: \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}
 take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL} gives the tips no id. A pin or events
 given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}. The engine's kind of the tips is not yours to set.}
+
+\item{max_pins}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How many of this table's rows can be pinned at once, a whole
+number from 1 to 10, or \code{NULL} (the default). \code{NULL} counts the table's pins in the app's limit
+(\code{use_hovercraft(max_pins =)}): a row pin can close a pin elsewhere, and the other way round. A number gives the
+table its own count, outside the app's: a row pinned past it closes the table's oldest pin and no other, and a pin
+elsewhere never closes one of the table's rows. It needs a \code{rows} spec that pins (\code{\link[=tip_spec]{tip_spec()}} with \code{pin = TRUE})
+and the table's \code{id}. All the pins open together, the app's and every table's, cannot pass 10, the engine's cap.}
 }
 \value{
 The widget, with the tips added.

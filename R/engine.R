@@ -121,9 +121,22 @@ tip_reset <- function() {
 #'   variables such as `list("--hovercraft-tip-bg" = "#1b3a6b")`. A string that holds `:` or `;` is not a style: it
 #'   looks like CSS, and `style` takes no CSS.
 #'
+#' @param max_pins `r lifecycle::badge("experimental")` How many pinned tips the app keeps open, a whole number from 1
+#'   to 10; the default, `1`, is one at a time. At the limit the oldest pin closes when a new one opens. Give it once,
+#'   in the app's UI: a second `use_hovercraft()` with another number is seen by the page, which warns in the browser's
+#'   console and keeps the first. A [tip_table()] with its own `max_pins` has its own count, outside this one. All the
+#'   pins open together, the app's and the tables', cannot pass 10, the engine's cap.
+#' @param keys `r lifecycle::badge("experimental")` The letter keys of a tip: `TRUE` (the default) for all, `FALSE` for
+#'   none, or a named logical vector with one switch per key, `c(pin = FALSE)` or `c(more = FALSE)`; a key left out
+#'   stays on. `pin` is the key that pins the tagged item (P), which works only while the focus is on the item and
+#'   never inside a field; `more` is the key that opens a tip's long form (M), which `tip_more()` adds. Escape always
+#'   closes a tip. Switching `pin` off takes the key's announcement (`aria-keyshortcuts`) off the items too; the pin
+#'   button stays.
+#'
 #' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
 #'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as
-#'   the engine's attributes on the page, and last `hovercraft-runtime`, which starts the engine and the layers. Put it
+#'   the engine's attributes on the page, with a `max_pins` or `keys` that is not the default one of their own, and last
+#'   `hovercraft-runtime`, which starts the engine and the layers. Put it
 #'   once in the page's UI, for example `bslib::page_fluid(use_hovercraft(style = "sober"), ...)`.
 #'
 #'   Nothing in them is inline script or style: they are files and data, so a page served with
@@ -148,11 +161,20 @@ tip_reset <- function() {
 #' use_hovercraft(style = "modern")
 #' use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 #' use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
+#' use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
 #' @export
-use_hovercraft <- function(style = NULL) {
+use_hovercraft <- function(style = NULL, max_pins = 1, keys = TRUE) {
   style <- tip_as_style(style, "style")
+  max_pins <- tip_check_max_pins(max_pins)
+  off <- tip_check_keys(keys)
   page <- if (!is.null(style)) tip_style_page(style)
-  c(list(tip_engine_dependency()), if (!is.null(page)) list(page), list(tip_runtime_dependency()))
+  c(
+    list(tip_engine_dependency()),
+    if (!is.null(page)) list(page),
+    if (max_pins != 1L) list(tip_max_pins_dependency(max_pins)),
+    if (length(off)) list(tip_keys_dependency(off)),
+    list(tip_runtime_dependency())
+  )
 }
 
 # The engine's own two files; it starts and is told about templates by the runtime dependency.
