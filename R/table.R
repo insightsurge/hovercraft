@@ -156,7 +156,6 @@ tip_table_content <- function(
   own <- NULL
   own_style <- NULL
   own_more <- NULL
-  own_more_on <- NULL
   own_pin <- NULL
   own_events <- NULL
   if (inherits(x, "hovercraft_spec")) {
@@ -166,39 +165,38 @@ tip_table_content <- function(
     own <- x$marker
     own_style <- x$style
     own_more <- x$more
-    own_more_on <- x$more_on
     x <- x$content
   }
   part <- tip_table_template_part(x, arg, columns, header, call)
   if (is.null(part)) {
     return(NULL)
   }
-  more_part <- if (!is.null(own_more)) {
-    tip_table_template_part(own_more, paste0(arg, "$more"), columns, header, call)
+  more_given <- if (!is.null(own_more)) tip_more_unpack(own_more)
+  more_part <- if (!is.null(more_given)) {
+    tip_table_template_part(more_given$content, paste0(arg, "$more"), columns, header, call)
   }
-  # Only a row can pin (`pin = TRUE`), so the long form of a table tip opens on hover unless `more_on` says otherwise.
-  if (!is.null(more_part)) {
-    effective_on <- own_more_on %||% "hover"
-    if (identical(effective_on, "pin") && !(row && !is.null(own_pin))) {
-      tip_abort(
-        c(
-          "{.arg {arg}} sets {.arg more} with {.code more_on = \"pin\"}, but this tip cannot pin.",
-          i = paste0(
-            "Only the tips of {.arg rows} can pin, with {.code tip_spec(pin = TRUE)}. ",
-            "Or set {.code more_on = \"hover\"}."
-          )
-        ),
-        class = "hovercraft_error_pin",
-        call = call
-      )
-    }
+  # Only a row can pin (`pin = TRUE`), so the long form of a table tip waits behind a button unless `tip_more(on = )`
+  # says otherwise, and `on = "pin"` needs a row with a pin.
+  if (!is.null(more_part) && identical(more_given$on, "pin") && !(row && !is.null(own_pin))) {
+    tip_abort(
+      c(
+        "{.arg {arg}} sets {.arg more} with {.code tip_more(on = \"pin\")}, but this tip cannot pin.",
+        i = paste0(
+          "Only the tips of {.arg rows} can pin, with {.code tip_spec(pin = TRUE)}. ",
+          "Or use {.code on = \"hover\"} or {.code \"button\"}."
+        )
+      ),
+      class = "hovercraft_error_pin",
+      call = call
+    )
   }
   list(
     name = part$name,
     body = part$body,
     fields = unique(c(part$fields, more_part$fields)),
     more = more_part,
-    more_on = if (!is.null(more_part)) own_more_on %||% "hover",
+    more_on = if (!is.null(more_part)) more_given$on,
+    more_label = if (!is.null(more_part)) more_given$label,
     outputs = unique(c(part$outputs, more_part$outputs)),
     placement = placement,
     style = tip_style_over(own_style, style),
@@ -346,9 +344,14 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   if (!is.null(content$placement)) {
     attrs[[tip_attribute("placement")]] <- content$placement
   }
+  reset <- NULL
   if (!is.null(content$more)) {
-    attrs[[tip_attribute("more_template")]] <- content$more$name
-    attrs[[tip_attribute("more_on")]] <- content$more_on
+    attrs <- c(attrs, tip_more_values(content$more_on, content$more$name, label = content$more_label))
+    # The attributes the "More" button writes while the long form is open go when the element is given another row.
+    if (identical(content$more_on, "button")) {
+      reset <- c(tip_attribute("more"), tip_attribute("more_template"), tip_attribute("more_on"))
+      reset <- c(reset, tip_more_attribute("state"))
+    }
   }
   if (!identical(target, "row")) {
     attrs[[tip_attribute("anchor")]] <- "content"
@@ -360,7 +363,10 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
   # tip's corner and the pin key do (inst/pin/pin.js). The row announces the key, as tip_on() does.
   if (!is.null(pin)) {
     attrs[[tip_attribute("pin")]] <- pin
-    attrs[["aria-keyshortcuts"]] <- toupper(tip_pin_key())
+  }
+  keys <- tip_keyshortcuts(!is.null(pin), identical(content$more_on, "button"))
+  if (!is.null(keys)) {
+    attrs[["aria-keyshortcuts"]] <- keys
   }
   if (!is.null(events)) {
     attrs[[tip_shiny_attribute()]] <- events
@@ -383,13 +389,26 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
     }
   }
   # `needs`: the fields the tip reads; a record where all of them are blank gets no tip (a cell that holds NA).
-  list(attrs = attrs, record = tip_attribute("record"), needs = as.list(content$fields), id = ident)
+  list(
+    attrs = attrs,
+    record = tip_attribute("record"),
+    needs = as.list(content$fields),
+    id = ident,
+    reset = as.list(reset)
+  )
 }
 
 # The attribute that holds a table tip's address, named after the engine's prefix as the events attribute is.
 tip_table_address_attribute <- function() paste0("data-", tip_names()$prefix, "-table-address")
 
-tip_table_dependencies <- function(widget, marker = FALSE, looks = list(), pin = FALSE, max_pins = NULL) {
+tip_table_dependencies <- function(
+  widget,
+  marker = FALSE,
+  looks = list(),
+  pin = FALSE,
+  more = FALSE,
+  max_pins = NULL
+) {
   table <- htmltools::htmlDependency(
     name = "hovercraft-table",
     version = tip_package_version(),
@@ -404,6 +423,7 @@ tip_table_dependencies <- function(widget, marker = FALSE, looks = list(), pin =
     if (marker) list(tip_marker_dependency()),
     if (pin) list(tip_pin_dependency()),
     if (!is.null(max_pins)) list(tip_table_pins_dependency(max_pins$id, max_pins$max)),
+    if (more) list(tip_more_dependency()),
     looks
   )
   widget
@@ -707,7 +727,7 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 #' its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
 #' beside the text and not far to its left; there is no argument for it. A target that needs its own settings (style,
-#' placement, marker, or `more` / `more_on`) takes a [tip_spec()] in place of words. A tip is made of words (markdown)
+#' placement, marker or `more`) takes a [tip_spec()] in place of words. A tip is made of words (markdown)
 #' with
 #' `{{ column }}` placeholders, or of a [tip_template()]; every placeholder is checked against the table's columns, and
 #' a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
@@ -724,10 +744,11 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' focus gets a small pin handle in its corner, the same as [tip_on()]'s (`pin = TRUE`): a click or tap on it pins the
 #' row's tip, and the tip's own close button, `Escape` or a click away closes it. The pin key `P` pins the tip of the
 #' row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
-#' rows pin for now"). A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not
-#' a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which each row that
-#' can pin announces as `aria-keyshortcuts`. A pin follows its row. It stays on a row when `DT` sorts (client and
-#' server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
+#' rows pin for now"). A long form (`more`) opens with its "More" button, or with the `M` key when the focus is on the
+#' row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
+#' column and not a tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which
+#' each row that can pin announces as `aria-keyshortcuts`. A pin follows its row. It stays on a row when `DT` sorts
+#' (client and server mode), and on the same row number when `DT` draws the table again or `DT::replaceData()` or
 #' `reactable::updateReactable(data = )` give it new data, with the new values in its tip. It closes when its row
 #' leaves the page (a filter or another page in `DT`, another page in `reactable`), when `reactable` shows another row
 #' in the row's place, when the table goes, and when a click lands elsewhere. The input then says why: `DT` closes a
@@ -756,16 +777,16 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' For a tag of [tip_on()] with `events = "pin"`, `input$<id>_pinned` is `TRUE` or `FALSE` (read it with
 #' `isTRUE(input$run_pinned)`).
 #'
-#' `input$<id>_pin` and `input$<id>_hint` are told apart by `state`. A pin's `state` is `"pinned"`, `"closed"` or
-#' `"updated"` (the tip is pinned and was drawn again because its words changed: an app that only tests for `"closed"`
-#' should not take it for a pin); a hint's is `"shown"` or `"hidden"`. The values of `by` are `"reader"`, `"data"` (the
-#' page changed under the tip) and `"host"` (a command of the page did it). The values of `reason` (the same for the
-#' inputs of [tip_on()]) are, for a pin, `"select"` (the same element again), `"escape"`, `"button"` (the tip's close
-#' button), `"outside"` (a click away), `"replaced"` (another tip was pinned), `"gone"` (the row left the page),
-#' `"below"` (a layer around it closed), `"host"` (a command of the page closed it) and `"redraw"` (the tip was drawn
-#' again with other host slots, `by = "data"`); for a hint, `"leave"` (the pointer left), `"blur"` (the focus left),
-#' `"escape"`, `"outside"`, `"pinned"` (the hint became a pin), `"replaced"`, `"gone"` and `"host"`. `reason` is `NULL`
-#' when a tip opens.
+#' `input$<id>_pin` and `input$<id>_hint` are told apart by `state`, whose values may grow in a later version. A pin's
+#' `state` is `"pinned"`, `"closed"` or `"updated"` (the tip is pinned and was drawn again because its words changed:
+#' an app that only tests for `"closed"` should not take it for a pin); a hint's is `"shown"` or `"hidden"`. The values
+#' of `by` are `"reader"`, `"data"` (the page changed under the tip) and `"host"` (a command of the page did it). The
+#' values of `reason` (the same for the inputs of [tip_on()]) are, for a pin, `"select"` (the same element again),
+#' `"escape"`, `"button"` (the tip's close button), `"outside"` (a click away), `"replaced"` (another tip was pinned),
+#' `"gone"` (the row left the page), `"below"` (a layer around it closed), `"host"` (a command of the page closed it)
+#' and `"redraw"` (the tip was drawn again with other host slots, `by = "data"`); for a hint, `"leave"` (the pointer
+#' left), `"blur"` (the focus left), `"escape"`, `"outside"`, `"pinned"` (the hint became a pin), `"replaced"`,
+#' `"gone"` and `"host"`. `reason` is `NULL` when a tip opens.
 #'
 #' What works, each checked in a browser:
 #' * `DT`, in client mode and in server mode under Shiny, with `scrollX`, `scrollY`, `fixedHeader`, `colReorder` and
@@ -990,6 +1011,11 @@ tip_table <- function(
     marked,
     looks[!duplicated(vapply(looks, function(dep) dep$name, ""))],
     pin = !is.null(plan$rows$pin),
+    more = any(vapply(
+      c(list(plan$rows), plan$cells, plan$headers),
+      function(content) identical(content$more_on, "button"),
+      NA
+    )),
     max_pins = if (!is.null(max_pins)) list(id = id, max = as.integer(max_pins))
   )
 }

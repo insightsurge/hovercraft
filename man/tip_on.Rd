@@ -17,7 +17,6 @@ tip_on(
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  more_on = NULL,
   pin = NULL
 )
 }
@@ -86,7 +85,8 @@ around it closed, \code{"host"} or \code{"redraw"} when it was drawn again with 
 on \code{"pinned"}). A \code{"state"} of \code{"updated"} is not a pin: an app that tests only for \code{"closed"} should check it.
 \code{"pin"} also keeps \verb{input$<id>_pinned}, \code{TRUE} while the tip is pinned and \code{FALSE} after, sent in the same batch
 as \verb{_pin} and as a plain value, so an equal value does not fire an observer again; read it with
-\code{isTRUE(input$run_pinned)}.
+\code{isTRUE(input$run_pinned)}. The values of \code{state} may grow in a later version, so an app should not assume it
+knows them all.
 \code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
 pressed: \code{field} (the record field the code came from), \code{block} (the code block's place among the tip's code
 blocks, from 0), \code{ok} (\code{TRUE} when the browser let the copy happen), \code{by} (\code{"reader"}) and \code{via} (\code{"click"} or
@@ -125,13 +125,12 @@ put the tip on the group instead, and do not give a control in a group a reason.
 that needs no wrapper, which asks the tip engine for a keyboard stop of its own.}
 
 \item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Extra content for the long form of the tip, or \code{NULL} (the default)
-for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}) or a \code{\link[=tip_template]{tip_template()}}.
-\code{NA} and \code{""} count as none. When \code{more_on} is \code{"pin"} (the default), the tag must be able to pin and have an \code{id}
-(either \verb{id =} or the tag's own HTML \code{id}); otherwise \code{tip_on()} stops with an error.}
-
-\item{more_on}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} When the long form (\code{more}) opens: \code{"pin"} (the default, shows a
-short hint on hover and expands to the long form when pinned) or \code{"hover"} (shows the long form on hover too), or
-\code{NULL} to use the engine's default (\code{"pin"}).}
+for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}), a \code{\link[=tip_template]{tip_template()}}, or
+a \code{\link[=tip_more]{tip_more()}} that also says when the long form shows. \code{NA} and \code{""} count as none. Words and a template are the
+same as \code{tip_more()} with its default: the tip is short, and a "More" button in it (and the M key) opens the long
+form in the same tip, with no pin and no \code{id}. See \code{\link[=tip_more]{tip_more()}} for \code{"hover"}, \code{"pin"} and the buttons' words; with
+\code{"pin"} the tag must be able to pin and have an \code{id} (either \verb{id =} or the tag's own HTML \code{id}), otherwise
+\code{tip_on()} stops with an error.}
 
 \item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Whether a reader can keep this tip open: \code{NULL} (the
 default) or \code{FALSE} for a tip that only shows on hover or focus (\code{FALSE} is "never", whatever a level above says),
@@ -214,12 +213,18 @@ tip_on(
   events = c("hint", "pin")
 )
 
-# Short tip on hover with extra detail
+# A short tip with a "More" button that opens the long form in the same tip
 tip_on(
   htmltools::tags$button("Run"),
   "Runs the **check**",
-  more = "Checks every column and prints a summary.",
-  more_on = "hover"
+  more = "Checks every column and prints a summary."
+)
+
+# The long form shows with the short one
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  more = tip_more("Checks every column and prints a summary.", on = "hover")
 )
 
 # A look for this tag only
@@ -258,6 +263,7 @@ Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},

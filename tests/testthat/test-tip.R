@@ -363,16 +363,58 @@ describe("tip_on(placement =, id =)", {
   })
 })
 
-describe("tip_on(more =, more_on =)", {
+describe("tip_on(more =)", {
   withr::defer(tip_reset())
   tip_reset()
   pinnable <- function(id = NULL) htmltools::tags$button("Run", id = id)
+  held <- function() tip_more_attribute("held")
+  held_template <- function() tip_more_attribute("held-template")
+  deps_of <- function(tag) vapply(htmltools::findDependencies(tag), function(d) d$name, "")
 
-  it("writes data-hovercraft-tip-more and more_on for plain words on hover", {
-    got <- tip_on(button(), "Short", more = "Extra **words**", more_on = "hover")
+  it("keeps the long form behind a button by default: attributes of its own, and none of the engine's", {
+    got <- tip_on(button(), "Short", more = "Extra **words**")
+    expect_identical(htmltools::tagGetAttribute(got, held()), "Extra **words**")
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more")))
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more_on")))
+    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more_template")))
+    expect_identical(htmltools::tagGetAttribute(got, "aria-keyshortcuts"), "M")
+    expect_true("hovercraft-more" %in% deps_of(got))
+    # No pin and no id are needed, and the same with tip_more() and its default.
+    same <- tip_on(button(), "Short", more = tip_more("Extra **words**"))
+    expect_identical(as.character(same), as.character(got))
+    expect_identical(
+      as.character(tip_on(button(), "Short", more = tip_more("Extra **words**", on = "button"))),
+      as.character(got)
+    )
+  })
+
+  it("writes the engine's attributes for on = \"hover\", with no button and no key", {
+    got <- tip_on(button(), "Short", more = tip_more("Extra **words**", on = "hover"))
     expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more")), "Extra **words**")
     expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more_on")), "hover")
-    expect_null(htmltools::tagGetAttribute(got, tip_attribute("more_template")))
+    expect_null(htmltools::tagGetAttribute(got, held()))
+    expect_null(htmltools::tagGetAttribute(got, "aria-keyshortcuts"))
+    expect_false("hovercraft-more" %in% deps_of(got))
+  })
+
+  it("writes the engine's attributes for on = \"pin\", and announces both keys when it can also pin", {
+    got <- tip_on(pinnable("run"), "Short", id = "run", pin = TRUE, more = tip_more("Long", on = "pin"))
+    expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more")), "Long")
+    expect_identical(htmltools::tagGetAttribute(got, tip_attribute("more_on")), "pin")
+    expect_identical(htmltools::tagGetAttribute(got, "aria-keyshortcuts"), "P")
+    both <- tip_on(pinnable("run"), "Short", id = "run", pin = TRUE, more = "Long")
+    expect_identical(htmltools::tagGetAttribute(both, "aria-keyshortcuts"), "P M")
+  })
+
+  it("holds the words of the buttons as data, one string or both", {
+    one <- tip_on(button(), "Short", more = tip_more("Long", label = "Details"))
+    expect_identical(htmltools::tagGetAttribute(one, tip_more_attribute("label")), "{\"more\":\"Details\"}")
+    two <- tip_on(button(), "Short", more = tip_more("Long", label = c(more = "Details", less = "Fewer")))
+    expect_identical(
+      htmltools::tagGetAttribute(two, tip_more_attribute("label")),
+      "{\"more\":\"Details\",\"less\":\"Fewer\"}"
+    )
+    expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = "Long"), tip_more_attribute("label")))
   })
 
   it("accepts a tip_template() or placeholder text for more and attaches a deterministic template dependency", {
@@ -391,7 +433,7 @@ describe("tip_on(more =, more_on =)", {
       record = list(label = "ADAE", n = 12, unused = "drop")
     )
     expect_identical(as.character(got_a), as.character(got_b))
-    expect_match(htmltools::tagGetAttribute(got_a, tip_attribute("more_template")), "^more_[a-f0-9]{12}$")
+    expect_match(htmltools::tagGetAttribute(got_a, held_template()), "^more_[a-f0-9]{12}$")
     rec <- jsonlite::fromJSON(htmltools::tagGetAttribute(got_a, tip_attribute("record")))
     expect_named(rec, c("label", "n"))
 
@@ -403,9 +445,16 @@ describe("tip_on(more =, more_on =)", {
       record = list(owner = "Biostats"),
       id = "run_tpl"
     )
-    expect_match(htmltools::tagGetAttribute(tpl_tag, tip_attribute("more_template")), "^more_[a-f0-9]{12}$")
-    deps <- vapply(htmltools::findDependencies(tpl_tag), function(d) d$name, "")
-    expect_true(any(startsWith(deps, "hovercraft-more-")))
+    expect_match(htmltools::tagGetAttribute(tpl_tag, held_template()), "^more_[a-f0-9]{12}$")
+    expect_true(any(startsWith(deps_of(tpl_tag), "hovercraft-more-")))
+    # On the engine's own moments the template is the engine's attribute.
+    hover <- tip_on(
+      pinnable(),
+      "Short",
+      more = tip_more(tip_template(tip_fields(Owner = "{{ owner }}")), on = "hover"),
+      record = list(owner = "Biostats")
+    )
+    expect_match(htmltools::tagGetAttribute(hover, tip_attribute("more_template")), "^more_[a-f0-9]{12}$")
   })
 
   it("parks a Shiny output that a more template holds, with the park markup in the template's dependency", {
@@ -429,50 +478,101 @@ describe("tip_on(more =, more_on =)", {
     expect_no_match(ops, "</", fixed = TRUE)
   })
 
-  it("warns once when more_on is given without more, in tip_on() and tip_spec()", {
-    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
-    expect_warning(tip_on(button(), "Short", more_on = "hover"), class = "hovercraft_warning_more")
-    # Once per session: the second call stays quiet.
-    expect_no_warning(tip_on(button(), "Short", more_on = "hover"))
-    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
-    expect_warning(tip_spec("x", more_on = "hover"), class = "hovercraft_warning_more")
-    rlang::reset_warning_verbosity("hovercraft_more_on_without_more")
-    expect_no_warning(tip_on(button(), "Short", more = "Long", more_on = "hover"))
-  })
-
   it("treats NA and empty more as no long form and clears earlier more attributes on replacement", {
-    expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = ""), tip_attribute("more")))
-    expect_null(htmltools::tagGetAttribute(tip_on(button(), "Short", more = NA_character_), tip_attribute("more")))
-    once <- tip_on(button(), "Short", more = "Extra", more_on = "hover")
+    for (none in list("", NA_character_, tip_more(""), tip_more(NA))) {
+      got <- tip_on(button(), "Short", more = none)
+      expect_null(htmltools::tagGetAttribute(got, held()))
+      expect_null(htmltools::tagGetAttribute(got, "aria-keyshortcuts"))
+      expect_false("hovercraft-more" %in% deps_of(got))
+    }
+    once <- tip_on(button(), "Short", more = tip_more("Extra", on = "hover"))
     twice <- tip_on(once, "Only short")
     expect_null(htmltools::tagGetAttribute(twice, tip_attribute("more")))
     expect_null(htmltools::tagGetAttribute(twice, tip_attribute("more_on")))
+    behind <- tip_on(button(), "Short", more = tip_more("Extra", label = "Details"))
+    again <- tip_on(behind, "Only short")
+    expect_null(htmltools::tagGetAttribute(again, held()))
+    expect_null(htmltools::tagGetAttribute(again, tip_more_attribute("label")))
+    expect_null(htmltools::tagGetAttribute(again, "aria-keyshortcuts"))
+    expect_false("hovercraft-more" %in% deps_of(again))
   })
 
-  it("stops with a classed error when more_on is pin (or default) without a pinnable tag or id", {
-    expect_error(tip_on(button(), "Short", more = "Long"), class = "hovercraft_error_pin")
-    expect_error(tip_on(button(), "Short", more = "Long", id = "x"), class = "hovercraft_error_pin")
-    expect_error(tip_on(pinnable(), "Short", more = "Long", pin = TRUE), class = "hovercraft_error_pin")
-    expect_no_error(tip_on(pinnable(), "Short", more = "Long", id = "x", pin = TRUE))
-    expect_no_error(tip_on(pinnable("x"), "Short", more = "Long", pin = TRUE))
+  it("keeps a key shortcut the page wrote itself when the tip has no pin and no button", {
+    own <- htmltools::tags$button("Run", `aria-keyshortcuts` = "Alt+R")
+    expect_identical(htmltools::tagGetAttribute(tip_on(own, "Short"), "aria-keyshortcuts"), "Alt+R")
+    expect_identical(
+      htmltools::tagGetAttribute(tip_on(own, "Short", more = tip_more("Long", on = "hover")), "aria-keyshortcuts"),
+      "Alt+R"
+    )
   })
 
-  it("validates more, more_on and placeholders in more", {
-    expect_error(tip_on(button(), "Short", more = 1, more_on = "hover"), class = "hovercraft_error_argument")
-    expect_error(tip_on(button(), "Short", more = "Long", more_on = "click"), class = "hovercraft_error_argument")
-    expect_error(tip_on(button(), "Short", more = "{{ bad", more_on = "hover"), class = "hovercraft_error_placeholder")
+  it("stops with a classed error when on is pin without a pinnable tag or id", {
+    expect_error(tip_on(button(), "Short", more = tip_more("Long", on = "pin")), class = "hovercraft_error_pin")
     expect_error(
-      tip_on(button(), "Short", more = "{{ missing }}", more_on = "hover", record = list(other = 1)),
+      tip_on(button(), "Short", id = "x", more = tip_more("Long", on = "pin")),
+      class = "hovercraft_error_pin"
+    )
+    expect_error(
+      tip_on(pinnable(), "Short", pin = TRUE, more = tip_more("Long", on = "pin")),
+      class = "hovercraft_error_pin"
+    )
+    expect_no_error(tip_on(pinnable(), "Short", id = "x", pin = TRUE, more = tip_more("Long", on = "pin")))
+    expect_no_error(tip_on(pinnable("x"), "Short", pin = TRUE, more = tip_more("Long", on = "pin")))
+    # The default needs neither a pin nor an id.
+    expect_no_error(tip_on(button(), "Short", more = "Long"))
+  })
+
+  it("validates more, on, label and placeholders in more", {
+    expect_error(tip_on(button(), "Short", more = 1), class = "hovercraft_error_argument")
+    expect_error(tip_on(button(), "Short", more = "{{ bad"), class = "hovercraft_error_placeholder")
+    expect_error(
+      tip_on(button(), "Short", more = "{{ missing }}", record = list(other = 1)),
       class = "hovercraft_error_field"
     )
     expect_error(
-      tip_on(button(), "Short", more = "{{ tip_index }}", more_on = "hover", record = list()),
+      tip_on(button(), "Short", more = "{{ tip_index }}", record = list()),
       class = "hovercraft_error_field"
     )
-    expect_error(
-      tip_on(button(), "Short", more = "{{ tip_id }}", more_on = "hover", record = list()),
-      class = "hovercraft_error_field"
-    )
+    expect_error(tip_on(button(), "Short", more = "{{ tip_id }}", record = list()), class = "hovercraft_error_field")
+    # more_on is gone, with no alias.
+    expect_error(tip_on(button(), "Short", more = "Long", more_on = "hover"), class = "hovercraft_error_argument")
+  })
+})
+
+describe("tip_more()", {
+  it("holds the content, the moment and the words of the buttons", {
+    got <- tip_more("Long", on = "hover")
+    expect_s3_class(got, "hovercraft_more")
+    expect_identical(got$content, "Long")
+    expect_identical(got$on, "hover")
+    expect_null(got$label)
+    expect_null(tip_more("Long")$on)
+    expect_identical(tip_more("Long", label = "Details")$label, c(more = "Details"))
+    expect_identical(tip_more("Long", on = "button", label = c(less = "Fewer"))$label, c(less = "Fewer"))
+    expect_s3_class(tip_more(tip_template(tip_text("Long"))), "hovercraft_more")
+    expect_s3_class(tip_more(NA), "hovercraft_more")
+  })
+
+  it("stops on a content, a moment or a label that is not one", {
+    expect_error(tip_more(1), class = "hovercraft_error_argument")
+    expect_error(tip_more(c("a", "b")), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", on = "click"), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", on = c("hover", "pin")), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", label = 1), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", label = ""), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", label = c(more = "a", other = "b")), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", label = c(more = "a", more = "b")), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", label = c("a", "b")), class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", labell = "a"), class = "hovercraft_error_argument")
+    expect_error(tip_more(), "missing", class = "hovercraft_error_argument")
+    expect_error(tip_more("", label = "a"), "empty", class = "hovercraft_error_argument")
+    expect_error(tip_more(NA, label = "a"), class = "hovercraft_error_argument")
+  })
+
+  it("takes a label only with the button", {
+    expect_error(tip_more("Long", on = "hover", label = "Details"), "button", class = "hovercraft_error_argument")
+    expect_error(tip_more("Long", on = "pin", label = c(more = "a")), class = "hovercraft_error_argument")
+    expect_no_error(tip_more("Long", on = "button", label = "Details"))
   })
 })
 
