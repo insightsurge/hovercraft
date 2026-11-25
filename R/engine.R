@@ -103,7 +103,7 @@ tip_reset <- function() {
 
 #' The tip engine as an HTML dependency
 #'
-#' `r lifecycle::badge("stable")` for the page's `style` given as a preset name; `max_pins` and `keys` are
+#' `r lifecycle::badge("stable")` for the page's `style` given as a preset name; `max_pins`, `keys` and `labels` are
 #' `r lifecycle::badge("experimental")`.
 #' The engine's script and CSS, ready to add to a page. [tip_on()] and [tip_define()] attach it for you; use this when
 #' you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
@@ -140,9 +140,20 @@ tip_reset <- function() {
 #'   announcement (`aria-keyshortcuts`) off the items too; the pin button stays. Give it once: a second
 #'   `use_hovercraft(keys = )` that differs warns in the console and the first holds.
 #'
+#' @param labels `r lifecycle::badge("experimental")` The words the tips show themselves on the whole page, or `NULL`
+#'   (the default) for the built-in ones. A named character vector, such as `c(copy = "Copy code", close = "Dismiss")`;
+#'   a word left out keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Three keys
+#'   take placeholders, which the page fills in: `pinned` takes `{label}` (the name of the item), `code_line` takes
+#'   `{first}` (the first line of the code) and `code_lines` and `code_lines_empty` take `{n}` (the number of lines;
+#'   `code_lines` takes `{first}` too); other braces stay as written. An unknown key, an empty or blank word, or a value
+#'   that is not words stops with an error; the unknown key's error lists the keys. A tag's own `labels` (see
+#'   [tip_on()]) beat the page's, key by key, and `tip_more(label = )` beats both for the buttons of one tip. Unlike
+#'   `keys`, where the first call holds, a second `use_hovercraft(labels = )` adds its words to the first, and a key
+#'   that both give takes the later one. Useful for a page in another language.
+#'
 #' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
 #'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as
-#'   the engine's attributes on the page, with a `max_pins` or `keys` that is given one of their own, and last
+#'   the engine's attributes on the page, with a `max_pins`, `keys` or `labels` that is given one of their own, and last
 #'   `hovercraft-runtime`, which starts the engine and the layers. Put it
 #'   once in the page's UI, for example `bslib::page_fluid(use_hovercraft(style = "sober"), ...)`.
 #'
@@ -169,20 +180,25 @@ tip_reset <- function() {
 #' use_hovercraft(style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 #' use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "8px")))
 #' use_hovercraft(max_pins = 3, keys = c(pin = FALSE))
+#' use_hovercraft(
+#'   labels = c(copy = "Copy code", close = "Dismiss", more_pinned = "Open to read more")
+#' )
 #' @export
-use_hovercraft <- function(style = NULL, max_pins = 1, keys = TRUE) {
+use_hovercraft <- function(style = NULL, max_pins = 1, keys = TRUE, labels = NULL) {
   # What was written: a value left out sends nothing, one that is written (even the default) is seen by the page.
   pins_given <- !missing(max_pins)
   keys_given <- !missing(keys)
   style <- tip_as_style(style, "style")
   max_pins <- tip_check_max_pins(max_pins)
   off <- tip_check_keys(keys)
+  labels <- tip_check_labels(labels)
   page <- if (!is.null(style)) tip_style_page(style)
   c(
     list(tip_engine_dependency()),
     if (!is.null(page)) list(page),
     if (pins_given) list(tip_max_pins_dependency(max_pins)),
     if (keys_given) list(tip_keys_dependency(off)),
+    if (!is.null(labels)) list(tip_labels_dependency(labels)),
     list(tip_runtime_dependency())
   )
 }

@@ -71,7 +71,7 @@
       Error in `tip_on()`:
       ! `...` must be empty.
       x Not an argument: "tmplate".
-      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, and `pin`.
+      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, `pin`, and `labels`.
 
 # the tip_on() errors / say what a record lacks, and what it holds
 

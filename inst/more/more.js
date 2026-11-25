@@ -65,12 +65,14 @@
   };
   const expandedNow = (item) => item.getAttribute(A().state) === 'long';
 
-  // The words of the two buttons: the item's own (`label =` in R) over the built-in ones.
+  // The words of the two buttons: the item's own (`tip_more(label =)` in R) over the page's and the tag's `labels =` (the
+  // nearest scope winning) over the built-in ones.
   const words = (item) => {
+    const scoped = { ...names.labels, ...window.HovercraftRuntime?.labels?.(item) };
     try {
-      return { ...names.labels, ...JSON.parse(item.getAttribute(A().label) ?? '{}') };
+      return { ...scoped, ...JSON.parse(item.getAttribute(A().label) ?? '{}') };
     } catch {
-      return names.labels;
+      return scoped;
     }
   };
 
@@ -244,7 +246,7 @@
     // table); Escape on it closes its own tip, not the newest one.
     const inPanel = box.dataset.side === 'in';
     const strip = doc.createElement('div');
-    strip.className = inPanel ? `${STRIP} ${STRIP}-in` : STRIP;
+    strip.className = [STRIP, inPanel && `${STRIP}-in`, kind === 'hint' && `${STRIP}-hint`].filter(Boolean).join(' ');
     strip.setAttribute(A().part, '');
     const button = doc.createElement('button');
     button.type = 'button';

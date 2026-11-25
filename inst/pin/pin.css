@@ -5,7 +5,7 @@
 /* The strip sits in the hint's corner, as part of its box: the hint's own words and colour. */
 .hovercraft-pin-strip {
   position: fixed;
-  z-index: calc(var(--hovercraft-tip-layer, 1100) + 1);
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 3);
   display: flex;
   gap: 2px;
   margin: 0;
@@ -66,4 +66,10 @@
    padding in the width it asks for and a float it would wrap. */
 .hc-tip[data-hovercraft-pin-room] > :first-child {
   padding-inline-end: 26px;
+}
+
+/* The tip under the pointer is on top of the pinned tips, and its buttons (a hint's pin handle and More button) on top of
+   it. The engine puts the hint and the pinned boxes in one layer, so the page order would decide. */
+.hc-tip:not(.hc-tip-pin) {
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 2);
 }

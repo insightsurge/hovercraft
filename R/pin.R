@@ -136,7 +136,7 @@ tip_pin_dependency <- function() {
     global = tip_names()$global,
     css = tip_names()$css,
     key = tip_pin_key(),
-    labels = list(pin = "Pin this tip")
+    labels = list(pin = tip_label_defaults()[["pin"]])
   )
   # The names are data in a <meta>, which inst/pin/pin.js reads when it loads; no inline script starts it.
   htmltools::htmlDependency(

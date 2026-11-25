@@ -17,7 +17,8 @@ tip is pinned). \code{NULL}, the default, is \code{"button"}. This is the same i
 
 \item{label}{The words of the buttons, only with \code{"button"}: one string for the "More" button (the "Less" button
 keeps its word), or \code{c(more = "Show all", less = "Show less")}. \code{NULL} gives the built-in "More" and "Less". With
-\code{"hover"} or \code{"pin"} there is no button, so a \code{label} is an error.}
+\code{"hover"} or \code{"pin"} there is no button, so a \code{label} is an error. It beats the \code{more} and \code{less} words of \code{labels}
+(see \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}) for this tip.}
 }
 \value{
 An object of class \code{hovercraft_more}, to give as \code{more} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=tip_spec]{tip_spec()}}.

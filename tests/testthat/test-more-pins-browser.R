@@ -8,7 +8,7 @@ skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 # the key to the page (the button stays).
 describe("the More button with several pinned tips", {
   place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
-  item <- function(id, left, top, pin = TRUE) {
+  item <- function(id, left, top, pin = TRUE, placement = "bottom") {
     place(
       tip_on(
         htmltools::tags$button(id, id = id),
@@ -16,7 +16,7 @@ describe("the More button with several pinned tips", {
         more = paste("LONG words of", id, "that go on for a while, so the tip has to grow to hold them all of them."),
         id = id,
         pin = if (pin) TRUE,
-        placement = "bottom"
+        placement = placement
       ),
       sprintf("left: %dpx; top: %dpx;", left, top)
     )
@@ -218,6 +218,72 @@ describe("the More button with several pinned tips", {
     expect_length(on$hover("#one"), 1L)
     on$press("m")
     expect_true(on$wait_until("document.querySelector('.hc-tip:not([hidden])').textContent.includes('LONG')"))
+  })
+
+  it("draws a hint's More button above the pinned tip's, which the hint covers, whatever the page order", {
+    page <- local_page(
+      page_file(use_hovercraft(), item("one", 40, 40), item("two", 40, 200, pin = FALSE, placement = "top")),
+      environment()
+    )
+    expect_true(page$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    pin(page, "one")
+    expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 1"))
+    page$hover("#two")
+    expect_true(page$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 2"))
+    page$settle()
+    # The hint opens above its item, over the pinned tip, so its box and its button sit over the pinned tip's button.
+    # What sits at the points that matter, read after the page order is as built or turned round (the pinned box and its
+    # button last): the hint's box where the two boxes overlap, the hint's button at its own centre, and, at the pinned
+    # tip's button, which lies under the hint's box, the hint and not the pinned button.
+    probe_js <- paste(
+      "(() => {",
+      "  const hint = document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])');",
+      "  const pinned = document.querySelector('.hc-tip.hc-tip-pin:not([hidden])');",
+      "  const hintButton = document.querySelector('.hovercraft-more-strip-hint .hovercraft-more-strip-button');",
+      "  const pinButton = document.querySelector('.hovercraft-more-strip:not(.hovercraft-more-strip-hint) .hovercraft-more-strip-button');",
+      "  const centre = (el) => { const r = el.getBoundingClientRect(); return [r.left + r.width / 2, r.top + r.height / 2]; };",
+      "  const at = ([x, y]) => document.elementFromPoint(x, y);",
+      "  const h = hint.getBoundingClientRect(); const p = pinned.getBoundingClientRect();",
+      "  const left = Math.max(h.left, p.left); const right = Math.min(h.right, p.right);",
+      "  const top = Math.max(h.top, p.top); const bottom = Math.min(h.bottom, p.bottom);",
+      "  const inside = (c, r) => c[0] > r.left && c[0] < r.right && c[1] > r.top && c[1] < r.bottom;",
+      "  const mid = [(left + right) / 2, (top + bottom) / 2];",
+      "  const overHint = at(mid); const overHintButton = at(centre(hintButton)); const overPinButton = at(centre(pinButton));",
+      "  return JSON.stringify({",
+      "    overlap: [right - left, bottom - top],",
+      "    pin_button_under_hint: inside(centre(pinButton), h),",
+      "    mid_in_hint: !!overHint?.closest('.hc-tip:not(.hc-tip-pin)') || !!overHint?.closest('.hovercraft-more-strip-hint'),",
+      "    hint_button_hit: overHintButton === hintButton,",
+      "    pin_button_hit: overPinButton === pinButton || !!overPinButton?.closest('.hovercraft-more-strip:not(.hovercraft-more-strip-hint)'),",
+      "    pin_spot_in_hint: !!overPinButton?.closest('.hc-tip:not(.hc-tip-pin)'),",
+      "    z: { hint: +getComputedStyle(hint).zIndex, pinned: +getComputedStyle(pinned).zIndex,",
+      "      hintButton: +getComputedStyle(hintButton.closest('.hovercraft-more-strip')).zIndex,",
+      "      pinButton: +getComputedStyle(pinButton.closest('.hovercraft-more-strip')).zIndex }",
+      "  });",
+      "})()"
+    )
+    probe <- function() jsonlite::fromJSON(page$evaluate(probe_js))
+    check <- function(got) {
+      expect_gt(got$overlap[[1]], 10)
+      expect_gt(got$overlap[[2]], 10)
+      expect_true(got$pin_button_under_hint)
+      expect_true(got$mid_in_hint)
+      expect_true(got$hint_button_hit)
+      expect_false(got$pin_button_hit)
+      expect_true(got$pin_spot_in_hint)
+    }
+    first <- probe()
+    check(first)
+    # The hint's box and button have a higher layer than the pinned ones, so the page order is not what decides.
+    expect_gt(first$z$hint, first$z$pinned)
+    expect_gt(first$z$hintButton, first$z$pinned)
+    expect_gt(first$z$hintButton, first$z$pinButton)
+    # Turn the page order round: the pinned box and its button come after the hint's in the page.
+    page$evaluate(
+      "document.querySelectorAll('.hc-tip.hc-tip-pin, .hovercraft-more-strip:not(.hovercraft-more-strip-hint)').forEach((n) => n.parentNode.append(n)); 0"
+    )
+    page$settle()
+    check(probe())
   })
 
   it("does nothing on the M key when the key is switched off, and the button still works", {
