@@ -386,6 +386,8 @@
   const warned = new Set();
   const claim = (el, id) => {
     if (!id) return;
+    // A table that has left the page (removeUI(), a module that went) no longer owns its id, and must not be kept alive.
+    for (const [other, owner] of owners) if (!owner.isConnected && owner !== el) owners.delete(other);
     const owner = owners.get(id);
     if (owner && owner !== el && owner.isConnected && !warned.has(id)) {
       warned.add(id);
@@ -394,6 +396,30 @@
       );
     }
     owners.set(id, el);
+  };
+
+  // Shiny runs a widget's `onRender` again on the same container each time `renderDT()` or `renderReactable()` draws, so
+  // what a render registers on the container (watchers, listeners) is let go of at the start of the next one: one
+  // registration per container and name, never one per draw. `renew()` ends the previous one and gives the new one a
+  // signal for its listeners and a `watch()` for its observers.
+  const registrations = new WeakMap(); // a container -> { name -> the function that ends that registration }
+  const renew = (el, name) => {
+    const mine = registrations.get(el) ?? new Map();
+    registrations.set(el, mine);
+    mine.get(name)?.();
+    const abort = new AbortController();
+    const observers = [];
+    mine.set(name, () => {
+      abort.abort();
+      for (const observer of observers) observer.disconnect();
+    });
+    return {
+      signal: abort.signal,
+      watch: (observer, target, options) => {
+        observer.observe(target, options);
+        observers.push(observer);
+      },
+    };
   };
 
   const define = (defines, desc, park, open) => {
@@ -475,7 +501,7 @@
         apply();
       });
     };
-    new MutationObserver(later).observe(el, {
+    renew(el, 'reactable').watch(new MutationObserver(later), el, {
       childList: true,
       subtree: true,
       attributes: true,
@@ -536,28 +562,41 @@
     };
 
     const KEYS = new Set(['ArrowRight', 'ArrowLeft', 'ArrowDown', 'ArrowUp', 'Home', 'End']);
-    root.addEventListener('keydown', (e) => {
-      const from = e.target;
-      if (!KEYS.has(e.key) || e.altKey || e.metaKey || e.shiftKey || e.isComposing || !from.matches?.(STOP)) return;
-      if (e.ctrlKey && e.key !== 'Home' && e.key !== 'End') return;
-      e.preventDefault();
-      target(from, e.key, e.ctrlKey)?.focus();
-    });
-    root.addEventListener('focusin', (e) => {
-      if (given.has(e.target) && e.target !== current) {
-        current = e.target;
-        settle();
-      }
-    });
+    const mine = renew(root, 'keyboard');
+    root.addEventListener(
+      'keydown',
+      (e) => {
+        const from = e.target;
+        if (!KEYS.has(e.key) || e.altKey || e.metaKey || e.shiftKey || e.isComposing || !from.matches?.(STOP)) return;
+        if (e.ctrlKey && e.key !== 'Home' && e.key !== 'End') return;
+        e.preventDefault();
+        target(from, e.key, e.ctrlKey)?.focus();
+      },
+      { signal: mine.signal },
+    );
+    root.addEventListener(
+      'focusin',
+      (e) => {
+        if (given.has(e.target) && e.target !== current) {
+          current = e.target;
+          settle();
+        }
+      },
+      { signal: mine.signal },
+    );
     let queued = false;
-    new MutationObserver(() => {
-      if (queued) return;
-      queued = true;
-      requestAnimationFrame(() => {
-        queued = false;
-        settle();
-      });
-    }).observe(root, { childList: true, subtree: true, attributes: true, attributeFilter: [kind] });
+    mine.watch(
+      new MutationObserver(() => {
+        if (queued) return;
+        queued = true;
+        requestAnimationFrame(() => {
+          queued = false;
+          settle();
+        });
+      }),
+      root,
+      { childList: true, subtree: true, attributes: true, attributeFilter: [kind] },
+    );
     settle();
   };
 
