@@ -61,6 +61,8 @@
   // its address: a tag that renderUI() replaces is gone when the engine says its tip closed (by "data"), and the event
   // is then sent at the page, so the tag can no longer say it asked or where it was.
   const asked = { hint: new Map(), pin: new Map() };
+  // The pins that the page's count of pins is about to close, by tip id, with who pinned the new one (see `replaced`).
+  const replacedBy = new Map();
   // What each table has pinned now, by the table's id: the addresses, oldest first (a Map keeps the order it was set in).
   const pinnedBy = new Map();
 
@@ -160,7 +162,11 @@
     if (input.opens && detail.state === input.opens) asked[kind].set(detail.id, { base, address });
     else if (input.closes && detail.state === input.closes) asked[kind].delete(detail.id);
     if (kind === 'pin') sendPinned(detail, base, address);
-    const value = address ? { ...input.value(detail), ...placeOf(address, detail.id) } : input.value(detail);
+    // A pin that the page's own count closed (runtime.js) says what the engine's limit says: replaced, by the reader.
+    const mine = kind === 'pin' && detail.state === input.closes ? replacedBy.get(detail.id) : null;
+    if (mine) replacedBy.delete(detail.id);
+    const shown = mine ? { ...detail, reason: 'replaced', by: mine.by, via: mine.via } : detail;
+    const value = address ? { ...input.value(shown), ...placeOf(address, detail.id) } : input.value(shown);
     // "event" priority: the same value twice in a row (a hint opened, closed, opened) must still reach the server.
     window.Shiny.setInputValue(`${base}${input.suffix}`, value, { priority: 'event' });
   };
@@ -900,6 +906,9 @@
   };
 
   window.HovercraftShiny = Object.freeze({
+    // runtime.js, before it closes a pin that went past its pool's limit: the close then reports as the engine's own limit
+    // does (reason "replaced", by whoever pinned the new tip) in the pin input.
+    replaced: (id, info) => replacedBy.set(String(id), info),
     start: (config) => {
       if (names) return;
       names = config;

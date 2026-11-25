@@ -40,6 +40,8 @@ describe("several pins in a Shiny app", {
         shiny::textOutput("shared_out"),
         tag("x"),
         tag("y"),
+        # A tag pinned by its own HTML id: it has no tip id of its own.
+        tip_on(shiny::actionButton("own", "own"), "Pinned by its HTML id", pin = TRUE),
         shiny::actionButton("modal", "Open a modal"),
         tip_on(
           shiny::actionButton("s1", "s1"),
@@ -58,10 +60,26 @@ describe("several pins in a Shiny app", {
         DT::DTOutput("a"),
         DT::DTOutput("b"),
         DT::DTOutput("c"),
+        DT::DTOutput("t"),
+        DT::DTOutput("t2"),
+        DT::DTOutput("m-mt"),
         reactable::reactableOutput("r"),
         shiny::textOutput("seen_a")
       )
       server <- function(input, output, session) {
+        output$t <- dt("t", max_pins = 1)
+        output$t2 <- dt("t2", max_pins = 2)
+        shiny::moduleServer("m", function(input, output, session) {
+          output$mt <- DT::renderDT(
+            tip_table(
+              DT::datatable(scores, rownames = FALSE, options = list(pageLength = 6)),
+              rows = rows(),
+              id = "tips",
+              max_pins = 1
+            ),
+            server = FALSE
+          )
+        })
         output$a <- dt("a")
         output$b <- dt("b", max_pins = 2)
         output$c <- dt("c", max_pins = 1)
@@ -88,7 +106,7 @@ describe("several pins in a Shiny app", {
   open_attribute <- tip_contract()$attributes$open
   open_ids <- function() {
     got <- page$evaluate(sprintf(
-      "JSON.stringify([...document.querySelectorAll('[%s=\"pin\"]')].map((n) => n.getAttribute('%s')).sort())",
+      "JSON.stringify([...document.querySelectorAll('[%s=\"pin\"]')].map((n) => n.getAttribute('%s') ?? n.id).sort())",
       open_attribute,
       id_attribute
     ))
@@ -97,8 +115,12 @@ describe("several pins in a Shiny app", {
   # Pins an item by the engine's own door, as the pin key and the pin button do.
   pin <- function(id) {
     page$evaluate(sprintf(
-      "(() => { const n = document.querySelector('[%s=\"%s\"]'); return window.Hovercraft.pin(n, { by: 'reader', via: 'key' }); })()",
+      paste0(
+        "(() => { const n = document.querySelector('[%s=\"%s\"]') ?? document.getElementById('%s'); ",
+        "return window.Hovercraft.pin(n, { by: 'reader', via: 'key' }); })()"
+      ),
       id_attribute,
+      id,
       id
     ))
   }
@@ -110,7 +132,7 @@ describe("several pins in a Shiny app", {
   pins_are <- function(ids) {
     want <- jsonlite::toJSON(sort(ids))
     page$wait_until(sprintf(
-      "JSON.stringify([...document.querySelectorAll('[%s=\"pin\"]')].map((n) => n.getAttribute('%s')).sort()) === %s",
+      "JSON.stringify([...document.querySelectorAll('[%s=\"pin\"]')].map((n) => n.getAttribute('%s') ?? n.id).sort()) === %s",
       open_attribute,
       id_attribute,
       jsonlite::toJSON(as.character(want), auto_unbox = TRUE)
@@ -200,6 +222,53 @@ describe("several pins in a Shiny app", {
     expect_true(page$wait_until(
       "document.querySelectorAll('.hc-tip-pin:not([hidden]) #shared_out').length === 1"
     ))
+  })
+
+  it("closes the oldest of the app's pins when it was pinned by the tag's own HTML id", {
+    close_all()
+    pin("own")
+    pin("x")
+    pin("y")
+    expect_true(pins_are(c("own", "x", "y")))
+    pin("a/row/1")
+    expect_true(pins_are(c("x", "y", "a/row/1")))
+  })
+
+  it("reports a pin that a table's own count closes as the engine's limit does, and never lists too many", {
+    close_all()
+    page$evaluate(paste(
+      "window.seen = { pin: [], pinned: [] };",
+      "$(document).on('shiny:inputchanged', (e) => {",
+      "  if (e.name === 'b_pin') window.seen.pin.push(e.value);",
+      "  if (e.name.startsWith('b_pinned')) window.seen.pinned.push(e.value.length);",
+      "}); 0"
+    ))
+    pin("b/row/1")
+    pin("b/row/2")
+    pin("b/row/3")
+    expect_true(pins_are(c("b/row/2", "b/row/3")))
+    expect_true(page$wait_until("window.seen.pin.some((v) => v.state === 'closed')"))
+    closed <- jsonlite::fromJSON(page$evaluate(
+      "JSON.stringify(window.seen.pin.filter((v) => v.state === 'closed')[0])"
+    ))
+    expect_identical(closed$reason, "replaced")
+    expect_identical(closed$by, "reader")
+    expect_identical(closed$via, "key")
+    expect_identical(closed$row, 1L)
+    expect_lte(max(unlist(jsonlite::fromJSON(page$evaluate("JSON.stringify(window.seen.pinned)")))), 2L)
+  })
+
+  it("keeps tables whose ids start alike apart, and counts a table in a module with its plain id", {
+    close_all()
+    pin("t/row/1")
+    pin("t2/row/1")
+    pin("t2/row/2")
+    expect_true(pins_are(c("t/row/1", "t2/row/1", "t2/row/2")))
+    pin("t/row/2")
+    expect_true(pins_are(c("t/row/2", "t2/row/1", "t2/row/2")))
+    pin("m-tips/row/1")
+    pin("m-tips/row/2")
+    expect_true(pins_are(c("t/row/2", "t2/row/1", "t2/row/2", "m-tips/row/2")))
   })
 })
 
@@ -299,5 +368,42 @@ describe("the page's pin settings", {
     skip$evaluate("document.getElementById('one').focus(); 0")
     skip$press("p")
     expect_identical(open_count(skip), 0L)
+  })
+
+  it("warns for a number that is written twice differently, also when the first is the default one", {
+    file <- page_of(use_hovercraft(max_pins = 1), use_hovercraft(max_pins = 3), pinnable("one"))
+    page <- local_page(file, environment(), init = collected)
+    expect_true(page$wait_until("window.warned.some((x) => x.includes('max_pins'))"))
+    expect_identical(page$evaluate(sprintf("document.documentElement.getAttribute('%s')", pin_attribute)), "1")
+  })
+
+  it("warns for keys that differ and keeps the first", {
+    file <- page_of(use_hovercraft(keys = FALSE), use_hovercraft(keys = c(more = FALSE)), pinnable("one"))
+    page <- local_page(file, environment(), init = collected)
+    expect_true(page$wait_until("window.warned.some((x) => x.includes('keys'))"))
+    expect_true(page$wait_until(sprintf(
+      "document.documentElement.getAttribute('%s') === 'pin more'",
+      tip_names()$prefix |> (\(p) paste0("data-", p, "-keys-off"))()
+    )))
+  })
+
+  it("takes the pin key's announcement off the rows of a reactable that writes it on a frame, when keys are off", {
+    skip_if_not_installed("reactable")
+    scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5))
+    widget <- tip_table(
+      reactable::reactable(scores),
+      rows = tip_spec("{{ team }}", pin = TRUE),
+      id = "r"
+    )
+    shortcuts <- "document.querySelectorAll('[aria-keyshortcuts]').length"
+    rows_ready <- sprintf("document.querySelectorAll('[%s^=\"r/row/\"]').length >= 2", tip_attribute("id"))
+    on <- local_page(page_of(use_hovercraft(), widget), environment())
+    expect_true(on$wait_until(rows_ready))
+    expect_true(on$wait_until(paste(shortcuts, "> 0")))
+    off <- local_page(page_of(use_hovercraft(keys = FALSE), widget), environment())
+    expect_true(off$wait_until(rows_ready))
+    # The rows are marked on a frame, so give it a few before saying nothing was written.
+    off$evaluate("new Promise((resolve) => setTimeout(resolve, 600))")
+    expect_identical(off$evaluate(shortcuts), 0L)
   })
 })

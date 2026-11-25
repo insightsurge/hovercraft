@@ -1063,8 +1063,9 @@ describe("tip_table(max_pins =)", {
 
   it("needs the table's id and a rows spec that pins, and says which is missing", {
     expect_error(tip_table(dt(), rows = pins(), max_pins = 2), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "max_pins")
     expect_error(tip_table(dt(), rows = pins(), max_pins = 2), "id")
-    expect_error(tip_table(dt(), rows = "{{ team }}", id = "scores", max_pins = 2), class = "hovercraft_error_pin")
+    expect_error(tip_table(dt(), rows = "{{ team }}", id = "scores", max_pins = 2), "max_pins")
     expect_error(tip_table(dt(), rows = tip_spec("{{ team }}"), id = "scores", max_pins = 2), "pin")
     expect_error(tip_table(dt(), cells = c(wins = "{{ wins }}"), id = "scores", max_pins = 2), "rows")
   })

@@ -16,8 +16,6 @@
 
   const engine = window[config.global];
   const layer = () => window[`${config.global}Shiny`];
-  engine?.attach(document);
-  layer()?.start(config);
 
   // How many pins stay open. The engine reads one number from the page's root; the layer counts the rest. `app` is the
   // app's limit (`use_hovercraft(max_pins =)`, the first one that is given holds), `own` the tables with a count of their
@@ -26,15 +24,19 @@
   const root = document.documentElement;
   const pinning = { app: 1, set: false, own: new Map() };
   const keysOff = new Set();
+  let keysSeen = false;
   const syncPins = () => root.setAttribute(config.attributes.pins, String(pinning.own.size ? 10 : pinning.app));
+  // A table's pool is its rows: the tip id of a row is `<table>/row/<n>`. (A table that goes away leaves its count
+  // behind with no pins in it, which costs nothing.)
   const poolOf = (id) => {
-    for (const table of pinning.own.keys()) if (id.startsWith(`${table}/`)) return table;
+    for (const table of pinning.own.keys()) if (id.startsWith(`${table}/row/`)) return table;
     return null;
   };
+  // The tagged item of a tip id: the id the tip was given, else the tag's own id (the engine's own fallback).
   const itemOf = (id) => {
     for (const el of document.querySelectorAll(`[${config.attributes.id}]`))
       if (el.getAttribute(config.attributes.id) === id) return el;
-    return null;
+    return document.getElementById(id);
   };
   // A pin that went past its pool's limit: the pool's oldest pins close, never the one that just opened.
   const onTip = (event) => {
@@ -45,7 +47,11 @@
     const members = detail.ids.map(String).filter((id) => poolOf(id) === pool);
     for (const id of members.slice(0, Math.max(0, members.length - limit))) {
       const el = itemOf(id);
-      if (el) engine?.close(el);
+      if (!el) continue;
+      // The engine's own limit closes a pin as "replaced", by whoever pinned the new one: the Shiny layer says the same
+      // for this one, though the door gives the close no reason of its own.
+      layer()?.replaced(id, { by: detail.by ?? 'reader', via: detail.via ?? null });
+      engine?.close(el);
     }
   };
   document.addEventListener(config.events.tip, onTip);
@@ -56,6 +62,11 @@
     for (const el of [...items, ...(node.querySelectorAll?.(`[${config.attributes.pin}][aria-keyshortcuts]`) ?? [])])
       if (/^p$/i.test(el.getAttribute('aria-keyshortcuts'))) el.removeAttribute('aria-keyshortcuts');
   };
+
+  // The pin listener is registered before the Shiny layer's, so a pin that goes past its pool's limit has closed the
+  // oldest one before the layer hears of the new pin: `_pinned` is never over the limit.
+  engine?.attach(document);
+  layer()?.start(config);
 
   const cssDone = new Set();
   const addCss = (text) => {
@@ -98,6 +109,12 @@
       syncPins();
     },
     keys: (op) => {
+      const off = [...(op.off ?? [])].sort().join(' ');
+      if (keysSeen && off !== [...keysOff].sort().join(' ')) {
+        console.warn(`Hovercraft: use_hovercraft(keys = ) came after another keys setting; the first one holds.`);
+        return;
+      }
+      keysSeen = true;
       for (const key of op.off ?? []) keysOff.add(key);
       root.setAttribute(config.attributes.keysOff, [...keysOff].join(' '));
       stripKeys(document);
@@ -132,9 +149,19 @@
   // What is in the page now, what the parser adds, and what Shiny adds later (a dependency's <meta> in the head, a
   // renderUI() result in the body).
   scan(document.documentElement);
+  // The pin key's announcement is written on rows after they are drawn (a table's script does it on a frame), so the
+  // attribute is watched too.
   new MutationObserver((records) => {
-    for (const record of records) for (const node of record.addedNodes) scan(node);
-  }).observe(document.documentElement, { childList: true, subtree: true });
+    for (const record of records) {
+      if (record.type === 'attributes') stripKeys(record.target);
+      for (const node of record.addedNodes) scan(node);
+    }
+  }).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+    attributes: true,
+    attributeFilter: ['aria-keyshortcuts'],
+  });
   document.addEventListener('DOMContentLoaded', () => scan(document.documentElement));
 
   window.HovercraftRuntime = Object.freeze({ version: config.global });

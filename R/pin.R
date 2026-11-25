@@ -194,10 +194,8 @@ tip_max_pins_dependency <- function(max_pins) {
 }
 
 tip_keys_dependency <- function(off) {
-  tip_gen_dependency(
-    paste0("hovercraft-keys-", paste(off, collapse = "-")),
-    ops = list(list(op = "keys", off = as.list(off)))
-  )
+  name <- paste0("hovercraft-keys-", if (length(off)) paste(off, collapse = "-") else "none")
+  tip_gen_dependency(name, ops = list(list(op = "keys", off = as.list(off))))
 }
 
 # A table's own count of pins, by the table's id as the inputs know it.

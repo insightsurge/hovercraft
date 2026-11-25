@@ -752,8 +752,9 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #' `input$<id>_pinned` (with `events = "pin"`) is what is pinned now: a list of such addresses (`target`, `row`,
 #' `column`, `id`), the oldest pin first. It is `NULL` until the first pin event, and an empty list once nothing is
 #' pinned. It is sent in the same batch as `_pin`, and a value equal to the one before does not fire an observer again.
-#' Read it with `length(input$scores_pinned)`; a table keeps one pin at a time for now. For a tag of [tip_on()] with
-#' `events = "pin"`, `input$<id>_pinned` is `TRUE` or `FALSE` (read it with `isTRUE(input$run_pinned)`).
+#' Read it with `length(input$scores_pinned)`: it holds as many addresses as the table has pins open (see `max_pins`).
+#' For a tag of [tip_on()] with `events = "pin"`, `input$<id>_pinned` is `TRUE` or `FALSE` (read it with
+#' `isTRUE(input$run_pinned)`).
 #'
 #' `input$<id>_pin` and `input$<id>_hint` are told apart by `state`. A pin's `state` is `"pinned"`, `"closed"` or
 #' `"updated"` (the tip is pinned and was drawn again because its words changed: an app that only tests for `"closed"`
@@ -834,6 +835,7 @@ tip_table_spec_for <- function(plan, what, column) plan$specs[[what]][[column]]
 #'   table its own count, outside the app's: a row pinned past it closes the table's oldest pin and no other, and a pin
 #'   elsewhere never closes one of the table's rows. It needs a `rows` spec that pins ([tip_spec()] with `pin = TRUE`)
 #'   and the table's `id`. All the pins open together, the app's and every table's, cannot pass 10, the engine's cap.
+#'   On a viewport narrower than 600 pixels the engine keeps one pin at a time, whatever the counts say.
 #' @returns The widget, with the tips added.
 #' @family tooltips
 #' @examplesIf requireNamespace("DT", quietly = TRUE)

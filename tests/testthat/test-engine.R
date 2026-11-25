@@ -202,7 +202,21 @@ describe("use_hovercraft(max_pins =, keys =)", {
 
   it("adds nothing for the defaults, one pin and every key on", {
     expect_identical(named(use_hovercraft()), c("hovercraft", "hovercraft-runtime"))
-    expect_identical(named(use_hovercraft(max_pins = 1, keys = TRUE)), c("hovercraft", "hovercraft-runtime"))
+  })
+
+  it("sends a value that is written, even the default one, so a later different one can be seen", {
+    expect_identical(
+      named(use_hovercraft(max_pins = 1)),
+      c("hovercraft", "hovercraft-max-pins-1", "hovercraft-runtime")
+    )
+    expect_identical(
+      named(use_hovercraft(keys = TRUE)),
+      c("hovercraft", "hovercraft-keys-none", "hovercraft-runtime")
+    )
+    expect_identical(
+      named(use_hovercraft(max_pins = 1, keys = c(pin = TRUE))),
+      c("hovercraft", "hovercraft-max-pins-1", "hovercraft-keys-none", "hovercraft-runtime")
+    )
   })
 
   it("sends a number of pins in a dependency of its own, named by the number", {
@@ -235,7 +249,6 @@ describe("use_hovercraft(max_pins =, keys =)", {
     expect_identical(off(c(pin = FALSE)), "pin")
     expect_identical(off(c(more = FALSE)), "more")
     expect_identical(off(c(pin = FALSE, more = TRUE)), "pin")
-    expect_identical(named(use_hovercraft(keys = c(pin = TRUE))), c("hovercraft", "hovercraft-runtime"))
   })
 
   it("refuses a key that is not one, a switch that is not TRUE or FALSE, and an unnamed vector", {

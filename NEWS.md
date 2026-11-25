@@ -47,11 +47,12 @@
 * `use_hovercraft(max_pins = , keys = )` (experimental): `max_pins` keeps up to 10 pinned tips open (the default, 1, is one
   at a time; at the limit the oldest closes), and `keys` switches the letter keys off, `keys = FALSE` for all or
   `keys = c(pin = FALSE)` for one (a key left out stays on; Escape always closes; the `more` key comes with `tip_more()`).
-  The number goes to the page in a dependency of its own, and a second, different number warns in the browser's console
-  and the first holds. `tip_table(max_pins = )` gives a table's rows a count of their own, outside the app's: a row pinned
+  The number goes to the page in a dependency of its own, given only when `max_pins` or `keys` is written (even
+  `max_pins = 1`), and a second, different number or key setting warns in the browser's console and the first holds. `tip_table(max_pins = )` gives a table's rows a count of their own, outside the app's: a row pinned
   past it closes that table's oldest pin and no other. It needs `id` and a `rows` spec that pins. All pins open together
-  cannot pass the engine's cap of 10. A pinned `tip_output()` finds its item by the tip's id, so several pins can share
-  one output (#98).
+  cannot pass the engine's cap of 10, and on a viewport narrower than 600 pixels the engine keeps one pin at a time (a
+  bottom sheet). A pin that a table's own count closes reports as the engine's limit does (`reason "replaced"`). A
+  pinned `tip_output()` finds its item by the tip's id, so several pins can share one output (#98).
 * `tip_show()`, `tip_hide()` and `tip_update()` (experimental) take `row` and `column` for the tips of a `tip_table()`:
   `row` alone is a row, `row` and `column` a cell, `column` alone a header cell. `row` is the position of the row in the
   data the table has now; `column` is a data column's name or position (the row names of a `reactable` are not one). A

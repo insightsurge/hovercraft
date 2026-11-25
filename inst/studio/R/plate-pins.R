@@ -127,7 +127,7 @@ plate_pins_ui <- function() {
     "Pins",
     lede = paste(
       "A pinned tip stays open, so a reader can select its text, copy its code and act on it. One pin per page, as",
-      "here: pinning another closes the first. `use_hovercraft(max_pins = 3)` keeps three."
+      "here: pinning another closes the first. use_hovercraft(max_pins = 3) keeps three."
     ),
     caption = paste(
       "The columns of a visits table. Three carry a template with fields and code; booked carries one sentence, so its",
