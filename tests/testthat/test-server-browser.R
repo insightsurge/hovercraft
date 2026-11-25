@@ -46,6 +46,8 @@ describe("server calls and the hint input in a Shiny app", {
         shiny::actionButton("missing", "Missing"),
         shiny::actionButton("swap", "Swap"),
         shiny::uiOutput("swap_ui"),
+        shiny::actionButton("redraw", "Redraw"),
+        shiny::uiOutput("late_ui"),
         shiny::verbatimTextOutput("swap_seen"),
         # A tag the reader can pin (the engine's pin attribute, written by hand: tip_on() has no pin argument yet).
         htmltools::tagAppendAttributes(
@@ -61,7 +63,7 @@ describe("server calls and the hint input in a Shiny app", {
         shiny::observeEvent(input$show, tip_show("run_tip"))
         shiny::observeEvent(input$hide, tip_hide("run_tip"))
         shiny::observeEvent(input$update, tip_update("run_tip", text = "Now **changed**"))
-        shiny::observeEvent(input$clear, tip_update("run_tip", text = NULL, template = NULL))
+        shiny::observeEvent(input$clear, tip_update("run_tip", text = NA, template = NA))
         swapped <- shiny::reactiveVal(FALSE)
         shiny::observeEvent(input$swap, swapped(TRUE))
         output$swap_ui <- shiny::renderUI(
@@ -75,6 +77,15 @@ describe("server calls and the hint input in a Shiny app", {
           unlist(input$swap_tip_hint[c("state", "by", "reason")]),
           collapse = " "
         ))
+        # A tag that renderUI() draws in the same flush as the call that shows its tip.
+        ticks <- shiny::reactiveVal(0)
+        output$late_ui <- shiny::renderUI(
+          tip_on(shiny::actionButton("late_btn", "Late"), paste("Late tip", ticks()), id = "late_tip")
+        )
+        shiny::observeEvent(input$redraw, {
+          ticks(ticks() + 1)
+          tip_show("late_tip")
+        })
         shiny::observeEvent(input$place, tip_update("run_tip", placement = "right"))
         shiny::observeEvent(input$missing, {
           tip_show("nope")
@@ -223,5 +234,19 @@ describe("server calls and the hint input in a Shiny app", {
 
   it("leaves the console without errors", {
     expect_identical(page$problems(), character())
+  })
+
+  it("shows the tip of a tag that renderUI() draws in the same observer as the call", {
+    press_button("redraw")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 1'",
+      tip_names()$css
+    )))
+    # And once more: the new tag is drawn each time, and each call reaches the new one.
+    press_button("redraw")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 2'",
+      tip_names()$css
+    )))
   })
 })

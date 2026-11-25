@@ -55,7 +55,8 @@ module \code{"mod1"} is \code{input[["mod1-scores_pin"]]}. An id that already ha
 alone, and outside a session (a static page) the id is used as given. Give it a different id from every other tip
 source on the page: two tables with one id make the page warn in the browser console. With an \code{id}, every marked
 row, cell and header cell gets its own tip id derived from it, which follows the data row through sorting,
-filtering and paging; how that id is built is not part of the API. \code{NULL} gives the tips no id. A pin or events
+filtering and paging; how that id is built is not part of the API: \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}
+take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL} gives the tips no id. A pin or events
 given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}. The engine's kind of the tips is not yours to set.}
 }
 \value{

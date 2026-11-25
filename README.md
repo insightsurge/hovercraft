@@ -87,7 +87,8 @@ shinyApp(ui, server)
 
 `state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
 "hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
-tip from the server.
+tip from the server; for a table's tip they take the table's `id` with `row` and `column`
+(`tip_show("scores", row = 2, column = "wins")`).
 
 A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
 key opens it too; "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
