@@ -94,8 +94,8 @@
   const show = (item) => {
     const doc = item.ownerDocument;
     const hint = hintBox(doc);
-    if (!hint || hint.hidden || item.matches(':disabled, [aria-disabled="true"]')) return;
     close();
+    if (!hint || hint.hidden || item.matches(':disabled, [aria-disabled="true"]')) return;
     const { strip, pin } = stripOf(doc, hint);
     // A click on the button pins the item without a click on the item: the item's own click (a row's selection) never runs.
     pin.addEventListener('click', (e) => {
@@ -116,12 +116,13 @@
     place();
   };
 
-  // The hint event is sent at the item and bubbles: a hint that opens for a pinnable item gets the strip, and one that
-  // closes lets the strip go once the hint has faded.
+  // The hint event is sent at the item and bubbles: a hint that opens for a pinnable item gets the strip, one for
+  // any other item drops an open strip at once, and one that closes lets the strip go once the hint has faded.
   const onHint = (event) => {
     const detail = event.detail;
     const item = event.target?.closest?.(`[${names.attributes.pin}]`);
     if (detail?.state === 'shown' && item && event.target === item) show(item);
+    else if (detail?.state === 'shown') close();
     else if (detail?.state === 'hidden' && open) {
       open.closing = true;
       open.strip.style.pointerEvents = 'none';
