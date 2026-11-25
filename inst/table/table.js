@@ -109,8 +109,10 @@
     if (openAttribute && el.getAttribute(openAttribute) === pinnedValue) window.Hovercraft?.close(el);
   };
 
-  // A tip that waits behind a "More" button has the engine's long-form attributes while it is open (inst/more/more.js).
-  // They belong to the row it was open for: once the element is another row's, or has no tip, they go.
+  // What an element was given while a tip was open belongs to the row it was open for. `spec.reset` is the list of those
+  // attributes, written by R: today the long-form attributes of the "More" button (inst/more/more.js) and its aria state.
+  // Once the element is another row's, or has no tip, they go. Text and placement that a server call changed are not in
+  // it: R must list them there for them to go too.
   const reset = (el, spec) => {
     for (const name of spec.reset ?? []) el.removeAttribute(name);
   };

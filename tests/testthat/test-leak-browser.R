@@ -146,8 +146,13 @@ describe("a host that Shiny draws again or removes", {
     }
     card_server <- function(id) shiny::moduleServer(id, function(input, output, session) NULL)
     version <- function(input, name) input[[name]] %||% 0L
-    rows <- function() {
-      tip_spec("**{{ team }}**: {{ v }}", pin = TRUE, more = tip_more("More {{ team }}.", on = "button"))
+    # The words change with every draw, so a watcher left from an earlier draw would write the old words back.
+    rows <- function(n = 0L) {
+      tip_spec(
+        paste0("v", n, " **{{ team }}**: {{ v }}"),
+        pin = TRUE,
+        more = tip_more("More {{ team }}.", on = "button")
+      )
     }
 
     ui <- bslib::page_fluid(
@@ -225,7 +230,7 @@ describe("a host that Shiny draws again or removes", {
       )
       output$rt <- reactable::renderReactable({
         n <- version(input, "rt_go")
-        tip_table(reactable::reactable(data.frame(team = c("Owls", "Foxes"), v = n)), rows = rows(), id = "rt")
+        tip_table(reactable::reactable(data.frame(team = c("Owls", "Foxes"), v = n)), rows = rows(n), id = "rt")
       })
     }
     shiny::shinyApp(ui, server)
@@ -310,6 +315,23 @@ describe("a host that Shiny draws again or removes", {
     before <- snapshot()
     redraw("rt_go", "document.querySelector('#rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '%d'")
     expect_no_growth(before, snapshot())
+  })
+
+  it("leaves a reactable table quiet after it is drawn again with other words: no watcher writes the old ones back", {
+    # Stale watchers on one container each re-mark the rows with their own draw's words, and each write wakes the others:
+    # an endless exchange of attribute writes. A table drawn once is quiet, so the writes in 400 ms are few.
+    page$evaluate(paste(
+      "window.writes = 0;",
+      "new MutationObserver((list) => { window.writes += list.length; }).observe(",
+      "  document.getElementById('rt'), { subtree: true, childList: true, attributes: true, characterData: true }",
+      "); 0"
+    ))
+    set_input("rt_go", leak_draws + 1L)
+    expect_true(page$wait_until("document.querySelector('#rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '31'"))
+    page$settle(1)
+    page$evaluate("window.writes = 0; 0")
+    page$hold(0.4)
+    expect_lt(page$evaluate("window.writes"), 5L)
   })
 
   it("keeps one parked output for a tip_output() whose region draws again, and none when it is cleared", {
