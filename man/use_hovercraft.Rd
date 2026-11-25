@@ -34,11 +34,12 @@ means one there.}
 
 \item{keys}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The letter keys of a tip: \code{TRUE} (the default) for all, \code{FALSE} for
 none, or a named logical vector with one switch per key, \code{c(pin = FALSE)} or \code{c(more = FALSE)}; a key left out
-stays on. \code{pin} is the key that pins the tagged item (P), which works only while the focus is on the item and
-never inside a field; \code{more} is the key that opens a tip's long form (M), which \code{tip_more()} adds. Escape always
-closes a tip. Switching \code{pin} off takes the key's announcement (\code{aria-keyshortcuts}) off the items too; the pin
-button stays. Give it once: a second \code{use_hovercraft(keys = )} that differs warns in the console and the first
-holds.}
+stays on. \code{pin} is the key that pins the tagged item (P), which works while the focus is on the item or the
+pointer rests on it, and never inside a field; \code{more} is the key that opens a tip's long form (M), which
+\code{tip_more()} adds. Both work from a hover, so this is the page's switch: it turns a key off for every reader,
+and there is no switch for one reader. Escape always closes a tip. Switching \code{pin} off takes the key's
+announcement (\code{aria-keyshortcuts}) off the items too; the pin button stays. Give it once: a second
+\code{use_hovercraft(keys = )} that differs warns in the console and the first holds.}
 
 \item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tips show themselves on the whole page, or \code{NULL}
 (the default) for the built-in ones. A named character vector, such as \code{c(copy = "Copy code", close = "Dismiss")};

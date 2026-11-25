@@ -354,6 +354,184 @@ describe("the page's pin settings", {
     )))
   })
 
+  # The pin key also acts while the pointer hovers the item and its hint is on show; the hint's item wins over the focus.
+  pinned_ids <- function(page) {
+    page$evaluate(sprintf(
+      "JSON.stringify([...document.querySelectorAll('[%s=\"pin\"]')].map((n) => n.id))",
+      tip_contract()$attributes$open
+    ))
+  }
+
+  it("pins by the letter key while the pointer hovers the item", {
+    page <- local_page(page_of(use_hovercraft(), pinnable("one")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_length(page$hover("#one"), 1L)
+    page$press("p")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+  })
+
+  # A synthetic key press at the element that holds the focus, also inside a shadow root: was it taken (prevented)?
+  taken <- function(page, key = "p", repeated = FALSE) {
+    page$evaluate(sprintf(
+      paste(
+        "(() => { const e = new KeyboardEvent('keydown', { key: '%s', repeat: %s, bubbles: true, composed: true, cancelable: true });",
+        "let at = document.activeElement; while (at.shadowRoot?.activeElement) at = at.shadowRoot.activeElement;",
+        "at.dispatchEvent(e); return e.defaultPrevented; })()"
+      ),
+      key,
+      tolower(as.character(repeated))
+    ))
+  }
+
+  it("does not pin by the letter key from a hover while the focus is in a field", {
+    file <- page_of(use_hovercraft(), pinnable("one"), htmltools::tags$input(id = "field", type = "text"))
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    # The field holds the focus first; the hover then shows the item's tip, which the letter must not pin.
+    page$evaluate("document.getElementById('field').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "field")
+    expect_false(taken(page))
+    page$hold(0.3) # the key must pin nothing: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("does not pin by the letter key from a hover while the focus is in a shadow root's field or an ARIA text widget", {
+    shadow <- htmltools::tagList(
+      htmltools::tags$div(id = "host"),
+      htmltools::tags$div(id = "combo", role = "combobox", tabindex = "0", "combo"),
+      htmltools::tags$script(htmltools::HTML(
+        "document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML = '<input id=\"inner\" type=\"text\">';"
+      ))
+    )
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), shadow), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('host').shadowRoot.getElementById('inner').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "host")
+    expect_false(taken(page))
+    page$evaluate("document.getElementById('combo').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_false(taken(page))
+    page$hold(0.3) # the key must pin nothing: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("pins the focused item when the tip on show is another item's and the pointer is not on it", {
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_length(page$hover("#one"), 1L)
+    # The pointer leaves and the focus moves on at once, as a reader does, while the tip of "one" is still on show.
+    page$mouse(5, 5, FALSE)
+    page$evaluate("document.getElementById('two').focus(); 0")
+    page$press("p", wait = 0.2)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+    page$press("Escape")
+    # A tip that the page opens (tip_show() does it) is not under the pointer: the key stays with the focused item.
+    page$mouse(5, 5, FALSE)
+    page$evaluate("document.getElementById('two').focus(); window.Hovercraft.show(document.getElementById('one')); 0")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null",
+      tip_names()$css,
+      tip_names()$css
+    )))
+    page$press("p", wait = 0.2)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+  })
+
+  it("pins once for a key held down, on the item whose tip was shown", {
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('one').focus(); 0")
+    expect_length(page$hover("#two"), 1L)
+    page$press("p")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    # The first press closed the hint; the auto-repeat of the held key must not fall back to the focused item.
+    expect_false(taken(page, repeated = TRUE))
+    page$hold(0.3) # a repeat must pin nothing: nothing happening has no signal
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+  })
+
+  it("pins the item whose tip is shown, not an item around it", {
+    inner <- tip_on(
+      htmltools::tags$span("inner", id = "inner", class = "px-1", tabindex = "0"),
+      "The inner tip",
+      id = "inner_tip"
+    )
+    outer <- tip_on(
+      htmltools::tags$div(id = "outer", tabindex = "0", style = "padding: 2rem", "outer ", inner),
+      "The outer tip",
+      id = "outer_tip",
+      pin = TRUE
+    )
+    page <- local_page(page_of(use_hovercraft(), outer), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_match(paste(page$hover("#inner"), collapse = " "), "The inner tip")
+    page$press("p")
+    page$hold(0.3) # the inner tip cannot pin, and the key must not pin the item around it: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("pins by the letter key from a hover while the focus is on a check box, which takes no letters", {
+    file <- page_of(use_hovercraft(), pinnable("one"), htmltools::tags$input(id = "ck", type = "checkbox"))
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('ck').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "ck")
+    expect_true(taken(page))
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+  })
+
+  it("does not pin by the letter key from a hover when the keys are off", {
+    page <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_length(page$hover("#one"), 1L)
+    page$press("p")
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("pins the item whose hint is on show when the focus is on another, and none when that hint cannot pin", {
+    plain <- tip_on(htmltools::tags$button("plain", id = "plain", class = "target"), "A plain tip", id = "plain")
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two"), plain), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('one').focus(); 0")
+    expect_length(page$hover("#two"), 1L)
+    page$press("p")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+    page$press("Escape")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 0",
+      tip_contract()$attributes$open
+    )))
+    page$evaluate("document.getElementById('one').focus(); 0")
+    expect_length(page$hover("#plain"), 1L)
+    page$press("p")
+    page$hold(0.3) # the key must pin nothing: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
   it("switches one key off and leaves the other on", {
     page <- local_page(page_of(use_hovercraft(keys = c(more = FALSE)), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))

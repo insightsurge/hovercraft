@@ -525,10 +525,14 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   The pin button is drawn over the corner of the tip as a separate element, so a screen reader still gets a tip
 #'   that it only reads; the first block of the tip keeps room for it, so a one-sentence tip has the button at the
 #'   end of its line. The pin key is `P`, which the tagged item announces as `aria-keyshortcuts`: it pins the tagged
-#'   item while the focus is on the item or inside it, and does nothing while the focus is in a field or anywhere
-#'   else on the page. A screen reader that is in browse mode may take the letter for its own navigation, so check
-#'   the key with the screen reader you support. `Escape` closes a pinned tip. Pointer, keyboard and tap are tested
-#'   in Chrome only.
+#'   item while the focus is on the item or inside it, or while the pointer rests on it, and does nothing while the
+#'   focus is in a field or while neither holds. When the focus is on one item and the pointer rests on another, the
+#'   key pins the item under the pointer, the tip the reader sees, not an item around it; an item that is pinned and
+#'   holds the focus keeps the key. A tip that a tap or `tip_show()` opened does not take the key from the pointer.
+#'   The key works from a hover, so a page switches it off for every reader with `use_hovercraft(keys = FALSE)`;
+#'   there is no switch for one reader. A screen reader that is in browse mode may take the letter for its own
+#'   navigation, so check the key with the screen reader you support. `Escape` closes a pinned tip. Pointer, keyboard
+#'   and tap are tested in Chrome only.
 #'
 #' @param labels `r lifecycle::badge("experimental")` The words the tip shows itself, such as "Copy", "Close", "More"
 #'   and the pin button's name, for this tag's tip and every tip inside the tag, or `NULL` (the default) to take the
