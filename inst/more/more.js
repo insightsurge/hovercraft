@@ -246,7 +246,7 @@
     // table); Escape on it closes its own tip, not the newest one.
     const inPanel = box.dataset.side === 'in';
     const strip = doc.createElement('div');
-    strip.className = inPanel ? `${STRIP} ${STRIP}-in` : STRIP;
+    strip.className = [STRIP, inPanel && `${STRIP}-in`, kind === 'hint' && `${STRIP}-hint`].filter(Boolean).join(' ');
     strip.setAttribute(A().part, '');
     const button = doc.createElement('button');
     button.type = 'button';
