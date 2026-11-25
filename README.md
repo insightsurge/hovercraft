@@ -5,6 +5,11 @@
 [![Set up with launchR](https://img.shields.io/badge/set%20up%20with-launchR-f6ab85)](https://launch-r.web.app)
 <!-- badges: end -->
 
+At 0.1.0 `tip_on()` (its words, templates, `pin` one at a time and `more`), the template and block functions,
+`tip_presets()` and `use_hovercraft(style = )` by a preset name are stable. Tables, server calls, `events`, `when_disabled`,
+`tip_output()`, looks given as objects (`tip_style()`, `tip_theme()`, `tip_marker()`), `tip_more()`, several pins and
+`keys` are experimental and may change. Each help page says which.
+
 Tips for Shiny apps and bslib pages. Put a tip on any HTML tag: plain text, or a named template filled from the values
 of one item, such as a row of a table. The tip shows when the pointer rests on the tag or keyboard focus arrives, and
 hides when either leaves.

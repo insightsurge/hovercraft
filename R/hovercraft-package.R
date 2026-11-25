@@ -14,7 +14,7 @@
 #' `r lifecycle::badge("experimental")` and free to change: [tip_table()] and [tip_spec()]; `events` and the fields of
 #' the input values; [tip_show()], [tip_hide()] and [tip_update()]; `when_disabled`; [tip_output()]; [tip_style()],
 #' [tip_theme()] and [tip_marker()], and `style` or `marker` given those objects; [tip_more()]; `max_pins` and `keys`
-#' of [use_hovercraft()].
+#' of [use_hovercraft()]; and [tip_studio()].
 #'
 #' @section Known limits:
 #' Each is also on the page of the function it belongs to. Server calls reach only tags that are on the page and drawn

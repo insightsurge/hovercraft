@@ -109,7 +109,8 @@ tip_reset <- function() {
 #' you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
 #' with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
 #'
-#' @param style How the tips look on the whole page, or `NULL` (the default) to take the page's own bslib variables,
+#' @param style `r lifecycle::badge("stable")` as a preset name, `r lifecycle::badge("experimental")` as a style object.
+#'   How the tips look on the whole page, or `NULL` (the default) to take the page's own bslib variables,
 #'   so a page with a `bslib::bs_theme()` follows it, light and dark, with nothing more. One of:
 #'   * a preset name from [tip_presets()], such as `"sober"`;
 #'   * a [tip_style()], which bundles a preset, a theme, a class for the tip box, and its motion and size;

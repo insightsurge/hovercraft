@@ -281,10 +281,13 @@ tip_send <- function(session, what, build) {
 #' tip of this id is not the hint that is open (another tip's hint is, or this one is pinned or closed), it does
 #' nothing. No server call pins a tip or closes a pin.
 #'
-#' `tip_update()` rewrites the tag's tip attributes. It takes the same values as [tip_on()] and changes only what is
-#' named: `NULL` leaves a value as it is, `NA` takes it away, and for `text`, `""` clears the words. An open tip draws
-#' its new words, template or record at once; a new `placement` is used the next time the tip opens. A `record` needs
-#' the `template` in the same call, so that only the columns the template names are sent to the page; to change the
+#' `tip_update()` rewrites the tag's tip attributes. It takes the values of [tip_on()] that change a tip (`text`,
+#' `template`, `record` and `placement`) and changes only what is named: `NULL` leaves a value as it is, `NA` takes it
+#' away, and for `text`, `""` clears the words. `template` is the name of a template or a [tip_template()], which is
+#' sent with the call (not one that holds a [tip_output()], which needs the tag's own [tip_on()]); `text` with
+#' `{{ field }}` placeholders is filled from `record`, as in [tip_on()]. An open tip draws its new words, template or
+#' record at once; a new `placement` is used the next time the tip opens. A `record` needs a `template`, or `text`
+#' with placeholders, in the same call, so that only the columns it names are sent to the page; to change the
 #' template alone, leave `record` out and the tag keeps the record it has. `tip_update()` leaves a `style` or `marker`
 #' alone, and it leaves the tag's `aria-label` as it is, so a button named from its tip keeps the old name; give such a
 #' button its own `aria-label`. The new tip lasts until the tag is drawn again, for example by `renderUI()`.
@@ -297,7 +300,7 @@ tip_send <- function(session, what, build) {
 #' functions of Shiny do. In the module's UI, give [tip_on()] the id as `ns("save")`.
 #'
 #' @param id The tip's id: the `id` given to [tip_on()], or, with `row` or `column`, the `id` given to [tip_table()],
-#'   without the module's namespace. One non-empty string with no whitespace.
+#'   without the module's namespace. One non-empty string with no whitespace and no `:`.
 #' @param text,template,record,placement For `tip_update()`: the new values, as in [tip_on()]. `NULL` (the default)
 #'   leaves a value as it is and `NA` takes it away; `""` clears the `text`. Give at least one.
 #' @param ... Must be empty. It makes a misspelt argument an error.
@@ -389,11 +392,37 @@ tip_update <- function(
     )
   }
   tip_arg_string(text, "text", min_chars = 0L, null_ok = TRUE, na_ok = TRUE)
-  tip_arg_string(template, "template", null_ok = TRUE, na_ok = TRUE)
+  # What tip_on() takes: a template's name, or a tip_template() made here, which travels with the message; and words
+  # with {{ field }} placeholders when a record is given, which are made into a template of their own.
+  inline <- NULL
+  if (inherits(template, "hovercraft_template")) {
+    inline <- list(template = template, what = "The {.arg template}")
+  } else {
+    tip_arg_string(template, "template", null_ok = TRUE, na_ok = TRUE)
+    holds_record <- "record" %in% given && !"record" %in% removed
+    has_words <- is.character(text) && length(text) == 1L && !is.na(text) && nzchar(text)
+    if (holds_record && is.null(template) && has_words && length(tip_check_text(text, "The words of `text`"))) {
+      inline <- list(template = tip_template(tip_text(text)), what = "{.arg text}")
+    }
+  }
+  if (!is.null(inline) && length(tip_output_ids(list(inline$template)))) {
+    tip_abort(
+      c(
+        "A template with {.fn tip_output} cannot be sent from the server.",
+        i = "The output's place is made when the tag is drawn: give the template to {.fn tip_on}."
+      ),
+      class = "hovercraft_error_template"
+    )
+  }
   if (!"placement" %in% removed) {
     tip_check_placement(placement)
   }
-  if ("record" %in% given && !"record" %in% removed && (is.null(template) || "template" %in% removed)) {
+  if (
+    is.null(inline) &&
+      "record" %in% given &&
+      !"record" %in% removed &&
+      (is.null(template) || "template" %in% removed)
+  ) {
     tip_abort(
       c(
         "{.arg record} needs {.arg template} in the same call.",
@@ -413,16 +442,32 @@ tip_update <- function(
     placement = tip_attribute("placement")
   )
   set <- list()
-  for (name in setdiff(given, removed)) {
+  define <- list()
+  fields <- NULL
+  if (!is.null(inline)) {
+    body <- tip_blocks_plain(inline$template)
+    name <- paste0("inline_", substr(rlang::hash(tip_json(body)), 1L, 12L))
+    define <- list(list(name = name, blocks = body))
+    fields <- unique(tip_template_fields(inline$template))
+    values$template <- name
+    # The words became the template: the text attribute would win over it, so it goes.
+    if (is.null(template)) {
+      removed <- union(removed, "text")
+    }
+    if (!is.null(record)) {
+      tip_check_more_fields(fields, names(record), id, call, what = inline$what)
+    }
+  }
+  for (name in setdiff(union(given, if (!is.null(inline)) "template"), removed)) {
     value <- values[[name]]
     set[[ask[[name]]]] <- if (identical(name, "record")) {
-      tip_json(tip_record(value, tip_known(session)[[template]]$fields))
+      tip_json(tip_record(value, fields %||% tip_known(session)[[template]]$fields))
     } else {
       value
     }
   }
   # A template given without a record is checked for its name only: the tag may already hold the record it reads.
-  if (!is.null(template) && !"template" %in% removed) {
+  if (is.null(inline) && !is.null(template) && !"template" %in% removed) {
     if (is.null(record)) {
       tip_template_seen(template, rlang::current_env(), session)
     } else {
@@ -431,7 +476,7 @@ tip_update <- function(
   }
   tip_send(session, "update", function() {
     id <- tip_server_id(target, session)
-    if (!is.null(id)) list(id = id, set = set, remove = as.list(unname(ask[removed])))
+    if (!is.null(id)) list(id = id, set = set, remove = as.list(unname(ask[removed])), define = define)
   })
   invisible(NULL)
 }

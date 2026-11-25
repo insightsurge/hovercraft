@@ -31,7 +31,8 @@ the cells of that column. Each entry is a string, a
 \code{\link[=tip_template]{tip_template()}} or a \code{\link[=tip_spec]{tip_spec()}}; \code{NA} and \code{""} give that column no tip. Use a list to mix them:
 \code{list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")}.}
 
-\item{headers}{The same for the header cells; words only, so a \code{\link[=tip_spec]{tip_spec()}} here holds words with no placeholders.}
+\item{headers}{The same for the header cells; a header has no row to read from, so a \code{\link[=tip_spec]{tip_spec()}} here holds words
+or a \code{\link[=tip_template]{tip_template()}} with no placeholders.}
 
 \item{style}{How every tip in the table looks, or \code{NULL} (the default) to take the page's: whatever \code{style} takes in
 \code{\link[=tip_on]{tip_on()}} (a preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A \code{\link[=tip_spec]{tip_spec()}} with its own
@@ -49,16 +50,16 @@ marker (the default). A \code{\link[=tip_spec]{tip_spec()}} with its own \code{m
 the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own stop with an error. A cell with a marker is
 highlighted while its tip is open. See \code{\link[=tip_marker]{tip_marker()}}.}
 
-\item{id}{The id this table's Shiny inputs hang on (\verb{input$<id>_pin}), and the base of its tips' ids: one non-empty
-string with no whitespace. It is the table's id, not one tip's. Inside a module, give the plain id: \code{tip_table()}
-adds the module's prefix from the session the table is drawn in, as \code{\link[=tip_show]{tip_show()}} does, so \code{id = "scores"} in
-module \code{"mod1"} is \code{input[["mod1-scores_pin"]]}. An id that already has the prefix (\code{session$ns("scores")}) is left
-alone, and outside a session (a static page) the id is used as given. Give it a different id from every other tip
-source on the page: two tables with one id make the page warn in the browser console. With an \code{id}, every marked
-row, cell and header cell gets its own tip id derived from it, which follows the data row through sorting,
-filtering and paging; how that id is built is not part of the API: \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}
-take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL} gives the tips no id. A pin or events
-given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}. The engine's kind of the tips is not yours to set.}
+\item{id}{The id this table's Shiny inputs hang on (\verb{input$<id>_pin}), and the base of its tips' ids: one
+non-empty string with no whitespace and no \code{:}. It is the table's id, not one tip's. Inside a module, give the
+plain id: \code{tip_table()} adds the module's prefix from the session the table is drawn in, as \code{\link[=tip_show]{tip_show()}} does,
+so \code{id = "scores"} in module \code{"mod1"} is \code{input[["mod1-scores_pin"]]}. An id that already has the prefix
+(\code{session$ns("scores")}) is left alone, and outside a session (a static page) the id is used as given. Give it
+a different id from every other tip source on the page: two tables with one id make the page warn in the
+browser console. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it,
+which follows the data row through sorting, filtering and paging; how that id is built is not part of the API:
+\code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL}
+gives the tips no id. A pin or events given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}.}
 
 \item{max_pins}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How many of this table's rows can be pinned at once, a whole
 number from 1 to 10, or \code{NULL} (the default). \code{NULL} counts the table's pins in the app's limit
@@ -81,7 +82,8 @@ and paging need no code of yours: each row is its own record, whatever place it 
 \details{
 Known limits: \code{row} is the position in the data the table has now, so a pin follows the row number after
 \code{replaceData()} or a redraw; a \code{DT} table in server mode has only the rows of the current page on the screen; and
-about a millisecond of R time and some script time for each row on every change of the data, so page a long table.
+the table's script does some work for each row on the screen on every change of the data, so page a long table (the
+R time of \code{tip_table()} does not grow with the rows).
 
 A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
@@ -90,7 +92,7 @@ placement, marker or \code{more}) takes a \code{\link[=tip_spec]{tip_spec()}} in
 with
 \code{{{ column }}} placeholders, or of a \code{\link[=tip_template]{tip_template()}}; every placeholder is checked against the table's columns, and
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
-so it takes words only.
+so it takes words, or a \code{\link[=tip_template]{tip_template()}} with no placeholders.
 
 Tips also show for the keyboard. A row, a cell or a header cell cannot take focus by itself, so \code{tip_table()} gives
 the table one tab stop, and the arrow keys move between the rows, cells and header cells that have a tip: left and

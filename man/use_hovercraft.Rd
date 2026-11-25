@@ -7,7 +7,8 @@
 use_hovercraft(style = NULL, max_pins = 1, keys = TRUE)
 }
 \arguments{
-\item{style}{How the tips look on the whole page, or \code{NULL} (the default) to take the page's own bslib variables,
+\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} as a preset name, \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} as a style object.
+How the tips look on the whole page, or \code{NULL} (the default) to take the page's own bslib variables,
 so a page with a \code{bslib::bs_theme()} follows it, light and dark, with nothing more. One of:
 \itemize{
 \item a preset name from \code{\link[=tip_presets]{tip_presets()}}, such as \code{"sober"};
