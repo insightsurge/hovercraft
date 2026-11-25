@@ -7,10 +7,10 @@
   border: 0;
   background: transparent;
 }
-/* A table can scroll sideways: the box stays at the left edge and is as wide as the visible part (set by the script). */
+/* A table can scroll sideways: the box stays at the start edge and is as wide as the visible part (set by the script). */
 .hovercraft-panel-box {
   position: sticky;
-  left: 0;
+  inset-inline-start: 0;
   box-sizing: border-box;
   max-width: 100%;
   padding: 4px 0 8px;

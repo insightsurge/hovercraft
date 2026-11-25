@@ -31,7 +31,9 @@ tip_runtime_config <- function() {
       address = tip_table_address_attribute(),
       kind = tip_attribute("kind"),
       more = tip_attribute("more"),
-      moreTemplate = tip_attribute("more_template")
+      moreTemplate = tip_attribute("more_template"),
+      held = tip_more_attribute("held"),
+      heldTemplate = tip_more_attribute("held-template")
     ),
     global = tip_names()$global,
     css = tip_names()$css,
@@ -288,11 +290,15 @@ tip_send <- function(session, what, build) {
 #' away, and for `text`, `""` clears the words. `template` is the name of a template or a [tip_template()], which is
 #' sent with the call (not one that holds a [tip_output()], which needs the tag's own [tip_on()]); `text` with
 #' `{{ field }}` placeholders is filled from `record`, as in [tip_on()]. An open tip draws its new words, template or
-#' record at once; a new `placement` is used the next time the tip opens. A `record` needs a `template`, or `text`
-#' with placeholders, in the same call, so that only the columns it names are sent to the page; to change the
-#' template alone, leave `record` out and the tag keeps the record it has. `tip_update()` leaves a `style` or `marker`
-#' alone, and it leaves the tag's `aria-label` as it is, so a button named from its tip keeps the old name; give such a
-#' button its own `aria-label`. The new tip lasts until the tag is drawn again, for example by `renderUI()`.
+#' record at once; a new `placement` is used the next time the tip opens. A `record` needs a `template`, or `text` with
+#' placeholders, in the same call, so that only the columns it names are sent to the page; to change the template
+#' alone, leave `record` out and the tag keeps the record it has. A `template` given without `text` also takes the
+#' tag's plain text away, since plain text beats a template. `text` and `template` in
+#' one call: the text beats the template, so the tip shows the words and the template is not used, and the words are
+#' plain text, with their braces as written; to fill `{{ field }}` placeholders from `record`, give the words alone.
+#' `tip_update()` leaves a `style` or `marker` alone, and it leaves the tag's `aria-label` as it is, so a button named
+#' from its tip keeps the old name; give such a button its own `aria-label`. The new tip lasts until the tag is drawn
+#' again, for example by `renderUI()`.
 #'
 #' On a control that has `when_disabled`, `tip_update()` changes the control's own tip, also while the control is
 #' disabled. A disabled control still says only "Not available:" and its reason, in the new `placement`; the new `text`,
@@ -304,7 +310,9 @@ tip_send <- function(session, what, build) {
 #' @param id The tip's id: the `id` given to [tip_on()], or, with `row` or `column`, the `id` given to [tip_table()],
 #'   without the module's namespace. One non-empty string with no whitespace and no `:`.
 #' @param text,template,record,placement For `tip_update()`: the new values, as in [tip_on()]. `NULL` (the default)
-#'   leaves a value as it is and `NA` takes it away; `""` clears the `text`. Give at least one.
+#'   leaves a value as it is and `NA` takes it away; `""` clears the `text`. Give at least one. For a `template` that R
+#'   has not seen in this process (it was defined in another session or process), `record` sends every column, since R
+#'   cannot know which ones the template names: choose the columns yourself.
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param row,column The address of a table's tip: `row` the row's position in the data, `column` a data column's name
 #'   or position. Both `NULL` (the default) for a tip on a tag.
@@ -459,6 +467,10 @@ tip_update <- function(
     if (!is.null(record)) {
       tip_check_more_fields(fields, names(record), id, call, what = inline$what)
     }
+  }
+  # A template given without words: the tag's plain text would beat it, so the text goes (as for words that became one).
+  if ("template" %in% given && !"template" %in% removed && !"text" %in% given) {
+    removed <- union(removed, "text")
   }
   for (name in setdiff(union(given, if (!is.null(inline)) "template"), removed)) {
     value <- values[[name]]

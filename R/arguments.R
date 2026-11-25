@@ -90,6 +90,25 @@ tip_check_id <- function(x, arg = "id", null_ok = TRUE, call = rlang::caller_env
   )
 }
 
+# The tag's own id is the base of the tip's Shiny inputs when `events` or a pin is given and the call gives no `id`, so
+# it follows the rule of `tip_check_id()`.
+tip_check_tag_id <- function(tag_id, call = rlang::caller_env()) {
+  if (!checkmate::test_string(tag_id, min.chars = 1L) || grepl("[[:space:]:]", tag_id)) {
+    tip_abort(
+      c(
+        "The tag's own id, {.val {tag_id}}, names the tip's Shiny inputs, and it has whitespace or a colon.",
+        i = paste(
+          "Give {.fn tip_on} an {.arg id} of its own (one string with no spaces and no {.code :}),",
+          "or change the tag's id."
+        )
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
+  invisible()
+}
+
 # Where a pinned tip of a table is drawn: floating beside its target (NULL or "float") or "in_place", a panel under the
 # row. "float" is NULL: the checks and the page see one value.
 tip_check_to <- function(x, arg = "to", call = rlang::caller_env()) {

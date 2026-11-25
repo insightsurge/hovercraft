@@ -117,6 +117,21 @@ describe("the vendored engine, after a copy", {
     expect_true(grepl("attributeOldValue: true", js, fixed = TRUE), info = "the reason observer skips an equal write")
   })
 
+  it("still has the open values the page scripts read, in their order, and the classes and variables they style", {
+    # `inst/pin/pin.js` and `inst/more/more.js` read the open attribute: "hint" while a hint shows, "pin" while pinned.
+    expect_identical(unlist(tip_rules()$open$values), c("hint", "pin"))
+    # The part classes of a tip box that the scripts' CSS and the page scripts reach by name (the engine's own class prefix).
+    for (part in c("head", "close", "cue", "more", "group")) {
+      class <- paste0(".", names$css, "-", part)
+      expect_true(grepl(class, css, fixed = TRUE), info = class)
+    }
+    # The custom properties the status, more, marker and table CSS read from the engine's tip box.
+    for (variable in c("ink", "quiet", "edge")) {
+      property <- paste0("--", names$css, "-", variable)
+      expect_true(grepl(property, css, fixed = TRUE), info = property)
+    }
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))
