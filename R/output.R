@@ -97,16 +97,16 @@ tip_output_park_class <- function() paste0(sub("-tip$", "", tip_names()$css), "-
 #' the server neither starts nor finishes the output within a few seconds of the click, the tip goes back to the error
 #' state with a message that says the server did not run the output again, and Retry stays available.
 #'
-#' @section One output for several items: One output has one place in the page, so a template that many items
-#'   share shows one output, drawn for one item at a time. Your server decides for which: ask the items for the
-#'   `"hint"` input (`tip_on(events = "hint")`) and read `input$<id>_hint` in the render, as in the second example
-#'   below; its `state` is `"shown"` while the item's hint is open. When a tip opens for a different item than the
-#'   one the output was last shown for, the tip shows the loading state and hides the old content until the
-#'   server's new value arrives (a server that never reads the open item sends none, and the old content stays
-#'   after about a second and a half). A pinned tip sends `input$<id>_pin` (with `events = "pin"`), which the
-#'   render can read in the same way, and the output of several open pins sits in the tip that opened last: the
-#'   others say "Shown in another tip." While one tip holds the output and another opens for the same output, the
-#'   first says "Shown in another tip." and gets the output back when the other closes.
+#' @section One output for several items:
+#' One output has one place in the page, so a template that many items share shows one output, drawn for one item at
+#' a time. Your server decides for which: ask the items for the `"hint"` input (`tip_on(events = "hint")`) and read
+#' `input$<id>_hint` in the render, as in the second example below; its `state` is `"shown"` while the item's hint is
+#' open. When a tip opens for a different item than the one the output was last shown for, the tip shows the loading
+#' state and hides the old content until the server's new value arrives (a server that never reads the open item
+#' sends none, and the old content stays after about a second and a half). A pinned tip sends `input$<id>_pin` (with
+#' `events = "pin"`), which the render can read in the same way, and the output of several open pins sits in the tip
+#' that opened last: the others say "Shown in another tip." When the tip that holds the output closes, the output
+#' goes back to the one that held it before.
 #'
 #' The tip's own markup is plain attributes and template JSON with no random or per-session ids, so
 #' `shiny::renderUI() |> shiny::bindCache()` and `render*() |> shiny::bindCache()` work across sessions.
