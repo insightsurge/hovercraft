@@ -802,6 +802,8 @@
       if (!pinBox) return;
       // The long form starts with a hairline, as in the hover form (the engine draws no wrapper for it when pinned).
       longBlocks(pinBox, prev.blocks)[0]?.classList.add('hc-long-first');
+      // A panel under a table row is already where it grows: no morph from the hint's rectangle.
+      if (pinBox.dataset.side === 'in') return;
       if (reducedMotion() || typeof pinBox.animate !== 'function') return;
       cancelGrowth();
       // Cancel any opacity-0 entrance animation from the engine so the already-visible tip does not flicker.

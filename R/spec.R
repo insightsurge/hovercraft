@@ -21,6 +21,12 @@
 #'   in that row that have none of their own, because the tip engine reads the nearest tagged element. A list of CSS
 #'   variables (`tip_style(theme = list("--x" = ...))`) is for the whole page, so a spec refuses it with an error: give
 #'   it to [use_hovercraft()], or use the roles of [tip_theme()].
+#' @param to `r lifecycle::badge("experimental")` Where this target's pinned tip is drawn: `NULL` or `"float"` (the
+#'   default) for a tip that floats beside the row, or `"in_place"` for a panel under the row that holds what any
+#'   pinned tip holds (its blocks, the long form, a [tip_output()]). The hover tip still floats at `placement`. In place
+#'   needs a pin (`pin = TRUE`), the `rows` target and the table's `id` ([tip_table()] says which is missing), and it
+#'   opens by the pin handle or the pin key only. Any other string is an error. See [tip_table()] for what it does when
+#'   the table sorts, filters and pages, and for what is not covered.
 #' @param marker The visible cue for this target's cells or header cells: `"corner"`, `"none"` to take the marker off
 #'   a column when the table has one, or `NULL` (the default) to take the table's. A spec for `rows` takes none: a row
 #'   is not marked. See the `marker` argument of [tip_table()].
@@ -71,13 +77,14 @@ tip_spec <- function(
   ...,
   style = NULL,
   placement = NULL,
+  to = NULL,
   marker = NULL,
   more = NULL,
   pin = NULL,
   events = NULL
 ) {
   call <- rlang::current_env()
-  tip_check_dots(..., args = c("content", "style", "placement", "marker", "more", "pin", "events"))
+  tip_check_dots(..., args = c("content", "style", "placement", "to", "marker", "more", "pin", "events"))
   if (!tip_content_ok(content)) {
     tip_abort(
       c(
@@ -99,6 +106,7 @@ tip_spec <- function(
     )
   }
   tip_check_placement(placement, call = call)
+  to <- tip_check_to(to, call = call)
   pin <- tip_check_pin(pin, call = call)
   events <- tip_check_events(events, call = call)
   tip_check_events_pin(events, pin, call = call)
@@ -110,6 +118,7 @@ tip_spec <- function(
       content = content,
       style = style,
       placement = placement,
+      to = to,
       marker = marker,
       more = more,
       pin = pin,

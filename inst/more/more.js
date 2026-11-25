@@ -126,20 +126,42 @@
     o.strip.style[key] = value;
   };
 
+  // A pinned tip outlives its item when the item is drawn again with the same tip id (a table row, a renderUI() with the
+  // same id): the engine keeps the pin on the new element and says nothing. The button follows it there, and the long
+  // form it had goes with the old element, so the new one starts short.
+  function alive(o) {
+    if (o.item.isConnected) return true;
+    const next =
+      o.kind === 'pin' && o.tipId ? o.item.ownerDocument.querySelector(`[${A().id}="${CSS.escape(o.tipId)}"]`) : null;
+    if (!isHeld(next) || pins.has(next)) return false;
+    pins.delete(o.item);
+    o.item = next;
+    pins.set(next, o);
+    setState(next, false);
+    label(o);
+    return true;
+  }
+
   // The button follows the box's rectangle; the engine sends no event when a box moves, grows or fades.
   function place(o) {
     if (!current(o)) return;
-    const { strip, box, item } = o;
+    const { strip, box } = o;
     const view = box.ownerDocument.defaultView;
     const style = view.getComputedStyle(box);
     const faded = box.hidden || !box.isConnected || (o.closing && Number.parseFloat(style.opacity) < 0.02);
     // A table row that the widget gave to another row (its tip id changed) is not the tip this button was made for: the
     // long form it had goes with the old row, and the new one starts short.
-    if (o.tipId !== item.getAttribute(A().id)) {
-      setState(item, false);
+    if (!alive(o)) return close(o);
+    if (o.tipId !== o.item.getAttribute(A().id)) {
+      setState(o.item, false);
       return close(o, true);
     }
-    if (faded || !o.item.isConnected) return close(o);
+    if (faded) return close(o);
+    // A button in a panel under a table row is in the flow, after the box: it has nowhere to be placed.
+    if (o.inPanel) {
+      o.frame = view.requestAnimationFrame(() => place(o));
+      return;
+    }
     const r = box.getBoundingClientRect();
     const own = strip.getBoundingClientRect();
     const edge = Number.parseFloat(style.borderBottomWidth) || 0;
@@ -178,7 +200,7 @@
   // A tip whose item left the page (a renderUI() drew it again) is closed by the engine with an event sent at the
   // document, not at the item: whatever is open for an item that is gone goes.
   const sweep = () => {
-    for (const o of all()) if (!o.item.isConnected) close(o, true);
+    for (const o of all()) if (!alive(o)) close(o, true);
   };
 
   // The box the reader is in, hint or pinned, for the item: the pinned tip's button when it is pinned.
@@ -205,8 +227,12 @@
     if (!box || box.hidden) return;
     const doc = item.ownerDocument;
     close(kind === 'hint' ? slots.hint : pins.get(item));
+    // A pinned tip drawn in a panel under a table row (`data-side="in"`) has its button after the box, in the flow, as a
+    // sibling (a redraw of the tip rebuilds what is inside the box, and a button that floats would float off a scrolling
+    // table); Escape on it closes its own tip, not the newest one.
+    const inPanel = box.dataset.side === 'in';
     const strip = doc.createElement('div');
-    strip.className = STRIP;
+    strip.className = inPanel ? `${STRIP} ${STRIP}-in` : STRIP;
     strip.setAttribute(A().part, '');
     const button = doc.createElement('button');
     button.type = 'button';
@@ -218,12 +244,23 @@
     button.addEventListener('mousedown', (e) => e.preventDefault());
     button.addEventListener('click', (e) => {
       e.stopPropagation();
-      toggle(item);
+      toggle(o.item);
     });
     strip.append(button);
+    if (inPanel) {
+      strip.addEventListener('keydown', (e) => {
+        if (e.key !== 'Escape' || e.defaultPrevented) return;
+        e.preventDefault();
+        e.stopPropagation();
+        window[names.global].close(o.item);
+        o.item.focus?.({ preventScroll: true });
+      });
+    }
     // A tip in the top layer (a modal) needs the button there as well, or the tip would cover it.
-    if (box.hasAttribute('popover') && typeof strip.showPopover === 'function') strip.setAttribute('popover', 'manual');
-    box.parentNode.append(strip);
+    if (!inPanel && box.hasAttribute('popover') && typeof strip.showPopover === 'function')
+      strip.setAttribute('popover', 'manual');
+    if (inPanel) box.after(strip);
+    else box.parentNode.append(strip);
     if (strip.hasAttribute('popover')) {
       try {
         strip.showPopover();
@@ -231,8 +268,19 @@
         strip.removeAttribute('popover');
       }
     }
-    box.setAttribute(A().room, '');
-    const o = { strip, button, box, item, kind, tipId: item.getAttribute(A().id), frame: 0, linger: 0, timer: 0 };
+    if (!inPanel) box.setAttribute(A().room, '');
+    const o = {
+      strip,
+      button,
+      box,
+      item,
+      kind,
+      inPanel,
+      tipId: item.getAttribute(A().id),
+      frame: 0,
+      linger: 0,
+      timer: 0,
+    };
     o.closing = false;
     o.written = {};
     if (kind === 'hint') slots.hint = o;

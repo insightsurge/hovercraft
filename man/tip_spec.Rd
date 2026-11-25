@@ -9,6 +9,7 @@ tip_spec(
   ...,
   style = NULL,
   placement = NULL,
+  to = NULL,
   marker = NULL,
   more = NULL,
   pin = NULL,
@@ -29,6 +30,13 @@ it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code
 
 \item{placement}{Where this tip shows: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} to take the
 table's. A cell or header cell with no placement of its own follows the table's, not its row's.}
+
+\item{to}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Where this target's pinned tip is drawn: \code{NULL} or \code{"float"} (the
+default) for a tip that floats beside the row, or \code{"in_place"} for a panel under the row that holds what any
+pinned tip holds (its blocks, the long form, a \code{\link[=tip_output]{tip_output()}}). The hover tip still floats at \code{placement}. In place
+needs a pin (\code{pin = TRUE}), the \code{rows} target and the table's \code{id} (\code{\link[=tip_table]{tip_table()}} says which is missing), and it
+opens by the pin handle or the pin key only. Any other string is an error. See \code{\link[=tip_table]{tip_table()}} for what it does when
+the table sorts, filters and pages, and for what is not covered.}
 
 \item{marker}{The visible cue for this target's cells or header cells: \code{"corner"}, \code{"none"} to take the marker off
 a column when the table has one, or \code{NULL} (the default) to take the table's. A spec for \code{rows} takes none: a row

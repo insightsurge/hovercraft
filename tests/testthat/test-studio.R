@@ -197,7 +197,12 @@ describe("the code each plate shows", {
       each(studio$more_code, more_on = unname(studio$more_on_choices), pin = unname(studio$more_pin_choices)),
       each(studio$pins_code, placement = unname(studio$pins_placements), copy = unname(studio$pins_copy)),
       list(studio$disabled_code(), studio$output_ui_code(), studio$server_ui_code()),
-      each(studio$tables_code, widget = unname(studio$tables_widgets), parts = unname(studio$tables_parts))
+      each(
+        studio$tables_code,
+        widget = unname(studio$tables_widgets),
+        parts = unname(studio$tables_parts),
+        open = unname(studio$tables_open)
+      )
     )
     for (code in cases) {
       result <- studio$run_code(code, exports)
@@ -237,7 +242,7 @@ describe("the code each plate shows", {
       list(studio$templates_code, c("record", "slots", "how")),
       list(studio$more_code, c("more_on", "pin")),
       list(studio$pins_code, c("placement", "copy")),
-      list(studio$tables_code, c("widget", "parts"))
+      list(studio$tables_code, c("widget", "parts", "open"))
     )
     for (case in cases) {
       for (name in case[[2]]) {

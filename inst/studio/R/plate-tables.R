@@ -5,10 +5,12 @@ tables_widgets <- c("DT" = "DT", "reactable" = "reactable")
 # The widget the plate opens on: DT when it is installed, else reactable.
 tables_default <- function() if (requireNamespace("DT", quietly = TRUE)) "DT" else "reactable"
 tables_parts <- c("rows" = "rows", "rows and headers" = "headers", "rows and a cell" = "cells")
+tables_open <- c("beside the row" = "float", "under the row" = "in_place")
 
 tables_code <- function(settings) {
   widget <- choice(settings$widget, tables_widgets, tables_default())
   parts <- choice(settings$parts, tables_parts, "rows")
+  open <- choice(settings$open, tables_open, "float")
   data <- paste0(
     "branches <- data.frame(\n",
     paste0(
@@ -37,7 +39,8 @@ tables_code <- function(settings) {
       "tip_spec",
       code_str("**{{ branch }}.** Opened {{ opened }}, {{ staff }} staff."),
       pin = "TRUE",
-      events = code_str("pin")
+      events = code_str("pin"),
+      to = if (open == "in_place") code_str("in_place")
     ),
     headers = if (parts == "headers") code_call("c", wait_min = code_str("Median minutes to the first reply.")),
     cells = if (parts == "cells") code_call("c", visits = code_str("{{ visits | number:0 }} visits in week 46.")),
@@ -104,6 +107,8 @@ plate_tables_ui <- function() {
       choice_set("tables_widget", "Widget", tables_widgets, tables_default()),
       "and put tips on",
       choice_set("tables_parts", "Parts", tables_parts),
+      "and open a pinned row's tip",
+      choice_set("tables_open", "Pinned tip", tables_open),
       shiny::actionButton("tables_show", "Show row 2's tip", class = "btn-sm")
     )
   )
@@ -111,7 +116,9 @@ plate_tables_ui <- function() {
 
 plate_tables_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "tables", tables_steps())
-  code <- shiny::reactive(tables_code(list(widget = input$tables_widget, parts = input$tables_parts)))
+  code <- shiny::reactive(
+    tables_code(list(widget = input$tables_widget, parts = input$tables_parts, open = input$tables_open))
+  )
   missing <- shiny::reactive({
     widget <- choice(input$tables_widget, tables_widgets, tables_default())
     if (!requireNamespace(widget, quietly = TRUE)) widget

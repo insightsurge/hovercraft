@@ -97,7 +97,8 @@ select a row. A click on a row selects it in both widgets, so a row's tip does n
 
 Pins: with \code{tip_spec(pin = TRUE)} as \code{rows}, a reader can keep a row's tip open. The tip that shows on hover or
 focus gets a small pin handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the
-row's tip, and the tip's own close button, \code{Escape} or a click away closes it. The pin key \code{P} pins the tip of the
+row's tip, and the tip's own close button, \code{Escape} or a click away closes it (a click away does not close a panel
+that opens in place, see below). The pin key \code{P} pins the tip of the
 row that has focus, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only
 rows pin for now"). A long form (\code{more}) opens with its "More" button, or with the \code{M} key when the focus is on the
 row, a cell or a header cell. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a
@@ -144,6 +145,29 @@ values of \code{reason} (the same for the inputs of \code{\link[=tip_on]{tip_on(
 and \code{"redraw"} (the tip was drawn again with other host slots, \code{by = "data"}); for a hint, \code{"leave"} (the pointer
 left), \code{"blur"} (the focus left), \code{"escape"}, \code{"outside"}, \code{"pinned"} (the hint became a pin), \code{"replaced"},
 \code{"gone"} and \code{"host"}. \code{reason} is \code{NULL} when a tip opens.
+}
+
+\section{In place}{
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+With \code{tip_spec(to = "in_place", pin = TRUE)} as \code{rows} (and the table's \code{id}), a row's pinned tip is drawn as a panel
+under its row, as wide as the table's visible part, in \code{DT} and in \code{reactable}. The hover tip still floats. The pin
+handle or the pin key opens it, and it holds what any pinned tip holds: its blocks, the long form with its "More"
+button, a \code{\link[=tip_output]{tip_output()}}. The widget's own inputs (\code{rows_selected}, \code{cell_clicked}) are not touched by a click in it.
+
+It follows the pin: \code{DT} moves the panel with its row when the table sorts, and puts it back after every draw, in
+server mode too; a filter or another page that takes the row off the page closes it (\code{reason} \code{"gone"}).
+\code{DT::replaceData()} keeps it on the same row number. \code{reactable} closes it when it shows other rows in the row's
+node (\code{reason} \code{"host"}), as for a floating pin, and keeps it when it is given new data with
+\code{updateReactable(data = )}. A server-mode \code{DT} drawn again by \code{renderDT()} closes it, as it does a floating pin. A
+panel counts in \code{use_hovercraft(max_pins = )} and \code{tip_table(max_pins = )} like any pin: the oldest closes (\code{reason}
+\code{"replaced"}) and its panel goes with it.
+
+A click away does not close a panel: it closes by its close button, \code{Escape}, the pin limit, or its row going. The
+pin key on a row whose panel is open does nothing. \code{Escape} on a row that has no pin of its own closes the newest
+pin, as for floating pins. With \code{scrollX} the panel stays at the left edge of the visible part. The \code{FixedColumns}
+extension of \code{DT} (it copies the rows) stops with an error; \code{responsive} and \code{RowGroup} of \code{DT}, \code{reactable}'s
+\code{groupBy}, and screen readers are not covered.
 
 What works, each checked in a browser:
 \itemize{

@@ -82,7 +82,14 @@
     open = null;
   }
 
-  const pinItem = (item, via) => window[names.global].pin(item, { by: 'reader', via });
+  // A row that opens in place has a panel made for it by the table script (inst/table/table.js); the engine draws the pinned
+  // tip into it. A pin that did not happen leaves no panel behind.
+  const pinItem = (item, via) => {
+    const into = window.HovercraftTable?.panelFor?.(item);
+    const pinned = window[names.global].pin(item, into ? { by: 'reader', via, into } : { by: 'reader', via });
+    if (into && !pinned) window.HovercraftTable.dropPanel(item.getAttribute(names.attributes.id));
+    return pinned;
+  };
 
   const show = (item) => {
     const doc = item.ownerDocument;
