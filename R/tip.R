@@ -397,13 +397,14 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' remove it itself, because on an icon it may be the only name.
 #'
 #' @section Stable and experimental:
-#' `tag`, `text`, `template`, `record`, `placement`, `id`, `pin` (one pinned tip at a time), `more` as words or a
-#' template (a "More" button opens the long form in the same tip) and a `style` that is a preset name are
-#' `r lifecycle::badge("stable")`: their names, values and defaults do not change in 0.1.x. What the button looks like
-#' and the keys are not part of that promise: the look and place of the "More" button, the M key and the P key are
-#' `r lifecycle::badge("experimental")`, like `events` and the fields of the inputs it turns on, `when_disabled`,
-#' `marker`, a `style` that is a [tip_style()], a [tip_theme()] or a bslib theme, a [tip_more()], and keeping more than
-#' one pin (`max_pins` of [use_hovercraft()]). They may change.
+#' `tag`, `text`, `template`, `record`, `placement`, `id`, `pin` (one pinned tip at a time, with its pin button and
+#' the P key), `more` as words or a template (a "More" button opens the long form in the same tip) and a `style` that
+#' is a preset name are `r lifecycle::badge("stable")`: their names, values and defaults do not change in 0.1.x. What
+#' the long form's button looks like and the keys beyond the pin's are not part of that promise: the look and place
+#' of the "More" button, the M key and the `keys` argument of [use_hovercraft()] are `r
+#' lifecycle::badge("experimental")`, like `events` and the fields of the inputs it turns on, `when_disabled`,
+#' `marker`, a `style` that is a [tip_style()], a [tip_theme()] or a bslib theme, a [tip_more()], and keeping more
+#' than one pin (`max_pins` of [use_hovercraft()]). They may change.
 #'
 #' @section Known limits:
 #' * A tag inside [bslib::tooltip()] or [bslib::popover()], or with `data-bs-toggle`, keeps the tip that bslib draws.
@@ -421,13 +422,16 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' @param text `r lifecycle::badge("stable")` One string of markdown (strong, emphasis, code, links, short
 #'   lists), or `NULL`. It is shown as written: build it with [paste0()] or [sprintf()]. `NA` and `""` count as
 #'   none: the tag comes back without a tip. When `record` is given, the `{{ field }}` placeholders in the text are
-#'   filled from it, also when a `template` is given (as in a template, with one filter at most, `number:n` or
-#'   `percent:n`); without a record, braces stay as written. Words with placeholders give the tag no `aria-label`,
+#'   filled from it (as in a template, with one filter at most, `number:n` or `percent:n`), also when `template` is the
+#'   name of a defined template, which is then not used; when `template` is a [tip_template()], the text is plain
+#'   words and its braces stay as written, since the text beats the template. Without a record, braces stay as
+#'   written. Words with placeholders give the tag no `aria-label`,
 #'   because they depend on the record.
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param template `r lifecycle::badge("stable")` The name of a template defined with [tip_define()], a
 #'   [tip_template()] made here, or `NULL`. A `tip_template()` travels with the tag, so it needs no `tip_define()`; its
-#'   fields are checked against `record`. If `text` is given too, the text is the tip (see `text`).
+#'   fields are checked against `record`. If `text` is given too, the text is the tip and the template is not used
+#'   (see `text` for its placeholders).
 #' @param record `r lifecycle::badge("stable")` A named list, or a data frame of one row: the values the template's
 #'   placeholders read, one value each. `NA` and `NULL` show a dash. Dates are written as `YYYY-MM-DD`, times in UTC as
 #'   `YYYY-MM-DDTHH:MM:SSZ` and factors as their labels. Once [tip_define()] has seen the template, only the columns it
@@ -557,7 +561,7 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #' @param labels `r lifecycle::badge("experimental")` The words the tip shows itself, such as "Copy", "Close", "More"
 #'   and the pin button's name, for this tag's tip and every tip inside the tag, or `NULL` (the default) to take the
 #'   page's words (see [use_hovercraft()]). A named character vector, such as `c(close = "Dismiss")`; a word left out
-#'   keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Three keys take
+#'   keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. Four keys take
 #'   placeholders, which the page fills in: `pinned` takes `{label}` (the name of the item), `code_line` takes `{first}`
 #'   (the first line of the code) and `code_lines` and `code_lines_empty` take `{n}` (the number of lines; `code_lines`
 #'   takes `{first}` too); other braces stay as written. An unknown key, an empty or blank word, or a value that is not

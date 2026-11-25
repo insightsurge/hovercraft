@@ -389,8 +389,9 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
       reset <- c(reset, tip_more_attribute("state"))
     }
   }
-  # `tip_update(row =, text =)` and `placement =` write the engine's text and placement on the node, which the widget
-  # may give to another row (reactable reuses nodes): they go with the row. A spec with a placement writes it again.
+  # `tip_update(row =, text =)` and `placement =` write the engine's text attribute and placement attribute on the node,
+  # which the widget may give to another row (reactable reuses nodes): both go with the row. A spec with a placement of
+  # its own writes it again.
   reset <- c(reset, tip_attributes()[["text"]], if (is.null(content$placement)) tip_attribute("placement"))
   if (!identical(target, "row")) {
     attrs[[tip_attribute("anchor")]] <- "content"

@@ -187,6 +187,25 @@ describe("server calls on the tips of a table in a Shiny app", {
     expect_true(shows("Wins of Owls: 7"))
   })
 
+  it("does not carry the text of tip_update(row = ) to another row when reactable reuses its nodes", {
+    call("update", "rt", row = 1, text = "X")
+    expect_true(page$wait_until("document.querySelector('#rt [data-hovercraft-tip=\"X\"]') !== null"))
+    expect_identical(
+      page$evaluate("document.querySelector('#rt [data-hovercraft-tip=\"X\"]').getAttribute('data-hovercraft-tip-id')"),
+      "rt/row/1"
+    )
+    # Sorting the other way gives the nodes other rows; the text goes with row 1, not with the node.
+    page$click_now("#rt [role=columnheader]:nth-child(2)")
+    expect_true(page$wait_until(
+      "document.querySelector('#rt .rt-tbody [role=row] [role=cell]')?.textContent.startsWith('Voles')"
+    ))
+    page$hold(0.5) # the layer marks the reused rows a moment after the sort
+    owners <- page$evaluate(
+      "JSON.stringify([...document.querySelectorAll('#rt [data-hovercraft-tip=\"X\"]')].map((n) => n.getAttribute('data-hovercraft-tip-id')))"
+    )
+    expect_true(all(jsonlite::fromJSON(owners) == "rt/row/1"))
+  })
+
   it("finds a table inside a module by its plain id", {
     expect_true(page$wait_until("document.querySelectorAll('#m-dt tbody tr').length >= 2"))
     page$evaluate("Shiny.setInputValue('m-call', 1, { priority: 'event' }); 0")

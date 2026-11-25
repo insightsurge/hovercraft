@@ -95,6 +95,21 @@ describe("tip_update()", {
     expect_identical(unlist(gone$sent()[[1]]$message$remove), tip_attributes()[["template"]])
   })
 
+  it("warns when the record holds an engine name that the new words name", {
+    expect_warning(
+      tip_update(
+        "run_tip",
+        text = "Hello {{ who }} {{ tip_id }}",
+        record = list(who = "Ada", tip_id = "9"),
+        session = fake_session()
+      ),
+      class = "hovercraft_warning_engine_name"
+    )
+    expect_no_warning(
+      tip_update("run_tip", text = "Hello {{ who }}", record = list(who = "Ada"), session = fake_session())
+    )
+  })
+
   it("takes the record away with NA, and needs a template to set one", {
     session <- fake_session()
     tip_update("run_tip", record = NA, session = session)

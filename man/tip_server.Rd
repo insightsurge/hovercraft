@@ -90,10 +90,12 @@ sent with the call (not one that holds a \code{\link[=tip_output]{tip_output()}}
 record at once; a new \code{placement} is used the next time the tip opens. A \code{record} needs a \code{template}, or \code{text} with
 placeholders, in the same call, so that only the columns it names are sent to the page; to change the template
 alone, leave \code{record} out and the tag keeps the record it has. A \code{template} given without \code{text} also takes the
-tag's plain text away, since plain text beats a template; give \code{text} with it to keep both. \code{tip_update()} leaves a
-\code{style} or \code{marker} alone, and it leaves the tag's \code{aria-label} as it is, so a button named from its tip keeps the
-old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn again, for example by
-\code{renderUI()}.
+tag's plain text away, since plain text beats a template. \code{text} and \code{template} in
+one call: the text beats the template, so the tip shows the words and the template is not used, and the words are
+plain text, with their braces as written; to fill \code{{{ field }}} placeholders from \code{record}, give the words alone.
+\code{tip_update()} leaves a \code{style} or \code{marker} alone, and it leaves the tag's \code{aria-label} as it is, so a button named
+from its tip keeps the old name; give such a button its own \code{aria-label}. The new tip lasts until the tag is drawn
+again, for example by \code{renderUI()}.
 
 On a control that has \code{when_disabled}, \code{tip_update()} changes the control's own tip, also while the control is
 disabled. A disabled control still says only "Not available:" and its reason, in the new \code{placement}; the new \code{text},

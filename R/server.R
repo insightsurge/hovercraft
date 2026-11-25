@@ -291,10 +291,12 @@ tip_send <- function(session, what, build) {
 #' record at once; a new `placement` is used the next time the tip opens. A `record` needs a `template`, or `text` with
 #' placeholders, in the same call, so that only the columns it names are sent to the page; to change the template
 #' alone, leave `record` out and the tag keeps the record it has. A `template` given without `text` also takes the
-#' tag's plain text away, since plain text beats a template; give `text` with it to keep both. `tip_update()` leaves a
-#' `style` or `marker` alone, and it leaves the tag's `aria-label` as it is, so a button named from its tip keeps the
-#' old name; give such a button its own `aria-label`. The new tip lasts until the tag is drawn again, for example by
-#' `renderUI()`.
+#' tag's plain text away, since plain text beats a template. `text` and `template` in
+#' one call: the text beats the template, so the tip shows the words and the template is not used, and the words are
+#' plain text, with their braces as written; to fill `{{ field }}` placeholders from `record`, give the words alone.
+#' `tip_update()` leaves a `style` or `marker` alone, and it leaves the tag's `aria-label` as it is, so a button named
+#' from its tip keeps the old name; give such a button its own `aria-label`. The new tip lasts until the tag is drawn
+#' again, for example by `renderUI()`.
 #'
 #' On a control that has `when_disabled`, `tip_update()` changes the control's own tip, also while the control is
 #' disabled. A disabled control still says only "Not available:" and its reason, in the new `placement`; the new `text`,
