@@ -537,6 +537,11 @@ describe("pins in a Shiny app", {
   })
 
   it("draws a hint and its pin button above a pinned tip where they overlap", {
+    # Close every tip this test leaves open, whichever line fails.
+    withr::defer({
+      page$press("Escape", wait = 0.3)
+      page$press("Escape", wait = 0.3)
+    })
     reset()
     view("stack_a")
     page$hover("#stack_a")
@@ -578,7 +583,6 @@ describe("pins in a Shiny app", {
       strip
     ))
     expect_true(hit_button)
-    page$press("Escape")
   })
 
   it("leaves the console without errors", {
