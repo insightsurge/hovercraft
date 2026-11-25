@@ -13,6 +13,11 @@
   inset: auto;
   overflow: visible;
 }
+/* A hint's button sits above the hint, which sits above the pinned tips (see pin.css); a pinned tip's button stays one
+   layer above its own box and below a hint. */
+.hovercraft-more-strip-hint {
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 3);
+}
 .hovercraft-more-strip-button {
   display: inline-flex;
   align-items: center;

@@ -102,6 +102,39 @@ describe("pins in a Shiny app", {
             id = "g_tip",
             pin = TRUE
           ),
+          htmltools::tags$div(
+            style = "display: flex; gap: 12px",
+            tip_on(
+              htmltools::tags$div(
+                "Stack A",
+                id = "stack_a",
+                tabindex = "0",
+                class = "p-2 border",
+                style = "width: 8rem"
+              ),
+              paste(
+                "Stack A is a pinned tip whose box is wide and tall enough",
+                "to overlap a neighbour's hint in the middle."
+              ),
+              id = "stack_a_tip",
+              pin = TRUE
+            ),
+            tip_on(
+              htmltools::tags$div(
+                "Stack B",
+                id = "stack_b",
+                tabindex = "0",
+                class = "p-2 border",
+                style = "width: 8rem"
+              ),
+              paste(
+                "Stack B is a hint whose box overlaps the pinned tip next to it",
+                "so the pointer's hint stays on top."
+              ),
+              id = "stack_b_tip",
+              pin = TRUE
+            )
+          ),
           shiny::actionButton("show_a", "Show A"),
           shiny::actionButton("open_modal", "Open modal"),
           htmltools::tags$input(id = "field", type = "text", placeholder = "type here"),
@@ -501,6 +534,51 @@ describe("pins in a Shiny app", {
     expect_lte(button$right, min(hint$right, 320))
     expect_lt(lines()$first_right, button$left)
     page$viewport(900, 700)
+  })
+
+  it("draws a hint and its pin button above a pinned tip where they overlap", {
+    reset()
+    view("stack_a")
+    page$hover("#stack_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip, click = TRUE)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') === null"))
+    page$hover("#stack_b")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_box)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    page$settle()
+    pinned <- rect(pinned_box)
+    hint <- rect(hint_box)
+    button <- rect(strip)
+    ox1 <- max(pinned$left, hint$left)
+    ox2 <- min(pinned$right, hint$right)
+    oy1 <- max(pinned$top, hint$top)
+    oy2 <- min(pinned$bottom, hint$bottom)
+    expect_gt(ox2 - ox1, 10)
+    expect_gt(oy2 - oy1, 30)
+    px <- (ox1 + ox2) / 2
+    py <- oy2 - 8
+    hit_overlap <- jsonlite::fromJSON(page$evaluate(sprintf(
+      paste0(
+        "(() => { const e = document.elementFromPoint(%s, %s);",
+        " return JSON.stringify({ in_hint: !!e?.closest('%s'), in_pin: !!e?.closest('%s') }); })()"
+      ),
+      px,
+      py,
+      hint_box,
+      pinned_box
+    )))
+    expect_true(hit_overlap$in_hint)
+    expect_false(hit_overlap$in_pin)
+    hit_button <- page$evaluate(sprintf(
+      "(() => { const e = document.elementFromPoint(%s, %s); return !!e?.closest('%s'); })()",
+      (button$left + button$right) / 2,
+      (button$top + button$bottom) / 2,
+      strip
+    ))
+    expect_true(hit_button)
+    page$press("Escape")
   })
 
   it("leaves the console without errors", {
