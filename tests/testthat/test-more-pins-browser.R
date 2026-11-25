@@ -176,6 +176,33 @@ describe("the More button with several pinned tips", {
     expect_true(state(page)$one$long)
   })
 
+  it("does nothing on the M key from a hover while the focus is in a shadow root's field or an ARIA text widget", {
+    shadow <- htmltools::tagList(
+      htmltools::tags$div(id = "host"),
+      htmltools::tags$div(id = "combo", role = "combobox", tabindex = "0", "combo"),
+      htmltools::tags$script(htmltools::HTML(
+        "document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML = '<input id=\"inner\" type=\"text\">';"
+      ))
+    )
+    page <- local_page(page_file(use_hovercraft(), item("one", 40, 40, pin = FALSE), shadow), environment())
+    expect_true(page$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
+    taken <- function() {
+      page$evaluate(paste(
+        "(() => { const e = new KeyboardEvent('keydown', { key: 'm', bubbles: true, composed: true, cancelable: true });",
+        "let at = document.activeElement; while (at.shadowRoot?.activeElement) at = at.shadowRoot.activeElement;",
+        "at.dispatchEvent(e); return e.defaultPrevented; })()"
+      ))
+    }
+    page$evaluate("document.getElementById('host').shadowRoot.getElementById('inner').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_false(taken())
+    page$evaluate("document.getElementById('combo').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_false(taken())
+    page$hold(0.3) # the key must not toggle the hint: nothing happening has no signal
+    expect_false(page$evaluate("document.querySelector('.hc-tip:not([hidden])').textContent.includes('LONG')"))
+  })
+
   it("does nothing on the M key from a hover when the key is switched off, and opens the long form when it is on", {
     off <- local_page(
       page_file(use_hovercraft(keys = c(more = FALSE)), item("one", 40, 40, pin = FALSE)),

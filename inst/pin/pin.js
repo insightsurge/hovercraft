@@ -24,9 +24,17 @@
 
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
 
-  // Does the reader's key press land in a field, where a letter is a letter?
+  // Does the reader's key press land in a field, where a letter is a letter? The same test as in inst/more/more.js.
   const editable = (el) =>
-    !!el?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]');
+    !!el?.closest?.(
+      'input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"]',
+    );
+  // The element that really holds the focus, also inside an open shadow root, where the page's activeElement is the host.
+  const deepFocus = (el) => {
+    let at = el;
+    while (at?.shadowRoot?.activeElement) at = at.shadowRoot.activeElement;
+    return at;
+  };
 
   const stripOf = (doc, hint) => {
     const strip = doc.createElement('div');
@@ -124,6 +132,7 @@
   const onHint = (event) => {
     const detail = event.detail;
     const item = event.target?.closest?.(`[${names.attributes.pin}]`);
+    if (shown && !shown.isConnected) shown = null;
     if (detail?.state === 'shown') shown = event.target;
     else if (detail?.state === 'hidden' && shown === event.target) shown = null;
     if (detail?.state === 'shown' && item && event.target === item) show(item);
@@ -136,22 +145,23 @@
     }
   };
 
-  // The pin key: a single letter. It pins the item whose hint is on show (the tip the reader sees, by hover or by focus),
-  // else the item that holds the focus (or has it inside); with the focus on one item and the pointer on another, the
-  // hint's item wins. It never acts while the focus is in a field, and never on a page where no hint is on show and the
-  // focus is elsewhere (WCAG 2.1.4). A key event with no key (the browser's autofill sends them) is none of ours.
+  // The pin key: a single letter. It pins the item whose tip is shown, by hover, focus or tap: the tip the reader sees. With
+  // the focus on one item and the tip shown for another, the shown tip wins; an item that is pinned and holds the focus
+  // keeps the key; with no tip shown, the item that holds the focus. It never acts while the focus is in a field, and
+  // a key held down pins once. Where the page switches the key off, it does nothing. A key event with no key (the
+  // browser's autofill sends them) is none of ours.
   const onKey = (event) => {
-    if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key) return;
+    if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key || event.repeat) return;
     // The page can switch the letter key off (`use_hovercraft(keys = c(pin = FALSE))`); the button stays.
     if (document.documentElement.getAttribute(names.attributes.keysOff)?.split(/\s+/).includes('pin')) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
+    if (shown && !shown.isConnected) shown = null;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
     const focused = active?.closest?.(`[${names.attributes.pin}]`);
-    // An item that is pinned and holds the focus keeps the key; else the hint's item, else the item that has the focus.
-    const hinted = shown?.isConnected ? shown : active;
-    const item =
-      focused?.getAttribute(names.attributes.open) === 'pin' ? focused : hinted?.closest?.(`[${names.attributes.pin}]`);
-    if (!item || editable(active) || item.matches(':disabled, [aria-disabled="true"]')) return;
+    // The item itself, never an ancestor of it: the key acts on the tip that is shown.
+    const hinted = shown?.hasAttribute(names.attributes.pin) ? shown : null;
+    const item = focused?.getAttribute(names.attributes.open) === 'pin' ? focused : shown ? hinted : focused;
+    if (!item || editable(deepFocus(active)) || item.matches(':disabled, [aria-disabled="true"]')) return;
     if (pinItem(item, 'key')) event.preventDefault();
   };
 

@@ -373,13 +373,86 @@ describe("the page's pin settings", {
     )))
   })
 
+  # A synthetic key press at the element that holds the focus, also inside a shadow root: was it taken (prevented)?
+  taken <- function(page, key = "p", repeated = FALSE) {
+    page$evaluate(sprintf(
+      paste(
+        "(() => { const e = new KeyboardEvent('keydown', { key: '%s', repeat: %s, bubbles: true, composed: true, cancelable: true });",
+        "let at = document.activeElement; while (at.shadowRoot?.activeElement) at = at.shadowRoot.activeElement;",
+        "at.dispatchEvent(e); return e.defaultPrevented; })()"
+      ),
+      key,
+      tolower(as.character(repeated))
+    ))
+  }
+
   it("does not pin by the letter key from a hover while the focus is in a field", {
     file <- page_of(use_hovercraft(), pinnable("one"), htmltools::tags$input(id = "field", type = "text"))
     page <- local_page(file, environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
-    expect_length(page$hover("#one"), 1L)
+    # The field holds the focus first; the hover then shows the item's tip, which the letter must not pin.
     page$evaluate("document.getElementById('field').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "field")
+    expect_false(taken(page))
+    page$hold(0.3) # the key must pin nothing: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("does not pin by the letter key from a hover while the focus is in a shadow root's field or an ARIA text widget", {
+    shadow <- htmltools::tagList(
+      htmltools::tags$div(id = "host"),
+      htmltools::tags$div(id = "combo", role = "combobox", tabindex = "0", "combo"),
+      htmltools::tags$script(htmltools::HTML(
+        "document.getElementById('host').attachShadow({ mode: 'open' }).innerHTML = '<input id=\"inner\" type=\"text\">';"
+      ))
+    )
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), shadow), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('host').shadowRoot.getElementById('inner').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_identical(page$evaluate("document.activeElement.id"), "host")
+    expect_false(taken(page))
+    page$evaluate("document.getElementById('combo').focus(); 0")
+    expect_length(page$hover("#one"), 1L)
+    expect_false(taken(page))
+    page$hold(0.3) # the key must pin nothing: nothing happening has no signal
+    expect_identical(open_count(page), 0L)
+  })
+
+  it("pins once for a key held down, on the item whose tip was shown", {
+    page <- local_page(page_of(use_hovercraft(), pinnable("one"), pinnable("two")), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    page$evaluate("document.getElementById('one').focus(); 0")
+    expect_length(page$hover("#two"), 1L)
     page$press("p")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 1",
+      tip_contract()$attributes$open
+    )))
+    # The first press closed the hint; the auto-repeat of the held key must not fall back to the focused item.
+    expect_false(taken(page, repeated = TRUE))
+    page$hold(0.3) # a repeat must pin nothing: nothing happening has no signal
+    expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
+  })
+
+  it("pins the item whose tip is shown, not an item around it", {
+    inner <- tip_on(
+      htmltools::tags$span("inner", id = "inner", class = "px-1", tabindex = "0"),
+      "The inner tip",
+      id = "inner_tip"
+    )
+    outer <- tip_on(
+      htmltools::tags$div(id = "outer", tabindex = "0", style = "padding: 2rem", "outer ", inner),
+      "The outer tip",
+      id = "outer_tip",
+      pin = TRUE
+    )
+    page <- local_page(page_of(use_hovercraft(), outer), environment())
+    expect_true(page$wait_until("window.HovercraftPin !== undefined"))
+    expect_match(paste(page$hover("#inner"), collapse = " "), "The inner tip")
+    page$press("p")
+    page$hold(0.3) # the inner tip cannot pin, and the key must not pin the item around it: nothing happening has no signal
     expect_identical(open_count(page), 0L)
   })
 

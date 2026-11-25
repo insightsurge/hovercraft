@@ -104,12 +104,12 @@ select a row. A click on a row selects it in both widgets, so a row's tip does n
 Pins: with \code{tip_spec(pin = TRUE)} as \code{rows}, a reader can keep a row's tip open. The tip that shows on hover or
 focus gets a small pin handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the
 row's tip, and the tip's own close button, \code{Escape} or a click away closes it (a click away does not close a panel
-that opens in place, see below). The pin key \code{P} pins the tip of the row that has focus or whose tip is shown by the
-pointer, or of the row a focused or hovered cell belongs to; a cell or a header cell has no pin of its own ("only
-rows pin for now"). A long form (\code{more}) opens with its "More" button, or with the \code{M} key when the focus is on the
-row, a cell or a header cell, or the pointer rests on it and its tip is shown. A tap on a row shows its tip and a
-tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab stop and
-its columns; keyboard readers use the key, which
+that opens in place, see below). The pin key \code{P} pins the tip of the row that has focus or whose tip is shown, or
+of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only rows pin for now"), so
+\code{P} while the tip of a cell is shown pins nothing. A long form (\code{more}) opens with its "More" button, or with the
+\code{M} key when the focus is on the row, a cell or a header cell, or when its tip is shown. A tap on a row shows its
+tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
+stop and its columns; keyboard readers use the key, which
 each row that can pin announces as \code{aria-keyshortcuts}. A pin follows its row. It stays on a row when \code{DT} sorts
 (client and server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
 \code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row

@@ -32,12 +32,14 @@ in it opens the long form.
 With \code{on = "button"} (the default) a "More" button at the bottom of the short tip opens the long form in the same
 tip, and a "Less" button closes it again. It does not pin, and needs no \code{pin} and no \code{id}. The tip is short again
 the next time it opens. A pinned tip gets the same buttons. The M key opens and closes the long form while the
-keyboard focus is on the tagged item or the pointer rests on it and its tip is shown, except while the focus is in a
-text field, where a letter is a letter. When the focus is on one item and the tip shown is another's, the key acts
-on the item whose tip is shown, the tip the reader sees; a pinned tip that holds the focus keeps the key. A tag with
-a long form announces the key as \code{aria-keyshortcuts}. The tip stays open and on its side when it grows or shrinks,
-grows away from its item and scrolls when there is no more room, instead of flipping to the other side; that is the
-engine's own behaviour (0.58.0).
+keyboard focus is on the tagged item or while its tip is shown, by hover, focus or tap, except while the focus is
+in a text field, where a letter is a letter. When the focus is on one item and the tip shown is another's, the key
+acts on the item whose tip is shown, the tip the reader sees; a pinned tip that holds the focus keeps the key. The
+key acts on the item whose tip is shown, not on one around it. It is a letter key that works from a hover, so a
+page switches it off for every reader with \code{use_hovercraft(keys = c(more = FALSE))}; there is no switch for one
+reader. A tag with a long form announces the key as \code{aria-keyshortcuts}. The tip stays open and on its side when
+it grows or shrinks, grows away from its item and scrolls when there is no more room, instead of flipping to the
+other side; that is the engine's own behaviour (0.58.0).
 
 With \code{on = "hover"} the long form shows at once, with the short one. With \code{on = "pin"} it shows when the tip is
 pinned, so the tip must be able to pin: \code{tip_on(pin = TRUE)} with an \code{id}, or a row of \code{\link[=tip_table]{tip_table()}} with
