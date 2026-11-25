@@ -74,7 +74,14 @@ tip_strip_tip <- function(tag) {
   more_attrs <- vapply(c("held", "held-template", "label", "state", "room"), tip_more_attribute, "")
   had_more <- any(names(tag$attribs) %in% more_attrs[c("held", "held-template")])
   replaced <- c("preset", "class", "placement", "more", "more_template", "more_on", "id", "pin")
-  own <- c(attrs, vapply(replaced, tip_attribute, ""), tip_theme_attribute(), tip_shiny_attribute(), more_attrs)
+  own <- c(
+    attrs,
+    vapply(replaced, tip_attribute, ""),
+    tip_theme_attribute(),
+    tip_shiny_attribute(),
+    tip_labels_attribute(),
+    more_attrs
+  )
   keys <- htmltools::tagGetAttribute(tag, "aria-keyshortcuts")
   tag$attribs[names(tag$attribs) %in% own] <- NULL
   if ((had_pin || had_more) && identical(keys, tip_keyshortcuts(had_pin, had_more))) {
@@ -523,6 +530,17 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   the key with the screen reader you support. `Escape` closes a pinned tip. Pointer, keyboard and tap are tested
 #'   in Chrome only.
 #'
+#' @param labels `r lifecycle::badge("experimental")` The words the tip shows itself, such as "Copy", "Close", "More"
+#'   and the pin button's name, for this tag's tip and every tip inside the tag, or `NULL` (the default) to take the
+#'   page's words (see [use_hovercraft()]). A named character vector, such as `c(close = "Dismiss")`; a word left out
+#'   keeps its built-in one. The keys, with their built-in words, are `r tip_label_help()`. `{label}`, `{n}` and
+#'   `{first}` in a word are filled in by the page: in `pinned` the name of the item, in the `code_*` words the number
+#'   of lines and the first line. An unknown key stops with an error that lists the keys. The nearest words win, key by
+#'   key: a tag's `labels` beat the page's, and a tag inside another tag with `labels` uses the nearer one.
+#'   `tip_more(label = )` still sets the words of the "More" and "Less" buttons of one tip, and beats `labels` there.
+#'   The words go with the tag: a second `tip_on()` on it replaces them with its own. To change them for a
+#'   [tip_table()], give them to [use_hovercraft()] or put the table inside a tag with `labels`.
+#'
 #' @returns The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 #'   and the marker's own dependency; with `when_disabled`, inside a wrapper that holds the reason.
 #' @family tooltips
@@ -587,6 +605,9 @@ tip_check_more_fields <- function(fields, held, id, call, what = "{.arg more}") 
 #'   )
 #' })
 #'
+#' # The built-in words of the tip, with other words, for this tip
+#' tip_on(htmltools::tags$button("Run"), "Runs the **check**", pin = TRUE, id = "run", labels = c(close = "Dismiss"))
+#'
 #' # An icon-only button is named from its tip
 #' tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 #' @export
@@ -603,7 +624,8 @@ tip_on <- function(
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  pin = NULL
+  pin = NULL,
+  labels = NULL
 ) {
   tip_check_one_tag(tag)
   tip_check_dots(
@@ -620,7 +642,8 @@ tip_on <- function(
       "events",
       "when_disabled",
       "more",
-      "pin"
+      "pin",
+      "labels"
     )
   )
   # A tag that an earlier call put in a wrapper: the control inside is tipped again, and the earlier tip goes with the
@@ -643,6 +666,7 @@ tip_on <- function(
   }
   style <- tip_as_style(style, "style")
   tip_check_placement(placement)
+  labels <- tip_check_labels(labels)
   tip_check_id(id)
   events <- tip_check_events(events)
   tip_check_when_disabled(when_disabled, tag)
@@ -780,6 +804,9 @@ tip_on <- function(
   }
   if (!is.null(pin_value)) {
     values[[tip_attribute("pin")]] <- pin_value
+  }
+  if (!is.null(labels)) {
+    values[[tip_labels_attribute()]] <- tip_json(labels)
   }
   more_deps <- list()
   if (!is.null(more_info)) {

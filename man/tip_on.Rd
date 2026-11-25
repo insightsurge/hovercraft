@@ -17,7 +17,8 @@ tip_on(
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  pin = NULL
+  pin = NULL,
+  labels = NULL
 )
 }
 \arguments{
@@ -159,6 +160,17 @@ item while the focus is on the item or inside it, and does nothing while the foc
 else on the page. A screen reader that is in browse mode may take the letter for its own navigation, so check
 the key with the screen reader you support. \code{Escape} closes a pinned tip. Pointer, keyboard and tap are tested
 in Chrome only.}
+
+\item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tip shows itself, such as "Copy", "Close", "More"
+and the pin button's name, for this tag's tip and every tip inside the tag, or \code{NULL} (the default) to take the
+page's words (see \code{\link[=use_hovercraft]{use_hovercraft()}}). A named character vector, such as \code{c(close = "Dismiss")}; a word left out
+keeps its built-in one. The keys, with their built-in words, are \code{copy} ("Copy"), \code{copied} ("Copied"), \code{copy_failed} ("Copy failed"), \code{close} ("Close"), \code{not_available} ("Not available:"), \code{pinned} ("{label}: details pinned. Tab to reach them."), \code{code_line} ("code: {first}"), \code{code_line_empty} ("code, 1 line"), \code{code_lines} ("code, {n} lines, starting {first}"), \code{code_lines_empty} ("code, {n} lines"), \code{more} ("More"), \code{more_pinned} ("More when pinned"), \code{less} ("Less"), \code{pin} ("Pin this tip"). \code{{label}}, \code{{n}} and
+\code{{first}} in a word are filled in by the page: in \code{pinned} the name of the item, in the \verb{code_*} words the number
+of lines and the first line. An unknown key stops with an error that lists the keys. The nearest words win, key by
+key: a tag's \code{labels} beat the page's, and a tag inside another tag with \code{labels} uses the nearer one.
+\code{tip_more(label = )} still sets the words of the "More" and "Less" buttons of one tip, and beats \code{labels} there.
+The words go with the tag: a second \code{tip_on()} on it replaces them with its own. To change them for a
+\code{\link[=tip_table]{tip_table()}}, give them to \code{\link[=use_hovercraft]{use_hovercraft()}} or put the table inside a tag with \code{labels}.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
@@ -281,6 +293,9 @@ lapply(seq_len(nrow(rows)), function(i) {
     record = rows[i, ]
   )
 })
+
+# The built-in words of the tip, with other words, for this tip
+tip_on(htmltools::tags$button("Run"), "Runs the **check**", pin = TRUE, id = "run", labels = c(close = "Dismiss"))
 
 # An icon-only button is named from its tip
 tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")

@@ -68,6 +68,46 @@
   engine?.attach(document);
   layer()?.start(config);
 
+  // The words the page shows itself. A scope (the page's root, or a tag that `tip_on(labels = )` marked) holds its words as
+  // JSON in an attribute. The engine takes its own keys for the scope, which it applies to the tag and what is inside it;
+  // its keys are read from the engine, so none is typed here. The words of hovercraft's own scripts (the pin button, the
+  // "Less" button) are answered by `labels(el)`, which reads the scopes from the element up, the nearest word winning.
+  const labelsAttribute = config.attributes.labels;
+  const readLabels = (node) => {
+    const text = node.getAttribute?.(labelsAttribute);
+    if (!text) return null;
+    try {
+      const words = JSON.parse(text);
+      return words && typeof words === 'object' && !Array.isArray(words) ? words : null;
+    } catch {
+      return null;
+    }
+  };
+  const engineKeys = () => Object.keys(engine?.tooltip?.(null, root)?.tooltip_labels ?? {});
+  const labelsApplied = new WeakMap();
+  const applyLabels = (node) => {
+    const text = node.getAttribute(labelsAttribute);
+    const words = readLabels(node);
+    if (!words || labelsApplied.get(node) === text) return;
+    labelsApplied.set(node, text);
+    const mine = Object.fromEntries(
+      engineKeys().flatMap((key) => (typeof words[key] === 'string' ? [[key, words[key]]] : [])),
+    );
+    if (Object.keys(mine).length) engine.tooltip({ tooltip_labels: mine }, node);
+  };
+  const labels = (el) => {
+    const out = { ...config.labels };
+    const scopes = [];
+    for (let node = el; node; node = node.parentElement) {
+      const words = readLabels(node);
+      if (words) scopes.push(words);
+    }
+    while (scopes.length) {
+      for (const [key, word] of Object.entries(scopes.pop())) if (typeof word === 'string') out[key] = word;
+    }
+    return out;
+  };
+
   const cssDone = new Set();
   const addCss = (text) => {
     if (typeof CSSStyleSheet === 'function' && 'adoptedStyleSheets' in document) {
@@ -119,6 +159,11 @@
       root.setAttribute(config.attributes.keysOff, [...keysOff].join(' '));
       stripKeys(document);
     },
+    // The page's words: merged into the root's, a later word over an earlier one.
+    labels: (op) => {
+      root.setAttribute(labelsAttribute, JSON.stringify({ ...readLabels(root), ...op.labels }));
+      applyLabels(root);
+    },
     // The page's own style: attributes on the page's root, which the engine reads before its settings.
     page: (op) => {
       for (const [name, value] of Object.entries(op.attributes ?? {}))
@@ -144,6 +189,8 @@
     stripKeys(node);
     if (node.matches(SOURCES)) read(node);
     for (const element of node.querySelectorAll(SOURCES)) read(element);
+    if (node.hasAttribute(labelsAttribute)) applyLabels(node);
+    for (const element of node.querySelectorAll(`[${labelsAttribute}]`)) applyLabels(element);
   };
 
   // What is in the page now, what the parser adds, and what Shiny adds later (a dependency's <meta> in the head, a
@@ -164,5 +211,5 @@
   });
   document.addEventListener('DOMContentLoaded', () => scan(document.documentElement));
 
-  window.HovercraftRuntime = Object.freeze({ version: config.global });
+  window.HovercraftRuntime = Object.freeze({ version: config.global, labels });
 })();

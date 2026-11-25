@@ -25,7 +25,7 @@
   const editable = (el) =>
     !!el?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]');
 
-  const stripOf = (doc, hint) => {
+  const stripOf = (doc, hint, item) => {
     const strip = doc.createElement('div');
     strip.className = STRIP;
     strip.setAttribute(names.attributes.part, '');
@@ -34,7 +34,7 @@
     pin.className = `${STRIP}-button ${STRIP}-pin`;
     // A pointer and a tap use this button; the keyboard uses the pin key, which the tagged item announces. The button has
     // a name for a pointer user's screen reader and no `title`, which would stack a second tooltip on the tip.
-    pin.setAttribute('aria-label', names.labels.pin);
+    pin.setAttribute('aria-label', (window.HovercraftRuntime?.labels?.(item) ?? names.labels).pin ?? names.labels.pin);
     pin.tabIndex = -1;
     strip.append(pin);
     // A hint in the top layer (a modal) needs the strip there as well, or the hint would cover it.
@@ -96,7 +96,7 @@
     const hint = hintBox(doc);
     close();
     if (!hint || hint.hidden || item.matches(':disabled, [aria-disabled="true"]')) return;
-    const { strip, pin } = stripOf(doc, hint);
+    const { strip, pin } = stripOf(doc, hint, item);
     // A click on the button pins the item without a click on the item: the item's own click (a row's selection) never runs.
     pin.addEventListener('click', (e) => {
       e.stopPropagation();
