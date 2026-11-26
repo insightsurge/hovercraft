@@ -111,6 +111,23 @@ per feature. A pull request that changes an export or an argument updates the st
   choices, the proofs)
   and `test-studio-browser.R` (the app in Chrome).
 
+## The test bench
+
+The test bench (`tests/testthat/apps/testbench/`) is one Shiny app with the Shiny-practice checks, a tab of
+JavaScript-driven UI and a spot for every behaviour scenario (HC-001 to HC-077). A person runs it by hand for a
+walkthrough, and the browser tests start it with `start_bench()` (`tests/testthat/helper-bench.R`). Its `README.md`
+says how to run it and which settings its address takes.
+
+- **Files.** `R/contents.R` lists the tabs; each tab `<id>` is `tab_<id>_ui()` and `tab_<id>_server()` in
+  `R/tab-<id>.R`. `scenarios.csv` lists the scenarios and the tab of each; `spot()` in `R/shared-spot.R` draws one.
+- **Ids** in a tab start with the tab's id, so all tabs can share a page. The practice tab keeps the ids its test uses.
+- **Page-wide settings** of `use_hovercraft()` (keys, pins, labels, style) go in the address, never in a tab: the page
+  reads them once.
+- **The log** (`www/bench-log.js`) keeps every tip event, input and custom message in `window.benchLog`. A test reads it
+  with `page$log_has()`, which waits, and checks console errors with `page$problems()`.
+- **Tests:** `test-bench.R` (the list and the spots match, every tab draws and starts its server), `test-bench-browser.R`
+  (every tab in Chrome), `test-bench-js-browser.R` and `test-practice-browser.R`.
+
 ## NEWS.md
 
 Add one bullet for each user-facing change (a new or changed function, argument or message), in the same pull request. Write it for users, in the present tense, start

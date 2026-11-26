@@ -75,3 +75,25 @@ describe("wait_polls()", {
     expect_lte(page$calls(), 4L)
   })
 })
+
+describe("the test bench's helpers", {
+  it("find the bench beside the tests, and skip where it is not", {
+    expect_true(dir.exists(bench_dir()))
+    expect_true(file.exists(file.path(bench_dir(), "app.R")))
+    skipped <- tryCatch(skip_if_no_bench(file.path(tempdir(), "no-bench-here")), skip = function(cond) cond)
+    expect_s3_class(skipped, "skip")
+  })
+
+  it("write the bench's address with one tab and other settings", {
+    bench <- list(url = "http://127.0.0.1:1")
+    expect_identical(bench_url(bench), "http://127.0.0.1:1")
+    expect_identical(bench_url(bench, "js"), "http://127.0.0.1:1/?only=js")
+    expect_identical(bench_url(bench, "js", list(max_pins = 2)), "http://127.0.0.1:1/?only=js&max_pins=2")
+  })
+
+  it("read log lines with nested details as they are", {
+    rows <- bench_log_rows('[{"n":1,"kind":"tip","id":"a","detail":{"state":"pinned","ids":["a"]}}]')
+    expect_identical(rows[[1]]$detail$state, "pinned")
+    expect_identical(rows[[1]]$detail$ids, list("a"))
+  })
+})
