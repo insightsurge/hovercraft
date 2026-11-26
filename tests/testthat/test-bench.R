@@ -10,8 +10,10 @@ skip_if_not_installed("shinyjs")
 skip_if_not_installed("promises")
 skip_if_not_installed("later")
 
-# The bench's R files in an environment of their own, as Shiny loads them, read from the bench's folder.
+# The bench's R files in an environment of their own, as Shiny loads them, read from the bench's folder. Drawing a tab
+# defines its templates, so they are forgotten when the test ends: another file in the same process may count them.
 load_bench <- function(env = parent.frame()) {
+  withr::defer(tip_reset(), envir = env)
   bench <- new.env(parent = globalenv())
   withr::local_dir(bench_dir(), .local_envir = env)
   for (file in sort(list.files("R", pattern = "[.]R$", full.names = TRUE))) {
