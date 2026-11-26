@@ -19,9 +19,11 @@ skip_if_no_bench()
 describe("the bench's placement scenarios", {
   bench <- start_bench(environment())
 
-  # Is every tip on show (or every pinned one) inside a window of this size, with no sideways page scroll?
+  # Is every tip drawn (or every pinned one) inside a window of this size, with no sideways page scroll? A tip whose item
+  # has scrolled out of the window is hidden, and the engine does not place it in the window.
   in_view <- function(page, width, height, pinned = FALSE) {
     tips <- bench_tips(page)
+    tips <- tips[tips$drawn, , drop = FALSE]
     if (pinned) {
       tips <- tips[tips$pinned, , drop = FALSE]
     }
@@ -125,9 +127,16 @@ describe("the bench's placement scenarios", {
       expect_true(page$wait_until(
         "document.querySelector('.hc-tip-pin:not([hidden])')?.textContent.includes('Line 10')"
       ))
-      # The scenario also wants the open long form off its item; with no room above or below, the engine puts it over
-      # the item (reported in #158), so only the window is checked here.
+      # The open long form is drawn, inside the window (capped, and it scrolls when it is taller), and at 640x400 off its
+      # item. A 200 px high window has no room for both, so there only the window is checked.
       expect_true(in_view(page, size[[1]], size[[2]]), info = label)
+      if (size[[2]] >= 400) {
+        long_form <- bench_tips(page)
+        long_form <- long_form[long_form$pinned & long_form$drawn, , drop = FALSE]
+        item <- bench_rect(page, "#place-zoom")
+        expect_identical(nrow(long_form), 1L, info = label)
+        expect_true(long_form$top >= item$bottom - 0.5 || long_form$bottom <= item$top + 0.5, info = label)
+      }
       more <- bench_rect(page, ".hovercraft-more-strip-button")
       expect_true(more$left >= 0 && more$right <= size[[1]] && more$top >= 0 && more$bottom <= size[[2]], info = label)
       # A second pin: beside the first on the wide layout, in its place as the one bottom sheet on the narrow one.

@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.59.0, built from its source; do not edit.
+// hovercraft tip engine 0.60.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.59.0';
+  const VERSION = '0.60.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -1521,7 +1521,7 @@
           ? new view.ResizeObserver((entries) => {
               const page = pageOf(doc);
               page.hint?.place(true, true);
-              for (const p of page.pins) p.place();
+              for (const p of [...page.pins]) p.place();
               for (const { target } of entries) resizeLives(target);
             })
           : null;
@@ -1690,6 +1690,7 @@
       keep = null,
     ) {
       const baseGap = gapOf(box);
+      const scrolled = box.scrollTop;
       if (!keep) uncap(box);
       const reach = baseGap === GAP ? '' : `${baseGap}px`;
       if (box.style.getPropertyValue('--hc-tip-reach') !== reach) {
@@ -1711,11 +1712,11 @@
       };
       const to = draw(arrow ? ARROW : 0);
       const moved = isPin && dodge(box);
-      if (point(box, arrow && !moved ? to : null)) return;
-      if (arrow) {
+      if (!point(box, arrow && !moved ? to : null) && arrow) {
         draw(0);
         if (isPin) dodge(box);
       }
+      if (box.dataset.cap && box.scrollTop !== scrolled) box.scrollTop = scrolled;
     }
     function olderPins(box) {
       const { pins } = pageOf(box.ownerDocument);
@@ -1873,6 +1874,21 @@
       box.style.maxHeight = '';
       box.style.overflowY = '';
     }
+    const MIN_CAP = 48;
+    function upOrCap(box, top, bottom, g, vh, h) {
+      if (top - h - g >= 4) return { top: top - h - g, h, side: 'above' };
+      const below = vh - 4 - (bottom + g);
+      const above = top - g - 4;
+      const room = Math.max(below, above);
+      if (room < MIN_CAP) return { top: top - h - g, h, side: 'above' };
+      box.style.maxHeight = `${Math.floor(room)}px`;
+      box.style.overflowY = 'auto';
+      box.dataset.cap = 'true';
+      const capped = box.offsetHeight;
+      return below >= above
+        ? { top: bottom + g, h: capped, side: 'below' }
+        : { top: top - g - capped, h: capped, side: 'above' };
+    }
     function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP, item = null) {
       const g = baseGap + grow;
       const doc = anchor.ownerDocument;
@@ -1926,13 +1942,13 @@
         const edge = part ?? row;
         let left = rtl ? edge.left : edge.right - w;
         let top = row.bottom + g;
+        let tall = h;
         box.dataset.side = 'below';
         if (top + h > vh - 4) {
-          top = row.top - h - g;
-          box.dataset.side = 'above';
+          ({ top, h: tall, side: box.dataset.side } = upOrCap(box, row.top, row.bottom, g, vh, h));
         }
         left = Math.max(4, Math.min(left, vw - w - 4));
-        top = Math.max(4, Math.min(top, vh - h - 4));
+        top = Math.max(4, Math.min(top, vh - tall - 4));
         box.style.left = `${Math.round(left)}px`;
         box.style.top = `${Math.round(top)}px`;
         return { l: row.left, r: row.right, t: row.top, b: row.bottom };
@@ -1969,13 +1985,13 @@
                     : r.left
                   : x - w / 2;
       let top = aside ? r.top + (r.height - h) / 2 : room ? r.top : r.bottom + g;
+      let tall = h;
       box.dataset.side = aside ? side : (room ?? 'below');
       if (!aside && !room && top + h > vh - 4) {
-        top = r.top - h - g;
-        box.dataset.side = 'above';
+        ({ top, h: tall, side: box.dataset.side } = upOrCap(box, r.top, r.bottom, g, vh, h));
       }
       left = Math.max(4, Math.min(left, vw - w - 4));
-      top = Math.max(4, Math.min(top, vh - h - 4));
+      top = Math.max(4, Math.min(top, vh - tall - 4));
       box.style.left = `${Math.round(left)}px`;
       box.style.top = `${Math.round(top)}px`;
       return { l: x ?? r.left, r: x ?? r.right, t: r.top, b: r.bottom };
@@ -2066,8 +2082,15 @@
       const at = (y) => {
         pad.style.top = `${Math.max(0, Math.round(y) - 1)}px`;
       };
+      const reach = () => {
+        let most = 0;
+        for (const b of pad.owners) most = Math.max(most, b.offsetHeight);
+        at(pad.base + most + gapOf(box));
+      };
       if (!open) {
+        pad?.owners?.delete(box);
         if (!pad || pad.dataset.closing) return;
+        if (pad.owners.size) return reach();
         const bottom = view.scrollY + page.clientHeight;
         if (bottom <= pad.base) {
           pad.remove();
@@ -2092,9 +2115,11 @@
         pad.setAttribute('aria-hidden', 'true');
         pad.setAttribute('data-hovercraft-keep', '');
         pad.base = page.scrollHeight;
+        pad.owners = new Set();
         doc.body.append(pad);
       }
-      at(pad.base + box.offsetHeight + gapOf(box));
+      pad.owners.add(box);
+      reach();
     }
     function reveal(item, box) {
       const vh = item.ownerDocument.documentElement.clientHeight;
@@ -2762,13 +2787,19 @@
       const onMove = (e) => {
         if (e?.target?.closest?.(`[${NAMES.attr}-box]`)) return;
         if (page.hint) page.hint.place(false, page.hint.kept === true);
-        for (const q of page.pins) q.place(false);
+        for (const q of [...page.pins]) q.place(false);
       };
       const onSize = () => {
+        if (doc.documentElement.clientWidth < PHONE) {
+          const floating = page.pins.filter((q) => !q.into);
+          for (const old of floating.slice(0, -1)) {
+            old.handle.closePin({ reason: 'replaced', by: 'reader', via: null }, false, old);
+          }
+        }
         if (page.hint) page.hint.place();
-        for (const q of page.pins) {
+        for (const q of [...page.pins]) {
           q.place(true, true);
-          resizeLives(q.box);
+          if (page.pins.includes(q)) resizeLives(q.box);
         }
         if (page.hint) resizeLives(boxesOf(doc).hint);
       };
@@ -2782,6 +2813,10 @@
       };
       view.addEventListener('keydown', onKey, true);
       view.addEventListener('keydown', onEscape);
+      const onPress = (e) => {
+        page.pressIn = !!e.target?.closest?.(`.${CSS}-pin`);
+      };
+      doc.addEventListener('pointerdown', onPress, true);
       doc.addEventListener('scroll', onMove, true);
       view.addEventListener('resize', onSize);
       env.revealed?.(doc, () => [...page.pins].map((q) => q.check('reader')));
@@ -3059,9 +3094,13 @@
         watch.takeRecords();
         for (const w of itemWatchers) w.takeRecords();
       }
+      const ROOM = `${CSS}-room`;
+      const isRoom = (x) => x.classList?.contains(ROOM);
       const watch = new MutationObserver((records) => {
         const ours = records.every(
-          (r) => [...r.addedNodes].every((x) => x.classList?.contains(DESC)) && !r.removedNodes.length,
+          (r) =>
+            [...r.addedNodes].every((x) => x.classList?.contains(DESC) || isRoom(x)) &&
+            [...r.removedNodes].every(isRoom),
         );
         if (ours) return;
         describe();
@@ -3159,8 +3198,8 @@
           const ours = records.every(
             (r) =>
               r.type === 'childList' &&
-              !r.removedNodes.length &&
-              [...r.addedNodes].every((x) => x.classList?.contains(DESC)),
+              [...r.removedNodes].every(isRoom) &&
+              [...r.addedNodes].every((x) => x.classList?.contains(DESC) || isRoom(x)),
           );
           if (!ours) checkOpen('data');
         });
@@ -3587,6 +3626,7 @@
         return true;
       }
       const inTip = (t) => !!t.closest?.(`.${CSS}-pin`);
+      const fromTip = (e) => e.detail !== 0 && page.pressIn === true;
       const containerFor = (c) => {
         if (c == null) return null;
         const hit = c.nodeType === 1 ? itemAt(c) : null;
@@ -3610,7 +3650,15 @@
         let into = containerFor(info.into);
         if (into === false) return null;
         const open = pinsHere().find((q) => q.id === key);
-        if (open) return info.into === undefined || open.move(into);
+        if (open) {
+          if (info.into === undefined) return true;
+          if (!into && open.into && doc.documentElement.clientWidth < PHONE) {
+            for (const q of page.pins.filter((x) => x !== open && !x.into)) {
+              q.handle.closePin({ reason: 'replaced', by: info.by ?? 'reader', via: info.via ?? null }, false, q);
+            }
+          }
+          return open.move(into);
+        }
         const c = n ? contentFor(n) : null;
         if (!c?.blocks.length) return false;
         const by = info.by ?? 'reader';
@@ -3676,12 +3724,12 @@
         close?.addEventListener('click', onClose);
         const offOutside = env.outside(owner, (e) => {
           const hit = itemAt(e.target);
-          if (into || e === born || inTip(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
+          if (into || e === born || inTip(e.target) || fromTip(e) || partOf(e.target) || (hit && canPin(hit))) return;
           shut({ reason: 'outside', by: 'reader', via: 'click' });
         });
         const inside = (e) => {
           const hit = itemAt(e.target);
-          if (into || e === born || (hit && canPin(hit)) || inTip(e.target) || partOf(e.target)) return;
+          if (into || e === born || (hit && canPin(hit)) || inTip(e.target) || fromTip(e) || partOf(e.target)) return;
           if (e.target.closest?.('[data-hovercraft-keep]')) return;
           shut({ reason: 'outside', by: 'reader', via: 'click' });
         };
@@ -3817,6 +3865,10 @@
             if (p.spot?.gone) p.spot = null;
             if (clipped) pbox.style.visibility = 'hidden';
             isSheet = pbox.dataset.side === 'sheet';
+            if (isSheet && page.pins.filter((q) => !q.into).at(-1) !== p) {
+              shut({ reason: 'replaced', by: 'data', via: null });
+              return;
+            }
             room(pbox, isSheet && pbox.style.visibility !== 'hidden');
             if (pbox.style.visibility === 'hidden' && pbox.contains(doc.activeElement)) {
               focusOf(a).focus({ preventScroll: true });
