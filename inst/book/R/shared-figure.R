@@ -28,6 +28,9 @@ plate_code <- function(
   output[[paste0(plate, "_notes")]] <- shiny::renderUI(notes_ui(result()))
   shiny::observe({
     text <- code_text(ui_code(), server_code())
+    # Every text the section has shown in this session, kept for test-book.R: it checks the code uses each argument
+    # the section lists in contents.R. A section has a few choices, so the list stays short.
+    session$userData$book_code[[plate]] <- unique(c(session$userData$book_code[[plate]], text))
     rev <- shiny::isolate(input$book_rev[[plate]]) %||% 0
     session$sendCustomMessage("book-code", list(plate = plate, code = text, rev = rev))
   })

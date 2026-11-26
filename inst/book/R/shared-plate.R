@@ -56,7 +56,8 @@ plate <- function(
         ),
         code_note(id, code),
         steps_note(id, steps),
-        log_note(id, log_empty, log_title)
+        log_note(id, log_empty, log_title),
+        covers_note(id)
       )
     )
   )
@@ -167,6 +168,34 @@ steps_note <- function(id, steps) {
 }
 
 # The Inputs sent note: what the server received while you tried the plate, newest first.
+# What the section shows, from contents.R, grouped by the badge the help gives each: stable, experimental, or stable
+# for some values only (such as `style` by a preset's name). Closed until opened; the words say the group, so the
+# badge never rests on colour.
+covers_note <- function(id) {
+  covers <- book_sections$covers[[match(id, book_sections$id)]]
+  if (is.null(book_cache$badges)) {
+    args <- book_rd_args()
+    book_cache$badges <- stats::setNames(args$badge, book_rd_names(args))
+  }
+  badge <- book_cache$badges[covers]
+  groups <- c(stable = "Stable", mixed = "Stable for some values", experimental = "Experimental")
+  htmltools::tags$details(
+    class = "note covers-note",
+    htmltools::tags$summary(htmltools::h4("What this section shows")),
+    lapply(names(groups), function(g) {
+      these <- covers[badge %in% g]
+      if (!length(these)) {
+        return(NULL)
+      }
+      htmltools::tags$p(
+        class = paste0("covers covers-", g),
+        htmltools::span(class = "covers-badge", groups[[g]]),
+        lapply(these, htmltools::tags$code)
+      )
+    })
+  )
+}
+
 log_note <- function(id, empty, title = "Inputs sent") {
   htmltools::tags$section(
     class = "note",

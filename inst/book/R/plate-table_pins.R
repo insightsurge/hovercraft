@@ -1,4 +1,4 @@
-# Section 6.3, Pins and inputs on tables: a row's tip pinned with its handle, and the inputs a table sends for its rows
+# Section "table_pins" (its number and title are in contents.R): a row's tip pinned with its handle, and the inputs a table sends for its rows
 # (`tip_table(pin =, events =, id =)`).
 
 table_pins_pins <- c("pinnable" = "on", "hover only" = "off")
@@ -29,20 +29,6 @@ table_pins_code <- function(settings) {
   table_code("queues", book_queues[c("queue", "open", "wait_min", "query")], table_default(), tipped)
 }
 
-table_pins_covers <- c(
-  "tip_table(widget)",
-  "tip_table(rows)",
-  "tip_table(pin)",
-  "tip_table(events)",
-  "tip_table(id)",
-  "tip_template(head)",
-  "tip_template(body)",
-  "tip_title(text)",
-  "tip_text(text)",
-  "tip_code(field)",
-  "tip_code(language)",
-  "tip_code(copy)"
-)
 
 table_pins_steps <- function() {
   rows <- table_pins_rows()

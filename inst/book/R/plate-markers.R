@@ -1,4 +1,4 @@
-# Section 4.4, Markers: the cue on a tipped tag that says there is a tip (`tip_on(marker =)`, `tip_marker()`).
+# Section "markers" (its number and title are in contents.R): the cue on a tipped tag that says there is a tip (`tip_on(marker =)`, `tip_marker()`).
 
 markers_kinds <- c("an underline" = "underline", "an icon" = "icon", "a corner" = "corner", "no marker" = "none")
 markers_lines <- c(
@@ -142,4 +142,3 @@ plate_markers_server <- function(input, output, session) {
   ticks
 }
 
-markers_covers <- c("tip_on(marker)", "tip_marker(type)", "tip_marker(line)", "tip_marker(icon)")

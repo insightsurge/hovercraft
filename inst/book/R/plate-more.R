@@ -1,4 +1,4 @@
-# Section 3.2, Short and long: one line on a glance, the whole method on request (`more =`, `tip_more()`).
+# Section "more" (its number and title are in contents.R): one line on a glance, the whole method on request (`more =`, `tip_more()`).
 
 more_on_choices <- c("behind a More button" = "button", "pinned" = "pin", "hovered" = "hover")
 more_pin_choices <- c("its corner button or P" = "true", "a click as well" = "click")
@@ -60,16 +60,6 @@ more_code <- function(settings) {
   )
 }
 
-more_covers <- c(
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(more)",
-  "tip_more(content)",
-  "tip_more(on)",
-  "tip_on(pin)",
-  "tip_on(id)",
-  "tip_on(events)"
-)
 
 more_steps <- function() {
   on <- function(value) function(input) identical(input$more_on %||% "button", value)

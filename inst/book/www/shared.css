@@ -443,3 +443,25 @@ p {
 .choice .pick {
   white-space: nowrap;
 }
+
+/* What this section shows: the exports and arguments, grouped by their badge in the help. */
+.covers-note summary {
+  cursor: pointer;
+}
+.covers-note summary h4 {
+  display: inline;
+}
+.covers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 0.5rem;
+  margin: 0.5rem 0 0;
+}
+.covers-badge {
+  flex-basis: 100%;
+  font-size: 0.8em;
+  font-weight: 600;
+}
+.covers-experimental .covers-badge {
+  color: #8a4b00;
+}

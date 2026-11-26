@@ -1,4 +1,4 @@
-# Section 4.2, Size and spacing: how far a tip sits from its tag, how wide a hint and a pin grow, and a class of your
+# Section "size" (its number and title are in contents.R): how far a tip sits from its tag, how wide a hint and a pin grow, and a class of your
 # own (`tip_style(gap =, max_width =, pin_width =, class =)`, given to one tag).
 
 size_gaps <- c("4 px" = "4", "10 px" = "10", "18 px" = "18")
@@ -113,11 +113,3 @@ plate_size_server <- function(input, output, session) {
   ticks
 }
 
-size_covers <- c(
-  "tip_style(gap)",
-  "tip_style(max_width)",
-  "tip_style(pin_width)",
-  "tip_style(class)",
-  "tip_on(style)",
-  "tip_on(more)"
-)

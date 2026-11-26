@@ -94,15 +94,21 @@ book in the same pull request, and a test fails until it does.
 
 - **Files.** `app.R` starts the app. Shiny loads every file in `R/` first: the shared helpers in `R/shared-*.R` (code
   as text, running it, the section frame and its margin, the test steps and their proofs, the inputs log, the
-  tables), one file per section in `R/plate-<id>.R`, the parts, the sections and all the made-up data in `R/data.R`,
+  tables), one file per section in `R/plate-<id>.R`, the contents in `R/contents.R`, the made-up data in `R/data.R`,
   and the page in `R/page.R`. `www/shared.css` and `www/shared.js` go with the shared helpers; `www/book.css` and `www/book.js` are
   the page's own look, its index and search, its phone layout and the checklist.
-- **A section** has an id in `book_sections` (`data.R`, with its part, number and title) and in `book_section_ids`
-  (`R/book.R`), and in its file: `<id>_code()` (the code text), `<id>_steps()` (3 to 5 test steps),
-  `<id>_covers` (every export and argument it shows, as `"fn(arg)"`, or `"fn"` for a function with none),
-  `plate_<id>_ui()` and `plate_<id>_server()`. The page and its server find them by the id. To add a feature, add it
-  to the section it belongs to, or add a section, and list it in `<id>_covers`; `test-book.R` checks that every
-  export and argument is covered, and the index's search finds a section by what it covers.
+- **The contents** are in one file, `R/contents.R`: the parts, their sections in order, and what each section shows
+  (`covers`, as `list(fn = c("arg", ...))`, with `character()` for a function shown without arguments; `prose` for the
+  few arguments a section shows only in its words). Numbers come from the order; the ids stay, since links and
+  `hovercraft_book(section =)` use them. `hovercraft_book()` reads the ids from this file.
+- **A section** also has its own file, `R/plate-<id>.R`, with `plate_<id>_ui()`, `plate_<id>_server()` and
+  `<id>_steps()` (3 to 5 test steps). The page and its server find them by the id. Every section sends the code it
+  shows through `plate_code()`.
+- **Coverage is tested.** `test-book.R` reads every export and argument from the help pages, with its stable or
+  experimental badge, and fails while one is in no section's `covers`. It then sets every combination of each
+  section's choices and checks that the code the section shows really calls each function and argument it lists (an
+  argument given by position counts). To add a feature: add it to a section's code and to its `covers` in
+  `contents.R`, or add a section. The margin's "What this section shows" lists them with their badges.
 - **One source of truth.** Each section builds its R code as text from its choices (`<id>_code()`); the margin shows
   that text and the figure is the same text, run with only the package's exports in reach. A section's server code
   (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the

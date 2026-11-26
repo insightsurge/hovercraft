@@ -1,4 +1,4 @@
-# Section 6.1, Rows, cells and headers: tips on the rows, cells and headers of a DT or reactable table, each from its
+# Section "tables" (its number and title are in contents.R): tips on the rows, cells and headers of a DT or reactable table, each from its
 # own row.
 
 tables_parts <- c("rows" = "rows", "rows and headers" = "headers", "rows and a cell" = "cells")
@@ -31,18 +31,6 @@ tables_code <- function(settings) {
   table_code("branches", book_branches, widget, tipped)
 }
 
-tables_covers <- c(
-  "tip_table(widget)",
-  "tip_table(rows)",
-  "tip_table(cells)",
-  "tip_table(headers)",
-  "tip_table(style)",
-  "tip_table(placement)",
-  "tip_table(marker)",
-  "tip_table(id)",
-  "tip_table(pin)",
-  "tip_table(events)"
-)
 
 tables_steps <- function() {
   list(

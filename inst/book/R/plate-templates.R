@@ -1,4 +1,4 @@
-# Section 2.1, Templates: the kinds of template, each built from a made-up record, and tip_define(), which names a
+# Section "templates" (its number and title are in contents.R): the kinds of template, each built from a made-up record, and tip_define(), which names a
 # template once so that tip_on(template =, record =) can use it.
 
 templates_kinds <- c(
@@ -127,19 +127,6 @@ templates_code <- function(settings) {
   )
 }
 
-templates_covers <- c(
-  "tip_template(head)",
-  "tip_template(body)",
-  "tip_template(foot)",
-  "tip_title(text)",
-  "tip_text(text)",
-  "tip_badge(text)",
-  "tip_badge(status)",
-  "tip_fields",
-  "tip_define",
-  "tip_on(template)",
-  "tip_on(record)"
-)
 
 templates_steps <- function() {
   list(

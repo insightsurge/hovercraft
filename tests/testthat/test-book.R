@@ -16,7 +16,7 @@ load_book <- function() {
   env
 }
 
-# A section's own function or value, such as `plate_pins_ui` or `pins_covers`, found by its id.
+# A section's own function, such as `plate_pins_ui` or `pins_steps`, found by its id.
 section_get <- function(book, id, pattern) get(sprintf(pattern, id), envir = book)
 
 # The choices a section offers, from its own UI: list(input id = its values), one entry per choice set.
@@ -34,6 +34,37 @@ section_choices <- function(book, id) {
     }),
     sub("^<fieldset id=\"([^\"]+)\".*$", "\\1", sets)
   )
+}
+
+# The exports and arguments a piece of R code uses, as "fn" and "fn(arg)". Each call to an export is matched to the
+# function itself, so an argument given by position (`tip_on(tag, "words")`) counts as well as one given by name. A
+# name in the `...` of a function in `content` (tip_define(ticket = ...)) is content, not an argument, and is left out.
+code_uses <- function(text, content = character()) {
+  exports <- getNamespaceExports("hovercraft")
+  found <- character()
+  walk <- function(x) {
+    if (!is.call(x)) {
+      return(invisible())
+    }
+    head <- x[[1]]
+    name <- if (is.symbol(head)) {
+      as.character(head)
+    } else if (is.call(head) && identical(head[[1]], as.name("::")) && identical(as.character(head[[2]]), "hovercraft")) {
+      as.character(head[[3]])
+    } else {
+      ""
+    }
+    if (name %in% exports) {
+      matched <- as.list(match.call(getExportedValue("hovercraft", name), x, expand.dots = FALSE))[-1]
+      dots <- if (!name %in% content) names(matched[["..."]])
+      args <- setdiff(c(names(matched), dots), c("", "..."))
+      found <<- c(found, name, if (length(args)) paste0(name, "(", args, ")"))
+    }
+    lapply(as.list(x)[-1], function(part) if (!missing(part)) walk(part))
+    invisible()
+  }
+  for (expr in parse(text = text, keep.source = FALSE)) walk(expr)
+  unique(found)
 }
 
 describe("hovercraft_book()", {
@@ -88,42 +119,111 @@ describe("the book's files", {
     for (file in files) {
       expect_no_error(parse(file, keep.source = FALSE))
     }
-    expect_identical(book$book_sections$id, book_section_ids)
+    expect_identical(book$book_sections$id, book_section_ids())
     expect_true(all(book$book_sections$part %in% book$book_parts$n))
     expect_true(all(book$book_parts$n %in% book$book_sections$part))
     expect_false(anyDuplicated(book$book_sections$n) > 0)
   })
 
-  it("has the five functions of a section, and 3 to 5 test steps, for every section", {
+  it("has no placeholder section left", {
+    folder <- system.file("book", "R", package = "hovercraft")
+    for (id in book$book_sections$id) {
+      text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
+      expect_false(grepl("This section is being written.", text, fixed = TRUE), info = id)
+    }
+  })
+
+  it("has the three functions of a section, and 3 to 5 test steps, for every section", {
     for (id in book$book_sections$id) {
       for (pattern in c("plate_%s_ui", "plate_%s_server", "%s_steps")) {
         expect_true(is.function(section_get(book, id, pattern)), info = sprintf(pattern, id))
       }
-      expect_type(section_get(book, id, "%s_covers"), "character")
       expect_true(length(section_get(book, id, "%s_steps")()) %in% 3:5, info = id)
     }
   })
 
-  it("shows every export and every argument of the package in some section", {
-    covers <- unlist(lapply(book$book_sections$id, function(id) section_get(book, id, "%s_covers")))
-    exports <- getNamespaceExports("hovercraft")
-    needed <- unlist(lapply(exports, function(name) {
-      args <- setdiff(names(formals(getExportedValue("hovercraft", name))), "...")
-      if (length(args)) paste0(name, "(", args, ")") else name
-    }))
-    # A feature added to the package and not to the book fails here: add it to a section and its `<id>_covers`.
-    expect_identical(setdiff(needed, covers), character())
-    # Each cover names a real export, and an argument it has (or one its `...` takes, such as tip_update(text)).
-    fn <- sub("\\(.*$", "", covers)
-    expect_identical(setdiff(fn, exports), character())
-    dotted <- vapply(fn, function(name) "..." %in% names(formals(getExportedValue("hovercraft", name))), TRUE)
-    expect_identical(setdiff(covers[!dotted], needed), character())
-    # And a section covers only what its own file shows: each function it lists is in that file.
-    folder <- system.file("book", "R", package = "hovercraft")
+  it("lists every export and every argument of the package, from its help pages, in some section", {
+    args <- book$book_rd_args()
+    # Every argument a function has is on its help page.
+    expect_identical(book$book_rd_names(args[!args$documented, ]), character())
+    # Every export and argument is listed by a section; a function with arguments is listed by its arguments.
+    needed <- book$book_rd_names(args)[!(is.na(args$arg) & args$fn %in% args$fn[!is.na(args$arg)])]
+    listed <- unlist(c(book$book_sections$covers, book$book_sections$prose))
+    # A feature added to the package and not to the book fails here: add it to a section in inst/book/R/contents.R
+    # and to that section's code.
+    expect_identical(setdiff(needed, listed), character())
+    # And each one listed is a real export or argument: a renamed or removed one fails here.
+    expect_identical(setdiff(listed, book$book_rd_names(args)), character())
+    expect_false(anyDuplicated(book$book_sections$id) > 0)
+  })
+
+  it("gives every export and argument a stable or experimental badge, from its help page", {
+    args <- book$book_rd_args()
+    expect_true(all(args$badge %in% c("stable", "experimental", "mixed")))
+    # The help says which arguments of a stable function are experimental, and the book reads it.
+    on <- args[args$fn == "tip_on", ]
+    expect_identical(on$badge[match(c("tag", "marker", "style"), on$arg)], c("stable", "experimental", "mixed"))
+    expect_identical(on$badge[is.na(on$arg)], "stable")
+  })
+
+  it("lists in hovercraft_book()'s help every section it takes", {
+    item <- Filter(function(i) identical(book$rd_item_names(i), "section"), unlist(
+      book$rd_part(book$book_rd_db()[["hovercraft_book.Rd"]], "\\arguments"),
+      FALSE
+    ))
+    text <- paste(unlist(item), collapse = "")
     for (id in book$book_sections$id) {
-      text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
-      for (name in unique(sub("\\(.*$", "", section_get(book, id, "%s_covers")))) {
-        expect_true(grepl(name, text, fixed = TRUE), info = paste(id, name))
+      expect_match(text, paste0("\"", id, "\""), fixed = TRUE, info = id)
+    }
+  })
+})
+
+describe("what each section's code uses", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  book <- load_book()
+  ids <- book$book_sections$id
+
+  it("uses, for some of its choices, every export and argument its section lists", {
+    # Each section's choices are set in turn, every combination, and the code it shows is kept (plate_code() keeps it
+    # in the session). The table sections show their code without DT or reactable, so this runs without them.
+    seen <- new.env()
+    shiny::testServer(book$book_server, {
+      session$setInputs(page_mode = "light", book_ready = 1)
+      for (id in ids) {
+        choices <- section_choices(book, id)
+        grid <- if (length(choices)) expand.grid(choices, stringsAsFactors = FALSE) else data.frame(x = 1)[, 0]
+        for (i in seq_len(nrow(grid))) {
+          do.call(session$setInputs, as.list(grid[i, , drop = FALSE]))
+        }
+      }
+      seen$code <- as.list(session$userData$book_code)
+    })
+    args <- book$book_rd_args()
+    real <- book$book_rd_names(args)
+    content <- unique(args$fn[args$content_dots])
+    for (i in seq_along(ids)) {
+      uses <- unique(unlist(lapply(seen$code[[ids[[i]]]], code_uses, content = content)))
+      # A section that lists an argument its code never uses fails here: show it in the code, or take it off the list
+      # in inst/book/R/contents.R.
+      expect_identical(setdiff(book$book_sections$covers[[i]], uses), character(), info = ids[[i]])
+      # And its code calls no argument the package no longer has (one a function's empty `...` would swallow).
+      expect_identical(setdiff(uses, real), character(), info = ids[[i]])
+    }
+  })
+
+  it("names in its words, as code, each argument it shows only in words", {
+    for (i in seq_along(ids)) {
+      prose <- book$book_sections$prose[[i]]
+      if (!length(prose)) next
+      html <- as.character(htmltools::renderTags(section_get(book, ids[[i]], "plate_%s_ui")())$html)
+      codes <- gsub("&quot;", "\"", gsub("</?code>", "", regmatches(html, gregexpr("<code>.*?</code>", html))[[1]]))
+      # A call in the words counts as code does (`hovercraft_book("pins")` shows `section`), and so does `arg =`.
+      uses <- unlist(lapply(codes, function(code) tryCatch(code_uses(code), error = function(e) character())))
+      for (item in prose) {
+        arg <- sub("^.*[(](.*)[)]$", "\\1", item)
+        shown <- item %in% uses || any(startsWith(codes, paste(arg, "=")))
+        expect_true(shown, info = paste(ids[[i]], item))
       }
     }
   })

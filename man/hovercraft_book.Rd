@@ -8,8 +8,9 @@ hovercraft_book(section = NULL, ..., checklist = FALSE, run = TRUE)
 }
 \arguments{
 \item{section}{The section to open on, or \code{NULL} (the default) for the first: one of \code{"start"}, \code{"placement"},
-\code{"templates"}, \code{"disabled"}, \code{"pins"}, \code{"more"}, \code{"inputs"}, \code{"looks"}, \code{"size"}, \code{"colours"}, \code{"markers"},
-\code{"server"}, \code{"output"}, \code{"tables"}, \code{"columns"} or \code{"table_pins"}.}
+\code{"templates"}, \code{"disabled"}, \code{"pins"}, \code{"pin_limits"}, \code{"more"}, \code{"more_button"}, \code{"inputs"}, \code{"words"},
+\code{"looks"}, \code{"size"}, \code{"colours"}, \code{"markers"}, \code{"server"}, \code{"output"}, \code{"tables"}, \code{"columns"}, \code{"table_pins"},
+\code{"in_place"} or \code{"table_server"}.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 

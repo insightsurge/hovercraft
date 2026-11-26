@@ -1,4 +1,4 @@
-# Section 4.3, Your own colours: a tip's fill, words, border, corner and font, for light and for dark (`tip_theme(light
+# Section "colours": a tip's fill, words, border, corner and font, for light and for dark (`tip_theme(light
 # =, dark =, mode =)`, given as `tip_style(theme =)`), or the colours of a bslib theme.
 
 colours_text <- paste(
@@ -174,10 +174,3 @@ plate_colours_server <- function(input, output, session) {
   ticks
 }
 
-colours_covers <- c(
-  "tip_theme(light)",
-  "tip_theme(dark)",
-  "tip_theme(mode)",
-  "tip_style(theme)",
-  "tip_on(style)"
-)

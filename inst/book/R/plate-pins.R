@@ -1,4 +1,4 @@
-# Section 3.1, Pins: a tip a reader keeps open, with the pin button in its corner, the P key, Copy on a code block, and
+# Section "pins" (its number and title are in contents.R): a tip a reader keeps open, with the pin button in its corner, the P key, Copy on a code block, and
 # the pin and copy inputs.
 
 pins_placements <- c("where they fit" = "auto", "above" = "top", "below" = "bottom", "beside" = "right")
@@ -66,25 +66,6 @@ pins_code <- function(settings) {
   )
 }
 
-pins_covers <- c(
-  "tip_define",
-  "tip_template(head)",
-  "tip_template(body)",
-  "tip_title(text)",
-  "tip_text(text)",
-  "tip_fields",
-  "tip_code(field)",
-  "tip_code(language)",
-  "tip_code(copy)",
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(template)",
-  "tip_on(record)",
-  "tip_on(placement)",
-  "tip_on(pin)",
-  "tip_on(id)",
-  "tip_on(events)"
-)
 
 pins_steps <- function() {
   cols <- c("col_visit_date", "col_region", "col_wait_min", "col_booked")

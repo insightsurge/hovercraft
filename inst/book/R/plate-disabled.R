@@ -1,4 +1,4 @@
-# Section 2.2, Switched-off controls: a control that is switched off says why, at once, with a small lock.
+# Section "disabled" (its number and title are in contents.R): a control that is switched off says why, at once, with a small lock.
 
 disabled_states <- c("still loading" = "loading", "ready" = "ready")
 
@@ -41,13 +41,6 @@ reason_shown <- function(shown) {
   function(input) identical(startsWith(input$export_csv_tip_hint$text %||% "", "Not available"), shown)
 }
 
-disabled_covers <- c(
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(when_disabled)",
-  "tip_on(id)",
-  "tip_on(events)"
-)
 
 disabled_steps <- function() {
   list(

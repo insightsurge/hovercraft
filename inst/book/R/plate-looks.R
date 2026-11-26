@@ -1,4 +1,4 @@
-# Section 4.1, Presets and the page's look: the five presets, the look of every tip on the page (preset and motion),
+# Section "looks" (its number and title are in contents.R): the five presets, the look of every tip on the page (preset and motion),
 # and a look for one tag.
 
 looks_motions <- c("a fade" = "fade", "a slide" = "slide", "no motion" = "none")
@@ -52,7 +52,6 @@ looks_figure_code <- function() {
   )
 }
 
-looks_covers <- c("tip_presets", "use_hovercraft(style)", "tip_style(preset)", "tip_style(motion)", "tip_on(style)")
 
 looks_steps <- function() {
   dark <- function(input) identical(input$page_mode, "dark")

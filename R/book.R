@@ -1,23 +1,10 @@
-# The book's sections, in order. The app keeps the same list (`book_sections` in inst/book/R/data.R); a test holds the
-# two together.
-book_section_ids <- c(
-  "start",
-  "placement",
-  "templates",
-  "disabled",
-  "pins",
-  "more",
-  "inputs",
-  "looks",
-  "size",
-  "colours",
-  "markers",
-  "server",
-  "output",
-  "tables",
-  "columns",
-  "table_pins"
-)
+# The book's section ids, in order, read from the book's own contents (inst/book/R/contents.R), the one place a
+# section is named.
+book_section_ids <- function() {
+  env <- new.env(parent = baseenv())
+  sys.source(system.file("book", "R", "contents.R", package = "hovercraft", mustWork = TRUE), envir = env)
+  env$book_sections$id
+}
 
 # Whether R can open an app here; a function so a test can stand in for an interactive session.
 book_interactive <- function() interactive()
@@ -39,8 +26,9 @@ book_interactive <- function() interactive()
 #' not a tip.
 #'
 #' @param section The section to open on, or `NULL` (the default) for the first: one of `"start"`, `"placement"`,
-#'   `"templates"`, `"disabled"`, `"pins"`, `"more"`, `"inputs"`, `"looks"`, `"size"`, `"colours"`, `"markers"`,
-#'   `"server"`, `"output"`, `"tables"`, `"columns"` or `"table_pins"`.
+#'   `"templates"`, `"disabled"`, `"pins"`, `"pin_limits"`, `"more"`, `"more_button"`, `"inputs"`, `"words"`,
+#'   `"looks"`, `"size"`, `"colours"`, `"markers"`, `"server"`, `"output"`, `"tables"`, `"columns"`, `"table_pins"`,
+#'   `"in_place"` or `"table_server"`.
 #' @param ... Must be empty. It makes a misspelt argument an error.
 #' @param checklist `TRUE` to open with the checklist on; `FALSE` (the default) to open without it.
 #' @param run `TRUE` (the default) to run the app, which needs an interactive R session; `FALSE` to return it.
@@ -53,10 +41,11 @@ book_interactive <- function() interactive()
 #' inherits(app, "shiny.appobj")
 hovercraft_book <- function(section = NULL, ..., checklist = FALSE, run = TRUE) {
   tip_check_dots(..., args = c("section", "checklist", "run"))
+  ids <- book_section_ids()
   tip_arg(
-    checkmate::check_choice(section, book_section_ids, null.ok = TRUE),
+    checkmate::check_choice(section, ids, null.ok = TRUE),
     "section",
-    paste0("Give one of ", paste0("\"", book_section_ids, "\"", collapse = ", "), ", or {.code NULL}.")
+    paste0("Give one of ", paste0("\"", ids, "\"", collapse = ", "), ", or {.code NULL}.")
   )
   tip_arg_flag(checklist, "checklist")
   tip_arg_flag(run, "run")

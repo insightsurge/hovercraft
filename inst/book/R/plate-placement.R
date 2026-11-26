@@ -1,4 +1,4 @@
-# Section 1.2, Where it opens: the five values of tip_on(placement =), one featured tag and four fixed at a side.
+# Section "placement" (its number and title are in contents.R): the five values of tip_on(placement =), one featured tag and four fixed at a side.
 
 placement_sides <- c(
   "where it fits" = "auto",
@@ -42,7 +42,6 @@ placement_code <- function(settings) {
   )
 }
 
-placement_covers <- c("tip_on(tag)", "tip_on(text)", "tip_on(placement)")
 
 placement_steps <- function() {
   list(

@@ -1,4 +1,4 @@
-# Section 6.2, One column its own way: a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own
+# Section "columns" (its number and title are in contents.R): a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own
 # placement, look and marker for that column only.
 
 columns_settings <- c(
@@ -56,20 +56,6 @@ columns_code <- function(settings) {
   table_code("queues", book_queues[c("queue", "open", "wait_min", "owner")], table_default(), tipped)
 }
 
-columns_covers <- c(
-  "tip_table(widget)",
-  "tip_table(cells)",
-  "tip_table(headers)",
-  "tip_table(placement)",
-  "tip_table(style)",
-  "tip_table(marker)",
-  "tip_spec(content)",
-  "tip_spec(placement)",
-  "tip_spec(style)",
-  "tip_spec(marker)",
-  "tip_spec(more)",
-  "tip_spec(more_on)"
-)
 
 # Cells and headers send no inputs (only the tips of rows do), so every step here is ticked by hand.
 columns_steps <- function() {

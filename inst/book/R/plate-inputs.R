@@ -1,4 +1,4 @@
-# Section 3.3, What your server hears: the three inputs a tip can send (`events =`), the `kind` each carries, and a
+# Section "inputs" (its number and title are in contents.R): the three inputs a tip can send (`events =`), the `kind` each carries, and a
 # small server that reads them.
 
 inputs_kinds <- c("metric" = "metric", "review_item" = "review_item", "none given" = "none")
@@ -86,24 +86,6 @@ inputs_server_code <- function() {
   )
 }
 
-inputs_covers <- c(
-  "tip_define",
-  "tip_template(head)",
-  "tip_template(body)",
-  "tip_title(text)",
-  "tip_text(text)",
-  "tip_code(field)",
-  "tip_code(language)",
-  "tip_code(copy)",
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(template)",
-  "tip_on(record)",
-  "tip_on(kind)",
-  "tip_on(pin)",
-  "tip_on(id)",
-  "tip_on(events)"
-)
 
 inputs_steps <- function() {
   list(

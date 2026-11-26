@@ -18,7 +18,7 @@ section_fn <- function(id, pattern) get(sprintf(pattern, id), mode = "function")
 # What a section's search finds it by: its number, title and part, and the functions and arguments it shows.
 section_search <- function(i) {
   at <- book_sections[i, ]
-  covers <- get0(paste0(at$id, "_covers"), ifnotfound = character())
+  covers <- at$covers[[1]]
   part <- book_parts$title[book_parts$n == at$part]
   tolower(paste(c(at$n, at$title, part, gsub("[()]", " ", covers)), collapse = " "))
 }

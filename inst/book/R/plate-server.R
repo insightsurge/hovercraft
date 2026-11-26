@@ -1,4 +1,4 @@
-# Section 5.1, From the server: open, close and change a tip from R, and hear back through the hint input.
+# Section "server" (its number and title are in contents.R): open, close and change a tip from R, and hear back through the hint input.
 
 server_first <- "New here? Start with **week 46**: the newest complete week."
 server_new <- "Week 47 is in: **5,102 visits**, the busiest week since spring."
@@ -52,20 +52,6 @@ server_lines <- function(change = "words") {
 
 server_server_code <- function(change = "words") paste(server_lines(change), collapse = "\n")
 
-server_covers <- c(
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(id)",
-  "tip_on(events)",
-  "tip_show(id)",
-  "tip_show(session)",
-  "tip_hide(id)",
-  "tip_hide(session)",
-  "tip_update(id)",
-  "tip_update(text)",
-  "tip_update(placement)",
-  "tip_update(session)"
-)
 
 server_steps <- function() {
   list(

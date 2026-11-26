@@ -1,4 +1,4 @@
-# Section 1.1, Your first tip: the book's title, whose word holds a tip that shows most of what the package does, and a
+# Section "start" (its number and title are in contents.R): the book's title, whose word holds a tip that shows most of what the package does, and a
 # sentence with three tips on its figures, the plainest kind.
 
 # The title as code: one word with a tip built from a template, a record, a long form, a look, a mark and a pin.
@@ -92,42 +92,6 @@ start_hero <- function() {
   )
 }
 
-start_covers <- c(
-  "hovercraft_book(section)",
-  "hovercraft_book(checklist)",
-  "hovercraft_book(run)",
-  "tip_on(tag)",
-  "tip_on(text)",
-  "tip_on(id)",
-  "tip_on(events)",
-  "tip_on(template)",
-  "tip_on(record)",
-  "tip_on(more)",
-  "tip_on(pin)",
-  "tip_on(style)",
-  "tip_on(marker)",
-  "tip_define",
-  "tip_template(head)",
-  "tip_template(body)",
-  "tip_template(foot)",
-  "tip_title(text)",
-  "tip_text(text)",
-  "tip_badge(text)",
-  "tip_badge(status)",
-  "tip_fields",
-  "tip_code(field)",
-  "tip_code(language)",
-  "tip_code(copy)",
-  "tip_style(preset)",
-  "tip_style(motion)",
-  "tip_style(theme)",
-  "tip_theme(light)",
-  "tip_theme(dark)",
-  "tip_style(theme)",
-  "tip_theme(light)",
-  "tip_theme(dark)",
-  "tip_marker(type)"
-)
 
 start_steps <- function() {
   list(
