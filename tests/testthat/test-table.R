@@ -64,6 +64,24 @@ describe("tip_table() on a DT table", {
     expect_match(js(got$x$options$createdRow), tip_attribute("record"), fixed = TRUE)
   })
 
+  it("defines the templates in the first callback of a draw, before any row, cell or header cell is marked", {
+    got <- tip_table(dt(), rows = "{{ team }}", cells = c(wins = "{{ wins }} wins"), headers = c(losses = "Games lost"))
+    expect_match(js(got$x$options$preDrawCallback), "^function\\(\\) \\{ HovercraftTable.define\\(\\{\"table_")
+    expect_match(js(got$x$options$preDrawCallback), "return undefined; }$")
+    expect_match(js(got$x$options$preDrawCallback), "\"table_", fixed = TRUE)
+  })
+
+  it("runs the table's own preDrawCallback after that and keeps its answer", {
+    own <- DT::JS("function(settings) { return false; }")
+    got <- tip_table(dt(options = list(preDrawCallback = own)), rows = "{{ team }}")
+    expect_match(js(got$x$options$preDrawCallback), "HovercraftTable.define(", fixed = TRUE)
+    expect_match(
+      js(got$x$options$preDrawCallback),
+      "return (function(settings) { return false; }).apply(this, arguments); }",
+      fixed = TRUE
+    )
+  })
+
   it("marks the cells of the named columns by their position, and the header cells", {
     got <- tip_table(dt(), cells = c(wins = "{{ wins }} wins"), headers = c(losses = "Games lost"))
     defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)
