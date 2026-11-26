@@ -63,7 +63,7 @@ describe("the bench's layering scenarios", {
     expect_bench_clean(page)
   })
 
-  it("keeps the page's pins through a modal and closes the modal's own pin with it (HC-052, partly)", {
+  it("keeps the page's pins through a modal and closes the modal's own pin with it (HC-052)", {
     page <- bench_page(bench, "layering", list(max_pins = 2))
     bench_scroll_to(page, "#spot-HC-001")
     page$hover("#lay-a")
@@ -76,10 +76,14 @@ describe("the bench's layering scenarios", {
     page$evaluate("Shiny.setInputValue('lay_modal', 1, { priority: 'event' }); 0")
     expect_true(page$wait_until("document.querySelector('.modal.show #lay-modal-btn') !== null"))
     page$settle()
-    # The page's pin stays open. The scenario also wants it under the backdrop; today it draws above the modal and
-    # stays clickable (the tip layer's z-index is above Bootstrap's modal), a finding reported in #158, so that step is
-    # left out here.
+    # The page's pin stays open, but under the backdrop (#165): nothing of it is on top at its own centre, so a click
+    # there reaches the backdrop and not the pin's buttons.
     expect_identical(bench_tips(page)$text, "A's tip")
+    expect_false(bench_tips(page)$on_top)
+    expect_true(page$evaluate(
+      "(() => { const t = document.querySelector('.hc-tip-pin:not([hidden])'); const r = t.getBoundingClientRect();
+        return t.contains(document.elementFromPoint(r.right - 8, r.top + 8)) === false; })()"
+    ))
 
     expect_true("Above the backdrop" %in% page$hover("#lay-modal-btn"))
     page$press("p")
@@ -87,6 +91,7 @@ describe("the bench's layering scenarios", {
     tips <- bench_tips(page)
     modal_tip <- tips[tips$text == "Above the backdrop", ]
     expect_true(modal_tip$pinned && modal_tip$on_top)
+    expect_false(tips$on_top[tips$text == "A's tip"])
 
     page$evaluate("bootstrap.Modal.getInstance(document.getElementById('shiny-modal')).hide(); 0")
     expect_true(page$wait_until("document.getElementById('shiny-modal') === null"))

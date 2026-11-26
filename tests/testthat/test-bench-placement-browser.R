@@ -74,7 +74,7 @@ describe("the bench's placement scenarios", {
     expect_bench_clean(page)
   })
 
-  it("keeps pins in the window and beside their items through resizes and a rotation (HC-011, partly)", {
+  it("keeps pins in the window and beside their items through resizes and a rotation (HC-011)", {
     page <- bench_page(bench, "placement", list(max_pins = 2))
     page$resize(1280, 800)
     bench_scroll_to(page, "#place-resize")
@@ -88,14 +88,14 @@ describe("the bench's placement scenarios", {
     expect_true(beside(page, "I stay with my item", "#place-resize"))
     expect_true(beside(page, "Sheet A", "#place-sheet-a"))
 
-    # Two pins narrowed below 600 px freeze the page in the tip engine (reported in #158), so the steps under the
-    # sheet rule go on with one pin.
+    # The sizes below are walked with one pin; the step with two pins narrowed below 600 px comes last.
     page$evaluate(sprintf(
       "[...document.querySelectorAll('.%1$s-pin:not([hidden])')].find((t) => t.textContent.includes('Sheet A'))
         .querySelector('.%1$s-close').click(); 0",
       tip_names()$css
     ))
-    # Never narrow the window with two pins still open: the page would hang and take the test process with it.
+    # Narrowing the window with two pins still open is the last step, not this one: it would hang a page of an engine
+    # that still has the freeze (#164) and take the test process with it.
     if (!expect_true(bench_wait_tips(page, "I stay with my item"))) {
       return()
     }
@@ -108,6 +108,30 @@ describe("the bench's placement scenarios", {
     }
     tips <- bench_tips(page)
     expect_identical(tips$side[tips$pinned] == "sheet", FALSE)
+
+    # Two pins open when the window narrows below 600 px, with one item below the fold (#164): the page keeps answering,
+    # one sheet stays and the older pin closes. (With 0.59.0 of the tip engine this froze the page for good.)
+    expect_true(bench_close_tips(page))
+    page$resize(1280, 800)
+    bench_scroll_to(page, "#place-resize")
+    page$hover("#place-resize")
+    page$press("p")
+    page$hover("#place-sheet-a")
+    page$press("p")
+    expect_true(bench_wait_tips(page, c("I stay with my item", "Sheet A")))
+    since <- page$mark()
+    page$resize(599, 667)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('.%s-pin:not([hidden])').length === 1",
+      tip_names()$css
+    )))
+    page$settle()
+    expect_true(max(bench_rect(page, "#place-resize")$top, bench_rect(page, "#place-sheet-a")$top) > 667)
+    expect_identical(
+      bench_tip_events(page, since)[startsWith(bench_tip_events(page, since), "closed")],
+      "closed place_resize_tip replaced"
+    )
+    expect_identical(bench_tips(page)$text[bench_tips(page)$pinned], "Sheet A")
     expect_bench_clean(page)
   })
 
@@ -160,6 +184,12 @@ describe("the bench's placement scenarios", {
     press_more(page)
     expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden])')?.textContent.includes('Line 10')"))
     expect_true(in_view(page, 900, 700))
+    # Off its item here too (#166): the long form is capped and scrolls, and the item stays visible.
+    long_form <- bench_tips(page)
+    long_form <- long_form[long_form$pinned & long_form$drawn, , drop = FALSE]
+    item <- bench_rect(page, "#place-zoom")
+    expect_identical(nrow(long_form), 1L)
+    expect_true(long_form$top >= item$bottom - 0.5 || long_form$bottom <= item$top + 0.5)
     expect_bench_clean(page)
   })
 
