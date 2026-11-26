@@ -1,5 +1,5 @@
-# Section "looks" (its number and title are in contents.R): the five presets, the look of every tip on the page (preset and motion),
-# and a look for one tag.
+# Section "looks": the five presets, the look of every tip on the page (`use_hovercraft(style =)`, with a preset and a
+# motion), and a look for one tag (`tip_on(style =)`).
 
 looks_motions <- c("a fade" = "fade", "a slide" = "slide", "no motion" = "none")
 
@@ -69,7 +69,10 @@ looks_steps <- function() {
       on_hint("look_page", when = chose("looks_preset", "editorial", "sober"))
     ),
     step(
-      "Choose *a slide*, then rest on *page word*: the tip moves a few pixels as it fades in.",
+      paste(
+        "Choose *a slide*, then rest on *page word*: the tip moves a few pixels as it fades in. (A reader whose",
+        "system asks for less motion sees none, whatever you choose.)"
+      ),
       "no motion, or motion although the system asks for less.",
       "#looks_motion",
       on_hint("look_page", when = chose("looks_motion", "slide", "fade"))
@@ -86,9 +89,14 @@ looks_steps <- function() {
 plate_looks_ui <- function(query) {
   plate(
     "looks",
-    lede = paste(
-      "Five presets come with the package. The page takes one look for every tip, once, in its UI; a tag can take",
-      "its own with style =."
+    lede = htmltools::tagList(
+      "Five presets come with the package. The page takes one look for every tip, once, in its UI:",
+      htmltools::tags$code("use_hovercraft(style =)"),
+      "takes a preset's name, or a",
+      htmltools::tags$code("tip_style()"),
+      "that also says how a tip enters. A tag can take a look of its own with",
+      htmltools::tags$code("tip_on(style =)"),
+      "which beats the page's."
     ),
     caption = "The five looks, each on its own word, and a word that takes the page's look.",
     steps = looks_steps(),

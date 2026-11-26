@@ -25,7 +25,7 @@ section_choices <- function(book, id) {
   html <- as.character(htmltools::renderTags(if (length(formals(ui))) ui(list()) else ui())$html)
   sets <- regmatches(
     html,
-    gregexpr("<fieldset id=\"[^\"]+\" class=\"choice shiny-input-radiogroup\">.*?</fieldset>", html)
+    gregexpr("<fieldset id=\"[^\"]+\" class=\"choice shiny-input-radiogroup\"[^>]*>.*?</fieldset>", html)
   )
   sets <- sets[[1]]
   stats::setNames(
@@ -49,7 +49,7 @@ code_uses <- function(text, content = character()) {
     head <- x[[1]]
     name <- if (is.symbol(head)) {
       as.character(head)
-    } else if (is.call(head) && identical(head[[1]], as.name("::")) && identical(as.character(head[[2]]), "hovercraft")) {
+    } else if (is.call(head) && identical(head[[1]], as.name("::")) && identical(deparse(head[[2]]), "hovercraft")) {
       as.character(head[[3]])
     } else {
       ""
@@ -290,6 +290,39 @@ describe("the book's page", {
   })
 })
 
+describe("the page-wide settings a section reloads the page with", {
+  skip_if_not_installed("shiny")
+  skip_if_not_installed("bslib")
+  book <- load_book()
+
+  it("takes max_pins and keys from the address, only values it offers, and passes them to use_hovercraft()", {
+    query <- book$book_query(list(QUERY_STRING = "?max_pins=3&keys=no_pin"))
+    expect_identical(query[c("max_pins", "keys")], list(max_pins = "3", keys = "no_pin"))
+    odd <- book$book_query(list(QUERY_STRING = "?max_pins=99&keys=x"))
+    expect_identical(odd[c("max_pins", "keys")], list(max_pins = "1", keys = "all"))
+    deps <- htmltools::findDependencies(book$book_page(query))
+    names <- vapply(deps, function(d) d$name, "")
+    expect_true("hovercraft-max-pins-3" %in% names)
+    expect_true("hovercraft-keys-pin" %in% names)
+  })
+
+  it("turns each keys choice into the value use_hovercraft() takes", {
+    expect_identical(lapply(c("all", "no_pin", "no_more", "none"), book$pin_limits_keys_value), list(
+      TRUE,
+      c(pin = FALSE),
+      c(more = FALSE),
+      FALSE
+    ))
+  })
+
+  it("marks the choices that reload the page, checked at the address's value", {
+    html <- as.character(htmltools::renderTags(book$plate_pin_limits_ui(list(max_pins = "3", keys = "none")))$html)
+    expect_match(html, "<fieldset id=\"pin_limits_pins\" [^>]*data-reload=\"max_pins\">")
+    expect_match(html, "value=\"3\" checked", fixed = TRUE)
+    expect_match(html, "value=\"none\" checked", fixed = TRUE)
+  })
+})
+
 describe("the book's server", {
   skip_if_not_installed("shiny")
   skip_if_not_installed("bslib")
@@ -327,8 +360,8 @@ describe("the book's server", {
       session$setInputs(
         visits_hint = list(state = "shown", by = "reader"),
         hero_copy = list(ok = TRUE, by = "reader"),
-        col_wait_min_tip = list(state = "pinned", by = "reader"),
-        region_north_tip = list(state = "pinned", by = "reader"),
+        col_wait_min_pin = list(state = "pinned", by = "reader"),
+        region_north_pin = list(state = "pinned", by = "reader"),
         onboarding_hint = list(state = "shown", by = "host", via = "command"),
         srv_show = 1,
         book_tick = list(plate = "tables", i = 0, on = TRUE)
@@ -488,9 +521,9 @@ describe("the test steps and their proofs", {
     }
     shiny::testServer(server, {
       ticks <- session$userData$pins
-      session$setInputs(col_wait_min_tip = list(state = "pinned", by = "host"))
+      session$setInputs(col_wait_min_pin = list(state = "pinned", by = "host"))
       expect_identical(ticks$done(), integer())
-      session$setInputs(col_wait_min_tip = list(state = "pinned", by = "reader"))
+      session$setInputs(col_wait_min_pin = list(state = "pinned", by = "reader"))
       expect_identical(ticks$done(), 1L)
       session$setInputs(col_region_copy = list(ok = TRUE, by = "reader"))
       expect_identical(ticks$done(), c(1L, 3L))
@@ -510,8 +543,8 @@ describe("the test steps and their proofs", {
     shiny::testServer(tables, {
       session$setInputs(book_tick = list(plate = "tables", i = 1, on = TRUE))
       expect_identical(session$userData$tables$done(), 1L)
-      # A pinnable row sends its pin under the table's id: the reader's own pin ticks the pin step.
-      pin <- function(by) stats::setNames(list(list(state = "pinned", by = by)), "branches/row/2_tip")
+      # A pinnable row sends its pin as the table's one pin input: the reader's own pin ticks the pin step.
+      pin <- function(by) stats::setNames(list(list(state = "pinned", by = by)), "branches_pin")
       do.call(session$setInputs, pin("host"))
       expect_identical(session$userData$tables$done(), 1L)
       do.call(session$setInputs, pin("reader"))
@@ -521,8 +554,8 @@ describe("the test steps and their proofs", {
 
   it("say what proved them", {
     expect_identical(
-      book$proof_says("col_wait_min_tip", list(state = "closed", reason = "escape", by = "reader")),
-      "input$col_wait_min_tip, state \"closed\", reason \"escape\""
+      book$proof_says("col_wait_min_pin", list(state = "closed", reason = "escape", by = "reader")),
+      "input$col_wait_min_pin, state \"closed\", reason \"escape\""
     )
     expect_identical(book$proof_says("book:kept", "the server kept the plot"), "the server kept the plot")
   })
@@ -533,8 +566,8 @@ describe("the words of a step", {
 
   it("turn backticks into code and stars into italics, escape the rest, and add no space before punctuation", {
     expect_identical(
-      as.character(book$inline_code("Pin *North*: `input$x_tip` <arrives>.")),
-      "Pin <i>North</i>: <code>input$x_tip</code> &lt;arrives&gt;."
+      as.character(book$inline_code("Pin *North*: `input$x_pin` <arrives>.")),
+      "Pin <i>North</i>: <code>input$x_pin</code> &lt;arrives&gt;."
     )
   })
 })
@@ -554,10 +587,10 @@ describe("the inputs log", {
 
   it("names an input as R reads it, with [[ ]] for a name that is not syntactic", {
     expect_identical(book$input_ref("visits_hint"), "input$visits_hint")
-    expect_identical(book$input_ref("table_pins_rows/row/1_tip"), "input[[\"table_pins_rows/row/1_tip\"]]")
+    expect_identical(book$input_ref("mod-branches_pin"), "input[[\"mod-branches_pin\"]]")
     expect_identical(
-      book$proof_says("table_pins_rows/row/2_tip", list(state = "pinned", by = "reader")),
-      "input[[\"table_pins_rows/row/2_tip\"]], state \"pinned\""
+      book$proof_says("mod-branches_pin", list(state = "pinned", by = "reader")),
+      "input[[\"mod-branches_pin\"]], state \"pinned\""
     )
   })
 })

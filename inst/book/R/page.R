@@ -8,7 +8,9 @@ book_query <- function(request) {
     section = choice(query$section, book_sections$id, ""),
     checklist = identical(query$checklist, "1"),
     preset = choice(query$preset, hovercraft::tip_presets()$name, "sober"),
-    motion = choice(query$motion, looks_motions, "fade")
+    motion = choice(query$motion, looks_motions, "fade"),
+    max_pins = choice(query$max_pins, pin_limits_pins, "1"),
+    keys = choice(query$keys, pin_limits_keys, "all")
   )
 }
 
@@ -128,7 +130,11 @@ book_page <- function(query) {
       htmltools::tags$script(src = "shared.js"),
       htmltools::tags$script(src = "book.js")
     ),
-    hovercraft::use_hovercraft(style = hovercraft::tip_style(query$preset, motion = query$motion)),
+    hovercraft::use_hovercraft(
+      style = hovercraft::tip_style(query$preset, motion = query$motion),
+      max_pins = as.integer(query$max_pins),
+      keys = pin_limits_keys_value(query$keys)
+    ),
     book_boot(query),
     htmltools::a(class = "vh skip", href = "#start", "Skip to the first section"),
     htmltools::tags$header(

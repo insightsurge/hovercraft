@@ -1,5 +1,5 @@
-# Section "output" (its number and title are in contents.R): a Shiny plot inside a pinned tip, drawn by the server for the region under the pointer, kept
-# alive when the tip closes and shared by three rows; and its loading, error-with-Retry and empty states.
+# Section "output": a Shiny plot inside a pinned tip, drawn by the server for the region under the pointer, kept alive
+# when the tip closes and shared by three rows; and its loading, error-with-Retry and empty states.
 
 output_modes <- c("a plot" = "plot", "a slow plot" = "slow", "an error" = "error", "no rows" = "empty")
 
@@ -170,7 +170,8 @@ plate_output_ui <- function() {
     "output",
     lede = paste(
       "A pinned tip can hold a Shiny output: a plot or a table drawn by the server for the record under the pointer.",
-      "The output is kept alive when the tip closes, and several rows share it."
+      "The output is kept alive when the tip closes, and several rows share it. It has one place on the page, so",
+      "with several pins open it sits in the tip opened last and the others say \"Shown in another tip.\""
     ),
     caption = "Visits a week by region, weeks 39 to 46. The plot is drawn by renderPlot() in the server.",
     steps = output_steps(),
@@ -263,6 +264,6 @@ plate_output_server <- function(input, output, session) {
     }
   })
   ids <- paste0("region_", tolower(book_regions$region))
-  log_inputs(input, session, "output", c(paste0(ids, "_pin"), "region_trend_retry"))
+  log_inputs(input, session, "output", c(paste0(ids, "_pin"), paste0(ids, "_pinned"), "region_trend_retry"))
   ticks
 }

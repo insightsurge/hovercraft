@@ -1,4 +1,4 @@
-# Section "markers" (its number and title are in contents.R): the cue on a tipped tag that says there is a tip (`tip_on(marker =)`, `tip_marker()`).
+# Section "markers": the cue on a tipped tag that says there is a tip (`tip_on(marker =)`, `tip_marker()`).
 
 markers_kinds <- c("an underline" = "underline", "an icon" = "icon", "a corner" = "corner", "no marker" = "none")
 markers_lines <- c(
@@ -67,7 +67,7 @@ markers_steps <- function() {
     step(
       paste(
         "Rest on *4,812 visits* with the underline: a line under the words, in the preset's own style or the one",
-        "you chose."
+        "you chose, and while the tip is open the words take a soft tint."
       ),
       "the line runs across the whole paragraph, or is not in the text's colour.",
       tip_target("markers_phrase"),
@@ -110,7 +110,9 @@ plate_markers_ui <- function() {
     "markers",
     lede = htmltools::tagList(
       htmltools::tags$code("marker ="),
-      "puts a cue on a tipped tag, so a reader knows to rest on it. A word is enough for the common cases;",
+      "puts a cue on a tipped tag, so a reader knows to rest on it. Leave it out and the tag shows no cue;",
+      htmltools::tags$code("\"none\""),
+      "says so on purpose. A word is enough for the common cases, and",
       htmltools::tags$code("tip_marker()"),
       "sets the line of an underline or gives your own icon."
     ),

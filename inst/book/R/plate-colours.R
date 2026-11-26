@@ -1,5 +1,5 @@
-# Section "colours": a tip's fill, words, border, corner and font, for light and for dark (`tip_theme(light
-# =, dark =, mode =)`, given as `tip_style(theme =)`), or the colours of a bslib theme.
+# Section "colours": a tip's fill, words, border, corner and font, for light and for dark (`tip_theme(light =, dark =,
+# mode =)`, given as `tip_style(theme =)`), or the colours of a bslib theme.
 
 colours_text <- paste(
   "Median time from a ticket opening to its first reply.",
@@ -9,23 +9,23 @@ colours_text <- paste(
 # Each palette has its roles for light and for dark. "Washed out" is low contrast on purpose, so the package warns.
 colours_roles <- list(
   harbour = list(
-    light = list(bg = "#1b3a6b", ink = "#ffffff", line = "#0f2547", code_bg = "#12294d", radius = 8),
-    dark = list(bg = "#9ec5fe", ink = "#0b1f3a", line = "#6fa3ec", code_bg = "#7fb0f5")
+    light = list(bg = "#1b3a6b", text = "#ffffff", border = "#0f2547", code_bg = "#12294d", radius = 8),
+    dark = list(bg = "#9ec5fe", text = "#0b1f3a", border = "#6fa3ec", code_bg = "#7fb0f5")
   ),
   linen = list(
     light = list(
       bg = "#fdf6e3",
-      ink = "#3b3224",
-      line = "#d9c9a3",
+      text = "#3b3224",
+      border = "#d9c9a3",
       code_bg = "#f1e6c8",
       radius = 12,
       font = "Georgia, serif"
     ),
-    dark = list(bg = "#2b2418", ink = "#f1e6cc", line = "#5a4c33", code_bg = "#1f1a11")
+    dark = list(bg = "#2b2418", text = "#f1e6cc", border = "#5a4c33", code_bg = "#1f1a11")
   ),
   washed = list(
-    light = list(bg = "#ffffff", ink = "#c9c9c9"),
-    dark = list(bg = "#2a2a2a", ink = "#4a4a4a")
+    light = list(bg = "#ffffff", text = "#c9c9c9"),
+    dark = list(bg = "#2a2a2a", text = "#4a4a4a")
   )
 )
 
@@ -75,7 +75,7 @@ colours_code <- function(settings) {
   )
   paste(
     c(
-      "# The colours, once for light and once for dark; a role left out keeps the page's",
+      "# The colours, once for light and once for dark; a role left out of both keeps the page's",
       paste0("theme <- ", theme),
       "",
       tag(code_call("tip_style", theme = "theme"))
@@ -124,8 +124,8 @@ colours_steps <- function() {
     ),
     step(
       paste(
-        "Choose *washed out*: the note under the figure shows the package's warning (class `hovercraft_contrast`),",
-        "once for light and once for dark, and the colours are kept."
+        "Choose *washed out*: the note under the figure shows the package's warning (class `hovercraft_contrast`)",
+        "for a `text` under 4.5:1 on its `bg`, once for light and once for dark, and the colours are kept."
       ),
       "no warning, or the tip is drawn in other colours.",
       "#colours_notes"
@@ -144,8 +144,12 @@ plate_colours_ui <- function() {
     "colours",
     lede = htmltools::tagList(
       htmltools::tags$code("tip_theme()"),
-      "sets the colours, corner and font of a tip for light and for dark. A role you leave out keeps the page's, and a",
-      "page that has a bslib theme needs no theme at all."
+      "sets the colours, corner and font of a tip for light and for dark. The roles are",
+      htmltools::tags$code("bg, text, border, code_bg, radius, shadow, font"),
+      "and a role you leave out keeps the page's. One you set only for light holds in dark too. A page that has a",
+      "bslib theme needs no theme at all. A list of CSS variables is for the whole page: give it to",
+      htmltools::tags$code("use_hovercraft()"),
+      "since on one tag it stops with an error."
     ),
     caption = paste(
       "One tag, drawn in each palette. Washed out is low contrast on purpose: the package measures the words on the",

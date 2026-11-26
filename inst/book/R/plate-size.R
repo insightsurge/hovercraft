@@ -1,5 +1,5 @@
-# Section "size" (its number and title are in contents.R): how far a tip sits from its tag, how wide a hint and a pin grow, and a class of your
-# own (`tip_style(gap =, max_width =, pin_width =, class =)`, given to one tag).
+# Section "size": how far a tip sits from its tag, how wide a hint and a pin grow, and a class of your own
+# (`tip_style(gap =, max_width =, pin_width =, class =)`, given to one tag).
 
 size_gaps <- c("4 px" = "4", "10 px" = "10", "18 px" = "18")
 size_max_widths <- c("240 px" = "240", "320 px" = "320", "440 px" = "440")
@@ -54,7 +54,10 @@ size_steps <- function() {
       on_hint("size_wait", when = chose("size_max_width", "440", "320"))
     ),
     step(
-      "Pin it with its corner button or P: the long form opens and the tip grows to the widest pin, wider than a hint.",
+      paste(
+        "Pin it with its corner button or P, then press *More*: the long form opens in the same tip, which grows to",
+        "the widest pin, wider than a hint."
+      ),
       "the pinned tip is as narrow as the hint, or runs off the page.",
       tip_target("size_wait"),
       on_pin("size_wait")
@@ -74,11 +77,13 @@ plate_size_ui <- function() {
       htmltools::tags$code("tip_style()"),
       "sets how far a tip sits from its tag and how wide a hint and a pinned tip grow, on one tag or on the whole",
       "page.",
-      "All three are whole numbers of pixels."
+      "All three are whole numbers of pixels: a gap from 0 to 24, a widest hint from 160 to 640 and a widest pin from",
+      "240 to 720. A value set on a tag beats the page's, one value at a time."
     ),
     caption = paste(
       "One tag with a hint and a long form. The class is a hook for your own CSS: the book ships no style for",
-      "card-tip or ledger-tip, so choosing one changes nothing you can see here."
+      "card-tip or ledger-tip, so choosing one changes nothing you can see here. A class on a tag replaces one the",
+      "page sets, and is not added to it."
     ),
     steps = size_steps(),
     code = code_text(size_code(list())),
@@ -109,7 +114,7 @@ plate_size_server <- function(input, output, session) {
     )
   )
   plate_code(input, output, session, "size", code)
-  log_inputs(input, session, "size", c("size_wait_hint", "size_wait_tip"))
+  log_inputs(input, session, "size", c("size_wait_hint", "size_wait_pin", "size_wait_pinned"))
   ticks
 }
 

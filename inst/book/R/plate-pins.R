@@ -1,5 +1,5 @@
-# Section "pins" (its number and title are in contents.R): a tip a reader keeps open, with the pin button in its corner, the P key, Copy on a code block, and
-# the pin and copy inputs.
+# Section "pins": a tip a reader keeps open (pin = TRUE), with the pin button, the P key, Copy on a code block, and the
+# pin, pinned and copy inputs.
 
 pins_placements <- c("where they fit" = "auto", "above" = "top", "below" = "bottom", "beside" = "right")
 pins_copy <- c("a Copy button" = "on", "no Copy button" = "off")
@@ -59,13 +59,12 @@ pins_code <- function(settings) {
       events = c("hint", "pin")
     )
   )
-  keep <- "# use_hovercraft(max_pins = 3) in the page's UI keeps up to three pins open; the default is one"
+  keep <- "# The page keeps one pin open; section 3.2 shows how to keep more"
   paste(
     c(data, "", "# Once in the page's UI", keep, define, "", "# A pinnable chip per column", chips),
     collapse = "\n"
   )
 }
-
 
 pins_steps <- function() {
   cols <- c("col_visit_date", "col_region", "col_wait_min", "col_booked")
@@ -79,7 +78,7 @@ pins_steps <- function() {
     step(
       paste(
         "Pin *wait_min* with the corner button, or focus it and press P: the tip stays open, with a close button,",
-        "and `input$col_wait_min_pin` arrives."
+        "`input$col_wait_min_pin` arrives, and `input$col_wait_min_pinned` is `TRUE`."
       ),
       "a click on the chip itself pins it.",
       tip_target("col_wait_min"),
@@ -98,7 +97,7 @@ pins_steps <- function() {
       on_copy(cols[1:3])
     ),
     step(
-      "Click the page or press Escape: the pinned tip closes, with reason `outside` or `escape`.",
+      "Click the page or press Escape: the tip closes, with reason `outside` or `escape`, and `_pinned` is `FALSE`.",
       "it stays open, or closes on a click inside the tip.",
       "#pins .cols",
       on_pin(cols, state = "closed", reason = c("outside", "escape"))
@@ -110,8 +109,9 @@ plate_pins_ui <- function() {
   plate(
     "pins",
     lede = paste(
-      "A pinned tip stays open, so a reader can select its text, copy its code and act on it. One pin per page, as",
-      "here: pinning another closes the first. use_hovercraft(max_pins = 3) keeps three."
+      "A pinned tip stays open, so a reader can select its text, copy its code and act on it. A tip pins only when you",
+      "ask, with pin = TRUE (the default, NULL, never pins). The page keeps one pin: pinning another closes the first,",
+      "and section 3.2 shows how to keep more. pin = \"click\" also pins on a click, for a tag with nothing to click."
     ),
     caption = paste(
       "The columns of a visits table. Three carry a template with fields and code; booked carries one sentence, so its",
@@ -134,6 +134,6 @@ plate_pins_server <- function(input, output, session) {
   code <- shiny::reactive(pins_code(list(placement = input$pins_placement, copy = input$pins_copy)))
   plate_code(input, output, session, "pins", code)
   ids <- c("col_visit_date", "col_region", "col_wait_min", "col_booked")
-  log_inputs(input, session, "pins", c(paste0(ids, "_pin"), paste0(ids[1:3], "_copy")))
+  log_inputs(input, session, "pins", c(paste0(ids, "_pin"), paste0(ids, "_pinned"), paste0(ids[1:3], "_copy")))
   ticks
 }

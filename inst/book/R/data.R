@@ -62,7 +62,7 @@ book_branches <- data.frame(
   staff = c(6, 4, 9)
 )
 
-# Four queues of a support desk, and the query behind each (sections 6.2 and 6.3).
+# Four queues of a support desk, and the query behind each (sections "columns" and "table_pins").
 book_queues <- data.frame(
   queue = c("Billing", "Booking", "Account", "Other"),
   open = c(42, 118, 27, 9),

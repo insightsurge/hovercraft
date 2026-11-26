@@ -241,6 +241,16 @@
   document.addEventListener('change', (e) => {
     if (e.target.closest?.('[data-sync="theme"]')) setTheme(e.target.value);
   });
+  // A page-wide setting the engine reads once (such as use_hovercraft(max_pins =)): the page loads again with it in
+  // the address, at the same section, and the server passes it on.
+  document.addEventListener('change', (e) => {
+    const set = e.target.closest?.('[data-reload]');
+    if (!set) return;
+    const url = new URL(location.href);
+    url.searchParams.set(set.dataset.reload, e.target.value);
+    url.searchParams.set('section', e.target.closest('.plate')?.id ?? '');
+    location.assign(url);
+  });
   dark.addEventListener('change', () => theme === 'auto' && setTheme('auto'));
 
   /* ---- Which tip is pinned, and pinning it again --------------------------------------------------------------- */

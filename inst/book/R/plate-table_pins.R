@@ -1,57 +1,60 @@
-# Section "table_pins" (its number and title are in contents.R): a row's tip pinned with its handle, and the inputs a table sends for its rows
-# (`tip_table(pin =, events =, id =)`).
+# Section "table_pins": a row's tip pinned with its handle, the inputs a table sends for its rows, and the table's own
+# pin count (`tip_spec(pin =, events =)`, `tip_table(id =, max_pins =)`).
 
-table_pins_pins <- c("pinnable" = "on", "hover only" = "off")
+table_pins_counts <- c("the page's count" = "page", "two of its own" = "own")
 
-# The table's id, and its rows' tip ids: `table_pins_rows/row/<n>`.
+# The table's id: its inputs are `table_pins_rows_hint`, `_pin`, `_copy` and `_pinned`.
 table_pins_id <- "table_pins_rows"
-table_pins_rows <- function() table_row_ids(table_pins_id, nrow(book_queues))
 
 table_pins_code <- function(settings) {
-  pin <- choice(settings$pin, table_pins_pins, "on")
+  count <- choice(settings$count, table_pins_counts, "page")
   events <- events_of(settings$events)
   rows <- code_call(
-    "tip_template",
-    head = code_call("tip_title", code_str("{{ queue }}")),
-    body = code_call(
-      "list",
-      code_call("tip_text", code_str("{{ open | number:0 }} open, median wait {{ wait_min | number:0 }} min.")),
-      code_call("tip_code", code_str("query"), language = code_str("r"), copy = "TRUE")
-    )
+    "tip_spec",
+    code_call(
+      "tip_template",
+      head = code_call("tip_title", code_str("{{ queue }}")),
+      body = code_call(
+        "list",
+        code_call("tip_text", code_str("{{ open | number:0 }} open, median wait {{ wait_min | number:0 }} min.")),
+        code_call("tip_code", code_str("query"), language = code_str("r"), copy = "TRUE")
+      )
+    ),
+    pin = "TRUE",
+    events = code_chr(events)
   )
   tipped <- code_call(
     "tip_table",
     rows = rows,
-    pin = if (pin == "on") "TRUE",
     id = code_str(table_pins_id),
-    events = code_chr(events)
+    max_pins = if (count == "own") "2"
   )
   table_code("queues", book_queues[c("queue", "open", "wait_min", "query")], table_default(), tipped)
 }
 
 
 table_pins_steps <- function() {
-  rows <- table_pins_rows()
-  reader <- function(value, ...) fields_match(value, by = "reader", ...)
+  id <- table_pins_id
+  reader <- function(...) function(value, input) fields_match(value, by = "reader", ...)
   list(
     step(
       paste(
-        "Rest on a row: its tip opens, and `input[[\"table_pins_rows/row/<n>_hint\"]]` arrives with state `shown`.",
-        "With *pinnable*, a pin handle sits in the tip's corner."
+        "Rest on a row: its tip opens, and `input$table_pins_rows_hint` arrives with state `shown` and the `row`,",
+        "counted in the data. A pin handle sits in the tip's corner."
       ),
-      "the tip shows another row's words, or `<n>` is not the row's place in the data.",
+      "the tip shows another row's words, or `row` is not the row's place in the data.",
       "#table_pins .stage",
-      on_hint(rows)
+      on_hint(id)
     ),
     step(
       paste(
-        "Press the handle in the tip's corner with the mouse (this step needs a mouse on the handle: a click on the",
-        "row selects it and never pins): the tip stays, and `input[[\"table_pins_rows/row/<n>_tip\"]]` arrives with",
-        "state `pinned`, `via` `click` and `kind` `table_row`."
+        "Press the handle in the tip's corner with the mouse (a click on the row selects it and never pins): the",
+        "tip stays, `input$table_pins_rows_pin` arrives with state `pinned` and `via` `click`, and",
+        "`input$table_pins_rows_pinned` lists the row."
       ),
       "a click on the row pins it, or the handle also selects the row.",
       "#table_pins .stage",
-      proof(paste0(rows, "_tip"), function(value, input) reader(value, state = "pinned", via = "click"))
+      proof(paste0(id, "_pin"), reader(state = "pinned", via = "click"))
     ),
     step(
       paste(
@@ -60,25 +63,29 @@ table_pins_steps <- function() {
       ),
       "P does nothing on a row, or a pin opens for another row.",
       "#table_pins .stage",
-      proof(paste0(rows, "_tip"), function(value, input) reader(value, state = "pinned", via = "key"))
+      proof(paste0(id, "_pin"), reader(state = "pinned", via = "key"))
     ),
     step(
       paste(
         "Press Copy under the query in a pinned tip (choose *hint, pin and copy* if the log shows no copy):",
-        "`input[[\"table_pins_rows/row/<n>_copy\"]]` arrives with `ok = TRUE`."
+        "`input$table_pins_rows_copy` arrives with `ok = TRUE`."
       ),
       "no Copy button, or no input.",
       "#table_pins .stage",
-      on_copy(rows)
+      on_copy(id)
     ),
     step(
       paste(
-        "Choose *hover only*: the handle is gone, P does nothing and the log stays silent for pins, even though the",
-        "events name them. The tip still shows."
+        "Choose *two of its own*, then pin three rows one after another: the third closes the oldest, with reason",
+        "`replaced`, and `input$table_pins_rows_pinned` never holds more than two. With *the page's count* (one) the",
+        "second pin already closes the first."
       ),
-      "a handle or a pin that is not asked for.",
-      "#table_pins_pin",
-      NULL
+      "a third pin stays open, or a pin outside the table closes one of the table's.",
+      "#table_pins_count",
+      proof(paste0(id, "_pin"), function(value, input) {
+        own <- identical(input$table_pins_count %||% "page", "own")
+        own && reader(state = "closed", reason = "replaced")(value, input)
+      })
     )
   )
 }
@@ -86,24 +93,21 @@ table_pins_steps <- function() {
 plate_table_pins_ui <- function() {
   plate(
     "table_pins",
-    lede = htmltools::tagList(
-      htmltools::tags$code("tip_table(pin = TRUE)"),
-      "lets a reader keep a row's tip open, and",
-      htmltools::tags$code("events ="),
-      "sends the row's tip to the server, under the name of the table's",
-      htmltools::tags$code("id"),
-      "and the row's place in the data."
+    lede = paste(
+      "A row's tip_spec(pin = TRUE) lets a reader keep its tip open, and events = sends it to the server: one Shiny",
+      "input per event, named after the table's id. tip_table(max_pins = ) gives the table a pin count of its own."
     ),
     caption = paste(
-      "Four queues of a support desk. Only rows pin and send inputs; cells and header cells send none. Paged and",
-      "sorted tables keep each row's own id."
+      "Four queues of a support desk. Only rows pin and send inputs; cells and header cells send none. Each input",
+      "says which row it is about, counted in the data, so sorting and paging change nothing. Inside a module, give",
+      "tip_table() the plain id: it adds the module's prefix itself."
     ),
     steps = table_pins_steps(),
     code = code_text(table_pins_code(list())),
     log_empty = "Nothing yet. Rest on a row, then pin it.",
     controls = htmltools::tagList(
-      "Make the rows",
-      choice_set("table_pins_pin", "Pin", table_pins_pins),
+      "Count this table's pins by",
+      choice_set("table_pins_count", "Pin count", table_pins_counts),
       "and send",
       choice_set("table_pins_events", "Events", event_choices, "all")
     )
@@ -112,8 +116,8 @@ plate_table_pins_ui <- function() {
 
 plate_table_pins_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "table_pins", table_pins_steps())
-  code <- shiny::reactive(table_pins_code(list(pin = input$table_pins_pin, events = input$table_pins_events)))
+  code <- shiny::reactive(table_pins_code(list(count = input$table_pins_count, events = input$table_pins_events)))
   plate_code(input, output, session, "table_pins", code, needs = table_default)
-  log_inputs(input, session, "table_pins", c(outer(table_pins_rows(), c("_hint", "_tip", "_copy"), paste0)))
+  log_inputs(input, session, "table_pins", paste0(table_pins_id, c("_hint", "_pin", "_copy", "_pinned")))
   ticks
 }

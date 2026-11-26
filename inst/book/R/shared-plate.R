@@ -226,7 +226,7 @@ inline_code <- function(text) {
 # A choice set inside a sentence: a run of words where the chosen one sits on a soft fill. A real Shiny radio group (Shiny's own
 # radio binding reads `.shiny-input-radiogroup` and the radios named after its id), so `input[[id]]` holds the value.
 # `choices` is a named vector: values, named by the words shown.
-choice_set <- function(id, legend, choices, selected = choices[[1]]) {
+choice_set <- function(id, legend, choices, selected = choices[[1]], reload = NULL) {
   words <- names(choices) %||% choices
   items <- lapply(seq_along(choices), function(i) {
     radio <- htmltools::tags$input(type = "radio", name = id, value = choices[[i]])
@@ -243,6 +243,7 @@ choice_set <- function(id, legend, choices, selected = choices[[1]]) {
   htmltools::tags$fieldset(
     id = id,
     class = "choice shiny-input-radiogroup",
+    `data-reload` = reload,
     htmltools::tags$legend(class = "vh", legend),
     items
   )

@@ -1,11 +1,18 @@
-# Section "more" (its number and title are in contents.R): one line on a glance, the whole method on request (`more =`, `tip_more()`).
+# Section "more": one line on a glance, the whole method on request (`more =`, `tip_more(on =)`).
 
-more_on_choices <- c("behind a More button" = "button", "pinned" = "pin", "hovered" = "hover")
+more_on_choices <- c(
+  "behind a More button" = "button",
+  "pinned" = "pin",
+  "hovered" = "hover",
+  "opened by a click" = "click"
+)
 more_pin_choices <- c("its corner button or P" = "true", "a click as well" = "click")
 
 more_code <- function(settings) {
   more_on <- choice(settings$more_on, more_on_choices, "button")
-  pin <- if (identical(choice(settings$pin, more_pin_choices, "true"), "click")) code_str("click") else "TRUE"
+  # A click opens the long form, so it can't pin as well: tip_more(on = "click") with pin = "click" is an error.
+  click_pins <- identical(choice(settings$pin, more_pin_choices, "true"), "click") && more_on != "click"
+  pin <- if (click_pins) code_str("click") else "TRUE"
   figure <- function(label, value, unit, id, text, more, on, pin) {
     code_call(
       "tip_on",
@@ -76,10 +83,13 @@ more_steps <- function() {
       tip_target("median_wait")
     ),
     step(
-      "Pin it: the pinned tip has the buttons too.",
-      "a click on the figure pins it, or the pin opens a second tip.",
+      paste(
+        "With *behind a More button*, pin the figure and press More in the pinned tip: `input$median_wait_pin` arrives",
+        "with state `updated`. A tip that only hovers sends nothing when it grows."
+      ),
+      "a second tip opens, or the input says `closed`.",
       tip_target("median_wait"),
-      on_pin("median_wait")
+      on_pin("median_wait", state = "updated", when = on("button"))
     ),
     step(
       paste(
@@ -88,13 +98,12 @@ more_steps <- function() {
       ),
       "a long tip runs off the screen.",
       "#more_on",
-      on_hint("median_wait", when = chose("more_on", "hover", "pin"))
+      on_hint("median_wait", when = chose("more_on", "hover", "button"))
     ),
     step(
-      "Escape closes the pinned tip, and focus goes back to the figure.",
-      "focus is lost to the page.",
-      tip_target("median_wait"),
-      on_pin("median_wait", state = "closed", reason = "escape")
+      "Choose *opened by a click*, rest on the figure and click it: the long form opens, with no button, and no pin.",
+      "the tip pins, or a button shows.",
+      "#more_on"
     )
   )
 }
@@ -105,12 +114,14 @@ plate_more_ui <- function() {
     lede = htmltools::tagList(
       "A tip can say one line on a glance and the whole method on request.",
       htmltools::tags$code("more ="),
-      "holds the long form; a More button opens it, or it opens when the tip is pinned, or as soon as it is hovered",
-      "(",
-      htmltools::tags$code("tip_more()"),
-      ")."
+      "holds the long form. A More button opens it; with",
+      htmltools::tags$code("tip_more(on =)"),
+      "it opens when the tip is pinned, as soon as it is hovered, or when the figure is clicked."
     ),
-    caption = "Two figures from a support desk. Reopened always grows on hover, for comparison.",
+    caption = paste(
+      "Two figures from a support desk. Reopened always grows on hover, for comparison. A click that opens the long",
+      "form never pins."
+    ),
     steps = more_steps(),
     code = code_text(more_code(list())),
     log_empty = "Nothing yet. Pin a figure.",
@@ -127,6 +138,11 @@ plate_more_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "more", more_steps())
   code <- shiny::reactive(more_code(list(more_on = input$more_on, pin = input$more_pin)))
   plate_code(input, output, session, "more", code)
-  log_inputs(input, session, "more", c("median_wait_hint", "median_wait_pin", "reopened_pin"))
+  log_inputs(
+    input,
+    session,
+    "more",
+    c("median_wait_hint", "median_wait_pin", "median_wait_pinned", "reopened_pin")
+  )
   ticks
 }

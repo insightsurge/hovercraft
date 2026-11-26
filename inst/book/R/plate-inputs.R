@@ -1,17 +1,8 @@
-# Section "inputs" (its number and title are in contents.R): the three inputs a tip can send (`events =`), the `kind` each carries, and a
-# small server that reads them.
-
-inputs_kinds <- c("metric" = "metric", "review_item" = "review_item", "none given" = "none")
-
-# The kind the first tip should send for a choice: the word chosen, or the engine's own when none is given.
-inputs_kind_of <- function(x) {
-  kind <- choice(x, inputs_kinds, "metric")
-  if (kind == "none") "element" else kind
-}
+# Section "inputs": the inputs a tip can send (`events =`: hint, pin and copy; `_pinned`), what each holds, and a small
+# server that reads them.
 
 inputs_code <- function(settings) {
   events <- events_of(settings$events)
-  kind <- choice(settings$kind, inputs_kinds, "metric")
   data <- code_df("column", book_columns[book_columns$name == "wait_min", c("name", "about", "snippet")])
   define <- code_call(
     "tip_define",
@@ -29,7 +20,6 @@ inputs_code <- function(settings) {
     "tip_on",
     code_word("Median wait", class = "col-chip"),
     code_str("Median time from a ticket opening to its first reply."),
-    kind = if (kind != "none") code_str(kind),
     pin = "TRUE",
     id = code_str("inputs_metric"),
     events = code_chr(events)
@@ -39,7 +29,6 @@ inputs_code <- function(settings) {
     code_word(I("column$name"), class = "col-chip"),
     template = code_str("inputs_column"),
     record = "column",
-    kind = code_str("column"),
     pin = "TRUE",
     id = code_str("inputs_column"),
     events = code_chr(events)
@@ -68,12 +57,17 @@ inputs_server_code <- function() {
       "",
       "shiny::observeEvent(input$inputs_metric_hint, {",
       "  hint <- input$inputs_metric_hint",
-      "  heard(paste(\"a\", hint$kind, \"hint\", hint$state, \"by\", hint$via))",
+      "  heard(paste(\"a hint\", hint$state, \"by\", hint$by, hint$via))",
       "})",
       "",
-      "shiny::observeEvent(input$inputs_column_tip, {",
-      "  tip <- input$inputs_column_tip",
-      "  heard(paste(\"the\", tip$kind, \"tip\", tip$state, \"by\", tip$by, tip$via))",
+      "shiny::observeEvent(input$inputs_column_pin, {",
+      "  pin <- input$inputs_column_pin",
+      "  heard(paste(\"the column tip\", pin$state, \"by\", pin$by, pin$via))",
+      "})",
+      "",
+      "# TRUE while the column tip is pinned, FALSE after; NULL until its first event",
+      "shiny::observeEvent(input$inputs_column_pinned, {",
+      "  heard(if (isTRUE(input$inputs_column_pinned)) \"the column tip is pinned\" else \"no column tip is pinned\")",
       "})",
       "",
       "shiny::observeEvent(input$inputs_column_copy, {",
@@ -91,25 +85,21 @@ inputs_steps <- function() {
   list(
     step(
       paste(
-        "Rest on *Median wait*: `input$inputs_metric_hint` arrives with state `shown`, the `text` of the tip and",
-        "the `kind` you chose; when the pointer leaves it sends `hidden` and a `reason`."
+        "Rest on *Median wait*: `input$inputs_metric_hint` arrives with state `shown`, the `text` of the tip, `by`",
+        "`reader` and `via` `pointer`; when the pointer leaves it sends `hidden` and a `reason`."
       ),
-      "`kind` is missing, or says `element` when you gave one.",
+      "no input arrives, or `text` is empty.",
       tip_target("inputs_metric"),
-      proof("inputs_metric_hint", function(value, input) {
-        fields_match(value, state = "shown", by = "reader") && identical(value$kind, inputs_kind_of(input$inputs_kind))
-      })
+      on_hint("inputs_metric")
     ),
     step(
       paste(
-        "Pin *wait_min* with the button in its corner, or focus it and press P: `input$inputs_column_tip` arrives",
-        "with state `pinned`, `kind` `column`, and `via` `click` or `key`."
+        "Pin *wait_min* with the button in its corner, or focus it and press P: `input$inputs_column_pin` arrives",
+        "with state `pinned` and `via` `click` or `key`, and `input$inputs_column_pinned` is `TRUE`."
       ),
-      "no input arrives, or the `kind` is the metric's.",
+      "no input arrives, or `_pinned` stays `FALSE`.",
       tip_target("inputs_column"),
-      proof("inputs_column_tip", function(value, input) {
-        fields_match(value, state = "pinned", by = "reader") && identical(value$kind, "column")
-      })
+      on_pin("inputs_column")
     ),
     step(
       paste(
@@ -122,7 +112,16 @@ inputs_steps <- function() {
     ),
     step(
       paste(
-        "Choose *hint*, then pin a tip: it pins, but no `input$..._tip` line reaches the log. Only the events you",
+        "Press Escape: `input$inputs_column_pin` arrives with state `closed` and a `reason`, and",
+        "`input$inputs_column_pinned` is `FALSE`."
+      ),
+      "`_pinned` stays `TRUE` after the tip closed.",
+      tip_target("inputs_column"),
+      on_pin("inputs_column", state = "closed", reason = c("escape", "outside", "button"))
+    ),
+    step(
+      paste(
+        "Choose *hint*, then pin a tip: it pins, but no `input$..._pin` line reaches the log. Only the events you",
         "ask for are sent."
       ),
       "a pin line arrives that was not asked for.",
@@ -140,9 +139,9 @@ plate_inputs_ui <- function() {
       htmltools::tags$code("events ="),
       "and give it an",
       htmltools::tags$code("id ="),
-      "to name the inputs after. Each input also carries the tip's",
-      htmltools::tags$code("kind"),
-      "."
+      "to name the inputs after. A pin also keeps a plain",
+      htmltools::tags$code("_pinned"),
+      "input, TRUE while the tip is pinned and FALSE after."
     ),
     caption = paste(
       "Two tips on a support desk page. The margin's log shows each input as the server received it, and what the",
@@ -154,16 +153,14 @@ plate_inputs_ui <- function() {
     log_title = "Inputs sent, and what the server heard",
     controls = htmltools::tagList(
       "Ask for",
-      choice_set("inputs_events", "Events", event_choices, "all"),
-      "and give the first tip the kind",
-      choice_set("inputs_kind", "Kind", inputs_kinds)
+      choice_set("inputs_events", "Events", event_choices, "all")
     )
   )
 }
 
 plate_inputs_server <- function(input, output, session) {
   ticks <- steps_server(input, session, "inputs", inputs_steps())
-  code <- shiny::reactive(inputs_code(list(events = input$inputs_events, kind = input$inputs_kind)))
+  code <- shiny::reactive(inputs_code(list(events = input$inputs_events)))
   plate_code(
     input,
     output,
@@ -183,7 +180,14 @@ plate_inputs_server <- function(input, output, session) {
     input,
     session,
     "inputs",
-    c("inputs_metric_hint", "inputs_metric_tip", "inputs_column_hint", "inputs_column_tip", "inputs_column_copy")
+    c(
+      "inputs_metric_hint",
+      "inputs_metric_pin",
+      "inputs_column_hint",
+      "inputs_column_pin",
+      "inputs_column_pinned",
+      "inputs_column_copy"
+    )
   )
   ticks
 }

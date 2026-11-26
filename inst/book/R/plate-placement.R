@@ -1,6 +1,8 @@
-# Section "placement" (its number and title are in contents.R): the five values of tip_on(placement =), one featured tag and four fixed at a side.
+# Section "placement": where a tip opens. One word whose side you choose, or leave out, and four words each fixed at
+# one side. Its number and title are in contents.R.
 
 placement_sides <- c(
+  "the page's choice" = "page",
   "where it fits" = "auto",
   "above" = "top",
   "below" = "bottom",
@@ -9,14 +11,14 @@ placement_sides <- c(
 )
 
 placement_code <- function(settings) {
-  side <- choice(settings$side, placement_sides, "auto")
+  side <- choice(settings$side, placement_sides, "page")
   featured <- code_sentence(
     "The tip of",
     code_call(
       "tip_on",
       code_word("this word"),
-      code_str("Opens **where you chose**. With *auto* it takes the side with room."),
-      placement = code_str(side),
+      code_str("Opens **where you chose**, or where there is room."),
+      placement = if (side != "page") code_str(side),
       marker = code_str("underline"),
       id = code_str("placement_main"),
       events = code_str("hint")
@@ -37,7 +39,13 @@ placement_code <- function(settings) {
     )
   )
   paste(
-    c("# placement = \"auto\" is the default; a chosen side flips when there is no room", featured, "", fixed),
+    c(
+      "# Without placement the tip takes the page's choice, which is \"auto\": the side with room",
+      "# A chosen side flips to the other when there is no room",
+      featured,
+      "",
+      fixed
+    ),
     collapse = "\n"
   )
 }
@@ -46,22 +54,22 @@ placement_code <- function(settings) {
 placement_steps <- function() {
   list(
     step(
-      "Rest on *this word* with *where it fits*: the tip opens on the side the engine finds room.",
+      "Rest on *this word* with *the page's choice*: the tip opens on the side where there is room.",
       "no tip, or a tip cut off by the stage.",
       tip_target("placement_main"),
-      on_hint("placement_main", when = chose("placement_side", "auto", "auto"))
+      on_hint("placement_main", when = chose("placement_side", "page", "page"))
     ),
     step(
       "Choose *above*, then rest on the word: the tip opens above it.",
       "it opens on another side while there is room above.",
       "#placement_side",
-      on_hint("placement_main", when = chose("placement_side", "top", "auto"))
+      on_hint("placement_main", when = chose("placement_side", "top", "page"))
     ),
     step(
       "Choose *to the left*, then rest on the word: the tip opens on its left, arrow towards the word.",
       "it opens on the right, or the arrow points away.",
       "#placement_side",
-      on_hint("placement_main", when = chose("placement_side", "left", "auto"))
+      on_hint("placement_main", when = chose("placement_side", "left", "page"))
     ),
     step(
       "Rest on *right* in the row below: a tag fixed at one side opens on that side, whatever you chose above.",
@@ -86,7 +94,9 @@ plate_placement_ui <- function() {
     lede = htmltools::tagList(
       htmltools::tags$code("placement ="),
       "takes \"auto\", \"top\", \"bottom\", \"left\" or \"right\". A chosen side flips to the other when there is no",
-      "room; \"auto\" always takes the side with room. Leave it out to take the page's choice."
+      "room; \"auto\" always takes the side with room. Left out, it is NULL: the tip takes the page's choice, which",
+      "is \"auto\" unless a tagged ancestor sets a side. \"left\" and \"right\" mirror in right-to-left text, and on a",
+      "phone the tip always chooses its own side."
     ),
     caption = "One word whose side you choose, and four words each fixed at one side.",
     steps = placement_steps(),

@@ -1,5 +1,5 @@
-# Section "columns" (its number and title are in contents.R): a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own
-# placement, look and marker for that column only.
+# Section "columns": a `tip_spec()` for one column of `cells =` or `headers =` beats the table's own placement, look
+# and marker for that column only, and gives it a long form of its own.
 
 columns_settings <- c(
   "where it opens" = "placement",
@@ -39,8 +39,7 @@ columns_code <- function(settings) {
     placement = if (setting == "placement") code_str("right"),
     style = if (setting == "style") code_str("lively"),
     marker = if (setting == "marker") code_str("none"),
-    more = if (setting == "more") code_str(columns_long[[target]]),
-    more_on = if (setting == "more") code_str("hover")
+    more = if (setting == "more") code_call("tip_more", code_str(columns_long[[target]]), on = code_str("hover"))
   )
   entries <- lapply(columns_names, function(name) {
     if (name == column) spec else code_str(columns_words[[target]][[name]])
@@ -75,8 +74,9 @@ columns_steps <- function() {
     ),
     step(
       paste(
-        "Choose *a long form*, then rest on the column: its tip shows the long form on hover. Another column's",
-        "tip stays one short text."
+        "Choose *a long form*, then rest on the column: its tip shows the long form at once, as",
+        "`tip_more(on = \"hover\")` says (the default, `\"button\"`, would put a More button in the tip). Another",
+        "column's tip stays one short text."
       ),
       "every column grows, or the long form never shows.",
       "#columns_setting"

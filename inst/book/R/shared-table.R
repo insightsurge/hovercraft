@@ -1,4 +1,4 @@
-# Shared helpers: the table sections (6.1 to 6.3), each a DT or reactable table with tips from tip_table().
+# Shared helpers: the table sections (Part 6), each a DT or reactable table with tips from tip_table().
 
 table_widgets <- c("DT" = "DT", "reactable" = "reactable")
 
@@ -14,6 +14,3 @@ table_code <- function(name, data, widget, tipped) {
   }
   paste0(code_df(name, data), "\n\n", table, " |>\n  ", code_indent(tipped))
 }
-
-# The ids of a table's row tips: `<id>/row/<n>`, with n the row's place in the data, from 1.
-table_row_ids <- function(id, n) paste0(id, "/row/", seq_len(n))

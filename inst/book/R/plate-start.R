@@ -1,5 +1,5 @@
-# Section "start" (its number and title are in contents.R): the book's title, whose word holds a tip that shows most of what the package does, and a
-# sentence with three tips on its figures, the plainest kind.
+# Section "start": the book's title, whose word holds a tip that shows most of what the package does, and a sentence
+# with three tips of plain words on its figures. Its number and title are in contents.R.
 
 # The title as code: one word with a tip built from a template, a record, a long form, a look, a mark and a pin.
 start_hero_code <- function() {
@@ -29,12 +29,12 @@ start_hero_code <- function() {
   )
   more <- paste(
     "Each part of this tip is a section of the book: the template, badge and fields (2.1), the pin and Copy",
-    "(3.1), this long form (3.2), the editorial look and the slide (4.1), the book's colours (4.3), the icon (4.4)."
+    "(3.1), this long form (3.3), the editorial look and the slide (4.1), the book's colours (4.3), the icon (4.4)."
   )
   theme <- code_call(
     "tip_theme",
-    light = code_list(list(bg = "#ffffff", ink = "#1b1f24", line = "#8fb2cf", code_bg = "#e2eaf1")),
-    dark = code_list(list(bg = "#173b5e", ink = "#eef3f7", line = "#4b7aa3", code_bg = "#0f2c47"))
+    light = code_list(list(bg = "#ffffff", text = "#1b1f24", border = "#8fb2cf", code_bg = "#e2eaf1")),
+    dark = code_list(list(bg = "#173b5e", text = "#eef3f7", border = "#4b7aa3", code_bg = "#0f2c47"))
   )
   word <- code_call(
     "tip_on",
@@ -153,7 +153,7 @@ plate_start_server <- function(input, output, session) {
     input,
     session,
     "start",
-    c("hero_hint", "hero_pin", "hero_copy", paste0(c("visits", "target", "wait_term"), "_hint"))
+    c("hero_hint", "hero_pin", "hero_pinned", "hero_copy", paste0(c("visits", "target", "wait_term"), "_hint"))
   )
   ticks
 }
