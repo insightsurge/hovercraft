@@ -50,4 +50,6 @@ the test ends. Each test file must run on its own, as files run in parallel and 
 
 The test bench in `apps/testbench/` holds the Shiny-practice and behaviour scenarios in one app. Start it in a test with
 `start_bench()` and open one tab with `bench_page(bench, "<tab>")` (`helper-bench.R`); its README says how to run it by
-hand.
+hand. The behaviour scenarios are tested in `test-bench-<tab>-browser.R`, with `helper-bench-scenarios.R`; each ends with
+`expect_bench_clean()` (no tip left open, no `inert` or locked scroll, nothing on the console). For input the page
+helpers do not cover (another mouse button, a touch gesture), `page$session` is the tab's chromote session.
