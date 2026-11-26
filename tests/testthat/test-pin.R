@@ -10,7 +10,7 @@ describe("tip_on(pin = )", {
   it("writes the engine's pin value manual for TRUE, and the classic pin for \"click\"", {
     manual <- tip_on(button(), "Runs", id = "run_tip", pin = TRUE)
     expect_identical(attrs(manual)[[tip_attribute("pin")]], "manual")
-    classic <- tip_on(button(), "Runs", id = "run_tip", pin = "click")
+    classic <- tip_on(htmltools::tags$span("Runs", tabindex = "0"), "Runs", id = "run_tip", pin = "click")
     expect_identical(attrs(classic)[[tip_attribute("pin")]], "true")
     expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", id = "run_tip")$attribs))
     expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", id = "run_tip", pin = FALSE)$attribs))
@@ -22,8 +22,8 @@ describe("tip_on(pin = )", {
     expect_error(tip_on(htmltools::tags$div("Row"), "Runs", pin = TRUE), "id")
   })
 
-  it("refuses a value that is not FALSE, TRUE or \"click\"", {
-    for (bad in list("manual", "yes", 1, NA, c(TRUE, FALSE), NULL)) {
+  it("refuses a value that is not NULL, FALSE, TRUE or \"click\"", {
+    for (bad in list("manual", "yes", 1, NA, c(TRUE, FALSE))) {
       expect_error(tip_on(button(), "Runs", id = "r", pin = bad), class = "hovercraft_error_argument")
     }
   })
@@ -42,7 +42,12 @@ describe("tip_on(pin = )", {
     names_of <- function(tag) vapply(htmltools::findDependencies(tag), function(x) x$name, "")
     expect_true("hovercraft-pin" %in% names_of(tip_on(button(), "Runs", pin = TRUE)))
     expect_false("hovercraft-pin" %in% names_of(tip_on(button(), "Runs")))
-    again <- tip_on(tip_on(button(), "One", pin = TRUE), "Two", pin = "click")
+    again <- tip_on(
+      tip_on(htmltools::tags$span("Go", tabindex = "0"), "One", id = "go", pin = TRUE),
+      "Two",
+      id = "go",
+      pin = "click"
+    )
     expect_identical(sum(names(again$attribs) == tip_attribute("pin")), 1L)
     expect_identical(attrs(again)[[tip_attribute("pin")]], "true")
   })
@@ -50,7 +55,12 @@ describe("tip_on(pin = )", {
   it("makes the tagged item announce the pin key, and takes it away with the pin", {
     got <- tip_on(button(), "Runs", id = "run_tip", pin = TRUE)
     expect_identical(attrs(got)[["aria-keyshortcuts"]], toupper(tip_pin_key()))
-    expect_identical(attrs(tip_on(button(), "Runs", id = "run_tip", pin = "click"))[["aria-keyshortcuts"]], "P")
+    expect_identical(
+      attrs(tip_on(htmltools::tags$span("Runs", tabindex = "0"), "Runs", id = "run_tip", pin = "click"))[[
+        "aria-keyshortcuts"
+      ]],
+      "P"
+    )
     expect_false("aria-keyshortcuts" %in% names(tip_on(button(), "Runs")$attribs))
     off <- tip_on(got, "Runs", pin = FALSE)
     expect_false("aria-keyshortcuts" %in% names(off$attribs))
@@ -59,39 +69,60 @@ describe("tip_on(pin = )", {
     expect_identical(attrs(own)[["aria-keyshortcuts"]], "Alt+R")
   })
 
-  it("keeps a pin and its id when the tag is tipped again without a pin argument, and drops both with pin = FALSE", {
-    first <- tip_on(button(), "One", id = "run_tip", pin = TRUE)
-    again <- tip_on(first, "Two")
-    expect_identical(attrs(again)[[tip_attribute("pin")]], "manual")
-    expect_identical(attrs(again)[[tip_attribute("id")]], "run_tip")
-    expect_identical(attrs(again)[[tip_names()$attribute]], "Two")
-    off <- tip_on(first, "Two", pin = FALSE)
-    expect_false(tip_attribute("pin") %in% names(off$attribs))
-    # With a new id and no pin argument, the new id is the pin's.
-    renamed <- tip_on(first, "Two", id = "other_tip")
-    expect_identical(attrs(renamed)[[tip_attribute("id")]], "other_tip")
-    expect_identical(attrs(renamed)[[tip_attribute("pin")]], "manual")
+  it("adds only its own key tokens to the page's, once, and takes only those off", {
+    keys <- function(tag) htmltools::tagGetAttribute(tag, "aria-keyshortcuts")
+    own <- function() htmltools::tags$button("Run", id = "r", `aria-keyshortcuts` = "Alt+R")
+    pinned <- tip_on(own(), "Runs", pin = TRUE)
+    expect_identical(keys(pinned), "Alt+R P")
+    # Tipped again, the tag has the page's tokens and one of each of ours: never "P P".
+    again <- tip_on(pinned, "Runs again", pin = TRUE)
+    expect_identical(keys(again), "Alt+R P")
+    expect_identical(keys(tip_on(tip_on(button(), "A", pin = TRUE), "B", pin = TRUE)), "P")
+    # Without the pin, the page's own token stays and ours goes.
+    expect_identical(keys(tip_on(pinned, "Runs", pin = FALSE)), "Alt+R")
+    expect_null(keys(tip_on(tip_on(button(), "A", pin = TRUE), "B")))
+    # A long form that has its button adds M as well, and a page token that is already one of ours is not doubled.
+    both <- tip_on(own(), "Runs", pin = TRUE, more = "Long")
+    expect_identical(keys(both), "Alt+R P M")
+    expect_identical(keys(tip_on(both, "Runs", pin = TRUE)), "Alt+R P")
+    twice <- tip_on(htmltools::tags$button("Run", id = "r", `aria-keyshortcuts` = "P"), "Runs", pin = TRUE)
+    expect_identical(keys(twice), "P")
   })
 
-  it("lets more_on = \"pin\" follow the pin argument", {
-    expect_no_error(tip_on(button(), "Short", more = "Long", pin = TRUE))
-    expect_error(tip_on(button(), "Short", more = "Long"), class = "hovercraft_error_pin")
+  it("takes NULL, the default, as no pin, and FALSE as never", {
+    expect_identical(tip_check_pin(NULL), NULL)
+    expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", pin = NULL)$attribs))
+    expect_false(tip_attribute("pin") %in% names(tip_on(button(), "Runs", pin = FALSE)$attribs))
+    expect_error(tip_on(button(), "Runs", pin = NA), class = "hovercraft_error_argument")
+    expect_identical(formals(tip_on)$pin, NULL)
+  })
+
+  it("replaces a pin, its id and its events when the tag is tipped again, and says so once", {
+    first <- tip_on(button(), "One", id = "run_tip", pin = TRUE, events = "pin")
+    rlang::reset_warning_verbosity("hovercraft-retip")
+    expect_warning(again <- tip_on(first, "Two"), class = "hovercraft_warning_retip")
+    expect_warning(tip_on(first, "Three"), regexp = NA)
+    expect_identical(attrs(again)[[tip_names()$attribute]], "Two")
+    for (name in c("pin", "id")) {
+      expect_false(tip_attribute(name) %in% names(again$attribs))
+    }
+    expect_false(tip_shiny_attribute() %in% names(again$attribs))
+    expect_false("aria-keyshortcuts" %in% names(again$attribs))
+    # A call that names an id, events or a pin again does not warn, and neither does pin = FALSE.
+    expect_no_warning(tip_on(first, "Two", id = "other_tip", pin = TRUE))
+    expect_no_warning(tip_on(first, "Two", pin = FALSE))
+    expect_no_warning(tip_on(first, "Two", events = "hint"))
+    # A tag whose tip had no id, events or pin has nothing to lose.
+    expect_no_warning(tip_on(tip_on(button(), "One"), "Two"))
+  })
+
+  it("lets tip_more(on = \"pin\") follow the pin argument", {
+    expect_no_error(tip_on(button(), "Short", more = tip_more("Long", on = "pin"), pin = TRUE))
+    expect_error(tip_on(button(), "Short", more = tip_more("Long", on = "pin")), class = "hovercraft_error_pin")
   })
 
   it("warns nothing and writes no pin for a tag with no pin", {
     expect_no_warning(tip_on(button(), "Runs"))
-  })
-})
-
-describe("tip_on(kind = )", {
-  it("writes the kind, which the events and inputs carry, and checks it against the engine's pattern", {
-    got <- tip_on(button(), "Runs", kind = "review_item")
-    expect_identical(attrs(got)[[tip_attribute("kind")]], "review_item")
-    expect_false(tip_attribute("kind") %in% names(tip_on(button(), "Runs")$attribs))
-    expect_false(tip_attribute("kind") %in% names(tip_on(got, "Again")$attribs))
-    for (bad in c("Review", "review item", "_a", "a__b", "")) {
-      expect_error(tip_on(button(), "Runs", kind = bad), class = "hovercraft_error_argument")
-    }
   })
 })
 
@@ -106,6 +137,18 @@ describe("the pin layer's files", {
     expect_true(grepl("hovercraft-pin-strip", js, fixed = TRUE))
   })
 
+  it("test for a field with the same selector as the M key's script", {
+    field <- function(file) {
+      text <- paste(readLines(system.file(file, package = "hovercraft")), collapse = " ")
+      regmatches(text, gregexpr("const FIELD =\\s*'[^']*'", text))[[1]]
+    }
+    pin_field <- field("pin/pin.js")
+    expect_length(pin_field, 1L)
+    expect_identical(pin_field, field("more/more.js"))
+    # A box, a radio and a button take no letters; a text input does.
+    expect_match(pin_field, "input:not([type=\"checkbox\"])", fixed = TRUE)
+  })
+
   it("get every name of the engine from R, and write none of the engine's own", {
     expect_false(grepl(tip_names()$attribute, js, fixed = TRUE))
     dependency <- tip_pin_dependency()
@@ -115,6 +158,7 @@ describe("the pin layer's files", {
       simplifyVector = TRUE
     )
     expect_identical(config$attributes$pin, tip_attribute("pin"))
+    expect_identical(config$attributes$open, tip_contract()$attributes$open)
     expect_identical(config$attributes$part, tip_contract()$attributes$part)
     expect_identical(config$events$hint, tip_contract()$events$hint$name)
     expect_identical(config$css, tip_names()$css)

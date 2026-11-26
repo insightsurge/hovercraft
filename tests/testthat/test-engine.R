@@ -69,7 +69,7 @@ describe("the vendored engine, after a copy", {
   it("still has the class and the global the package's tests and pages reach the engine by", {
     expect_true(grepl(paste0(".", names$css), css, fixed = TRUE), info = names$css)
     expect_true(grepl(paste0("window.", names$global), js, fixed = TRUE), info = names$global)
-    # The methods the package calls on it: tip_dependency() attaches, tip_define() defines.
+    # The methods the package calls on it: use_hovercraft() attaches, tip_define() defines.
     for (method in c("attach", "define")) {
       expect_true(grepl(paste0("\\b", method, "\\s*[(:]"), js), info = paste0(names$global, ".", method))
     }
@@ -101,6 +101,37 @@ describe("the vendored engine, after a copy", {
     )
   })
 
+  it("has the names the engine added in 0.55.0 (several pinned tips at once, a page cap of 10)", {
+    contract <- jsonlite::read_json(tip_path("tip.json"))
+    expect_identical(contract$attributes$pins, paste0("data-", names$prefix, "-tip-pins"))
+    expect_true(grepl(paste0("`${NAMES.attr}-pins`"), js, fixed = TRUE), info = "the page attribute that sets the cap")
+    expect_true(grepl("Math.min(n, 10)", js, fixed = TRUE), info = "the cap of ten")
+    expect_true(grepl("close: (el) => {", js, fixed = TRUE), info = "close(el) closes one chosen pin")
+  })
+
+  it("has the names the engine added in 0.58.0 (a hover tip that keeps its place, a pin that closes when hidden)", {
+    expect_true(grepl("function keepSpot(", js, fixed = TRUE), info = "the hover tip drawn again keeps its side")
+    expect_true(grepl("box.dataset.cap = 'true'", js, fixed = TRUE), info = "the height cap of a tall hover tip")
+    expect_true(grepl("const vanished = (a) =>", js, fixed = TRUE), info = "a pin whose item took no room")
+    expect_true(grepl("shut({ reason: 'gone', by: 'data', via: null })", js, fixed = TRUE), info = "the close as gone")
+    expect_true(grepl("attributeOldValue: true", js, fixed = TRUE), info = "the reason observer skips an equal write")
+  })
+
+  it("still has the open values the page scripts read, in their order, and the classes and variables they style", {
+    # `inst/pin/pin.js` and `inst/more/more.js` read the open attribute: "hint" while a hint shows, "pin" while pinned.
+    expect_identical(unlist(tip_rules()$open$values), c("hint", "pin"))
+    # The part classes of a tip box that the scripts' CSS and the page scripts reach by name (the engine's own class prefix).
+    for (part in c("head", "close", "cue", "more", "group")) {
+      class <- paste0(".", names$css, "-", part)
+      expect_true(grepl(class, css, fixed = TRUE), info = class)
+    }
+    # The custom properties the status, more, marker and table CSS read from the engine's tip box.
+    for (variable in c("ink", "quiet", "edge")) {
+      property <- paste0("--", names$css, "-", variable)
+      expect_true(grepl(property, css, fixed = TRUE), info = property)
+    }
+  })
+
   it("still reads the page's bslib colours and its dark mode, which the assumed colours follow", {
     expect_true(grepl("--bs-tertiary-bg", css, fixed = TRUE))
     expect_true(grepl("--bs-body-color", css, fixed = TRUE))
@@ -108,8 +139,8 @@ describe("the vendored engine, after a copy", {
   })
 })
 
-describe("tip_dependency()", {
-  deps <- tip_dependency()
+describe("use_hovercraft()", {
+  deps <- use_hovercraft()
   dep <- deps[[1]]
   runtime <- deps[[length(deps)]]
 
@@ -174,5 +205,80 @@ describe("tip_reset()", {
       expect_identical(tip_known(), list())
     })
     expect_identical(tip_known(), list())
+  })
+})
+
+describe("use_hovercraft(max_pins =, keys =)", {
+  ops_of <- function(dep) {
+    meta <- dep$meta[["hovercraft-ops"]]
+    jsonlite::fromJSON(rawToChar(jsonlite::base64_dec(meta)), simplifyVector = FALSE)
+  }
+  named <- function(deps) vapply(deps, function(dep) dep$name, "")
+
+  it("adds nothing for the defaults, one pin and every key on", {
+    expect_identical(named(use_hovercraft()), c("hovercraft", "hovercraft-runtime"))
+  })
+
+  it("sends a value that is written, even the default one, so a later different one can be seen", {
+    expect_identical(
+      named(use_hovercraft(max_pins = 1)),
+      c("hovercraft", "hovercraft-max-pins-1", "hovercraft-runtime")
+    )
+    expect_identical(
+      named(use_hovercraft(keys = TRUE)),
+      c("hovercraft", "hovercraft-keys-none", "hovercraft-runtime")
+    )
+    expect_identical(
+      named(use_hovercraft(max_pins = 1, keys = c(pin = TRUE))),
+      c("hovercraft", "hovercraft-max-pins-1", "hovercraft-keys-none", "hovercraft-runtime")
+    )
+  })
+
+  it("sends a number of pins in a dependency of its own, named by the number", {
+    deps <- use_hovercraft(max_pins = 3)
+    expect_true("hovercraft-max-pins-3" %in% named(deps))
+    expect_identical(
+      ops_of(deps[[which(named(deps) == "hovercraft-max-pins-3")]])[[1]],
+      list(op = "maxPins", value = 3L)
+    )
+    # Two values are two dependencies, so htmltools keeps both and the page's script can see they differ.
+    both <- htmltools::resolveDependencies(c(use_hovercraft(max_pins = 3), use_hovercraft(max_pins = 5)))
+    expect_true(all(c("hovercraft-max-pins-3", "hovercraft-max-pins-5") %in% named(both)))
+  })
+
+  it("takes a whole number from 1 to 10", {
+    for (bad in list(0, 11, 2.5, NA, "3", c(2, 3), NULL, -1)) {
+      expect_error(use_hovercraft(max_pins = bad), class = "hovercraft_error_argument")
+    }
+    expect_no_error(use_hovercraft(max_pins = 10))
+    expect_error(use_hovercraft(max_pins = 11), "10")
+  })
+
+  it("switches the letter keys off as a whole or one by one, and leaves a key out on", {
+    off <- function(keys) {
+      deps <- use_hovercraft(keys = keys)
+      dep <- deps[named(deps) == "hovercraft-keys-pin" | grepl("^hovercraft-keys", named(deps))][[1]]
+      unlist(ops_of(dep)[[1]]$off)
+    }
+    expect_setequal(off(FALSE), c("pin", "more"))
+    expect_identical(off(c(pin = FALSE)), "pin")
+    expect_identical(off(c(more = FALSE)), "more")
+    expect_identical(off(c(pin = FALSE, more = TRUE)), "pin")
+  })
+
+  it("refuses a key that is not one, a switch that is not TRUE or FALSE, and an unnamed vector", {
+    expect_error(use_hovercraft(keys = c(pin = FALSE, tab = FALSE)), class = "hovercraft_error_argument")
+    expect_error(use_hovercraft(keys = c(pin = NA)), class = "hovercraft_error_argument")
+    expect_error(use_hovercraft(keys = c(FALSE, TRUE)), class = "hovercraft_error_argument")
+    expect_error(use_hovercraft(keys = "pin"), class = "hovercraft_error_argument")
+    expect_error(use_hovercraft(keys = c(pin = FALSE, pin = TRUE)), class = "hovercraft_error_argument")
+    expect_error(use_hovercraft(keys = c(tab = FALSE)), "pin")
+  })
+
+  it("tells the runtime the names it needs to set the engine's page attribute and to count pins", {
+    config <- jsonlite::fromJSON(jsonlite::toJSON(tip_runtime_config(), auto_unbox = TRUE), simplifyVector = FALSE)
+    expect_identical(config$attributes$pins, tip_contract()$attributes$pins)
+    expect_identical(config$attributes$id, tip_attribute("id"))
+    expect_identical(config$events$tip, tip_contract()$events$tip$name)
   })
 })

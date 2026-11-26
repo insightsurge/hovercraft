@@ -18,14 +18,25 @@
   // What is open now: the strip, the hint it sits on, the item the hint is for, the frame loop that follows the hint, and
   // what was last written to the strip.
   let open = null;
+  // The item whose hint is on show now, for any tip (a hover or a focus opens it), or null. The pin key acts on it, since it
+  // is the tip the reader sees; it is cleared the moment the hint is told to close, not when it has faded.
+  let shown = null;
 
   const hintBox = (doc) => doc.querySelector(`.${names.css}:not(.${names.css}-pin)`);
 
-  // Does the reader's key press land in a field, where a letter is a letter?
-  const editable = (el) =>
-    !!el?.closest?.('input, textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"]');
+  // Does the reader's key press land in a field, where a letter is a letter? A box, a radio or a button takes no letters.
+  // FIELD is the same line in inst/more/more.js and must stay identical (a test compares them).
+  const FIELD =
+    'textarea, select, [contenteditable]:not([contenteditable="false"]), [role="textbox"], [role="combobox"], [role="searchbox"], [role="spinbutton"], input:not([type="checkbox"]):not([type="radio"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="range"]):not([type="color"]):not([type="file"]):not([type="image"])';
+  const editable = (el) => !!el?.closest?.(FIELD);
+  // The element that really holds the focus, also inside an open shadow root, where the page's activeElement is the host.
+  const deepFocus = (el) => {
+    let at = el;
+    while (at?.shadowRoot?.activeElement) at = at.shadowRoot.activeElement;
+    return at;
+  };
 
-  const stripOf = (doc, hint) => {
+  const stripOf = (doc, hint, item) => {
     const strip = doc.createElement('div');
     strip.className = STRIP;
     strip.setAttribute(names.attributes.part, '');
@@ -34,7 +45,7 @@
     pin.className = `${STRIP}-button ${STRIP}-pin`;
     // A pointer and a tap use this button; the keyboard uses the pin key, which the tagged item announces. The button has
     // a name for a pointer user's screen reader and no `title`, which would stack a second tooltip on the tip.
-    pin.setAttribute('aria-label', names.labels.pin);
+    pin.setAttribute('aria-label', (window.HovercraftRuntime?.labels?.(item) ?? names.labels).pin ?? names.labels.pin);
     pin.tabIndex = -1;
     strip.append(pin);
     // A hint in the top layer (a modal) needs the strip there as well, or the hint would cover it.
@@ -82,14 +93,21 @@
     open = null;
   }
 
-  const pinItem = (item, via) => window[names.global].pin(item, { by: 'reader', via });
+  // A row that opens in place has a panel made for it by the table script (inst/table/table.js); the engine draws the pinned
+  // tip into it. A pin that did not happen leaves no panel behind.
+  const pinItem = (item, via) => {
+    const into = window.HovercraftTable?.panelFor?.(item);
+    const pinned = window[names.global].pin(item, into ? { by: 'reader', via, into } : { by: 'reader', via });
+    if (into && !pinned) window.HovercraftTable.dropPanel(item.getAttribute(names.attributes.id));
+    return pinned;
+  };
 
   const show = (item) => {
     const doc = item.ownerDocument;
     const hint = hintBox(doc);
-    if (!hint || hint.hidden || item.matches(':disabled, [aria-disabled="true"]')) return;
     close();
-    const { strip, pin } = stripOf(doc, hint);
+    if (!hint || hint.hidden || item.matches(':disabled, [aria-disabled="true"]')) return;
+    const { strip, pin } = stripOf(doc, hint, item);
     // A click on the button pins the item without a click on the item: the item's own click (a row's selection) never runs.
     pin.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -109,12 +127,16 @@
     place();
   };
 
-  // The hint event is sent at the item and bubbles: a hint that opens for a pinnable item gets the strip, and one that
-  // closes lets the strip go once the hint has faded.
+  // The hint event is sent at the item and bubbles: a hint that opens for a pinnable item gets the strip, one for
+  // any other item drops an open strip at once, and one that closes lets the strip go once the hint has faded.
   const onHint = (event) => {
     const detail = event.detail;
     const item = event.target?.closest?.(`[${names.attributes.pin}]`);
+    if (shown && !shown.isConnected) shown = null;
+    if (detail?.state === 'shown') shown = event.target;
+    else if (detail?.state === 'hidden' && shown === event.target) shown = null;
     if (detail?.state === 'shown' && item && event.target === item) show(item);
+    else if (detail?.state === 'shown') close();
     else if (detail?.state === 'hidden' && open) {
       open.closing = true;
       open.strip.style.pointerEvents = 'none';
@@ -123,14 +145,25 @@
     }
   };
 
-  // The pin key: a single letter, so only while the focus is on the tagged item itself (or inside it), never anywhere
-  // else on the page (WCAG 2.1.4). A key event with no key (the browser's autofill sends them) is none of ours.
+  // The pin key: a single letter. It pins the item whose tip is shown while the pointer is on that item (the tip the
+  // reader sees); a tip that is still fading after the pointer left, or one a tap or tip_show() opened, does not
+  // count. With the focus on one item and the pointer on another, the item under the pointer wins; an item that is
+  // pinned and holds the focus keeps the key; otherwise the item that holds the focus. It never acts while the focus
+  // is in a field, and a key held down pins once. Where the page switches the key off, it does nothing. A key event
+  // with no key (the browser's autofill sends them) is none of ours.
   const onKey = (event) => {
-    if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key) return;
+    if (typeof event.key !== 'string' || event.key.toLowerCase() !== names.key || event.repeat) return;
+    // The page can switch the letter key off (`use_hovercraft(keys = c(pin = FALSE))`); the button stays.
+    if (document.documentElement.getAttribute(names.attributes.keysOff)?.split(/\s+/).includes('pin')) return;
     if (event.ctrlKey || event.metaKey || event.altKey || event.isComposing || event.defaultPrevented) return;
+    if (shown && !shown.isConnected) shown = null;
     const active = event.target?.ownerDocument?.activeElement ?? event.target;
-    const item = active?.closest?.(`[${names.attributes.pin}]`);
-    if (!item || editable(active) || item.matches(':disabled, [aria-disabled="true"]')) return;
+    const focused = active?.closest?.(`[${names.attributes.pin}]`);
+    // The item under the pointer whose tip is shown, itself and never an ancestor of it: the key acts on the tip that is seen.
+    const hovered = shown?.matches(':hover') ? shown : null;
+    const hinted = hovered?.hasAttribute(names.attributes.pin) ? hovered : null;
+    const item = focused?.getAttribute(names.attributes.open) === 'pin' ? focused : hovered ? hinted : focused;
+    if (!item || editable(deepFocus(active)) || item.matches(':disabled, [aria-disabled="true"]')) return;
     if (pinItem(item, 'key')) event.preventDefault();
   };
 
@@ -141,6 +174,8 @@
       document.addEventListener(names.events.hint, onHint);
       document.addEventListener('keydown', onKey);
     },
+    // The door for the More button of `tip_more(pin = TRUE)` (inst/more/more.js): pin an item as the pin button does.
+    pin: (item, via) => !!names && pinItem(item, via),
   });
   const meta = document.querySelector('meta[name="hovercraft-pin-config"]');
   if (meta) window.HovercraftPin.start(decode(meta.content));

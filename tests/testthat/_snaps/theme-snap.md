@@ -5,7 +5,7 @@
     Condition
       Error in `tip_theme()`:
       ! `light` has "bgg", which is not a role.
-      i The roles are "bg", "ink", "line", "code_bg", "radius", "shadow", "font". Did you mean "bg" or "code_bg"?
+      i The roles are "bg", "text", "border", "code_bg", "radius", "shadow", "font". Did you mean "bg" or "border" or "code_bg"?
 
 # the theme errors and warnings / say what a role takes
 
@@ -74,28 +74,28 @@
 # the theme errors and warnings / warn about low contrast with the pair and the ratio
 
     Code
-      invisible(tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")))
+      invisible(tip_theme(light = list(bg = "#ffffff", text = "#dddddd")))
     Condition
       Warning in `tip_theme()`:
-      In light and dark mode the tip's ink `#dddddd` on its bg `#ffffff` has contrast 1.36:1.
+      In light and dark mode the tip's text `#dddddd` on its bg `#ffffff` has contrast 1.36:1.
       i Text needs 4.5:1. The colours are kept; change one of them.
 
 ---
 
     Code
-      invisible(tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "#7a9cc6")))
+      invisible(tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff", code_bg = "#7a9cc6")))
     Condition
       Warning in `tip_theme()`:
-      In light and dark mode the tip's ink `#ffffff` on its code_bg `#7a9cc6` has contrast 2.84:1.
+      In light and dark mode the tip's text `#ffffff` on its code_bg `#7a9cc6` has contrast 2.84:1.
       i Text needs 4.5:1. The colours are kept; change one of them.
 
 # the theme errors and warnings / print a theme
 
     Code
-      tip_theme(light = list(bg = "navy", ink = "white", radius = 8), dark = list(bg = "#9ec5fe",
-        ink = "#0b1f3a"))
+      tip_theme(light = list(bg = "navy", text = "white", radius = 8), dark = list(
+        bg = "#9ec5fe", text = "#0b1f3a"))
     Output
-      tip_theme(light = list(bg = "#000080", ink = "#ffffff", radius = "8px"), dark = list(bg = "#9ec5fe", ink = "#0b1f3a"))
+      tip_theme(light = list(bg = "#000080", text = "#ffffff", radius = "8px"), dark = list(bg = "#9ec5fe", text = "#0b1f3a"))
 
 ---
 

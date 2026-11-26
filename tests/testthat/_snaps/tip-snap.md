@@ -42,8 +42,9 @@
       tip_on(htmltools::tagList(button(), button()), "x")
     Condition
       Error in `tip_on()`:
-      ! `tag` is a list of tags; give one tag.
-      i Call `tip_on()` on each tag.
+      ! `tag` must be one HTML tag, not a list of tags.
+      i Call `tip_on()` on each tag, or wrap the content in one tag such as `span()`.
+      i For a tab, tip the tag that is its title: `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. The `value` is needed: without it bslib writes the tag's HTML into the tab's value.
 
 ---
 
@@ -51,7 +52,8 @@
       tip_on("x", "x")
     Condition
       Error in `tip_on()`:
-      ! `tag` must be an HTML tag, not a string.
+      ! `tag` must be one HTML tag, not a string.
+      i For a tab, tip the tag that is its title: `nav_panel(title = tip_on(span("Data"), "..."), value = "data")`. The `value` is needed: without it bslib writes the tag's HTML into the tab's value.
 
 # the tip_on() errors / say there is nothing to show
 
@@ -69,7 +71,7 @@
       Error in `tip_on()`:
       ! `...` must be empty.
       x Not an argument: "tmplate".
-      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, `more_on`, `pin`, and `kind`.
+      i The arguments are `tag`, `text`, `template`, `record`, `style`, `placement`, `marker`, `id`, `events`, `when_disabled`, `more`, `pin`, and `labels`.
 
 # the tip_on() errors / say what a record lacks, and what it holds
 
@@ -121,6 +123,79 @@
       `record` is ignored without a `template`.
       i A plain text tip has no placeholders to fill in.
 
+# the tip_on() errors / say what the long form needs
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", on = "pin"))
+    Condition
+      Error in `tip_on()`:
+      ! `more` with `tip_more(on = "pin")` opens on a pin, but the tag cannot pin and has no `id`.
+      i Allow the tip to pin and give it an `id`, or use `on = "hover"` or `"button"`.
+
+---
+
+    Code
+      tip_more("y", on = "hover", label = "Details")
+    Condition
+      Error in `tip_more()`:
+      ! `label` names the words of the buttons, but `on = "hover"` has no button.
+      i Take `label` out, or use `on = "button"`.
+
+---
+
+    Code
+      tip_more("y", label = c(more = "a", other = "b"))
+    Condition
+      Error in `tip_more()`:
+      ! `label` is not right: Must be a string, or a named character vector with the names "more" and "less".
+      i Give one string, or `c(more = "...", less = "...")`, or `NULL` for the built-in words.
+
+---
+
+    Code
+      tip_more("y", on = "tap")
+    Condition
+      Error in `tip_more()`:
+      ! `on` is not right: Must be element of set {'button','hover','pin','click'}, but is 'tap'
+      i Give one of "button", "hover", "pin", "click", or `NULL` for "button".
+
+---
+
+    Code
+      tip_more("y", on = "hover", pin = TRUE)
+    Condition
+      Error in `tip_more()`:
+      ! `pin` makes the button pin the tip, but `on = "hover"` has no button.
+      i Take `pin` out, or use `on = "button"`.
+
+---
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", on = "click"))
+    Condition
+      Error in `tip_on()`:
+      ! `tip_more(on = "click")` cannot go on a tag that is a control: a click would open the long form, not use it.
+      i Use the default `on = "button"`: the More button and the M key open it, and a click still works.
+
+---
+
+    Code
+      tip_on(button(), "x", more = tip_more("y", pin = TRUE))
+    Condition
+      Error in `tip_on()`:
+      ! `more` with `tip_more(pin = TRUE)` pins on the button, but the tag cannot pin and has no `id`.
+      i Allow the tip to pin and give it an `id`, or take `pin = TRUE` out of `tip_more()`.
+
+---
+
+    Code
+      tip_on(htmltools::tags$span("x", tabindex = "0"), "x", id = "x", pin = "click",
+      more = tip_more("y", on = "click"))
+    Condition
+      Error in `tip_on()`:
+      ! `pin = "click"` and `tip_more(on = "click")` both take a click on the item.
+      i Use `pin = TRUE`: the pin button and the pin key pin it, and the click opens the long form.
+
 # the tip_on() errors / say what a placement and an id must be
 
     Code
@@ -136,6 +211,6 @@
       tip_on(button(), "x", id = "two words")
     Condition
       Error in `tip_on()`:
-      ! `id` is not right: Must be one non-empty string without whitespace.
-      i Give one non-empty string with no spaces, such as `ns("scores")`, or `NULL`.
+      ! `id` is not right: Must be one non-empty string without whitespace or a colon.
+      i Give one non-empty string with no spaces and no `:` (Shiny reads what follows a colon as the type of an input), such as `"scores"`, or `NULL`.
 

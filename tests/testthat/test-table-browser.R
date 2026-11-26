@@ -62,10 +62,10 @@ describe("tip_table() in a browser, on a reactable table", {
 
   it("keeps each row's words after a sort and after a change of page", {
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Voles: 1 wins")
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Foxes: 5 wins")
     expect_identical(page$problems(), character())
   })
@@ -140,7 +140,7 @@ describe("tip_table(id =) in a browser, on a reactable table", {
   it("keeps each id with its data row after a sort and a change of page", {
     row <- ".rt-tbody [role=row]:first-child"
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Voles: 1 wins")
     ends <- function(n) {
       page$wait_until(sprintf(
@@ -151,7 +151,7 @@ describe("tip_table(id =) in a browser, on a reactable table", {
     }
     expect_true(ends("row/5"))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_true(ends("row/2"))
     expect_false(anyDuplicated(all_ids(page)) > 0L)
     expect_identical(page$problems(), character())
@@ -164,15 +164,17 @@ describe("tip_table(id =) in a browser, on a reactable table", {
       page$evaluate(sprintf("document.querySelector('%s').hasAttribute('data-hovercraft-tip-id')", selector))
     }
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /previous/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
-    page$wait_until("document.querySelectorAll('.rt-tbody [role=cell][data-hovercraft-tip-id]').length > 0")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
+    expect_true(page$wait_until(
+      "document.querySelectorAll('.rt-tbody [role=cell][data-hovercraft-tip-id]').length > 0"
+    ))
     expect_false(has(cell(1)))
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s')?.getAttribute('data-hovercraft-tip-id')?.endsWith('cell/3/3')",
       cell(2)
     )))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s')?.getAttribute('data-hovercraft-tip-id')?.endsWith('cell/1/3')",
       cell(2)
@@ -290,8 +292,12 @@ describe("a cell's placement in a browser", {
 owned_stops <- "document.querySelectorAll('tbody [data-hovercraft-tip-kind][tabindex=\"0\"], .rt-tbody [data-hovercraft-tip-kind][tabindex=\"0\"]').length"
 described <- "[...document.querySelectorAll('[data-hovercraft-tip-template]')].every((n) => (n.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).some((id) => document.getElementById(id)))"
 focus <- function(page, selector) {
+  # Let go of the tip a tag held before: it would still be on show when the next one is asked for, and be read as it.
+  page$evaluate("document.activeElement?.blur()")
+  expect_true(page$wait_closed())
   page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-  Sys.sleep(0.8)
+  expect_true(page$wait_open())
+  page$settle(0.1)
   page$shown()
 }
 
@@ -331,7 +337,7 @@ describe("tip_table() with the keyboard, on a DT table", {
     expect_identical(page$press("ArrowUp"), "Games won")
     page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
     page$evaluate("$('table').DataTable().page(1).draw(false)")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, "tbody tr:first-child"), "Foxes: 5 wins")
     expect_identical(page$evaluate(described), TRUE)
@@ -364,10 +370,10 @@ describe("tip_table() with the keyboard, on a reactable table", {
   it("describes every tagged element to a screen reader, also after a sort and a page", {
     expect_identical(page$evaluate(described), TRUE)
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
+    page$settle()
     expect_identical(page$evaluate(described), TRUE)
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, ".rt-tbody [role=row]"), "Foxes: 5 wins")
@@ -394,7 +400,9 @@ describe("tip_table() with reactable's row selection, in a browser", {
 
   it("keeps each row's words and selection after a click on a sorted table", {
     page$evaluate("document.querySelectorAll('.rt-th')[2].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td:nth-child(2)').textContent.startsWith('Voles')")
+    expect_true(page$wait_until(
+      "document.querySelector('.rt-tbody .rt-td:nth-child(2)').textContent.startsWith('Voles')"
+    ))
     expect_identical(page$click(".rt-tbody [role=row] .rt-td:nth-child(2)"), "Voles: 1 wins")
     # Owls, selected before the sort, is on another page now, so only the Voles row shows as selected.
     expect_identical(page$evaluate(selected), "Voles")
@@ -472,7 +480,7 @@ describe("tip_table() with DT's ColReorder, in a browser", {
   it("keeps a column's header and cell tips with the column after it moves", {
     dt_ready(page)
     page$evaluate("$('table').DataTable().colReorder.move(3, 0); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$hover("thead th:first-child"), "About")
     expect_identical(page$hover("tbody tr:first-child td:first-child"), "Note: Note 1")
     expect_identical(page$hover("tbody tr:first-child td:nth-child(2)"), "Team 01: 7 wins")
@@ -516,8 +524,8 @@ describe("tip_table() descriptions on a reactable table that reuses its rows", {
   it("keeps a description with the row and the cell it describes after a sort", {
     expect_true(page$wait_until("document.querySelectorAll('[role=row][aria-describedby]').length >= 5"))
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
+    page$settle()
     got <- jsonlite::fromJSON(page$evaluate(described_by), simplifyVector = FALSE)
     expect_length(got, 5L)
     for (row in got) {
@@ -605,7 +613,7 @@ describe("tip_table(id =) and the keyboard with DT's copies of the header", {
     page <- local_page(file, environment())
     dt_ready(page)
     page$evaluate("$('.dataTables_scrollBody table').DataTable().order([1, 'desc']).draw(); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
     focus(page, ".dataTables_scrollBody tbody tr:first-child")
     expect_identical(page$press("ArrowUp"), "Games won")
@@ -678,7 +686,7 @@ describe("tip_table(marker =) in a browser", {
     expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
     expect_match(corner(rt_page, "[role=columnheader][data-hovercraft-marker]")$image, "linear-gradient", fixed = TRUE)
     rt_page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    rt_page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Hares')")
+    expect_true(rt_page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Hares')"))
     expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
     expect_identical(rt_page$problems(), character())
   })
@@ -803,7 +811,7 @@ describe("tip_table() with a filter row, in a browser", {
     expect_length(page$hover(".rt-td-filter:nth-child(2)"), 0L)
     # A sort re-marks the table; the filter cell stays free, and the header and the rows keep their tips.
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
     expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
     expect_match(page$hover(".rt-tbody .rt-tr:first-child .rt-td:first-child"), "wins$")

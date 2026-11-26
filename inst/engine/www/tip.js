@@ -1,6 +1,6 @@
-// hovercraft tip engine 0.53.0, built from its source; do not edit.
+// hovercraft tip engine 0.59.0, built from its source; do not edit.
 (() => {
-  const VERSION = '0.53.0';
+  const VERSION = '0.59.0';
   if (window.Hovercraft) return;
   const noted = new Set();
   const given = (v) => v !== null && v !== undefined;
@@ -1479,6 +1479,29 @@
       return node;
     };
     const boxes = new WeakMap();
+    function makePin(doc) {
+      const pin = el(doc, 'div', `${CSS} ${CSS}-pin`);
+      pin.setAttribute('role', 'dialog');
+      pin.setAttribute('tabindex', '-1');
+      pin.setAttribute('data-hovercraft-keep', '');
+      pin.setAttribute(`${NAMES.attr}-box`, '');
+      pin.hidden = true;
+      return pin;
+    }
+    function freePin(doc) {
+      const made = boxesOf(doc);
+      const used = pageOf(doc).pins.map((p) => p.box);
+      const free = made.pool.find((s) => !used.includes(s.box));
+      if (free) return free;
+      const box = makePin(doc);
+      const slot = { box, motion: tipMotion(box) };
+      made.pool.push(slot);
+      return slot;
+    }
+    function pinLimit(doc) {
+      const n = Number.parseInt(doc.documentElement.getAttribute(`${NAMES.attr}-pins`), 10);
+      return n >= 1 ? Math.min(n, 10) : 1;
+    }
     function boxesOf(doc) {
       if (boxes.has(doc)) return boxes.get(doc);
       const hint = el(doc, 'div', CSS);
@@ -1486,12 +1509,8 @@
       hint.setAttribute('aria-hidden', 'true');
       hint.setAttribute('data-hovercraft-keep', '');
       hint.hidden = true;
-      const pin = el(doc, 'div', `${CSS} ${CSS}-pin`);
-      pin.setAttribute('role', 'dialog');
-      pin.setAttribute('tabindex', '-1');
-      pin.setAttribute('data-hovercraft-keep', '');
-      pin.hidden = true;
-      for (const b of [hint, pin]) b.setAttribute(`${NAMES.attr}-box`, '');
+      const pin = makePin(doc);
+      hint.setAttribute(`${NAMES.attr}-box`, '');
       const live = el(doc, 'div', `${CSS}-live`);
       live.setAttribute('role', 'status');
       live.setAttribute('aria-live', 'polite');
@@ -1501,8 +1520,8 @@
         typeof view?.ResizeObserver === 'function'
           ? new view.ResizeObserver((entries) => {
               const page = pageOf(doc);
-              page.hint?.place();
-              page.pin?.place();
+              page.hint?.place(true, true);
+              for (const p of page.pins) p.place();
               for (const { target } of entries) resizeLives(target);
             })
           : null;
@@ -1513,7 +1532,9 @@
         sizes,
         hintMotion: tipMotion(hint),
         pinMotion: tipMotion(pin),
+        pool: [{ box: pin, motion: tipMotion(pin) }],
       };
+      made.pool[0].motion = made.pinMotion;
       boxes.set(doc, made);
       return made;
     }
@@ -1666,16 +1687,84 @@
       placement = 'auto',
       arrow = false,
       item = null,
+      keep = null,
     ) {
       const baseGap = gapOf(box);
+      if (!keep) uncap(box);
       const reach = baseGap === GAP ? '' : `${baseGap}px`;
       if (box.style.getPropertyValue('--hc-tip-reach') !== reach) {
         if (reach) box.style.setProperty('--hc-tip-reach', reach);
         else box.style.removeProperty('--hc-tip-reach');
       }
-      const to = placeBox(box, anchor, side, x, beside, line, isPin, placement, arrow ? ARROW : 0, baseGap, item);
-      if (point(box, arrow ? to : null)) return;
-      if (arrow) placeBox(box, anchor, side, x, beside, line, isPin, placement, 0, baseGap, item);
+      const draw = (reach) => {
+        if (!keep || keep.gone) uncap(box);
+        let to = placeBox(box, anchor, side, x, beside, line, isPin, placement, reach, baseGap, item);
+        if (to && keep && !keep.gone) {
+          keepSpot(box, anchor, keep, item, line);
+          if (isPin && (box.dataset.cap || clashes(box))) {
+            keep.gone = true;
+            uncap(box);
+            to = placeBox(box, anchor, side, x, beside, line, isPin, placement, reach, baseGap, item);
+          }
+        }
+        return to;
+      };
+      const to = draw(arrow ? ARROW : 0);
+      const moved = isPin && dodge(box);
+      if (point(box, arrow && !moved ? to : null)) return;
+      if (arrow) {
+        draw(0);
+        if (isPin) dodge(box);
+      }
+    }
+    function olderPins(box) {
+      const { pins } = pageOf(box.ownerDocument);
+      const mine = Math.max(
+        0,
+        pins.findIndex((p) => p.box === box),
+      );
+      const out = [];
+      for (const p of pins.slice(0, mine)) {
+        const left = Number.parseFloat(p.box.style.left);
+        const top = Number.parseFloat(p.box.style.top);
+        const gone = p.into || p.box.hidden || p.box.style.visibility === 'hidden';
+        if (gone || Number.isNaN(left) || Number.isNaN(top)) continue;
+        out.push({ left, top, right: left + p.box.offsetWidth, bottom: top + p.box.offsetHeight });
+      }
+      return out;
+    }
+    function clashes(box) {
+      const left = Number.parseFloat(box.style.left);
+      const top = Number.parseFloat(box.style.top);
+      const [w, h] = [box.offsetWidth, box.offsetHeight];
+      return olderPins(box).some((o) => left < o.right && o.left < left + w && top < o.bottom && o.top < top + h);
+    }
+    function dodge(box) {
+      const doc = box.ownerDocument;
+      const { pins } = pageOf(doc);
+      const at = pins.findIndex((p) => p.box === box);
+      const older = pins
+        .slice(0, at)
+        .filter((p) => !p.into && p.box.style.visibility !== 'hidden')
+        .map((p) => p.box.getBoundingClientRect());
+      const [w, h] = [box.offsetWidth, box.offsetHeight];
+      const hits = (l, t) => older.some((o) => l < o.right && o.left < l + w && t < o.bottom && o.top < t + h);
+      const left = Number.parseFloat(box.style.left);
+      const top = Number.parseFloat(box.style.top);
+      if (Number.isNaN(left) || !hits(left, top)) return false;
+      const { clientWidth: vw, clientHeight: vh } = doc.documentElement;
+      const spot = older
+        .flatMap((o) => [
+          [left, o.bottom + GAP],
+          [o.right + GAP, top],
+          [left, o.top - h - GAP],
+        ])
+        .find(([l, t]) => l >= 4 && t >= 4 && l + w <= vw - 4 && t + h <= vh - 4 && !hits(l, t));
+      if (!spot) return false;
+      box.style.left = `${Math.round(spot[0])}px`;
+      box.style.top = `${Math.round(spot[1])}px`;
+      box.removeAttribute('data-arrow');
+      return true;
     }
     const EDGE = { below: 'top', above: 'bottom', right: 'left', left: 'right' };
     const AT = '--hc-tip-arrow-at';
@@ -1727,6 +1816,62 @@
       const at = `${along}px`;
       if (box.style.getPropertyValue(AT) !== at) box.style.setProperty(AT, at);
       return true;
+    }
+    function spotOf(box, anchor, item, line, how) {
+      const r = aimAt(item, anchor, line) ?? anchor.getBoundingClientRect();
+      const left = Number.parseFloat(box.style.left);
+      const top = Number.parseFloat(box.style.top);
+      if (Number.isNaN(left) || Number.isNaN(top) || !box.dataset.side || box.dataset.side === 'sheet') return null;
+      return {
+        how,
+        side: box.dataset.side,
+        rtl: box.ownerDocument.defaultView.getComputedStyle(anchor).direction === 'rtl',
+        dx: left - r.left,
+        dy: top - r.top,
+        w: box.offsetWidth,
+        h: box.offsetHeight,
+      };
+    }
+    function keepSpot(box, anchor, was, item, line) {
+      const doc = box.ownerDocument;
+      const vw = doc.documentElement.clientWidth;
+      const vh = doc.documentElement.clientHeight;
+      const r = aimAt(item, anchor, line) ?? anchor.getBoundingClientRect();
+      const at = box.scrollTop;
+      uncap(box);
+      const w = box.offsetWidth;
+      let h = box.offsetHeight;
+      const { side } = was;
+      const start = { left: r.left + was.dx, top: r.top + was.dy };
+      const atEnd = side === 'left' || (was.rtl && side !== 'right');
+      let left = atEnd ? start.left + was.w - w : start.left;
+      const bottom = start.top + was.h;
+      const room = side === 'above' ? bottom - 4 : vh - 4 - start.top;
+      if (h > room) {
+        h = Math.max(room, 0);
+        box.style.maxHeight = `${h}px`;
+        box.style.overflowY = 'auto';
+        box.dataset.cap = 'true';
+      }
+      let top = side === 'above' ? bottom - h : start.top;
+      if (w !== was.w || h !== was.h) was.drawn = true;
+      Object.assign(was, { dx: left - r.left, dy: top - r.top, w, h });
+      left = Math.max(4, Math.min(left, vw - w - 4));
+      top = Math.max(4, Math.min(top, vh - h - 4));
+      box.dataset.side = side;
+      box.style.left = `${Math.round(left)}px`;
+      box.style.top = `${Math.round(top)}px`;
+      if (box.dataset.cap) box.scrollTop = at;
+    }
+    function uncap(box) {
+      if (box.dataset.narrow) {
+        delete box.dataset.narrow;
+        box.style.maxWidth = '';
+      }
+      if (!box.dataset.cap) return;
+      delete box.dataset.cap;
+      box.style.maxHeight = '';
+      box.style.overflowY = '';
     }
     function placeBox(box, anchor, side, x, beside, line, isPin, placement, grow, baseGap = GAP, item = null) {
       const g = baseGap + grow;
@@ -1840,8 +1985,6 @@
       const doc = anchor.ownerDocument;
       const vw = doc.documentElement.clientWidth;
       const vh = doc.documentElement.clientHeight;
-      const w = box.offsetWidth;
-      const h = box.offsetHeight;
       const row = line ? line.getBoundingClientRect() : null;
       const at = isPin ? null : x;
       const t = row
@@ -1858,23 +2001,61 @@
       const opposite = { top: 'bottom', bottom: 'top', left: 'right', right: 'left' };
       const g = baseGap + grow;
       const gapX = at === null ? g + 2 : baseGap + 8 + grow;
-      const midX = (t.left + t.right) / 2 - w / 2;
-      const midY = (t.top + t.bottom) / 2 - h / 2;
-      const spots = {
-        top: { left: midX, top: t.top - g - h, fits: t.top - g - h >= 4, side: 'above' },
-        bottom: { left: midX, top: t.bottom + g, fits: t.bottom + g + h <= vh - 4, side: 'below' },
-        left: { left: t.left - gapX - w, top: midY, fits: t.left - gapX - w >= 4, side: 'left' },
-        right: { left: t.right + gapX, top: midY, fits: t.right + gapX + w <= vw - 4, side: 'right' },
+      const older = isPin ? olderPins(box) : [];
+      const sides = (w, h) => {
+        const midX = (t.left + t.right) / 2 - w / 2;
+        const midY = (t.top + t.bottom) / 2 - h / 2;
+        const spots = {
+          top: { left: midX, top: t.top - g - h, fits: t.top - g - h >= 4, side: 'above' },
+          bottom: { left: midX, top: t.bottom + g, fits: t.bottom + g + h <= vh - 4, side: 'below' },
+          left: { left: t.left - gapX - w, top: midY, fits: t.left - gapX - w >= 4, side: 'left' },
+          right: { left: t.right + gapX, top: midY, fits: t.right + gapX + w <= vw - 4, side: 'right' },
+        };
+        const ends = rtl ? ['left', 'right'] : ['right', 'left'];
+        const across = first === 'top' || first === 'bottom' ? ends : ['bottom', 'top'];
+        return [[first, opposite[first]], across].map((names) =>
+          names.map((name) => {
+            const spot = spots[name];
+            return {
+              ...spot,
+              left: Math.max(4, Math.min(spot.left, vw - w - 4)),
+              top: Math.max(4, Math.min(spot.top, vh - h - 4)),
+            };
+          }),
+        );
       };
-      for (const name of [first, opposite[first]]) {
-        const at = spots[name];
-        if (!at.fits) continue;
-        box.dataset.side = at.side;
-        box.style.left = `${Math.round(Math.max(4, Math.min(at.left, vw - w - 4)))}px`;
-        box.style.top = `${Math.round(Math.max(4, Math.min(at.top, vh - h - 4)))}px`;
-        return { l: t.left, r: t.right, t: t.top, b: t.bottom };
+      const over = (spot, w, h) =>
+        older.some((o) => spot.left < o.right && o.left < spot.left + w && spot.top < o.bottom && o.top < spot.top + h);
+      let ruled = false;
+      const find = (every = false) => {
+        const [w, h] = [box.offsetWidth, box.offsetHeight];
+        ruled = false;
+        for (const pair of sides(w, h)) {
+          for (const spot of pair) {
+            if (!spot.fits) continue;
+            if (!over(spot, w, h)) return spot;
+            ruled = true;
+          }
+          if (!ruled && !every) return null;
+        }
+        return null;
+      };
+      let spot = find();
+      if (!spot && ruled) {
+        const w = box.offsetWidth;
+        const narrow = Math.max(Math.min(w, 160), Math.round(w * 0.6));
+        if (narrow < w - 8) {
+          box.style.maxWidth = `${narrow}px`;
+          box.dataset.narrow = 'true';
+          spot = find(true);
+          if (!spot) uncap(box);
+        }
       }
-      return false;
+      if (!spot) return false;
+      box.dataset.side = spot.side;
+      box.style.left = `${Math.round(spot.left)}px`;
+      box.style.top = `${Math.round(spot.top)}px`;
+      return { l: t.left, r: t.right, t: t.top, b: t.bottom };
     }
 
     function room(box, open) {
@@ -2504,7 +2685,17 @@
 
     const pages = new WeakMap();
     function pageOf(doc) {
-      if (!pages.has(doc)) pages.set(doc, { hint: null, pin: null, keys: false, skip: false, skipTimer: 0 });
+      if (!pages.has(doc))
+        pages.set(doc, {
+          hint: null,
+          pins: [],
+          get pin() {
+            return this.pins.at(-1) ?? null;
+          },
+          keys: false,
+          skip: false,
+          skipTimer: 0,
+        });
       return pages.get(doc);
     }
     const PRESS = 'button, a[href], summary, [role="button"]';
@@ -2560,36 +2751,40 @@
           page.hint.handle.hideHint(false, { reason: 'escape', by: 'reader', via: 'key' });
           e.preventDefault();
           e.stopPropagation();
-        } else if (e.key === 'Tab' && e.shiftKey && page.pin && doc.activeElement === page.pin.after()) {
-          const stops = focusables(page.pin.box);
+        } else if (e.key === 'Tab' && e.shiftKey && page.pins.some((q) => doc.activeElement === q.after())) {
+          const stops = focusables(page.pins.find((q) => doc.activeElement === q.after()).box);
           if (!stops.length) return;
           e.preventDefault();
           e.stopPropagation();
           stops.at(-1).focus();
         }
       };
-      const onMove = () => {
-        if (page.hint) page.hint.place(false);
-        if (page.pin) page.pin.place(false);
+      const onMove = (e) => {
+        if (e?.target?.closest?.(`[${NAMES.attr}-box]`)) return;
+        if (page.hint) page.hint.place(false, page.hint.kept === true);
+        for (const q of page.pins) q.place(false);
       };
       const onSize = () => {
         if (page.hint) page.hint.place();
-        if (page.pin) page.pin.place();
+        for (const q of page.pins) {
+          q.place(true, true);
+          resizeLives(q.box);
+        }
         if (page.hint) resizeLives(boxesOf(doc).hint);
-        if (page.pin) resizeLives(page.pin.box);
       };
       const onEscape = (e) => {
         if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || !page.pin) return;
+        const q = page.pins.find((x) => x.box.contains(doc.activeElement)) ?? page.pin;
         const modal = doc.activeElement?.closest?.(MODAL);
-        if (modal && !modal.contains(page.pin.box)) return;
-        page.pin.handle.closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
+        if (modal && !modal.contains(q.box)) return;
+        q.handle.closePin({ reason: 'escape', by: 'reader', via: 'key' }, true, q);
         e.preventDefault();
       };
       view.addEventListener('keydown', onKey, true);
       view.addEventListener('keydown', onEscape);
       doc.addEventListener('scroll', onMove, true);
       view.addEventListener('resize', onSize);
-      env.revealed?.(doc, () => page.pin?.check('reader'));
+      env.revealed?.(doc, () => [...page.pins].map((q) => q.check('reader')));
     }
 
     const reasonOf = (n) =>
@@ -2638,8 +2833,10 @@
       let awayOff = null;
       let seenHint = null;
       let stopHintWatch = null;
-      let stopPinWatch = null;
       let inHint = false;
+      let hintAt = null;
+      let shrunkAt = null;
+      let shrunk = null;
       let lastPointer = 'mouse';
       let hovered = false;
       let gone = false;
@@ -2887,6 +3084,8 @@
         stopHintWatch?.();
         stopHintWatch = null;
         inHint = false;
+        hintAt = null;
+        endShrunk();
         if (page.hint?.handle !== handle) return false;
         const closing = page.hint;
         const delayed = closing.delayed;
@@ -2941,17 +3140,17 @@
         h.text = cut(plainOf(c, true, 'hint'));
         fill(kit.hint, c, { pinned: false });
         redescribeItem(n);
-        h.place();
+        h.place(true, true);
         startLives(kit.hint);
       }
       function checkOpen(by) {
         if (page.hint?.handle === handle) {
           if (page.hint.anchor.isConnected && page.hint.anchor.getClientRects().length) {
             hintCheck();
-            if (page.hint?.handle === handle) page.hint.place();
+            if (page.hint?.handle === handle) page.hint.place(true, true);
           } else hideHint(false, goneInfo());
         }
-        if (page.pin?.handle === handle) page.pin.check(by);
+        for (const q of pinsHere()) q.check(by);
       }
       function watchItem(n) {
         const View = doc.defaultView;
@@ -2992,11 +3191,12 @@
         clearTimeout(page.skipTimer);
       }
       function showHint(n, how, who = 'reader') {
-        if (page.pin?.handle === handle && page.pin.anchor() === n) return;
+        if (pinsHere().some((q) => q.anchor() === n)) return;
         const c = contentFor(n);
         if (!c) return;
         const resumed = page.skip ? (page.lastHint ?? null) : null;
         const again = page.hint?.handle === handle && page.hint.anchor === n;
+        if (again) endShrunk();
         const held = how === 'command' || (again && page.hint.held === true);
         const before = again ? null : page.hint;
         if (before) before.handle.hideHint(false, { reason: 'replaced', by: who, via: how, keep: n });
@@ -3018,9 +3218,17 @@
           kind: c.rec.kind ?? 'row',
           text,
           delayed: c.blocks.length > 0,
-          place: (restyle = true) => {
+          place: (restyle = true, keep = false) => {
             if (restyle) copyMarks(kit.hint, n);
-            place(kit.hint, anchorOf(n), s, x, by, atPointer(n) ? n : null, false, placementOf(n), arrowOf(n), n);
+            const at = anchorOf(n);
+            const line = atPointer(n) ? n : null;
+            const how = `${placementOf(n)}|${arrowOf(n)}|${line ? 1 : 0}`;
+            const was = keep && page.hint.spot?.how === how ? page.hint.spot : null;
+            place(kit.hint, at, s, x, by, line, false, placementOf(n), arrowOf(n), n, was);
+            if (was) {
+              if (was.drawn) page.hint.kept = true;
+            } else if (kit.hint.style.visibility !== 'hidden') page.hint.spot = spotOf(kit.hint, at, n, line, how);
+            if (keep) shrinkAway();
           },
         };
         markOpen(n, 'hint');
@@ -3060,6 +3268,7 @@
       }
       const over = (e) => {
         if (e.pointerType === 'touch') return;
+        if (shrunk && shrunkAt && e.clientX === shrunkAt[0] && e.clientY === shrunkAt[1]) return;
         const n = itemAt(e.target);
         if (!n || hitOwns(n)) return;
         hovered = true;
@@ -3077,12 +3286,64 @@
         if (kit.hint.contains(e.relatedTarget)) return;
         leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
       };
-      const hintOver = () => {
-        if (page.hint?.handle !== handle) return;
-        clearTimeout(leave);
-        inHint = true;
+      const overBox = (x, y) => {
+        const left = Number.parseFloat(kit.hint.style.left);
+        const top = Number.parseFloat(kit.hint.style.top);
+        return x >= left && x <= left + kit.hint.offsetWidth && y >= top && y <= top + kit.hint.offsetHeight;
       };
+      const hintOver = (e) => {
+        if (page.hint?.handle !== handle) return;
+        if (shrunk && e?.clientX !== undefined && !overBox(e.clientX, e.clientY)) return;
+        clearTimeout(leave);
+        endShrunk();
+        inHint = true;
+        if (e?.clientX !== undefined) hintAt = [e.clientX, e.clientY];
+      };
+      const hintMove = (e) => {
+        hintAt = [e.clientX, e.clientY];
+      };
+      function shrinkAway() {
+        if (!inHint || !hintAt || shrunk || page.hint?.how === 'tap') return;
+        const [x, y] = hintAt;
+        if (overBox(x, y)) return;
+        const away = (e) => {
+          if (e.clientX === x && e.clientY === y) return;
+          endShrunk();
+          const n = page.hint?.handle === handle ? page.hint.anchor : null;
+          const other = itemAt(e.target);
+          if (n && e.pointerType !== 'touch' && !kit.hint.contains(e.target) && other && other !== n) {
+            inHint = false;
+            over(e);
+            return;
+          }
+          if (n && kit.hint.contains(e.target)) {
+            inHint = true;
+            hintAt = [e.clientX, e.clientY];
+            return;
+          }
+          inHint = false;
+          if (
+            !n ||
+            e.pointerType === 'touch' ||
+            partOf(e.target) ||
+            n.contains(e.target) ||
+            anchorOf(n).contains(e.target)
+          )
+            return;
+          leave = setTimeout(() => hideHint(true, closeWhy('leave')), LEAVE_MS);
+        };
+        doc.addEventListener('pointermove', away, true);
+        shrunkAt = [x, y];
+        inHint = false;
+        shrunk = () => doc.removeEventListener('pointermove', away, true);
+      }
+      function endShrunk() {
+        shrunk?.();
+        shrunk = null;
+        shrunkAt = null;
+      }
       const hintOut = (e) => {
+        if (shrunk) return;
         if (page.hint?.handle !== handle || kit.hint.contains(e.relatedTarget) || partOf(e.relatedTarget)) return;
         if (e.pointerType === 'touch' || page.hint.how === 'tap') return;
         const n = page.hint.anchor;
@@ -3206,19 +3467,24 @@
         e.preventDefault();
         e.stopPropagation();
       };
+      const atFocus = () => {
+        const at = doc.activeElement;
+        return pinsHere().find((q) => q.focusAt() === at || q.box.contains(at)) ?? pinsHere().at(-1);
+      };
       const keys = (e) => {
         if (e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape') {
           if (page.hint?.handle === handle) {
             hideHint(false, { reason: 'escape', by: 'reader', via: 'key' });
             used(e);
-          } else if (page.pin?.handle === handle && itemAt(doc.activeElement)) {
-            closePin({ reason: 'escape', by: 'reader', via: 'key' });
+          } else if (pinsHere().length && itemAt(doc.activeElement)) {
+            closePin({ reason: 'escape', by: 'reader', via: 'key' }, false, atFocus());
             used(e);
           }
-        } else if (e.key === 'Tab' && !e.shiftKey && page.pin?.handle === handle) {
-          const stops = focusables(page.pin.box);
-          if (stops.length && page.pin.focusAt() === doc.activeElement) {
+        } else if (e.key === 'Tab' && !e.shiftKey) {
+          const q = pinsHere().find((x) => x.focusAt() === doc.activeElement);
+          const stops = q ? focusables(q.box) : [];
+          if (stops.length) {
             used(e);
             stops[0].focus();
           }
@@ -3226,34 +3492,36 @@
       };
       const escapeInPart = (e) => {
         if (e.key !== 'Escape' || e.defaultPrevented || e.isComposing || e.keyCode === 229) return;
-        if (page.pin?.handle !== handle) return;
-        closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
+        if (!pinsHere().length) return;
+        closePin({ reason: 'escape', by: 'reader', via: 'key' }, true, atFocus());
         used(e);
       };
       const tipKeys = (e) => {
-        if (page.pin?.handle !== handle || e.isComposing || e.keyCode === 229) return;
+        const q = pinsHere().find((x) => x.box === e.currentTarget);
+        if (!q || e.isComposing || e.keyCode === 229) return;
         if (e.key === 'Escape') {
           if (e.defaultPrevented) return;
           used(e);
-          closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
+          closePin({ reason: 'escape', by: 'reader', via: 'key' }, true, q);
         } else if (e.key === 'Tab') {
-          const stops = focusables(page.pin.box);
+          const stops = focusables(q.box);
           const at = stops.indexOf(doc.activeElement) + (e.shiftKey ? -1 : 1);
           const stop = () =>
-            (owner === doc.documentElement ? null : owner.querySelector('[tabindex="0"]')) ?? page.pin.focusAt();
+            (owner === doc.documentElement ? null : owner.querySelector('[tabindex="0"]')) ?? q.focusAt();
           const to =
             at >= 0 && at < stops.length
               ? stops[at]
               : e.shiftKey
-                ? page.pin.focusAt()
-                : (page.pin.after() ?? (page.pin.box.parentElement?.closest(MODAL) ? stop() : null));
+                ? q.focusAt()
+                : (q.after() ?? (q.box.parentElement?.closest(MODAL) ? stop() : null));
           if (!to) return;
           to.focus();
           if (doc.activeElement === to) used(e);
         }
       };
 
-      const pinned = () => (page.pin?.handle === handle ? page.pin.id : null);
+      const pinsHere = () => page.pins.filter((q) => q.handle === handle);
+      const pinned = () => pinsHere().at(-1)?.id ?? null;
       function emitTip(state, id, kind, reason, text, info, from, item = null, slots = []) {
         env.emit(
           host,
@@ -3262,7 +3530,7 @@
             state,
             id,
             kind,
-            ids: state === 'closed' ? [] : [id],
+            ids: page.pins.filter((q) => state !== 'closed' || q.id !== id).map((q) => q.id),
             reason,
             text,
             by: info.by ?? 'host',
@@ -3277,7 +3545,7 @@
         if (p.frame) return;
         const send = () => {
           p.frame = 0;
-          if (page.pin !== p) return;
+          if (!page.pins.includes(p)) return;
           emitTip('updated', p.id, p.kind, null, p.text, { by: 'data', via: null }, p.id, p.item(), p.slots);
         };
         const view = doc.defaultView;
@@ -3288,18 +3556,25 @@
         if (p.frame) doc.defaultView?.cancelAnimationFrame?.(p.frame);
         p.frame = 0;
       }
-      function closePin(info = {}, refocus = false) {
-        const p = page.pin;
-        if (!p || p.handle !== handle) return false;
+      const shutAll = (info = {}, keep = () => true) => {
+        const why = { reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null };
+        return pinsHere()
+          .filter(keep)
+          .map((q) => closePin(why, false, q))
+          .includes(true);
+      };
+      function closePin(info = {}, refocus = false, which = null) {
+        const p = which ?? pinsHere().at(-1);
+        if (!p || p.handle !== handle || !page.pins.includes(p)) return false;
         const anchor = p.focusAt();
-        page.pin = null;
+        page.pins.splice(page.pins.indexOf(p), 1);
         cancelFrame(p);
         p.stop();
         const hadFocus = p.box.contains(doc.activeElement);
         kit.sizes?.unobserve(p.box);
-        room(p.box, false);
+        if (p.sheet) room(p.box, false);
         endLives(p.box, { reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null });
-        kit.pinMotion.set(false);
+        p.motion.set(false);
         unclass(p.box);
         emitTip('closed', p.id, p.kind, info.reason ?? 'host', p.text, info, p.id, p.item(), p.slots);
         for (const slot of p.box.querySelectorAll(`.${CSS}-host`)) slot.remove();
@@ -3311,6 +3586,7 @@
         }
         return true;
       }
+      const inTip = (t) => !!t.closest?.(`.${CSS}-pin`);
       const containerFor = (c) => {
         if (c == null) return null;
         const hit = c.nodeType === 1 ? itemAt(c) : null;
@@ -3333,12 +3609,21 @@
         }
         let into = containerFor(info.into);
         if (into === false) return null;
-        if (pinned() === key) return info.into === undefined || page.pin.move(into);
+        const open = pinsHere().find((q) => q.id === key);
+        if (open) return info.into === undefined || open.move(into);
         const c = n ? contentFor(n) : null;
         if (!c?.blocks.length) return false;
-        const from = pinned();
         const by = info.by ?? 'reader';
-        if (page.pin) page.pin.handle.closePin({ reason: 'replaced', by, via: info.via ?? null });
+        let replaced = null;
+        const sheet = !into && doc.documentElement.clientWidth < PHONE;
+        const out = new Set(page.pins.filter((q) => sheet && !q.into));
+        for (const q of page.pins) if (page.pins.length - out.size >= pinLimit(doc)) out.add(q);
+        for (const old of out) {
+          replaced ??= old;
+          old.handle.closePin({ reason: 'replaced', by, via: info.via ?? null }, false, old);
+        }
+        const from = replaced?.handle === handle ? replaced.id : null;
+        const seed = page.hint?.anchor === n && !pinBeside(n) && !atPointer(n) ? { ...page.hint.spot } : null;
         if (page.hint) page.hint.handle.hideHint(false, { reason: 'pinned', by, via: info.via ?? null, keep: n });
         const rec = c.rec;
         const kind = rec.kind ?? 'row';
@@ -3346,14 +3631,18 @@
         const name = titleOf(c) || String(rec.label ?? key);
         const s = sideOf();
         const x = info.via === 'click' ? xOf(n) : null;
-        const pbox = kit.pin;
+        const slot = freePin(doc);
+        const pbox = slot.box;
+        uncap(pbox);
+        let isSheet = false;
         const seat = (at = n) => {
           pbox.setAttribute('role', into ? 'region' : 'dialog');
           if (!into) {
             pbox.removeAttribute('data-side');
             return mountNear(pbox, at);
           }
-          room(pbox, false);
+          if (isSheet) room(pbox, false);
+          isSheet = false;
           drop(pbox);
           pbox.removeAttribute('popover');
           if (pbox.parentNode !== into) into.append(pbox);
@@ -3366,7 +3655,7 @@
         looks(pbox, n);
         const onCopy = (code, field, block, status, via) =>
           copyText(doc, code, pbox, (ok) => {
-            const item = page.pin?.item() ?? n;
+            const item = p.item();
             env.emit(host, 'hovercraft:copy', { id: key, kind, field, block, ok, by: 'reader', via }, item);
             status.textContent = '';
             clearTimeout(status.tipTimer);
@@ -3381,51 +3670,60 @@
         fill(pbox, c, { pinned: true, onCopy });
         pbox.setAttribute('aria-label', name);
         const close = pbox.querySelector(`.${CSS}-close`);
-        const onClose = (e) =>
-          closePin({ reason: 'button', by: 'reader', via: e.detail === 0 ? 'key' : 'click' }, true);
+        const shut = (info, refocus = false) => closePin(info, refocus, p);
+        const isOpen = () => page.pins.includes(p);
+        const onClose = (e) => shut({ reason: 'button', by: 'reader', via: e.detail === 0 ? 'key' : 'click' }, true);
         close?.addEventListener('click', onClose);
         const offOutside = env.outside(owner, (e) => {
           const hit = itemAt(e.target);
-          if (into || e === born || pbox.contains(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
-          closePin({ reason: 'outside', by: 'reader', via: 'click' });
+          if (into || e === born || inTip(e.target) || partOf(e.target) || (hit && canPin(hit))) return;
+          shut({ reason: 'outside', by: 'reader', via: 'click' });
         });
         const inside = (e) => {
           const hit = itemAt(e.target);
-          if (into || e === born || (hit && canPin(hit)) || pbox.contains(e.target) || partOf(e.target)) return;
+          if (into || e === born || (hit && canPin(hit)) || inTip(e.target) || partOf(e.target)) return;
           if (e.target.closest?.('[data-hovercraft-keep]')) return;
-          closePin({ reason: 'outside', by: 'reader', via: 'click' });
+          shut({ reason: 'outside', by: 'reader', via: 'click' });
         };
         owner.addEventListener('click', inside);
         pbox.addEventListener('keydown', tipKeys);
         const around = n.closest('dialog');
         const entry = {
           owner,
-          close: (i = {}) => closePin({ reason: 'below', by: i.by ?? 'reader', via: i.via ?? null }),
+          close: (i = {}) => shut({ reason: 'below', by: i.by ?? 'reader', via: i.via ?? null }),
         };
         const stack = around ? env.layer(doc) : null;
         stack?.push(entry);
-        const onAround = () => closePin({ reason: 'below', by: 'reader', via: null });
+        const onAround = () => shut({ reason: 'below', by: 'reader', via: null });
         around?.addEventListener('close', onAround);
         const onModalEscape = (e) => {
           used(e);
-          closePin({ reason: 'escape', by: 'reader', via: 'key' }, true);
+          shut({ reason: 'escape', by: 'reader', via: 'key' }, true);
         };
-        const offModal = inModal(pbox, () => page.pin?.handle === handle, onAround, onModalEscape, n.closest(MODAL));
+        const offModal = inModal(pbox, () => isOpen(), onAround, onModalEscape, n.closest(MODAL));
         let anchorEl = n;
         let marked = n;
         let clipped = false;
         const view = doc.defaultView;
+        const vanished = (a) => {
+          if (!a?.isConnected) return true;
+          if (a.getClientRects().length) return false;
+          if (view?.getComputedStyle(a).display !== 'contents') return true;
+          const held = doc.createRange();
+          held.selectNodeContents(a);
+          return !held.getClientRects().length;
+        };
         const seen =
           typeof view?.IntersectionObserver === 'function'
             ? new view.IntersectionObserver((list) => {
-                if (page.pin?.handle !== handle) return;
-                const a = page.pin.anchor();
-                if (!a?.getClientRects().length) {
-                  closePin({ reason: 'gone', by: 'data', via: null });
+                if (!isOpen()) return;
+                const a = p.anchor();
+                if (vanished(a)) {
+                  shut({ reason: 'gone', by: 'data', via: null });
                   return;
                 }
                 clipped = !list.at(-1).isIntersecting;
-                page.pin.place();
+                p.place();
               })
             : null;
         seen?.observe(n);
@@ -3439,7 +3737,11 @@
           'style',
           'hidden',
         ];
-        const marks = new MutationObserver(() => page.pin?.handle === handle && page.pin.place());
+        const marks = new MutationObserver(() => {
+          if (!isOpen()) return;
+          if (vanished(p.anchor())) shut({ reason: 'gone', by: 'data', via: null });
+          else p.place();
+        });
         const watchLine = (a) => {
           marks.disconnect();
           for (let node = a; node && node.nodeType === 1; node = node.parentElement) {
@@ -3447,8 +3749,13 @@
           }
         };
         watchLine(n);
-        page.pin = {
+        const p = {
           handle,
+          motion: slot.motion,
+          unwatch: null,
+          get sheet() {
+            return isSheet;
+          },
           id: key,
           kind,
           text,
@@ -3470,14 +3777,14 @@
                 marked = anchorEl;
                 markOpen(marked, 'pin');
                 watchLine(anchorEl);
-                stopPinWatch?.();
-                stopPinWatch = watchItem(anchorEl);
+                p.unwatch?.();
+                p.unwatch = watchItem(anchorEl);
               }
             }
             return anchorEl;
           },
           focusAt: () => {
-            const a = page.pin?.anchor();
+            const a = p.anchor();
             return a ? focusOf(a) : null;
           },
           get into() {
@@ -3485,52 +3792,58 @@
           },
           move: (to) => {
             into = to;
-            seat(page.pin.anchor());
+            seat(p.anchor());
             lift(pbox);
-            page.pin.place();
+            p.place();
             return true;
           },
           item: () => (anchorEl?.isConnected ? anchorEl : n),
           after: () => {
             if (into) return nextAfter(doc, pbox);
-            const stop = page.pin?.focusAt();
+            const stop = p.focusAt();
             const perItem = typeof focusAt === 'function' || owner === doc.documentElement;
             return nextAfter(doc, perItem && stop ? stop : owner);
           },
-          place: (restyle = true) => {
-            const a = page.pin?.anchor();
+          spot: seed?.side ? seed : null,
+          place: (restyle = true, fresh = false) => {
+            const a = p.anchor();
             if (!a) return;
             if (restyle) copyMarks(pbox, a);
             if (into) return;
-            place(pbox, anchorOf(a), s, x, pinBeside(a), atPointer(a) ? a : null, true, placementOf(a), arrowOf(a), a);
+            const line = atPointer(a) ? a : null;
+            const how = `${placementOf(a)}|${arrowOf(a)}|${line ? 1 : 0}`;
+            if (fresh || p.spot?.how !== how) p.spot = null;
+            place(pbox, anchorOf(a), s, x, pinBeside(a), line, true, placementOf(a), arrowOf(a), a, p.spot);
+            if (p.spot?.gone) p.spot = null;
             if (clipped) pbox.style.visibility = 'hidden';
-            room(pbox, pbox.dataset.side === 'sheet' && pbox.style.visibility !== 'hidden');
+            isSheet = pbox.dataset.side === 'sheet';
+            room(pbox, isSheet && pbox.style.visibility !== 'hidden');
             if (pbox.style.visibility === 'hidden' && pbox.contains(doc.activeElement)) {
               focusOf(a).focus({ preventScroll: true });
               if (pbox.contains(doc.activeElement)) focusRoot(rootEl());
             }
           },
           check: (by) => {
-            const a = page.pin?.anchor();
-            if (!a?.getClientRects().length) closePin({ reason: 'gone', by, via: null });
+            if (!isOpen()) return;
+            const a = p.anchor();
+            if (vanished(a)) shut({ reason: 'gone', by, via: null });
             else {
               const fresh = contentFor(a);
               if (!fresh?.blocks.length) {
-                closePin({ reason: 'gone', by: 'data', via: null });
+                shut({ reason: 'gone', by: 'data', via: null });
                 return;
               }
               const slots = slotsOf(fresh);
-              const old = page.pin.slots;
+              const old = p.slots;
               const same = slots.length === old.length && slots.every((id) => old.includes(id));
               const sig = keyOf(fresh);
-              if (sig !== page.pin.sig || !same) {
-                const p = page.pin;
+              if (sig !== p.sig || !same) {
                 const data = { reason: 'redraw', by: 'data', via: null };
                 if (!same) {
                   cancelFrame(p);
                   endLives(pbox, data);
                   emitTip('closed', key, kind, 'redraw', p.text, data, key, a, old);
-                  if (page.pin !== p) return;
+                  if (!isOpen()) return;
                 }
                 p.sig = sig;
                 p.text = cut(plainOf(fresh));
@@ -3552,22 +3865,22 @@
                     placementOf(a),
                     arrowOf(a),
                     a,
+                    p.spot,
                   );
                 }
                 startLives(pbox);
                 if (same && slots.length) resizeLives(pbox, true);
                 if (!same) {
                   emitTip('pinned', key, kind, null, p.text, { by: 'data', via: null }, key, a, slots);
-                  if (page.pin !== p) return;
+                  if (!isOpen()) return;
                 } else announce(p);
               }
-              page.pin?.place();
+              p.place();
             }
           },
           stop: () => {
             unmarkOpen(marked, 'pin');
-            stopPinWatch?.();
-            stopPinWatch = null;
+            p.unwatch?.();
             seen?.disconnect();
             marks.disconnect();
             offOutside();
@@ -3578,19 +3891,19 @@
             stack?.remove(entry);
           },
         };
+        page.pins.push(p);
         markOpen(n, 'pin');
-        kit.pinMotion.set(true);
-        stopPinWatch?.();
-        stopPinWatch = watchItem(n);
+        slot.motion.set(true);
+        p.unwatch = watchItem(n);
         stopsOff(pbox);
-        page.pin.place();
+        p.place();
         if (pbox.dataset.side === 'sheet') reveal(n, pbox);
         startLives(pbox);
         kit.sizes?.observe(pbox);
         listenPage(doc);
-        emitTip('pinned', key, kind, null, text, { by, via: info.via ?? null }, from, n, page.pin.slots);
+        emitTip('pinned', key, kind, null, text, { by, via: info.via ?? null }, from, n, p.slots);
         say(doc, formatLabel(c.labels.pinned, { label: name }), n);
-        kit.pinMotion.enter();
+        slot.motion.enter();
         return true;
       }
 
@@ -3604,10 +3917,11 @@
       box.addEventListener('focusout', blur);
       box.addEventListener('click', tap);
       kit.hint.addEventListener('pointerover', hintOver);
+      kit.hint.addEventListener('pointermove', hintMove);
       kit.hint.addEventListener('pointerout', hintOut);
       kit.hint.addEventListener('mousedown', hintDown);
       const partOver = (e) => {
-        if (partOf(e.target)) hintOver();
+        if (partOf(e.target)) hintOver(e);
       };
       const partOut = (e) => {
         if (partOf(e.target)) hintOut(e);
@@ -3632,7 +3946,7 @@
           note('show|item', 'show(el): el is not an item of this part.');
           return false;
         }
-        if (page.pin?.handle === handle && page.pin.anchor() === n) return true;
+        if (pinsHere().some((q) => q.anchor() === n)) return true;
         if (page.hint?.handle === handle && page.hint.anchor === n) {
           page.hint.held = true;
           return true;
@@ -3677,13 +3991,13 @@
         hideHint,
         closePin,
         pin: (id, info) => pinTo(id, info),
-        close: (info = {}) => closePin({ reason: info.reason ?? 'host', by: info.by ?? 'host', via: info.via ?? null }),
+        close: (info = {}) => shutAll(info),
         get pinned() {
           return pinned();
         },
-        get inPlace() {
-          return page.pin?.handle === handle && !!page.pin.into;
-        },
+        has: (id) => pinsHere().some((q) => q.id === String(id)),
+        unpin: (id, info) => shutAll(info, (q) => q.id === String(id)),
+        away: (info) => shutAll(info, (q) => !q.into),
         element: (id) => byId(id),
         box,
         pinElement: (n, info) => pinTo(recOf(n)?.id ?? '', info, n),
@@ -3714,7 +4028,7 @@
           gone = true;
           handles.delete(handle);
           hideHint(false, goneInfo());
-          closePin({ reason: 'gone', by: 'data', via: null });
+          for (const q of pinsHere()) closePin({ reason: 'gone', by: 'data', via: null }, false, q);
           watch.disconnect();
           undescribe();
           box.removeEventListener('pointerover', over);
@@ -3727,6 +4041,7 @@
           box.removeEventListener('focusout', blur);
           box.removeEventListener('click', tap);
           kit.hint.removeEventListener('pointerover', hintOver);
+          kit.hint.removeEventListener('pointermove', hintMove);
           kit.hint.removeEventListener('pointerout', hintOut);
           kit.hint.removeEventListener('mousedown', hintDown);
           doc.removeEventListener('pointerover', partOver);
@@ -3883,7 +4198,7 @@
         return item?.matches(PIN) ? item : null;
       };
       const flip = (n, via) => {
-        if (t.pinned === idOf(n)) t.close({ reason: 'select', by: 'reader', via });
+        if (h.has(idOf(n))) h.unpin(idOf(n), { reason: 'select', by: 'reader', via });
         else h.pinElement(n, { by: 'reader', via });
       };
       const onClick = (e) => {
@@ -3905,8 +4220,7 @@
       const stopClick = (e) => {
         const n = blocked(e.target);
         if (!n) return;
-        if (t.pinned !== null && !pinnable(n) && !h.inPlace)
-          t.close({ reason: 'outside', by: 'reader', via: e.detail === 0 ? 'key' : 'click' });
+        if (!pinnable(n)) h.away({ reason: 'outside', by: 'reader', via: e.detail === 0 ? 'key' : 'click' });
         e.preventDefault();
         e.stopPropagation();
         h.showTap(n, e.detail !== 0);
@@ -3917,7 +4231,9 @@
         e.stopPropagation();
       };
       const NAME_ATTRS = ['aria-label', 'aria-labelledby'];
-      const reasons = new MutationObserver((records) => {
+      const reasons = new MutationObserver((seen) => {
+        const records = seen.filter((r) => r.oldValue !== r.target.getAttribute(r.attributeName));
+        if (!records.length) return;
         if (records.every((r) => NAME_ATTRS.includes(r.attributeName) && !h.itemAt(r.target))) return;
         for (const r of records) {
           const n = r.target;
@@ -3934,6 +4250,7 @@
       });
       reasons.observe(at, {
         attributes: true,
+        attributeOldValue: true,
         subtree: true,
         attributeFilter: [REASON, 'data-reason', 'aria-disabled', 'disabled', ...NAME_ATTRS],
       });
@@ -4003,13 +4320,17 @@
             note(`pin|${no}`, `pin(el): it cannot pin: ${no ?? "it is not one of this scope's tips"}.`);
             return false;
           }
-          if (t.pinned === idOf(n) && opts?.into === undefined) return true;
+          if (h.has(idOf(n)) && opts?.into === undefined) return true;
           const ok = h.pinElement(n, { ...pinWho(opts), into: opts?.into });
           if (ok === false && n.getAttribute('aria-disabled') !== 'true')
             note('pin|tip', 'pin(el): its tip has no content to pin.');
           return !!ok;
         },
-        close: () => t.close({ reason: 'host', by: 'host', via: 'command' }),
+        close: (el) => {
+          const by = { reason: 'host', by: 'host', via: 'command' };
+          const n = el == null ? null : h.itemAt(el);
+          return el == null ? t.close(by) : !!n && h.unpin(idOf(n), by);
+        },
       });
       doors.set(at, door);
       liveDoors.add(door);
@@ -4058,7 +4379,8 @@
     }
     const commandPin = (el, opts) => doorFor(el, 'pin')?.pin(el, opts) ?? false;
     const commandHide = () => [...liveDoors].map((d) => d.hide()).includes(true);
-    const commandClose = () => [...liveDoors].map((d) => d.close()).includes(true);
+    const commandClose = (el) =>
+      el == null ? [...liveDoors].map((d) => d.close()).includes(true) : (doorFor(el, 'close')?.close(el) ?? false);
 
     return Object.freeze({
       tips,

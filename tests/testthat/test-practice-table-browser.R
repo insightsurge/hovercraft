@@ -66,22 +66,15 @@ describe("table proxies and updates in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   hover_in_view <- function(selector) {
     page$evaluate(sprintf(
       "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     ))
-    Sys.sleep(0.1)
+    page$settle(0.1)
     page$hover(selector)
   }
 
@@ -195,7 +188,7 @@ describe("tip_table() follows the data when the table is updated", {
   })
 
   it("follows DT::replaceData() with the user's own data frame while a sort is active, in server mode", {
-    page$evaluate("document.getElementById('replace').click()")
+    page$click_now("#replace")
     # Still sorted by wins, high to low: Kites (15) leads the new data.
     expect_true(page$wait_until(first_starts("dt_server", "Kites")))
     expect_identical(hover_in_view(first_cell("dt_server")), "Kites: 15 wins")
@@ -365,12 +358,30 @@ describe("tip_table() leaves DT's inputs as they are without it", {
       page_rows,
       selected
     )
+    started <- Sys.time()
     ok <- page$wait_until(sprintf(
       "(() => { const t = (document.getElementById('%s')?.textContent ?? '').trim(); return !t.includes('=false') && !t.includes('=FALSE') && new RegExp(%s).test(t) })()",
       id,
       jsonlite::toJSON(want, auto_unbox = TRUE)
     ))
-    expect_true(ok, info = paste(id, report(id)))
+    waited <- as.numeric(difftime(Sys.time(), started, units = "secs"))
+    # A failed wait says how long it waited, the limit it had, what it wanted and what both report lines say now, so a
+    # slow page (the wait ran out while the page was still changing) can be told from inputs that really differ.
+    expect_true(
+      ok,
+      info = sprintf(
+        "%s: waited %.1f s of %.0f s; wanted /%s/; report: %s; report_names: %s",
+        id,
+        waited,
+        browser_timeout / 1000,
+        want,
+        report("report"),
+        report("report_names")
+      )
+    )
+    # The two tables send their inputs one after the other, so the line can agree for a moment before the last one
+    # arrives: read it again once the page is quiet.
+    page$settle()
     expect_false(grepl("=FALSE", report(id), fixed = TRUE), info = paste(id, report(id)))
   }
   # A call on every table's DataTable; `%s` is the position of the wins column, which row names move by one.
@@ -422,7 +433,7 @@ describe("tip_table() leaves DT's inputs as they are without it", {
   })
 
   it("reports the same inputs after DT::replaceData() with the user's data frame and a new selection", {
-    page$evaluate("document.getElementById('replace').click()")
+    page$click_now("#replace")
     # Still sorted by wins: Kites (15), Zürich ✓ (12), Hawks (8) | Wrens (4), Extra (3); row 2 selected by the app.
     wait_for("report", cols = 3, page_rows = "4,1,2", selected = "2")
     wait_for("report_names", cols = 4, page_rows = "4,1,2", selected = "2")
@@ -434,7 +445,7 @@ describe("tip_table() leaves DT's inputs as they are without it", {
   it("reports the same inputs after replaceData(resetPaging = FALSE) on the second page", {
     each("page(1).draw(false)")
     wait_for("report", cols = 3, page_rows = "3,5", selected = "2")
-    page$evaluate("document.getElementById('replace_again').click()")
+    page$click_now("#replace_again")
     # The page stays the second one, the new names show, and the selection is cleared.
     expect_true(page$wait_until(first_starts("dts", "N-Wrens")))
     wait_for("report", cols = 3, page_rows = "3,5")

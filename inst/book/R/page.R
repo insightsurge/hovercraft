@@ -128,7 +128,7 @@ book_page <- function(query) {
       htmltools::tags$script(src = "shared.js"),
       htmltools::tags$script(src = "book.js")
     ),
-    hovercraft::tip_dependency(style = hovercraft::tip_style(query$preset, motion = query$motion)),
+    hovercraft::use_hovercraft(style = hovercraft::tip_style(query$preset, motion = query$motion)),
     book_boot(query),
     htmltools::a(class = "vh skip", href = "#start", "Skip to the first section"),
     htmltools::tags$header(

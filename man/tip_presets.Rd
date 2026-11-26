@@ -11,8 +11,8 @@ A data frame with one row for each preset and the columns \code{name}, \code{lab
 \code{about} (one sentence on what it is for).
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-Lists the presets the tip engine ships, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} and \code{\link[=tip_dependency]{tip_dependency()}}, or as the first
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
+Lists the presets the tip engine ships, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} and \code{\link[=use_hovercraft]{use_hovercraft()}}, or as the first
 argument of \code{\link[=tip_style]{tip_style()}}. The name of a preset is stable; its values may be tuned between releases.
 }
 \examples{
@@ -22,8 +22,8 @@ tip_presets()
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link{tip_server}},
@@ -31,6 +31,7 @@ Other tooltips:
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

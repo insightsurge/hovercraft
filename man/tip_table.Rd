@@ -14,8 +14,7 @@ tip_table(
   placement = NULL,
   marker = NULL,
   id = NULL,
-  pin = FALSE,
-  events = NULL
+  max_pins = NULL
 )
 }
 \arguments{
@@ -23,18 +22,24 @@ tip_table(
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{rows}{One string, \code{\link[=tip_template]{tip_template()}} or \code{\link[=tip_spec]{tip_spec()}} for every row, or \code{NULL}. \code{NA} and \code{""} are no tip.}
+\item{rows}{One string, \code{\link[=tip_template]{tip_template()}} or \code{\link[=tip_spec]{tip_spec()}} for every row, or \code{NULL}. \code{NA} and \code{""} are no tip. A
+\code{\link[=tip_spec]{tip_spec()}} here may also set \code{pin} and \code{events}. A \code{\link[=tip_template]{tip_template()}} is given as an object: the name of a template
+made with \code{\link[=tip_define]{tip_define()}} stops with an error that says so.}
 
-\item{cells}{A named vector or list, one entry per column, for the cells of that column. Each entry is a string, a
+\item{cells}{A named vector or list, one entry per column (by the column's name; a name given twice is an error), for
+the cells of that column. Each entry is a string, a
 \code{\link[=tip_template]{tip_template()}} or a \code{\link[=tip_spec]{tip_spec()}}; \code{NA} and \code{""} give that column no tip. Use a list to mix them:
 \code{list(status = tip_spec("{{ note }}", placement = "right"), wins = "{{ wins }} wins")}.}
 
-\item{headers}{The same for the header cells; words only, so a \code{\link[=tip_spec]{tip_spec()}} here holds words with no placeholders.}
+\item{headers}{The same for the header cells; a header has no row to read from, so a \code{\link[=tip_spec]{tip_spec()}} here holds words
+or a \code{\link[=tip_template]{tip_template()}} with no placeholders.}
 
 \item{style}{How every tip in the table looks, or \code{NULL} (the default) to take the page's: whatever \code{style} takes in
 \code{\link[=tip_on]{tip_on()}} (a preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A \code{\link[=tip_spec]{tip_spec()}} with its own
 \code{style} beats it for that target. A row's own style also reaches the cells in that row that have none of their
-own, because the tip engine reads the nearest tagged element.}
+own, because the tip engine reads the nearest tagged element. A list of CSS variables
+(\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so a table refuses it with an error: give it to
+\code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where the tips show: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} for the page's
 choice. A \code{\link[=tip_spec]{tip_spec()}} with its own placement beats it. A cell's tip follows this, not its row's.}
@@ -45,45 +50,52 @@ marker (the default). A \code{\link[=tip_spec]{tip_spec()}} with its own \code{m
 the corner for now: \code{"underline"}, \code{"icon"} and an icon of your own stop with an error. A cell with a marker is
 highlighted while its tip is open. See \code{\link[=tip_marker]{tip_marker()}}.}
 
-\item{id}{A Shiny id for this table's tips, the same as \code{\link[=tip_on]{tip_on()}}'s \code{id} will be: one non-empty string with no
-whitespace, so \code{ns("scores_tips")} works inside a module. Give it a different id from every other tip source on
-the page. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it, which follows
-the data row through sorting, filtering and paging; how that id is built is not part of the API. The copy of a
-header cell that \code{DT} draws for \code{scrollX} or \code{fixedHeader} carries the id of the header it copies. \code{NULL} gives the
-tips no id. The engine's kind of the tips is not yours to set: \code{tip_table()} writes \code{table_row}, \code{table_cell} and
-\code{table_header}.}
+\item{id}{The id this table's Shiny inputs hang on (\verb{input$<id>_pin}), and the base of its tips' ids: one
+non-empty string with no whitespace and no \code{:}. It is the table's id, not one tip's. Inside \code{renderDT()} or
+\code{renderReactable()} in a module's server function, the plain id is enough: \code{tip_table()} adds the module's prefix
+from the session the table is drawn in, as \code{\link[=tip_show]{tip_show()}} does, so \code{id = "scores"} in module \code{"mod1"} is
+\code{input[["mod1-scores_pin"]]}. In a module's UI function, or anywhere else with no session (a static page), nothing
+adds the prefix: give \code{ns("scores")} there. An id that already has the prefix (\code{session$ns("scores")}) is left
+alone. Give it
+a different id from every other tip source on the page: two tables with one id make the page warn in the
+browser console. With an \code{id}, every marked row, cell and header cell gets its own tip id derived from it,
+which follows the data row through sorting, filtering and paging; how that id is built is not part of the API:
+\code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} take the table's \code{id} with \code{row} and \code{column} instead. \code{NULL}
+gives the tips no id. A pin or events given to \code{rows} (see \code{\link[=tip_spec]{tip_spec()}}) need an \code{id}.}
 
-\item{pin}{Whether a reader can keep a row's tip open: \code{FALSE} (the default) for none, or \code{TRUE} for a pin handle in
-the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin. A click on a row never pins,
-because it selects the row, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} stops with an error. A pin needs \code{rows} and an
-\code{id}. With \code{pin = TRUE}, a \code{\link[=tip_spec]{tip_spec()}} for \code{rows} may set \code{more_on = "pin"}, and its long form opens when the
-row is pinned; the default is still \code{"hover"}.}
-
-\item{events}{The Shiny inputs the tips of the rows send, as in \code{\link[=tip_on]{tip_on()}}: one or more of \code{"hint"}, \code{"pin"} and
-\code{"copy"}, or \code{NULL} (the default) for none. The inputs are named after each row's tip id, such as
-\code{input[["scores_tips/row/3_tip"]]}, so they need \code{rows} and an \code{id}. Inside a module, name the tips with
-\code{session$ns()} and read the input by the part that follows the module's own prefix. Cells and header cells send
-none.}
+\item{max_pins}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How many of this table's rows can be pinned at once, a whole
+number from 1 to 10, or \code{NULL} (the default). \code{NULL} counts the table's pins in the app's limit
+(\code{use_hovercraft(max_pins =)}): a row pin can close a pin elsewhere, and the other way round. A number gives the
+table its own count, outside the app's: a row pinned past it closes the table's oldest pin and no other, and a pin
+elsewhere never closes one of the table's rows. It needs a \code{rows} spec that pins (\code{\link[=tip_spec]{tip_spec()}} with \code{pin = TRUE})
+and the table's \code{id}. All the pins open together, the app's and every table's, cannot pass 10, the engine's cap.
+On a viewport narrower than 600 pixels the engine keeps one pin at a time, whatever the counts say.}
 }
 \value{
 The widget, with the tips added.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-An experimental spike, built on top of the tip engine: the API may change in upcoming releases. Gives the rows of a
+Built on top of the tip engine, and experimental: the API may change in upcoming releases. Gives the rows of a
 table made by \code{DT::datatable()} or \code{reactable::reactable()} a tip drawn from the row's own values, and
 optionally a tip of their own to chosen cells and header cells. The tips follow the data row, so sorting, filtering
 and paging need no code of yours: each row is its own record, whatever place it has on the screen.
 }
 \details{
+Known limits: \code{row} is the position in the data the table has now, so a pin follows the row number after
+\code{replaceData()} or a redraw; a \code{DT} table in server mode has only the rows of the current page on the screen; and
+the table's script does some work for each row on the screen on every change of the data, so page a long table.
+\code{tip_table()} reads the table's data once in R (for a \code{reactable} table it parses all the rows) to check the columns
+and values the tips name, so its R time grows with the rows.
+
 A cell's tip wins over its row's, and a row's tip opens at the pointer. The tip of a cell or a header cell points at
 its text, not at the whole cell, so a right-aligned number in a wide column, or a right-aligned header, gets a tip
 beside the text and not far to its left; there is no argument for it. A target that needs its own settings (style,
-placement, marker, or \code{more} / \code{more_on}) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown)
+placement, marker or \code{more}) takes a \code{\link[=tip_spec]{tip_spec()}} in place of words. A tip is made of words (markdown)
 with
 \code{{{ column }}} placeholders, or of a \code{\link[=tip_template]{tip_template()}}; every placeholder is checked against the table's columns, and
 a miss lists them. Placeholders that start with a dot are kept for hovercraft. A header tip has no row to read from,
-so it takes words only.
+so it takes words, or a \code{\link[=tip_template]{tip_template()}} with no placeholders.
 
 Tips also show for the keyboard. A row, a cell or a header cell cannot take focus by itself, so \code{tip_table()} gives
 the table one tab stop, and the arrow keys move between the rows, cells and header cells that have a tip: left and
@@ -92,21 +104,81 @@ ends of the row, and Ctrl with Home or End to the ends of the table. The tip sho
 its widget already makes focusable (the sortable headers of \code{DT}) keeps its own tab stop. Enter and Space do not
 select a row. A click on a row selects it in both widgets, so a row's tip does not pin on click.
 
-Pins: with \code{pin = TRUE} a reader can keep a row's tip open. The tip that shows on hover or focus gets a small pin
-handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the row's tip, and the
-tip's own close button, \code{Escape} or a click away closes it. The pin key \code{P} pins the tip of the row that has focus,
-or of the row a focused cell belongs to; a cell or a header cell has no pin of its own. A tap on a row shows its
-tip and a tap on the handle pins it. The handle is not a column and not a tab stop, so the table keeps its one tab
-stop and its columns; keyboard readers use the key, which each row that can pin announces as \code{aria-keyshortcuts}. A
-pinned tip is named by the row's tip id (see \code{id}), so \code{events} sends \verb{input$<id>/row/<n>_tip} for the pin, as
-\code{\link[=tip_on]{tip_on()}} does for its own id. A pin follows its row's tip id. It stays on a row when \code{DT} sorts (client and
-server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
-\code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row leaves
-the page (a filter or another page in \code{DT}, another page in \code{reactable}), when \code{reactable} shows another row in the
-row's place, when the table goes, and when a click lands elsewhere. The input then says why: \code{DT} closes a pin of a
-row that left the page itself (\code{reason} \code{"gone"}, \code{by} \code{"data"}); \code{reactable} keeps its row nodes and gives them
-other rows, so the layer closes the pin through the tip engine's host command (\code{reason} \code{"host"}, \code{by} \code{"host"},
-\code{via} \code{"command"}). A server that acts on \code{by == "data"} sees the two widgets differently.
+Pins: with \code{tip_spec(pin = TRUE)} as \code{rows}, a reader can keep a row's tip open. The tip that shows on hover or
+focus gets a small pin handle in its corner, the same as \code{\link[=tip_on]{tip_on()}}'s (\code{pin = TRUE}): a click or tap on it pins the
+row's tip, and the tip's own close button, \code{Escape} or a click away closes it (a click away does not close a panel
+that opens in place, see below). The pin key \code{P} pins the tip of the row that has focus or that the pointer rests
+on, or of the row a focused cell belongs to; a cell or a header cell has no pin of its own ("only rows pin for
+now"), so \code{P} while the pointer rests on a cell that has a tip of its own pins nothing. A long form (\code{more}) opens
+with its "More" button, or with the \code{M} key when the focus is on the row, a cell or a header cell, or the pointer
+rests on it. A tap on a row shows its tip and a tap on the handle pins it. The handle is not a column and not a
+tab stop, so the table keeps its one tab stop and its columns; keyboard readers use the key, which
+each row that can pin announces as \code{aria-keyshortcuts}. A pin follows its row. It stays on a row when \code{DT} sorts
+(client and server mode), and on the same row number when \code{DT} draws the table again or \code{DT::replaceData()} or
+\code{reactable::updateReactable(data = )} give it new data, with the new values in its tip. It closes when its row
+leaves the page (a filter or another page in \code{DT}, another page in \code{reactable}), when \code{reactable} shows another row
+in the row's place, when the table goes, and when a click lands elsewhere. The input then says why: \code{DT} closes a
+pin of a row that left the page itself (\code{reason} \code{"gone"}, \code{by} \code{"data"}); \code{reactable} keeps its row nodes and gives
+them other rows, so the layer closes the pin through the tip engine's host command (\code{reason} \code{"host"}, \code{by}
+\code{"host"}, \code{via} \code{"command"}). A server that acts on \code{by == "data"} sees the two widgets differently.
+}
+\section{Shiny inputs}{
+
+\code{tip_spec(events = )} on \code{rows} turns on inputs that belong to the table, one per event and not one per row, named
+after the table's \code{id}: \verb{input$<id>_hint}, \verb{input$<id>_pin} and \verb{input$<id>_copy}. Each is \code{NULL} until its first
+event. Its value is the event that just happened, with the fields of \code{\link[=tip_on]{tip_on()}}'s (\code{state}, \code{text}, \code{by}, \code{via} and
+\code{reason}), and says which tip it was:
+\itemize{
+\item \code{target}: \code{"row"} (\code{"cell"} and \code{"header"} are kept for later; only rows send events for now);
+\item \code{row}: the row's place in the data the widget has now, counted from 1, in client mode and in server mode alike,
+and not the row's place on the screen: after a sort, the third data row is still 3. It is \code{NULL} for a header.
+After \code{DT::replaceData()}, \code{reactable::updateReactable(data = )} or a re-render with other data, row 3 is whatever
+is third now, so do not keep it as a record's id;
+\item \code{column}: the data column's name (the name in the data frame, not the header's text), or \code{NULL} for a row;
+\item \code{id}: the tip's id. How it is written is not part of the API.
+}
+
+\verb{input$<id>_pinned} (with \code{events = "pin"}) is what is pinned now: a list of such addresses (\code{target}, \code{row},
+\code{column}, \code{id}), the oldest pin first. It is \code{NULL} until the first pin event, and an empty list once nothing is
+pinned. It is sent in the same batch as \verb{_pin}, and a value equal to the one before does not fire an observer again.
+Read it with \code{length(input$scores_pinned)}: it holds as many addresses as the table has pins open (see \code{max_pins}).
+For a tag of \code{\link[=tip_on]{tip_on()}} with \code{events = "pin"}, \verb{input$<id>_pinned} is \code{TRUE} or \code{FALSE} (read it with
+\code{isTRUE(input$run_pinned)}).
+
+\verb{input$<id>_pin} and \verb{input$<id>_hint} are told apart by \code{state}, whose values may grow in a later version. A pin's
+\code{state} is \code{"pinned"}, \code{"closed"} or \code{"updated"} (the tip is pinned and was drawn again because its words changed:
+an app that only tests for \code{"closed"} should not take it for a pin); a hint's is \code{"shown"} or \code{"hidden"}. The values
+of \code{by} are \code{"reader"}, \code{"data"} (the page changed under the tip) and \code{"host"} (a command of the page did it). The
+values of \code{reason} (the same for the inputs of \code{\link[=tip_on]{tip_on()}}) are, for a pin, \code{"select"} (the same element again),
+\code{"escape"}, \code{"button"} (the tip's close button), \code{"outside"} (a click away), \code{"replaced"} (another tip was pinned),
+\code{"gone"} (the row left the page), \code{"below"} (a layer around it closed), \code{"host"} (a command of the page closed it)
+and \code{"redraw"} (the tip was drawn again with other host slots, \code{by = "data"}); for a hint, \code{"leave"} (the pointer
+left), \code{"blur"} (the focus left), \code{"escape"}, \code{"outside"}, \code{"pinned"} (the hint became a pin), \code{"replaced"},
+\code{"gone"} and \code{"host"}. \code{reason} is \code{NULL} when a tip opens.
+}
+
+\section{In place}{
+
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+With \code{tip_spec(to = "in_place", pin = TRUE)} as \code{rows} (and the table's \code{id}), a row's pinned tip is drawn as a panel
+under its row, as wide as the table's visible part, in \code{DT} and in \code{reactable}. The hover tip still floats. The pin
+handle or the pin key opens it, and it holds what any pinned tip holds: its blocks, the long form with its "More"
+button, a \code{\link[=tip_output]{tip_output()}}. The widget's own inputs (\code{rows_selected}, \code{cell_clicked}) are not touched by a click in it.
+
+It follows the pin: \code{DT} moves the panel with its row when the table sorts, and puts it back after every draw, in
+server mode too; a filter or another page that takes the row off the page closes it (\code{reason} \code{"gone"}).
+\code{DT::replaceData()} keeps it on the same row number. \code{reactable} closes it when it shows other rows in the row's
+node (\code{reason} \code{"host"}), as for a floating pin, and keeps it when it is given new data with
+\code{updateReactable(data = )}. A server-mode \code{DT} drawn again by \code{renderDT()} closes it, as it does a floating pin. A
+panel counts in \code{use_hovercraft(max_pins = )} and \code{tip_table(max_pins = )} like any pin: the oldest closes (\code{reason}
+\code{"replaced"}) and its panel goes with it.
+
+A click away does not close a panel: it closes by its close button, \code{Escape}, the pin limit, or its row going. The
+pin key on a row whose panel is open does nothing. \code{Escape} on a row that has no pin of its own closes the newest
+pin, as for floating pins. With \code{scrollX} the panel stays at the left edge of the visible part. The \code{FixedColumns}
+extension of \code{DT} (it copies the rows) stops with an error; \code{responsive} and \code{RowGroup} of \code{DT}, \code{reactable}'s
+\code{groupBy}, and screen readers are not covered. A click inside a \code{DT} panel is stopped at the panel's row, so a
+handler that the page delegates on \code{document} does not see it.
 
 What works, each checked in a browser:
 \itemize{
@@ -117,7 +189,8 @@ unchanged.
 \code{groupBy} (the rows inside a group have tips, the group's own row has none), \code{details} (the details panel has
 none) and \code{filterable = TRUE} (the tip of a header cell stays on the header cell; the filter box under it has no
 tip and is not described twice). \code{DT}'s filter row has none either.
-\item An \code{id} made by \code{\link[shiny:NS]{shiny::NS()}} inside a module.
+\item An \code{id} inside a module: give the plain id inside \code{renderDT()} or \code{renderReactable()}, and \code{ns()} in the
+module's UI function (see \code{id}).
 \item Tables that Shiny updates with new data: \code{DT::replaceData()} (it works in server mode) with the user's own data
 frame, and \code{reactable::updateReactable(data = )}. The tips follow the new rows, as they do after sorting,
 filtering and paging.
@@ -139,15 +212,19 @@ Give \code{tip_table()} the finished widget, last in the pipe or at least after 
 own \code{rowClass}, \code{class} and \code{headerClass} added to yours; the class of a row holds the values its tips read, so it
 changes with the data.
 }
+
 \examples{
 \dontshow{if (requireNamespace("DT", quietly = TRUE)) withAutoprint(\{ # examplesIf}
 scores <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5), losses = c(3, 5))
 DT::datatable(scores) |>
   tip_table(
-    rows = "**{{ team }}**: {{ wins | number:0 }} wins, {{ losses | number:0 }} losses",
+    rows = tip_spec(
+      "**{{ team }}**: {{ wins | number:0 }} wins, {{ losses | number:0 }} losses",
+      pin = TRUE,
+      events = "pin"
+    ),
     headers = c(wins = "Games won this season"),
-    id = "scores_tips",
-    pin = TRUE
+    id = "scores_tips"
   )
 \dontshow{\}) # examplesIf}
 }
@@ -155,8 +232,8 @@ DT::datatable(scores) |>
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
@@ -164,6 +241,7 @@ Other tooltips:
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

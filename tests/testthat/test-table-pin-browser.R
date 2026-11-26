@@ -10,9 +10,9 @@ skip_if_not_installed("reactable")
 skip_if_not_installed("bslib")
 skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 
-# tip_table(pin = TRUE, events = ) in a running Shiny app: the pin handle in a row's tip, the pin key, the Shiny inputs
-# of a row's id, and what happens to a pinned row when the table sorts, pages, is given new data or is drawn again.
-describe("tip_table(pin = TRUE) in a Shiny app", {
+# tip_spec(pin = TRUE, events = ) for the rows in a running Shiny app: the pin handle in a row's tip, the pin key, the
+# Shiny inputs of the table, and what happens to a pinned row when the table sorts, pages, is given new data or is drawn again.
+describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
   scores <- data.frame(
     team = c("Owls", "Foxes", "Hares", "Lynx", "Voles", "Moles"),
     wins = c(7, 5, 2, 9, 1, 4),
@@ -24,11 +24,13 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
       pinned <- function(widget, id) {
         tip_table(
           widget,
-          rows = "**{{ team }}**: {{ wins | number:0 }} wins",
+          rows = tip_spec(
+            "**{{ team }}**: {{ wins | number:0 }} wins",
+            pin = TRUE,
+            events = c("hint", "pin", "copy")
+          ),
           cells = c(note = "Note: {{ note }}"),
-          id = id,
-          pin = TRUE,
-          events = c("hint", "pin", "copy")
+          id = id
         )
       }
       ui <- bslib::page_fluid(
@@ -60,12 +62,11 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
               DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2)),
               rows = tip_spec(
                 tip_template(tip_title("{{ team }}"), tip_text("Query used"), tip_code("sql", copy = TRUE)),
-                more = "{{ wins }} wins this season",
-                more_on = "pin"
+                more = tip_more("{{ wins }} wins this season", on = "pin"),
+                pin = TRUE,
+                events = c("pin", "copy")
               ),
-              id = "dtq",
-              pin = TRUE,
-              events = c("pin", "copy")
+              id = "dtq"
             )
           },
           server = FALSE
@@ -90,20 +91,16 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
         shiny::moduleServer("m", function(input, output, session) {
           output$dt <- DT::renderDT(
             {
-              pinned(DT::datatable(scores[1:3], rownames = FALSE), session$ns("tips"))
+              pinned(DT::datatable(scores[1:3], rownames = FALSE), "tips")
             },
             server = FALSE
           )
-          # The module's own input names: the tip id without the module's prefix.
-          output$seen_in <- shiny::renderText({
-            mine <- shiny::reactiveValuesToList(input)
-            mine <- mine[grepl("^tips/row/[0-9]+_tip$", names(mine))]
-            paste("inside:", paste(vapply(mine, function(x) x$state, ""), collapse = ","))
-          })
+          # The module's own input name: the plain id the table was given, without the module's prefix.
+          output$seen_in <- shiny::renderText(paste("inside:", input$tips_pin$state))
         })
         output$seen <- shiny::renderText({
           everything <- shiny::reactiveValuesToList(input)
-          at <- grepl("_tip$|_copy$", names(everything))
+          at <- grepl("_pin$|_copy$", names(everything))
           state <- lapply(everything[at], function(x) if (is.null(x$state)) x$field else x$state)
           jsonlite::toJSON(state[order(names(state))], auto_unbox = TRUE, null = "null")
         })
@@ -141,13 +138,15 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
       "document.querySelector(%s).scrollIntoView({ block: 'center' })",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     ))
-    Sys.sleep(0.3)
+    page$settle()
   }
   reset <- function() {
     page$press("Escape", wait = 0.2)
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    expect_true(page$wait_closed())
+    # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
+    page$hold(0.4)
   }
   # Opens the row's hint with the pointer, then presses the handle in the hint's corner with the mouse.
   pin_by_handle <- function(row) {
@@ -181,24 +180,30 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     pin_by_handle(rows_dt("dtc")[[2]])
     expect_identical(pins(), "dtc/row/2")
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Foxes')", pinned_box)))
-    expect_true(seen_has("dtc/row/2_tip", "pinned"))
+    expect_true(seen_has("dtc_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#dtc tbody tr.selected') === null"))
     # The reader's own pin: by the reader, with a click on the handle.
     expect_identical(
-      page$evaluate(
-        "Shiny.shinyapp.$inputValues['dtc/row/2_tip'].by + '/' + Shiny.shinyapp.$inputValues['dtc/row/2_tip'].via"
-      ),
+      page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].by + '/' + Shiny.shinyapp.$inputValues['dtc_pin'].via"),
       "reader/click"
     )
+    # One input for the table, which says which row: the data row, and no column for a row.
+    expect_identical(
+      page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['dtc_pin'])"),
+      paste0(
+        "{\"state\":\"pinned\",\"text\":\"Foxes: 5 wins\",\"by\":\"reader\",\"via\":\"click\",\"reason\":null,",
+        "\"target\":\"row\",\"row\":2,\"column\":null,\"id\":\"dtc/row/2\"}"
+      )
+    )
     page$press("Escape")
-    expect_true(seen_has("dtc/row/2_tip", "closed"))
+    expect_true(seen_has("dtc_pin", "closed"))
     expect_identical(pins(), character())
   })
 
   it("does not pin on a click of the row, and the click still selects it", {
     reset()
     page$click(rows_dt("dtc")[[1]])
-    Sys.sleep(0.3)
+    page$settle()
     expect_identical(pins(), character())
     expect_true(page$wait_until("document.querySelector('#dtc tbody tr.selected') !== null"))
   })
@@ -209,8 +214,9 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     page$press("p")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') !== null"))
     expect_identical(pins(), "dtc/row/3")
-    expect_true(seen_has("dtc/row/3_tip", "pinned"))
-    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/3_tip'].via"), "key")
+    expect_true(seen_has("dtc_pin", "pinned"))
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].via"), "key")
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].row"), 3L)
     page$press("Escape")
     expect_identical(pins(), character())
     # A cell with a tip of its own, inside a pinnable row: only the row can pin, so the key pins the row's tip.
@@ -259,8 +265,9 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Owls')", pinned_box)))
     page$evaluate("$('#dtc table').DataTable().search('Voles').draw(); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dtc/row/1_tip", "closed"))
-    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc/row/1_tip'].reason"), "gone")
+    expect_true(seen_has("dtc_pin", "closed"))
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].reason"), "gone")
+    expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].row"), 1L)
     page$evaluate("$('#dtc table').DataTable().search('').draw(); 0")
   })
 
@@ -270,7 +277,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_identical(pins(), "dts/row/1")
     page$evaluate("$('#dts table').DataTable().page(1).draw(false); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dts/row/1_tip", "closed"))
+    expect_true(seen_has("dts_pin", "closed"))
     page$evaluate("$('#dts table').DataTable().page(0).draw(false); 0")
   })
 
@@ -278,7 +285,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     reset()
     pin_by_handle(rt_row(2))
     expect_identical(pins(), "rt/row/2")
-    expect_true(seen_has("rt/row/2_tip", "pinned"))
+    expect_true(seen_has("rt_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#rt .rt-tr.-selected, #rt [aria-selected=true]') === null"))
     # The server moves the table to its second page: React keeps the row nodes and gives them other rows, which must
     # not show under the pin made for the row it was.
@@ -290,14 +297,17 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     expect_true(page$wait_until(
       "document.querySelector('#rt [role=row][data-hovercraft-tip-id=\"rt/row/5\"]') !== null"
     ))
-    expect_true(seen_has("rt/row/2_tip", "closed"))
+    expect_true(seen_has("rt_pin", "closed"))
     expect_identical(pins(), character())
     expect_false(page$evaluate("window.sawRow5"))
     # The layer closes the pin through the engine's host command, so the engine says who and why that way (a DT row that
     # leaves the page is closed by the engine itself, as "gone" by "data").
     expect_identical(
-      page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['rt/row/2_tip'])"),
-      "{\"state\":\"closed\",\"text\":\"Foxes: 5 wins\",\"by\":\"host\",\"via\":\"command\",\"reason\":\"host\",\"kind\":\"table_row\"}"
+      page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['rt_pin'])"),
+      paste0(
+        "{\"state\":\"closed\",\"text\":\"Foxes: 5 wins\",\"by\":\"host\",\"via\":\"command\",\"reason\":\"host\",",
+        "\"target\":\"row\",\"row\":2,\"column\":null,\"id\":\"rt/row/2\"}"
+      )
     )
     poke("page_to", "1")
     expect_true(page$wait_until(
@@ -355,16 +365,15 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
     page$press("Escape")
   })
 
-  it("names the inputs by the row's tip id inside a module, as the module's server reads them", {
+  it("names the inputs by the plain id inside a module, as the module's server reads them", {
     reset()
     expect_true(page$wait_until("document.querySelectorAll('#m-dt tbody tr[data-hovercraft-tip-pin]').length === 6"))
     pin_by_handle("#m-dt tbody tr:nth-child(1)")
-    id <- pins()
-    expect_match(id, "^m-tips/row/[0-9]+$")
-    expect_true(seen_has(paste0(id, "_tip"), "pinned"))
+    expect_match(pins(), "^m-tips/row/[0-9]+$")
+    expect_true(seen_has("m-tips_pin", "pinned"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: pinned'"))
     page$press("Escape")
-    expect_true(seen_has(paste0(id, "_tip"), "closed"))
+    expect_true(seen_has("m-tips_pin", "closed"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: closed'"))
   })
 
@@ -379,9 +388,16 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
       "document.querySelector('%s').textContent.includes('7 wins this season')",
       pinned_box
     )))
-    Sys.sleep(1)
+    page$settle(0.5)
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
-    expect_true(seen_has("dtq/row/1_copy", "sql"))
+    expect_true(seen_has("dtq_copy", "sql"))
+    # The copy input has the row's address too, with the copy's own fields.
+    expect_identical(
+      page$evaluate(
+        "Shiny.shinyapp.$inputValues['dtq_copy'].row + '/' + Shiny.shinyapp.$inputValues['dtq_copy'].target"
+      ),
+      "1/row"
+    )
     expect_equal(page$evaluate("window.copyFired"), 1)
     page$press("Escape")
   })
@@ -435,7 +451,7 @@ describe("tip_table(pin = TRUE) in a Shiny app", {
         page$evaluate(sprintf("parseFloat(getComputedStyle(document.querySelector('%s')).fontSize)", hint_sel)),
         11
       )
-      Sys.sleep(0.5)
+      page$settle()
       background <- rgb(sprintf("getComputedStyle(document.querySelector('%s')).backgroundColor", hint_sel))
       glyph <- rgb("getComputedStyle(document.querySelector('.hovercraft-pin-strip-pin'), '::before').backgroundColor")
       expect_length(background, 3L + (length(background) == 4L))

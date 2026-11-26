@@ -12,67 +12,90 @@ tip_on(
   record = NULL,
   style = NULL,
   placement = NULL,
-  marker = "none",
+  marker = NULL,
   id = NULL,
   events = NULL,
   when_disabled = NULL,
   more = NULL,
-  more_on = NULL,
-  pin = FALSE,
-  kind = NULL
+  pin = NULL,
+  labels = NULL
 )
 }
 \arguments{
-\item{tag}{One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}.}
+\item{tag}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} One HTML tag, such as \code{htmltools::tags$tr()} or \code{shiny::actionButton()}. A
+list of tags, a tag list or text stops with an error. To tip a tab, put the tip on the tag that is its title, and
+give the tab a \code{value}: \code{nav_panel(title = tip_on(span("Data"), "..."), value = "data")}. Without \code{value}, bslib
+writes the tag's HTML into the tab's value.}
 
-\item{text}{One string of markdown (strong, emphasis, code, links, short lists), or \code{NULL}. It is shown as written:
-build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as none: the tag comes back as it was.}
+\item{text}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} One string of markdown (strong, emphasis, code, links, short
+lists), or \code{NULL}. It is shown as written: build it with \code{\link[=paste0]{paste0()}} or \code{\link[=sprintf]{sprintf()}}. \code{NA} and \code{""} count as
+none: the tag comes back without a tip. When \code{record} is given, the \code{{{ field }}} placeholders in the text are
+filled from it (as in a template, with one filter at most, \code{number:n} or \code{percent:n}), also when \code{template} is the
+name of a defined template, which is then not used; when \code{template} is a \code{\link[=tip_template]{tip_template()}}, the text is plain
+words and its braces stay as written, since the text beats the template. Without a record, braces stay as
+written. Words with placeholders give the tag no \code{aria-label},
+because they depend on the record.}
 
 \item{...}{Must be empty. It makes a misspelt argument an error.}
 
-\item{template}{The name of a template defined with \code{\link[=tip_define]{tip_define()}}, or \code{NULL}.}
+\item{template}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} The name of a template defined with \code{\link[=tip_define]{tip_define()}}, a
+\code{\link[=tip_template]{tip_template()}} made here, or \code{NULL}. A \code{tip_template()} travels with the tag, so it needs no \code{tip_define()}; its
+fields are checked against \code{record}. If \code{text} is given too, the text is the tip and the template is not used
+(see \code{text} for its placeholders).}
 
-\item{record}{A named list, or a data frame of one row: the values the template's placeholders read, one value each.
-\code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as \code{YYYY-MM-DDTHH:MM:SSZ} and
-factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen the template, only the columns it names are kept, so nothing
-else in a row is written into the page; for a template not seen here, every column goes, so choose them with
-\code{data[i, c("label", "n")]}.}
+\item{record}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} A named list, or a data frame of one row: the values the template's
+placeholders read, one value each. \code{NA} and \code{NULL} show a dash. Dates are written as \code{YYYY-MM-DD}, times in UTC as
+\code{YYYY-MM-DDTHH:MM:SSZ} and factors as their labels. Once \code{\link[=tip_define]{tip_define()}} has seen the template, only the columns it
+names are kept, so nothing else in a row is written into the page; for a template not seen here, every column goes,
+so choose them with \code{data[i, c("label", "n")]}.}
 
-\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} How this tag's tip looks, or \code{NULL} (the default) to take the
-page's. A preset name from \code{\link[=tip_presets]{tip_presets()}} (\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a
-style: a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins,
-value by value. A list is not taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see
-\code{\link[=tip_style]{tip_style()}}.}
+\item{style}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} as a preset name, \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} as a style
+object. How this tag's tip looks, or \code{NULL} (the default) to take the page's. A preset name from \code{\link[=tip_presets]{tip_presets()}}
+(\code{"none"} clears a preset set above), a \code{\link[=tip_style]{tip_style()}}, or one part of a style: a \code{\link[=tip_theme]{tip_theme()}} or a
+\code{\link[bslib:bs_theme]{bslib::bs_theme()}}. The tag's style beats the page's, and a value set nearer wins, value by value. A list is not
+taken, and neither is a string that holds \code{:} or \verb{;} (\code{style} takes no CSS); see \code{\link[=tip_style]{tip_style()}}. A list of CSS
+variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so on one tag it stops with an error:
+give it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
-\item{placement}{Where the tip opens: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} (the default)
-for the page's choice, which is \code{"auto"} unless a tagged ancestor sets a side. A chosen side flips to the other
-when there is no room, and \code{"left"} and \code{"right"} mirror in right-to-left text. On a phone the tip always chooses
-its own side.}
+\item{placement}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Where the tip opens: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or
+\code{"right"}, or \code{NULL} (the default) for the page's choice, which is \code{"auto"} unless a tagged ancestor sets a side. A
+chosen side flips to the other when there is no room, and \code{"left"} and \code{"right"} mirror in right-to-left text. On a
+phone the tip always chooses its own side.}
 
-\item{marker}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A visible cue that the tag holds a tip, off by default: \code{"none"},
-\code{"underline"}, \code{"icon"} or \code{"corner"}, a \code{\link[=tip_marker]{tip_marker()}} to choose the line of an underline or give an icon, or a
-tag, which is used as the icon (\code{marker = fontawesome::fa("circle-info")} is \code{tip_marker("icon", icon = ...)}).
-See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells of a table, use the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
+\item{marker}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A visible cue that the tag holds a tip. \code{NULL} (the default) and
+\code{"none"} draw none; the others are \code{"underline"}, \code{"icon"} or \code{"corner"}, a \code{\link[=tip_marker]{tip_marker()}} to choose the line of
+an underline or give an icon, or a tag, which is used as the icon (\code{marker = fontawesome::fa("circle-info")} is
+\code{tip_marker("icon", icon = ...)}). See \code{\link[=tip_marker]{tip_marker()}} for what each draws. For the cells of a table, use the
+\code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
 
-\item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one
-non-empty string with no whitespace, so \code{ns("baseline_tip")} works in a module. Give it a different id from every
+\item{id}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} A Shiny id for this tip, or \code{NULL} (the default) for none: one non-empty
+string with no whitespace and no \code{:}, so \code{ns("baseline_tip")} works in a module. Give it a different id from every
 other tip source on the page. \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}} find the tip by it, and \code{events} names
 the inputs after it.}
 
 \item{events}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Which Shiny inputs this tag's tip sends, or \code{NULL} (the
 default) for none; one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}. All are off unless asked for, because
 they send a message to the server every time a reader meets the tag. They need an \code{id}, or a tag with an
-\code{id} of its own; in a module the input is read without the namespace. Each is a list that holds the tip's
-\code{kind} (see \code{kind}) as well as the fields below.
+\code{id} of its own; in a module the input is read without the namespace. \code{"pin"} and \code{"copy"} belong to a pinned
+tip, so asking for either without a \code{pin} stops with an error. Each is a list that holds the fields below.
 
 \code{"hint"} sends \verb{input$<id>_hint} each time the tip opens or closes: \code{state} (\code{"shown"} or \code{"hidden"}), \code{text}
 (the tip's plain words, cut at 200 characters), \code{by} (\code{"reader"}, \code{"host"} for \code{\link[=tip_show]{tip_show()}} and \code{\link[=tip_hide]{tip_hide()}},
 or \code{"data"} when the tag left the page), \code{via} (\code{"pointer"}, \code{"focus"}, \code{"tap"}, \code{"key"}, \code{"command"}, or
-\code{NULL}) and \code{reason} (why it closed, \code{NULL} on \code{"shown"}). \code{"pin"} sends \verb{input$<id>_tip} each time the tip is
-pinned, closed or drawn again while pinned: \code{state} (\code{"pinned"}, \code{"closed"} or \code{"updated"}), \code{text}, \code{by}
-(\code{"reader"}, \code{"host"} or \code{"data"}), \code{via} (\code{"click"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason} (why it
-closed: \code{"select"}, \code{"escape"}, \code{"button"}, \code{"outside"}, \code{"replaced"}, \code{"gone"} or \code{"host"}, \code{NULL} on
-\code{"pinned"}). \code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
+\code{NULL}) and \code{reason} (why it closed, \code{NULL} on \code{"shown"}: \code{"leave"}, \code{"blur"}, \code{"escape"}, \code{"outside"},
+\code{"pinned"} when the hint became a pin, \code{"replaced"}, \code{"gone"} or \code{"host"}). \code{"pin"} sends \verb{input$<id>_pin} each
+time the tip is pinned, closed or drawn again while pinned: \code{state} (\code{"pinned"}, \code{"closed"} or \code{"updated"}),
+\code{text}, \code{by} (\code{"reader"}, \code{"host"} or \code{"data"}), \code{via} (\code{"click"}, \code{"key"}, \code{"command"}, or \code{NULL}) and \code{reason}
+(why it closed: \code{"select"}, \code{"escape"}, \code{"button"}, \code{"outside"}, \code{"replaced"}, \code{"gone"}, \code{"below"} when a layer
+around it closed, \code{"host"} or \code{"redraw"} when it was drawn again with other host slots (\code{by} is \code{"data"}); \code{NULL}
+on \code{"pinned"}). A \code{"state"} of \code{"updated"} is not a pin: an app that tests only for \code{"closed"} should check it.
+\code{"pin"} also keeps \verb{input$<id>_pinned}, \code{TRUE} while the tip is pinned and \code{FALSE} after, sent in the same batch
+as \verb{_pin} and as a plain value, so an equal value does not fire an observer again; read it with
+\code{isTRUE(input$run_pinned)}. The values of \code{state} may grow in a later version, so an app should not assume it
+knows them all. Every one of these inputs is \code{NULL} until its first event; in \code{shiny::testServer()} set them with
+\code{session$setInputs()}, and in \code{shinytest2} with \code{set_inputs(..., allow_no_input_binding_ = TRUE)}. On a page
+without Shiny (R Markdown, Quarto, a static page) \code{events} does nothing.
+\code{"copy"} sends \verb{input$<id>_copy} each time the Copy button of a code block in the pinned tip is
 pressed: \code{field} (the record field the code came from), \code{block} (the code block's place among the tip's code
 blocks, from 0), \code{ok} (\code{TRUE} when the browser let the copy happen), \code{by} (\code{"reader"}) and \code{via} (\code{"click"} or
 \code{"key"}).}
@@ -97,8 +120,9 @@ control's label, so a screen reader still says what the field is. The wrapper is
 control is enabled. A control that has the focus when it is switched off hands it to the wrapper, and takes it
 back when it is switched on. The tip's \code{id} and \code{events} stay on the control, and the wrapper answers to them
 while the control is disabled, so \code{\link[=tip_show]{tip_show()}} and the hint input name the control either way. The value
-returned is the wrapper; calling \code{tip_on()} on it again changes the control's tip and keeps one wrapper, with
-the reason it had unless a new one is given.
+returned is the wrapper; calling \code{tip_on()} on it again replaces the tip whole, the reason
+included, and keeps one wrapper when a new \code{when_disabled} is given; without one you get the bare control back,
+with the layout it had before it was wrapped.
 
 The wrapper takes the control's place in a layout: a width, a share of a flex row and a side written in its
 \code{style}, or as the classes \code{w-25}, \code{w-50}, \code{w-75}, \code{w-100}, \code{flex-fill}, \verb{flex-grow-*}, \verb{col-*}, \verb{order-*},
@@ -108,19 +132,24 @@ the cells of a \code{d-grid} keep their width. Not covered: a control that is a 
 put the tip on the group instead, and do not give a control in a group a reason. A proposed fix is a reason
 that needs no wrapper, which asks the tip engine for a keyboard stop of its own.}
 
-\item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Extra content for the long form of the tip, or \code{NULL} (the default)
-for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}) or a \code{\link[=tip_template]{tip_template()}}.
-\code{NA} and \code{""} count as none. When \code{more_on} is \code{"pin"} (the default), the tag must be able to pin and have an \code{id}
-(either \verb{id =} or the tag's own HTML \code{id}); otherwise \code{tip_on()} stops with an error.}
+\item{more}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} as words or a template, \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} as a
+\code{\link[=tip_more]{tip_more()}}. Extra content for the long form of the tip, or \code{NULL} (the default)
+for none: words (markdown, optionally with \code{{{ field }}} placeholders filled from \code{record}), a \code{\link[=tip_template]{tip_template()}}, or
+a \code{\link[=tip_more]{tip_more()}} that also says when the long form shows. \code{NA} and \code{""} count as none. Words and a template are the
+same as \code{tip_more()} with its default: the tip is short, and a "More" button in it (and the M key) opens the long
+form in the same tip, with no pin and no \code{id}. See \code{\link[=tip_more]{tip_more()}} for \code{"hover"}, \code{"pin"}, \code{"click"} (a click on the
+item opens it; not on a control), \code{pin = TRUE} (the button pins the tip too), \code{as} and \code{where} (a text link, and
+the side the control sits on) and the buttons' words; with \code{"pin"} or \code{pin = TRUE} the tag must be able to pin and
+have an \code{id} (either \verb{id =} or the tag's own HTML \code{id}), otherwise \code{tip_on()} stops with an error.}
 
-\item{more_on}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} When the long form (\code{more}) opens: \code{"pin"} (the default, shows a
-short hint on hover and expands to the long form when pinned) or \code{"hover"} (shows the long form on hover too), or
-\code{NULL} to use the engine's default (\code{"pin"}).}
-
-\item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Whether a reader can keep this tip open: \code{FALSE} (the
-default) for a tip that only shows on hover or focus, \code{TRUE} for a tip that is pinned by the small pin
-button in the corner of the tip, or by the pin key, and \code{"click"} for a tip that a click on the tagged item
-also pins. With \code{TRUE}, a click, a key or a tap on the item never pins, so an item that does something when
+\item{pin}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Whether a reader can keep this tip open, one at a time: \code{NULL} (the
+default) or \code{FALSE} for a tip that only shows on hover or focus (\code{FALSE} is "never", whatever a level above says),
+\code{TRUE} for a tip that is pinned by the small
+pin button in the corner of the tip, or by the pin key, and \code{"click"} for a tip that a click on the tagged item
+also pins. \code{"click"} is for a tag that has nothing to click on its own: on a control, or on a tag that holds
+one, it stops with an error, because the click would pin the tip instead of using the control. Use \code{TRUE}
+there: a plain button and a \code{div} around an input take it. With \code{TRUE}, a click, a key or a tap on the item never
+pins, so an item that does something when
 it is clicked, such as a row that selects itself, keeps doing it; a tap shows the tip. A tip that is pinned
 stays open, with the engine's own close button, until it is closed (the button, Escape, or a click
 elsewhere), and a code block with \code{tip_code(copy = TRUE)} shows its Copy button there. A pin needs an \code{id}
@@ -131,21 +160,36 @@ put the tip on a \verb{<div>} or \verb{<span>} around it.
 The pin button is drawn over the corner of the tip as a separate element, so a screen reader still gets a tip
 that it only reads; the first block of the tip keeps room for it, so a one-sentence tip has the button at the
 end of its line. The pin key is \code{P}, which the tagged item announces as \code{aria-keyshortcuts}: it pins the tagged
-item while the focus is on the item or inside it, and does nothing while the focus is in a field or anywhere
-else on the page. A screen reader that is in browse mode may take the letter for its own navigation, so check
-the key with the screen reader you support. \code{Escape} closes a pinned tip. Pointer, keyboard and tap are tested
-in Chrome only.}
+item while the focus is on the item or inside it, or while the pointer rests on it, and does nothing while the
+focus is in a field or while neither holds. When the focus is on one item and the pointer rests on another, the
+key pins the item under the pointer, the tip the reader sees, not an item around it; an item that is pinned and
+holds the focus keeps the key. A tip that a tap or \code{tip_show()} opened does not take the key from the pointer.
+The key works from a hover, so a page switches it off for every reader with \code{use_hovercraft(keys = FALSE)};
+there is no switch for one reader. A screen reader that is in browse mode may take the letter for its own
+navigation, so check the key with the screen reader you support. \code{Escape} closes a pinned tip. Pointer, keyboard
+and tap are tested in Chrome only.}
 
-\item{kind}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The tip's kind, as one string of lower-case words joined with
-\verb{_}, such as \code{"review_item"}, or \code{NULL} (the default) for the engine's own kind, \code{"element"}. The events
-and the inputs of \code{\link[=tip_on]{tip_on()}} carry it as \code{kind}; \code{\link[=tip_table]{tip_table()}} sets the kind of its own tips.}
+\item{labels}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} The words the tip shows itself, such as "Copy", "Close", "More"
+and the pin button's name, for this tag's tip and every tip inside the tag, or \code{NULL} (the default) to take the
+page's words (see \code{\link[=use_hovercraft]{use_hovercraft()}}). A named character vector, such as \code{c(close = "Dismiss")}; a word left out
+keeps its built-in one. The keys, with their built-in words, are \code{copy} (\code{Copy}), \code{copied} (\code{Copied}), \code{copy_failed} (\verb{Copy failed}), \code{close} (\code{Close}), \code{not_available} (\verb{Not available:}), \code{pinned} (\verb{\{label\}: details pinned. Tab to reach them.}), \code{code_line} (\code{code: {first}}), \code{code_line_empty} (\verb{code, 1 line}), \code{code_lines} (\verb{code, \{n\} lines, starting \{first\}}), \code{code_lines_empty} (\verb{code, \{n\} lines}), \code{more} (\code{More}), \code{more_pinned} (\verb{More when pinned}), \code{less} (\code{Less}), \code{pin} (\verb{Pin this tip}). Four keys take
+placeholders, which the page fills in: \code{pinned} takes \code{{label}} (the name of the item), \code{code_line} takes \code{{first}}
+(the first line of the code) and \code{code_lines} and \code{code_lines_empty} take \code{{n}} (the number of lines; \code{code_lines}
+takes \code{{first}} too); other braces stay as written. An unknown key, an empty or blank word, or a value that is not
+words stops with an error; the unknown key's error lists the keys. The nearest words win, key by key: a tag's
+\code{labels} beat the page's, and a tag inside another tag with \code{labels} uses the nearer one.
+\code{tip_more(label = )} still sets the words of the "More" and "Less" buttons of one tip, and beats \code{labels} there.
+The words go with the tag, so \code{labels} needs a tip on the call (\code{text}, \code{template} or \code{when_disabled}); a second
+\code{tip_on()} on the tag replaces them with its own. With \code{when_disabled}, they are also on the wrapper, so
+"Not available:" changes while the control is off. For a \code{\link[=tip_table]{tip_table()}}, give the words to \code{\link[=use_hovercraft]{use_hovercraft()}}: a
+table is marked by its own script, and only a tag that has a tip of its own can carry \code{labels} around it.}
 }
 \value{
 The tag, with the tip's attributes and the engine's dependency added; with a marker, its attributes,
 and the marker's own dependency; with \code{when_disabled}, inside a wrapper that holds the reason.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 Gives one HTML tag a tip that shows after the pointer rests on it, or keyboard focus arrives, and hides when either
 leaves. The tip is plain text, or drawn from a named template (\code{\link[=tip_define]{tip_define()}}) filled in from a record: the values of
 one item, such as a row of a table. The engine's script and CSS are attached to the tag, so it works in a bslib page,
@@ -169,7 +213,40 @@ given to a screen reader as a description.
 If both \code{text} and \code{template} are given, the text is shown for this tag. A template whose name has been defined in
 this session is checked against the record here: a field it names that the record does not hold is an error. A
 name that has not been defined is left to the page, which says so once in the browser's console.
+
+A second \code{tip_on()} on a tag that already has a tip replaces the old tip whole: its words, look, \code{id}, \code{events},
+\code{pin} and \code{when_disabled} all go, and the new call's arguments are the tip. When the old tip had an \code{id}, \code{events}
+or a pin and the new call gives none of them, it warns once, with the class \code{hovercraft_warning_retip}, so a wrapper
+that tips a tag again on purpose can silence it with \code{suppressWarnings(classes = )}.
+
+A tag that already has a \code{title} attribute keeps it, and the browser then shows its own tooltip beside the tip.
+\code{tip_on()} warns once, with the class \code{hovercraft_warning_title}, and says to remove the \code{title}; it does not
+remove it itself, because on an icon it may be the only name.
 }
+\section{Stable and experimental}{
+
+\code{tag}, \code{text}, \code{template}, \code{record}, \code{placement}, \code{id}, \code{pin} (one pinned tip at a time, with its pin button and
+the P key), \code{more} as words or a template (a "More" button opens the long form in the same tip) and a \code{style} that
+is a preset name are \verb{r lifecycle::badge("stable")}: their names, values and defaults do not change in 0.1.x. What
+the long form's button looks like and the keys beyond the pin's are not part of that promise: the look and place
+of the "More" button, the M key and the \code{keys} argument of \code{\link[=use_hovercraft]{use_hovercraft()}} are \verb{r lifecycle::badge("experimental")}, like \code{events} and the fields of the inputs it turns on, \code{when_disabled},
+\code{marker}, a \code{style} that is a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a bslib theme, a \code{\link[=tip_more]{tip_more()}}, and keeping more
+than one pin (\code{max_pins} of \code{\link[=use_hovercraft]{use_hovercraft()}}). They may change.
+}
+
+\section{Known limits}{
+
+\itemize{
+\item A tag inside \code{\link[bslib:tooltip]{bslib::tooltip()}} or \code{\link[bslib:popover]{bslib::popover()}}, or with \code{data-bs-toggle}, keeps the tip that bslib draws.
+\item A pin closes (reason \code{"gone"}) when its item is removed, or hidden by a tab, a conditional panel or a sidebar, and
+it does not come back with the item. A pin whose item only scrolls out of view is hidden and returns when the item
+does.
+\item \code{tip_on()} costs about a millisecond of R time for each tag, and the page's script some time on every change of
+the page: for a long table, page it.
+\item Reconnecting an app (\code{allowReconnect}) is untested.
+}
+}
+
 \examples{
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
 
@@ -189,12 +266,18 @@ tip_on(
   events = c("hint", "pin")
 )
 
-# Short tip on hover with extra detail
+# A short tip with a "More" button that opens the long form in the same tip
 tip_on(
   htmltools::tags$button("Run"),
   "Runs the **check**",
-  more = "Checks every column and prints a summary.",
-  more_on = "hover"
+  more = "Checks every column and prints a summary."
+)
+
+# The long form shows with the short one
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  more = tip_more("Checks every column and prints a summary.", on = "hover")
 )
 
 # A look for this tag only
@@ -202,7 +285,7 @@ tip_on(htmltools::tags$button("Run"), "Runs the **check**", style = "sober")
 tip_on(
   htmltools::tags$button("Run"),
   "Runs the **check**",
-  style = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff"))
+  style = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff"))
 )
 
 # A visible cue that a word holds a tip
@@ -225,6 +308,15 @@ lapply(seq_len(nrow(rows)), function(i) {
   )
 })
 
+# The built-in words of the tip, with other words, for this tip
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  pin = TRUE,
+  id = "run",
+  labels = c(close = "Dismiss")
+)
+
 # An icon-only button is named from its tip
 tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the **settings**")
 }
@@ -232,8 +324,8 @@ tip_on(htmltools::tags$button(htmltools::tags$i(class = "icon-gear")), "Open the
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},
@@ -241,6 +333,7 @@ Other tooltips:
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

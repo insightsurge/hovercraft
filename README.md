@@ -5,6 +5,11 @@
 [![Set up with launchR](https://img.shields.io/badge/set%20up%20with-launchR-f6ab85)](https://launch-r.web.app)
 <!-- badges: end -->
 
+At 0.1.0 `tip_on()` (its words, templates, `pin` one at a time and `more`), the template and block functions,
+`tip_presets()` and `use_hovercraft(style = )` by a preset name are stable. Tables, server calls, `events`, `when_disabled`,
+`tip_output()`, looks given as objects (`tip_style()`, `tip_theme()`, `tip_marker()`), `tip_more()`, several pins and
+`keys` are experimental and may change. Each help page says which.
+
 Tips for Shiny apps and bslib pages. Put a tip on any HTML tag: plain text, or a named template filled from the values
 of one item, such as a row of a table. The tip shows when the pointer rests on the tag or keyboard focus arrives, and
 hides when either leaves.
@@ -58,9 +63,9 @@ A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | perc
 missing or blank shows a dash. Mistakes in a template, such as a placeholder that never closes, stop with an error when
 the template is made, not later in the browser.
 
-A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too; the tip
-then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_tip`, here
-`input$run_tip`:
+A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too, with the focus on the item or the pointer resting on it; the tip
+then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_pin`, here
+`input$run_pin`:
 
 ```r
 library(shiny)
@@ -78,16 +83,37 @@ ui <- fluidPage(
 
 server <- function(input, output, session) {
   output$state <- renderText({
-    if (is.null(input$run_tip)) "Nothing pinned yet" else paste("The tip is", input$run_tip$state)
+    if (is.null(input$run_pin)) "Nothing pinned yet" else paste("The tip is", input$run_pin$state)
   })
 }
 
 shinyApp(ui, server)
 ```
 
+One pin stays open at a time; `use_hovercraft(max_pins = 3)` in the page's UI keeps up to three (a table can have its own count with `tip_table(max_pins =)`).
+
+The words a tip shows itself ("Copy", "Close", "More", "Pin this tip" and the rest) can be changed, for a page in another
+language: `use_hovercraft(labels = c(close = "Dismiss", copy = "Copy code"))` for the whole page, or `tip_on(labels =)`
+for one tip and what is inside it. The nearest words win, and a wrong key stops with an error that lists the right ones.
+
 `state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
 "hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
-tip from the server.
+tip from the server; for a table's tip they take the table's `id` with `row` and `column`
+(`tip_show("scores", row = 2, column = "wins")`).
+
+A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
+key opens it too (with the focus on the item or the pointer resting on it); "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
+again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"`, `"pin"` or `"click"`, a click on the item),
+whether the button pins the tip too (`pin = TRUE`), how the control looks and where it sits (`as = "link"`, an italic
+text link; `where = "start"` or `"end"`) and what the buttons say (`label =`); it is experimental:
+
+```r
+tip_on(
+  actionButton("run", "Run"),
+  "Runs the **check**",
+  more = "Checks every column and prints a summary. Takes about a minute on the full data."
+)
+```
 
 A live Shiny output inside a tip. `tip_output()` puts a plot, a table or any other output in a template; the output is
 drawn while the tip is open:
@@ -132,17 +158,17 @@ stop and moves between them with the arrow keys.
 ## Themes
 
 The tip follows the page: on a bslib page it uses the theme's colours and turns dark with `input_dark_mode()`. To set its look
-yourself, give `tip_dependency()` a `tip_theme()` as `style` once, in the page's UI:
+yourself, give `use_hovercraft()` a `tip_theme()` as `style` once, in the page's UI:
 
 ```r
 brand <- tip_theme(
-  light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 10),
-  dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+  light = list(bg = "#1b3a6b", text = "#ffffff", radius = 10),
+  dark = list(bg = "#9ec5fe", text = "#0b1f3a")
 )
-bslib::page_fluid(tip_dependency(style = brand), ...)
+bslib::page_fluid(use_hovercraft(style = brand), ...)
 ```
 
-`style` also takes a preset name, `tip_dependency(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
+`style` also takes a preset name, `use_hovercraft(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
 bundles a preset, a theme, a class for the tip box, and its motion and size (`tip_style(motion = "slide", max_width = 280)`). One tag can have its own look: `tip_on(btn, "Run", style = "dense")`.
 
 A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See

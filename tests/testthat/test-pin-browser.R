@@ -40,7 +40,7 @@ describe("pins in a Shiny app", {
       }
       module_server <- function(id) {
         shiny::moduleServer(id, function(input, output, session) {
-          output$seen <- shiny::renderText(show(list(hint = input$m_tip_hint$state, pin = input$m_tip_tip$state)))
+          output$seen <- shiny::renderText(show(list(hint = input$m_tip_hint$state, pin = input$m_tip_pin$state)))
         })
       }
       ui <- bslib::page_fluid(
@@ -79,7 +79,6 @@ describe("pins in a Shiny app", {
             record = list(label = "Query", sql = "SELECT 1;"),
             id = "e_tip",
             pin = TRUE,
-            kind = "review_item",
             events = c("pin", "copy")
           ),
           tip_on(
@@ -88,6 +87,53 @@ describe("pins in a Shiny app", {
             id = "f_tip",
             pin = TRUE,
             style = tip_style(motion = "slide")
+          ),
+          tip_on(
+            row(
+              "row_g",
+              "Row G",
+              tip_on(
+                htmltools::tags$span("Cell G", id = "cell_g", style = "margin-left: 4rem", class = "px-1 border"),
+                "Cell G is a plain tip.",
+                id = "g_cell_tip"
+              )
+            ),
+            "Row G is pinnable.",
+            id = "g_tip",
+            pin = TRUE
+          ),
+          htmltools::tags$div(
+            style = "display: flex; gap: 12px",
+            tip_on(
+              htmltools::tags$div(
+                "Stack A",
+                id = "stack_a",
+                tabindex = "0",
+                class = "p-2 border",
+                style = "width: 8rem"
+              ),
+              paste(
+                "Stack A is a pinned tip whose box is wide and tall enough",
+                "to overlap a neighbour's hint in the middle."
+              ),
+              id = "stack_a_tip",
+              pin = TRUE
+            ),
+            tip_on(
+              htmltools::tags$div(
+                "Stack B",
+                id = "stack_b",
+                tabindex = "0",
+                class = "p-2 border",
+                style = "width: 8rem"
+              ),
+              paste(
+                "Stack B is a hint whose box overlaps the pinned tip next to it",
+                "so the pointer's hint stays on top."
+              ),
+              id = "stack_b_tip",
+              pin = TRUE
+            )
           ),
           shiny::actionButton("show_a", "Show A"),
           shiny::actionButton("open_modal", "Open modal"),
@@ -105,21 +151,20 @@ describe("pins in a Shiny app", {
           hint = input$a_tip_hint$state,
           hint_by = input$a_tip_hint$by,
           hint_reason = input$a_tip_hint$reason,
-          pin = input$a_tip_tip,
+          pin = input$a_tip_pin,
           click = !is.null(input$row_click)
         )))
-        output$seen_b <- shiny::renderText(show(input$b_tip_tip))
+        output$seen_b <- shiny::renderText(show(input$b_tip_pin))
         output$seen_c <- shiny::renderText(show(list(
           hint = input$c_tip_hint,
-          pin = input$c_tip_tip,
+          pin = input$c_tip_pin,
           copy = input$c_tip_copy
         )))
         output$seen_e <- shiny::renderText(show(list(
-          pin = input$e_tip_tip$state,
-          pin_kind = input$e_tip_tip$kind,
+          pin = input$e_tip_pin$state,
           copy = input$e_tip_copy
         )))
-        output$seen_modal <- shiny::renderText(show(input$modal_tip_tip$state))
+        output$seen_modal <- shiny::renderText(show(input$modal_tip_pin$state))
         shiny::observeEvent(input$show_a, tip_show("a_tip"))
         shiny::observeEvent(input$open_modal, {
           shiny::showModal(shiny::modalDialog(
@@ -137,14 +182,7 @@ describe("pins in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   css <- tip_names()$css
   seen <- function(id, pattern) {
@@ -157,7 +195,7 @@ describe("pins in a Shiny app", {
   read <- function(id) page$evaluate(sprintf("document.getElementById('%s').textContent", id))
   view <- function(id) {
     page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({ block: 'center' })", id))
-    Sys.sleep(0.3)
+    page$settle()
   }
   strip <- ".hovercraft-pin-strip-button"
   pinned_box <- sprintf(".%s-pin:not([hidden])", css)
@@ -183,7 +221,9 @@ describe("pins in a Shiny app", {
   reset <- function() {
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
-    Sys.sleep(0.4)
+    expect_true(page$wait_closed())
+    # The engine's own timers, open and close delay, for the tip the pointer just left: no signal says they have run out.
+    page$hold(0.4)
   }
 
   it("starts and connects", {
@@ -211,6 +251,18 @@ describe("pins in a Shiny app", {
     expect_equal(lines()$count, 1)
   })
 
+  it("closes the strip at once when moving from a pinnable item to a plain-tip item inside it", {
+    reset()
+    view("row_g")
+    expect_identical(page$hover("#row_g"), "Row G is pinnable.")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') !== null"))
+    mouse_at("#cell_g")
+    expect_true(page$wait_until(
+      sprintf("document.querySelector('%s')?.textContent?.includes('Cell G is a plain tip.')", hint_box)
+    ))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') === null", seconds = 0.2))
+  })
+
   it("keeps the button beside the first line of a tip of several lines, and the words clear of it", {
     reset()
     page$hover("#row_d")
@@ -235,7 +287,7 @@ describe("pins in a Shiny app", {
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(1)
+    page$hold(1) # the hint must still be open after the engine's close delay: no signal for that
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     expect_true(page$evaluate("document.querySelector('.hovercraft-pin-strip') !== null"))
   })
@@ -290,7 +342,7 @@ describe("pins in a Shiny app", {
     reset()
     page$hover("#row_c")
     page$click("#row_c")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(read("seen_c"), "{\"hint\":null,\"pin\":null,\"copy\":null}")
     reset()
     page$hover("#row_a")
@@ -310,10 +362,10 @@ describe("pins in a Shiny app", {
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
     expect_true(seen(
       "seen_e",
-      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\",\"kind\":\"review_item\"\\}"
+      "\"copy\":\\{\"field\":\"sql\",\"block\":0,\"ok\":true,\"by\":\"reader\",\"via\":\"click\"\\}"
     ))
     expect_equal(page$evaluate("window.copyFired"), 1)
-    expect_true(seen("seen_e", "\"pin\":\"pinned\",\"pin_kind\":\"review_item\""))
+    expect_true(seen("seen_e", "\"pin\":\"pinned\""))
     page$press("Escape")
   })
 
@@ -341,7 +393,7 @@ describe("pins in a Shiny app", {
     view("row_f")
     page$hover("#row_f")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.6)
+    expect_true(page$wait_until("window.follow.length >= 30"))
     got <- followed()
     expect_gt(nrow(got), 5)
     # The corner never moves against the hint, on the first frame or the last.
@@ -360,7 +412,7 @@ describe("pins in a Shiny app", {
     view("row_f")
     page$hover("#row_f")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("window.follow.length >= 30"))
     got <- followed()
     expect_gt(nrow(got), 5)
     expect_gte(min(got[, 4]), 0.99)
@@ -373,11 +425,11 @@ describe("pins in a Shiny app", {
     reset()
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    Sys.sleep(0.6)
+    page$settle()
     page$evaluate(
       "window.writes = 0; new MutationObserver((records) => { window.writes += records.length; }).observe(document.querySelector('.hovercraft-pin-strip'), { attributes: true }); 0"
     )
-    Sys.sleep(0.8)
+    page$hold(0.8) # watch for writes while the hint stands still: nothing happening has no signal
     expect_equal(page$evaluate("window.writes"), 0)
   })
 
@@ -386,7 +438,7 @@ describe("pins in a Shiny app", {
     page$hover("#row_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(0.4)
+    page$hold(0.4) # the hint must stay open past the engine's close delay
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     page$mouse(690, 520, FALSE)
     expect_true(seen("seen_a", "\"hint\":\"hidden\",\"hint_by\":\"reader\",\"hint_reason\":\"leave\""))
@@ -396,13 +448,13 @@ describe("pins in a Shiny app", {
   it("keeps a hint that the server asked to show open when the pointer passes over the button", {
     reset()
     view("show_a")
-    press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+    press_button <- function(id) page$click_now(paste0("#", id))
     press_button("show_a")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     mouse_at(strip)
-    Sys.sleep(0.3)
+    page$hold(0.3) # the pointer rests on the button for a moment, as a reader's does
     page$mouse(690, 520, FALSE)
-    Sys.sleep(1)
+    page$hold(1) # then leaves it: the hint must still be open after the engine's close delay
     expect_true(page$evaluate(sprintf("document.querySelector('%s') !== null", hint_box)))
     expect_true(seen("seen_a", "\"hint\":\"shown\",\"hint_by\":\"host\""))
     page$press("Escape")
@@ -427,26 +479,19 @@ describe("pins in a Shiny app", {
     page$press("Escape")
   })
 
-  it("shows the button on an item that pins by a click too, and names the tip's kind in the inputs", {
+  it("shows the button on an item that pins by a click too", {
     reset()
     page$hover("#row_b")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    reset()
-    view("row_e")
-    page$hover("#row_e")
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-    mouse_at(strip, click = TRUE)
-    expect_true(seen("seen_e", "\"pin_kind\":\"review_item\""))
-    page$press("Escape")
   })
 
   it("keeps the button in the corner of a hint inside a modal, above it", {
     reset()
-    page$evaluate("document.getElementById('open_modal').click()")
+    page$click_now("#open_modal")
     expect_true(page$wait_until(
       "document.getElementById('row_modal') !== null && document.getElementById('row_modal').getBoundingClientRect().width > 0"
     ))
-    Sys.sleep(0.6)
+    page$settle()
     page$hover("#row_modal")
     expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
     button <- rect(strip)
@@ -460,7 +505,8 @@ describe("pins in a Shiny app", {
     expect_true(seen("seen_modal", "pinned"))
     page$press("Escape")
     page$evaluate("document.querySelector('.modal.show .btn-close, [data-bs-dismiss=\"modal\"]')?.click(); 0")
-    Sys.sleep(0.6)
+    expect_true(page$wait_until("document.querySelector('.modal.show') === null"))
+    page$settle()
   })
 
   it("puts the button in the left corner, and the room beside it, on a right-to-left page", {
@@ -488,6 +534,55 @@ describe("pins in a Shiny app", {
     expect_lte(button$right, min(hint$right, 320))
     expect_lt(lines()$first_right, button$left)
     page$viewport(900, 700)
+  })
+
+  it("draws a hint and its pin button above a pinned tip where they overlap", {
+    # Close every tip this test leaves open, whichever line fails.
+    withr::defer({
+      page$press("Escape", wait = 0.3)
+      page$press("Escape", wait = 0.3)
+    })
+    reset()
+    view("stack_a")
+    page$hover("#stack_a")
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    mouse_at(strip, click = TRUE)
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip') === null"))
+    page$hover("#stack_b")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_box)))
+    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    page$settle()
+    pinned <- rect(pinned_box)
+    hint <- rect(hint_box)
+    button <- rect(strip)
+    ox1 <- max(pinned$left, hint$left)
+    ox2 <- min(pinned$right, hint$right)
+    oy1 <- max(pinned$top, hint$top)
+    oy2 <- min(pinned$bottom, hint$bottom)
+    expect_gt(ox2 - ox1, 10)
+    expect_gt(oy2 - oy1, 30)
+    px <- (ox1 + ox2) / 2
+    py <- oy2 - 8
+    hit_overlap <- jsonlite::fromJSON(page$evaluate(sprintf(
+      paste0(
+        "(() => { const e = document.elementFromPoint(%s, %s);",
+        " return JSON.stringify({ in_hint: !!e?.closest('%s'), in_pin: !!e?.closest('%s') }); })()"
+      ),
+      px,
+      py,
+      hint_box,
+      pinned_box
+    )))
+    expect_true(hit_overlap$in_hint)
+    expect_false(hit_overlap$in_pin)
+    hit_button <- page$evaluate(sprintf(
+      "(() => { const e = document.elementFromPoint(%s, %s); return !!e?.closest('%s'); })()",
+      (button$left + button$right) / 2,
+      (button$top + button$bottom) / 2,
+      strip
+    ))
+    expect_true(hit_button)
   })
 
   it("leaves the console without errors", {

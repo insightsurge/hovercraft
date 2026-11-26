@@ -69,7 +69,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
           tip_on(
             off(shiny::actionButton("styled", "Styled")),
             "Enabled tip",
-            style = tip_style(theme = list("--hovercraft-tip-radius" = "13px")),
+            style = tip_style(theme = list(radius = 13)),
             placement = "right",
             when_disabled = "Styled reason"
           )
@@ -114,14 +114,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   reason <- tip_attribute("reason")
   wrapper <- function(id) {
@@ -135,7 +128,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
       reason
     )))
   }
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   seen <- function(id, pattern) {
     page$wait_until(sprintf(
       "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
@@ -236,7 +229,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   # Brings the element into view, so the pointer can reach it on a page that is taller than the window.
   view <- function(id) {
     page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({block: 'center'})", id))
-    Sys.sleep(0.2)
+    page$settle(0.1)
   }
   aria <- function(id) {
     jsonlite::fromJSON(page$evaluate(sprintf(
@@ -267,7 +260,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   it("keeps the reason open on Enter and Space, which do nothing on the wrapper, and closes it on Escape", {
     view("built")
     page$evaluate(sprintf("%s.focus()", wrapper("built")))
-    Sys.sleep(0.8)
+    expect_true(page$wait_open())
     expect_identical(page$shown(), "Not available: Disabled at build")
     expect_identical(page$press("Enter"), "Not available: Disabled at build")
     expect_identical(page$press(" "), "Not available: Disabled at build")
@@ -287,7 +280,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
   it("keeps the focus with a control that disables itself, and gives it back when the control is enabled", {
     view("self")
     page$evaluate("document.getElementById('self').focus()")
-    page$evaluate("document.getElementById('self').click()")
+    page$click_now("#self")
     expect_true(page$wait_until(sprintf("%s.getAttribute('tabindex') === '0'", wrapper("self"))))
     expect_true(page$wait_until(sprintf("document.activeElement === %s", wrapper("self"))))
     page$evaluate("document.getElementById('self').disabled = false")
@@ -354,14 +347,7 @@ describe("tip_on(when_disabled = ) on a Bootstrap 3 page", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
   tabbed <- function(js) page$evaluate(js)
 
@@ -380,10 +366,10 @@ describe("tip_on(when_disabled = ) on a Bootstrap 3 page", {
   })
 
   it("shows the reason when Shiny switches the control off, and the control's own tip when it is on again", {
-    page$evaluate("document.getElementById('off').click()")
+    page$click_now("#off")
     expect_true(page$wait_until("document.getElementById('later').parentElement.getAttribute('role') === 'button'"))
     expect_identical(page$hover("#later"), "Not available: Switched off")
-    page$evaluate("document.getElementById('on').click()")
+    page$click_now("#on")
     expect_true(page$wait_until("document.getElementById('later').parentElement.getAttribute('role') === null"))
     expect_identical(page$hover("#later"), "Enabled tip")
   })
@@ -435,14 +421,14 @@ describe("tip_update() on a control with when_disabled", {
           shiny::updateActionButton(session, id, disabled = FALSE)
         }
       )
-      shiny::observeEvent(input$clear, tip_update("tx_tip", text = NULL))
+      shiny::observeEvent(input$clear, tip_update("tx_tip", text = NA))
     }
     shiny::shinyApp(ui, server)
   })
   page <- local_page(app$url, environment())
   tip_attrs <- c(tip_attribute("text"), tip_attribute("template"), tip_attribute("record"))
   wrapper <- function(id) sprintf("document.getElementById('%s').closest('.%s')", id, tip_disabled_class())
-  press_button <- function(id) page$evaluate(sprintf("document.getElementById('%s').click()", id))
+  press_button <- function(id) page$click_now(paste0("#", id))
   # Whether the wrapper holds any attribute that would make it a tip of its own.
   ghost <- function(id) {
     page$evaluate(sprintf(

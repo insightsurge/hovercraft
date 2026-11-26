@@ -35,11 +35,14 @@ bs_theme <- reactable::reactableTheme(
 code <- list(
   dt = 'DT::datatable(study, rownames = FALSE, filter = "top", options = list(pageLength = 8)) |>
   tip_table(
-    rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+    rows = tip_spec(
+      "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+      pin = TRUE, events = "pin"
+    ),
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
     placement = "bottom",
-    id = "sites_dt", pin = TRUE, events = "pin"
+    id = "sites_dt"
   )',
   rt = 'reactable::reactable(
   study,
@@ -47,11 +50,14 @@ code <- list(
   columns = list(response = reactable::colDef(format = reactable::colFormat(percent = TRUE, digits = 1)))
 ) |>
   tip_table(
-    rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+    rows = tip_spec(
+      "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+      pin = TRUE, events = "pin"
+    ),
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
     placement = "bottom",
-    id = "sites_rt", pin = TRUE, events = "pin"
+    id = "sites_rt"
   )',
   rt_cell = '# In the UI, once: tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}")))
 reactable::reactable(
@@ -72,7 +78,7 @@ reactable::reactable(
     )
   )
 )',
-  dt_html = '# In the UI, once: tip_dependency() and the same tip_define() as above
+  dt_html = '# In the UI, once: use_hovercraft() and the same tip_define() as above
 shown <- study[c("site", "country", "status")]
 shown$status <- vapply(seq_len(nrow(study)), function(i) {
   as.character(tip_on(
@@ -236,7 +242,7 @@ demo_head <- shiny::tags$head(
 ui <- bslib::page_fluid(
   theme = bslib::bs_theme(version = 5),
   demo_head,
-  tip_dependency(),
+  use_hovercraft(),
   tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}"))),
   bslib::input_dark_mode(id = "mode"),
   shiny::h2("tip_table() demo (experimental)"),
@@ -290,13 +296,14 @@ server <- function(input, output, session) {
     study$site[input$dt_rows_selected]
   ))
   output$rt <- reactable::renderReactable(run(code$rt))
-  # A pinned row sends input$<id>/row/<n>_tip: read the inputs that exist, whichever rows have been pinned.
+  # A pinned row sends input$<id>_pin, one input for the whole table, with the data row in `row`; input$<id>_pinned lists
+  # the rows pinned now.
   output$pins <- shiny::renderPrint({
-    inputs <- shiny::reactiveValuesToList(input)
-    inputs <- inputs[grepl("^sites_(dt|rt)/row/[0-9]+_tip$", names(inputs))]
-    cat("Pin inputs (state, by row):\n")
-    for (name in names(inputs)) {
-      cat(" ", name, "->", inputs[[name]]$state, "\n")
+    cat("Pin inputs (the last event, and the rows pinned now):\n")
+    for (id in c("sites_dt", "sites_rt")) {
+      last <- input[[paste0(id, "_pin")]]
+      now <- vapply(input[[paste0(id, "_pinned")]], function(at) at$row, 0L)
+      cat(" ", id, "->", last$state %||% "nothing yet", "row", last$row %||% "-", "| pinned:", toString(now), "\n")
     }
   })
   output$rt_cell <- reactable::renderReactable(run(code$rt_cell))

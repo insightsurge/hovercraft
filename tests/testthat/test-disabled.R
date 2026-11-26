@@ -88,7 +88,7 @@ describe("tip_on(when_disabled = )", {
     got <- tip_on(
       disabled_button(),
       "Runs",
-      style = tip_style("sober", theme = list("--hovercraft-tip-radius" = "13px")),
+      style = tip_style("sober", theme = list(radius = 13)),
       placement = "right",
       when_disabled = "Why"
     )
@@ -109,9 +109,11 @@ describe("tip_on(when_disabled = )", {
     expect_identical(attrs(again$children[[1]])[[tip_names()$attribute]], "Two")
     # The look of the first call went with it, as a tip made before is replaced.
     expect_false(tip_attribute("preset") %in% names(again$attribs))
-    kept <- tip_on(first, "Two")
-    expect_identical(attrs(kept)[[tip_disabled_attribute()]], "First reason")
-    expect_identical(kept$children[[1]]$name, "button")
+    # A call without `when_disabled` replaces the reason too: the control comes back without its wrapper.
+    plain <- tip_on(first, "Two")
+    expect_identical(plain$name, "button")
+    expect_null(htmltools::tagGetAttribute(plain, tip_disabled_attribute()))
+    expect_identical(attrs(plain)[[tip_names()$attribute]], "Two")
   })
 
   it("leaves a marker off a tag that has a reason and no tip of its own, and says so", {

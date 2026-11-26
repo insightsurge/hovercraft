@@ -11,7 +11,7 @@ preset_light <- function(name) jsonlite::read_json(tip_path("presets", paste0(na
 
 style_page <- function(dir, style, ...) {
   page <- bslib::page_fluid(
-    tip_dependency(style = style),
+    use_hovercraft(style = style),
     htmltools::tags$button(id = "plain", "Plain") |> tip_on("Plain tip"),
     ...
   )
@@ -38,10 +38,10 @@ wait_for_engine <- function(page) page$wait_until(sprintf("typeof %s === 'object
 describe("a page with a preset and a theme", {
   dir <- withr::local_tempdir()
   navy <- tip_theme(
-    light = list(bg = "#1b3a6b", ink = "#ffffff"),
-    dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+    light = list(bg = "#1b3a6b", text = "#ffffff"),
+    dark = list(bg = "#9ec5fe", text = "#0b1f3a")
   )
-  maroon <- tip_theme(light = list(bg = "#7a1f1f", ink = "#ffffff"))
+  maroon <- tip_theme(light = list(bg = "#7a1f1f", text = "#ffffff"))
   path <- style_page(
     dir,
     tip_style("sober", theme = navy, class = "page-wide"),
@@ -150,7 +150,7 @@ watch_animations <- function(page) {
 open_tip <- function(page, id, click = FALSE) {
   page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({block: 'center', behavior: 'instant'}); 0", id))
   # The page moved under the pointer, which may open another tag's tip: let it settle before the one under test.
-  Sys.sleep(0.8)
+  page$settle(0.3)
   page$evaluate("window.__animations = []; 0")
   shown <- if (click) page$click(paste0("#", id)) else page$hover(paste0("#", id))
   info <- jsonlite::fromJSON(

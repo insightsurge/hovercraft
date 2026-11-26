@@ -21,7 +21,8 @@ A block, to give to \code{\link[=tip_template]{tip_template()}}.
 Puts any Shiny output — a plot, a \code{DT} or \code{reactable} table, a \code{gt} table, a chart or \code{uiOutput()} — inside a
 \code{\link[=tip_template]{tip_template()}}. Give \code{output} as the Shiny output id (with \code{ns()} inside a module, such as \code{ns("detail_plot")}),
 or as the output tag itself (such as \code{shiny::plotOutput(ns("detail_plot"))} or one wrapped in a loader like
-\code{shinycssloaders::withSpinner()}).
+\code{shinycssloaders::withSpinner()}). It needs Shiny: on a page without a server (R Markdown, Quarto, a static page)
+the output stays empty.
 }
 \details{
 When \code{output} is given as an id string, place the matching \verb{*Output()} tag in your UI (plain or wrapped in a loader
@@ -51,14 +52,15 @@ state with a message that says the server did not run the output again, and Retr
 
 \section{One output for several items}{
 
-One output has one place in the page, so a template that many items share shows one output, drawn for one item at a
-time. Your server decides for which: ask the items for the \code{"hint"} input (\code{tip_on(events = "hint")}) and read
+One output has one place in the page, so a template that many items share shows one output, drawn for one item at
+a time. Your server decides for which: ask the items for the \code{"hint"} input (\code{tip_on(events = "hint")}) and read
 \verb{input$<id>_hint} in the render, as in the second example below; its \code{state} is \code{"shown"} while the item's hint is
 open. When a tip opens for a different item than the one the output was last shown for, the tip shows the loading
 state and hides the old content until the server's new value arrives (a server that never reads the open item
-sends none, and the old content stays after about a second and a half). A pinned tip has no input yet, so an output
-shared by pins keeps what the last hint drew. While one tip holds the output and another opens for the same
-output, the first says "Shown in another tip." and gets the output back when the other closes.
+sends none, and the old content stays after about a second and a half). A pinned tip sends \verb{input$<id>_pin} (with
+\code{events = "pin"}), which the render can read in the same way, and the output of several open pins sits in the tip
+that opened last: the others say "Shown in another tip." When the tip that holds the output closes, the output
+goes back to the one that held it before.
 
 The tip's own markup is plain attributes and template JSON with no random or per-session ids, so
 \code{shiny::renderUI() |> shiny::bindCache()} and \verb{render*() |> shiny::bindCache()} work across sessions.
@@ -130,8 +132,8 @@ shinyApp(ui, server)
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_presets]{tip_presets()}},
 \code{\link{tip_server}},
@@ -139,6 +141,7 @@ Other tooltips:
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

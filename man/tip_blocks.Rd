@@ -49,7 +49,7 @@ copy is done the older way), and says "Copied" or "Copy failed" beside the butto
 A block, to give to \code{\link[=tip_template]{tip_template()}}.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 The parts a template is made of. \code{tip_title()} is the first line, \code{tip_text()} a paragraph of markdown,
 \code{tip_badge()} a short label, \code{tip_fields()} a list of label and value pairs, and \code{tip_code()} a piece of code shown
 as text. Text and values may hold placeholders, \code{{{ field }}} or \code{{{ field | number:2 }}}, filled from the record of
@@ -67,8 +67,8 @@ tip_code("sql", language = "sql")
 \seealso{
 Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
 \code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
@@ -77,6 +77,7 @@ Other tooltips:
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

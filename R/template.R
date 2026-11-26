@@ -197,10 +197,10 @@ tip_as_block <- function(x, where, call) {
 
 #' A template: the blocks a tip is drawn from
 #'
-#' `r lifecycle::badge("experimental")`
-#' A template is a list of blocks, shown in order. Name it with [tip_define()], then use it on a tag with [tip_on()]. A
-#' block can be made with [tip_title()] and the other block functions, or written as a plain list such as
-#' `list(type = "text", text = "...")`; both are checked in the same way.
+#' `r lifecycle::badge("stable")`
+#' A template is a list of blocks, shown in order. Name it with [tip_define()] and use the name in [tip_on()], or give
+#' the template itself to `template =` of [tip_on()]. A block can be made with [tip_title()] and the other block
+#' functions, or written as a plain list such as `list(type = "text", text = "...")`; both are checked in the same way.
 #'
 #' Blocks can be given in order through `...`, or placed into the named slots `head`, `body` and `foot`. Each slot
 #' takes one block or a list of blocks; `foot` is drawn below a thin divider in muted text, suited for a source line or
@@ -212,7 +212,7 @@ tip_as_block <- function(x, where, call) {
 #' @param body Optional block or list of blocks drawn in the middle of the tip. Cannot be combined with `...`.
 #' @param foot Optional block or list of blocks drawn at the bottom of the tip below a subtle divider.
 #'
-#' @returns A template, to give to [tip_define()].
+#' @returns A template, to give to [tip_define()] or to `template =` of [tip_on()].
 #' @family tooltips
 #' @examples
 #' tip_template(
@@ -304,12 +304,11 @@ print.hovercraft_template <- function(x, ...) {
 
 #' Name the templates for a page
 #'
-#' `r lifecycle::badge("experimental")`
-#' Puts named templates on the page, so a tag can use one with `tip_on(tag, template = "name")`. Put the result in the
-#' page's UI, once. A name is lower-case letters, digits and `_`, starting with a letter; inside a Shiny module, prefix
-#' it with `ns()` (for example `tip_define(!!ns("row") := tip_template(...))`) so two copies of the module keep their
-#' own templates without overwriting each other. Defining the same name again replaces the earlier template under it,
-#' with a warning when the blocks differ.
+#' `r lifecycle::badge("stable")` Puts named templates on the page, so a tag can use one with `tip_on(tag, template =
+#' "name")`. Put the result in the page's UI, once. Names are page-wide. A name is lower-case letters, digits and `_`,
+#' starting with a letter; inside a Shiny module, prefix it with `ns()` (for example `tip_define(!!ns("row") :=
+#' tip_template(...))`) so two copies of the module keep their own templates without overwriting each other. Defining
+#' the same name again replaces the earlier template under it, with a warning when the blocks differ.
 #'
 #' The templates are also kept in R, so that [tip_on()] can check a record against them. Defined in a Shiny session (in
 #' `renderUI()` or a module's server), they belong to that session: two sessions of one app may define one name with

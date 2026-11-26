@@ -8,16 +8,15 @@ describe("the dependencies of a tag", {
       tip_on(
         htmltools::tags$button("Go", id = "go"),
         "Short",
-        style = tip_style(theme = list("--hovercraft-tip-radius" = "9px"), gap = 3),
-        more = tip_template(tip_text("The long form")),
-        more_on = "hover",
+        style = tip_style(theme = list(radius = 9), gap = 3),
+        more = tip_more(tip_template(tip_text("The long form")), on = "hover"),
         events = "hint",
         pin = TRUE,
         marker = "icon"
       ),
       tip_on(htmltools::tags$button("Off", disabled = NA), "Off", when_disabled = "why"),
       tip_define(card = tip_template(tip_text("{{ a }}"))),
-      htmltools::tags$div(tip_dependency(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))))
+      htmltools::tags$div(use_hovercraft(style = tip_style("sober", theme = list("--hovercraft-tip-bg" = "#1b3a6b"))))
     )
   }
   all_deps <- function(x) htmltools::resolveDependencies(htmltools::findDependencies(x))

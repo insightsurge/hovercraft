@@ -35,7 +35,9 @@
       if (!el) return note(`hide|${id}`, `tip_hide(): no tag with the tip id "${id}" is on the page.`);
       if (el.getAttribute(names.attributes.open) === names.states.hint) window[names.global].hide();
     },
-    update: ({ id, set, remove }) => {
+    update: ({ id, set, remove, define }) => {
+      // A template that came with the call is made on the page before the tag reads its name.
+      for (const template of [define ?? []].flat()) window[names.global].define(template.name, template.blocks);
       const el = find(id);
       if (!el) return note(`update|${id}`, `tip_update(): no tag with the tip id "${id}" is on the page.`);
       // A control with `when_disabled` sits in a wrapper that answers to the control's tip id while the control is off, so
@@ -57,9 +59,51 @@
     },
   };
 
-  // The ids whose hint or pin is open and was asked for: a tag that renderUI() replaces is gone when the engine says its
-  // tip closed (by "data"), and the event is then sent at the page, so the tag can no longer say it asked.
-  const asked = { hint: new Set(), pin: new Set() };
+  // The tips whose hint or pin is open and was asked for, by tip id, with the input they send to and, for a table's tip,
+  // its address: a tag that renderUI() replaces is gone when the engine says its tip closed (by "data"), and the event
+  // is then sent at the page, so the tag can no longer say it asked or where it was.
+  const asked = { hint: new Map(), pin: new Map() };
+  // The pins that the page's count of pins is about to close, by tip id, with who pinned the new one (see `replaced`).
+  const replacedBy = new Map();
+  // What each table has pinned now, by the table's id: the addresses, oldest first (a Map keeps the order it was set in).
+  const pinnedBy = new Map();
+
+  // Where a table's tip is, from the attribute table.js writes on the element: { table, target, row, column }, or null for
+  // a tag of tip_on(). `row` is the 1-based data row (null for a header), `column` the data column's name (null for a row).
+  const addressOf = (el) => {
+    const raw = names.attributes.address ? el?.getAttribute(names.attributes.address) : null;
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  };
+  // What a table's input says about the tip it comes from, next to the event's own fields.
+  const placeOf = (address, id) => ({
+    target: address.target,
+    row: address.row ?? null,
+    column: address.column ?? null,
+    id,
+  });
+
+  // `input$<id>_pinned`: what is pinned now. For a tag of tip_on() TRUE or FALSE; for a table a list of the addresses,
+  // oldest first. Sent as a plain value, so a value equal to the last one does not fire an observer again, and in the same
+  // tick as `_pin`, so Shiny sends both in one batch.
+  const sendPinned = (detail, base, address) => {
+    if (detail.state !== 'pinned' && detail.state !== 'closed') return;
+    const opened = detail.state === 'pinned';
+    if (!address) {
+      window.Shiny.setInputValue(`${base}_pinned`, opened);
+      return;
+    }
+    const list = pinnedBy.get(base) ?? new Map();
+    if (opened) list.set(detail.id, placeOf(address, detail.id));
+    else list.delete(detail.id);
+    pinnedBy.set(base, list);
+    // Shiny would flatten a plain array of objects, so the input has a type of its own (R reads it back as a list).
+    window.Shiny.setInputValue(`${base}_pinned:${names.pinnedType}`, [...list.values()]);
+  };
 
   // What each input holds, from the engine's event. The hint and the pin share the shape: what happened, to which words,
   // who did it and how, and why it closed. A copy says which field and code block, and whether the browser let it.
@@ -74,11 +118,10 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
-        kind: d.kind ?? null,
       }),
     },
     pin: {
-      suffix: '_tip',
+      suffix: '_pin',
       opens: 'pinned',
       closes: 'closed',
       value: (d) => ({
@@ -87,7 +130,6 @@
         by: d.by ?? null,
         via: d.via ?? null,
         reason: d.reason ?? null,
-        kind: d.kind ?? null,
       }),
     },
     copy: {
@@ -98,14 +140,14 @@
         ok: d.ok === true,
         by: d.by ?? null,
         via: d.via ?? null,
-        kind: d.kind ?? null,
       }),
     },
   };
 
   // The engine's events are sent at the tag and bubble, so one listener on the page serves every tag. A tag sends an
   // input only when its list names it, and only for its own tip: an outer tag with a list does not send for an inner
-  // one. `kind` is "hint", "pin" or "copy", the words `events =` takes.
+  // one. `kind` is "hint", "pin" or "copy", the words `events =` takes. A tag of tip_on() sends to `<its id>_<kind>`. A
+  // table's row sends to `<the table's id>_<kind>`, one input per table, and the value says which tip it was.
   const sendInput = (kind) => (event) => {
     const detail = event.detail;
     const input = inputs[kind];
@@ -114,12 +156,33 @@
     const wants =
       el?.getAttribute(names.attributes.events).split(/\s+/).includes(kind) &&
       (el.getAttribute(names.attributes.id) ?? el.id) === detail.id;
-    const closing = !!input.closes && detail.state === input.closes && asked[kind].has(detail.id);
+    const was = asked[kind]?.get(detail.id);
+    const closing = !!input.closes && detail.state === input.closes && !!was;
     if (!wants && !closing) return;
-    if (input.opens && detail.state === input.opens) asked[kind].add(detail.id);
+    const address = wants ? addressOf(el) : was.address;
+    const base = address ? address.table : detail.id;
+    if (input.opens && detail.state === input.opens) asked[kind].set(detail.id, { base, address });
     else if (input.closes && detail.state === input.closes) asked[kind].delete(detail.id);
+    if (kind === 'pin') sendPinned(detail, base, address);
+    // A pin that the page's own count closed (runtime.js) says what the engine's limit says: replaced, by the reader.
+    const mine = kind === 'pin' && detail.state === input.closes ? replacedBy.get(detail.id) : null;
+    if (mine) replacedBy.delete(detail.id);
+    const shown = mine ? { ...detail, reason: 'replaced', by: mine.by, via: mine.via } : detail;
+    const value = address ? { ...input.value(shown), ...placeOf(address, detail.id) } : input.value(shown);
     // "event" priority: the same value twice in a row (a hint opened, closed, opened) must still reach the server.
-    window.Shiny.setInputValue(`${detail.id}${input.suffix}`, input.value(detail), { priority: 'event' });
+    window.Shiny.setInputValue(`${base}${input.suffix}`, value, { priority: 'event' });
+  };
+
+  // Two tagged items with one tip id answer for each other: the events and the server calls find the first. A table checks
+  // its own id when it is drawn (inst/table/table.js); this looks at the tags of tip_on(), once a page change is over.
+  const checkIds = () => {
+    const seen = new Set();
+    const { id: idName, kind, disabled } = names.attributes;
+    for (const el of document.querySelectorAll(`[${idName}]:not([${kind}^="table_"]):not([${disabled}])`)) {
+      const id = el.getAttribute(idName);
+      if (seen.has(id)) note(`id|${id}`, `two tagged items have the tip id "${id}". Give each its own id.`);
+      seen.add(id);
+    }
   };
 
   // ---- tip_output(): live Shiny outputs in tips -------------------------------------------------------------------
@@ -281,8 +344,81 @@
     captureShell(id, wrapper);
     const holder = getPark(doc);
     if (holder && !wrapper.closest('.hc-output') && wrapper.parentElement !== holder) {
-      holder.append(wrapper);
+      // The region that holds the tag drew again: its new output replaces the one parked before, which would be a second
+      // element with the same id, bound to nothing.
+      dropParked(holder, id, outputEl);
+      // A mark where the output was says whether the region that made it is still in the page (see `reapParked`).
+      const mark = doc.createElement('span');
+      mark.hidden = true;
+      wrapper.before(mark);
+      parkMarks.set(id, mark);
+      // The output is in the page again, so what a closing tip does with it is the ordinary thing (see `destroy`).
+      const rec = outputs.get(id);
+      if (rec) rec.orphaned = false;
+      // A tip that is open holds the old output: the new one takes its place there, so the page has one element with the
+      // id, and the old one is let go. Of several boxes that asked for the output, the one that holds the node is `slot`.
+      const tip = rec?.live.find((box) => box.root === rec.slot && box.root.isConnected);
+      if (tip) {
+        releaseNode(tip.hostEl, tip.wrapper);
+        tip.hostEl.append(wrapper);
+        // The boxes that wait for the node hand it on when they take it over, so all of them point to the new one.
+        for (const box of rec.live) [box.wrapper, box.outputEl] = [wrapper, outputEl];
+        refreshOutput(tip.hostEl, outputEl, id);
+      } else {
+        holder.append(wrapper);
+      }
     }
+  };
+
+  // Shiny lets go of a node (its outputs and inputs), then the node leaves the page.
+  const releaseNode = (host, node) => {
+    const shiny = host.ownerDocument.defaultView?.Shiny ?? window.Shiny;
+    if (shiny?.unbindAll) shiny.unbindAll(node, true);
+    node.remove();
+  };
+
+  // Output id -> the hidden mark left in the page where the parked output was. When the mark has left the page, the
+  // region that drew the output has gone, and the parked output is no one's.
+  const parkMarks = new Map();
+
+  // Takes the parked outputs with this id out of the page, except `keep`: Shiny lets go of them first, then the node goes.
+  const dropParked = (holder, id, keep = null) => {
+    for (const el of holder.querySelectorAll(`[id="${CSS.escape(id)}"]`)) {
+      if (el === keep) continue;
+      let top = el;
+      while (top.parentElement && top.parentElement !== holder) top = top.parentElement;
+      releaseNode(holder, top);
+    }
+  };
+
+  // Lets go of the parked outputs whose region has left the page (a `renderUI()` that returned nothing, a module removed)
+  // and of what was kept for them. What it finds when the mark of an output has left:
+  // - a new output outside the holder and outside any tip: the region drew again, and `parkId` parks it in the old one's
+  //   place (its `tip_define()` may be outside the region, so nothing else would ask);
+  // - the output inside a tip that is open: the tip keeps it until it closes, and `destroy` then lets it go;
+  // - the output in the holder, or none at all (a tip with `keep_alive = FALSE` took it away): it and what was kept for it
+  //   go now.
+  const reapParked = () => {
+    const holder = document.body?.querySelector(`:scope > .${names?.parkClass ?? 'hc-output-park'}`);
+    for (const [id, mark] of [...parkMarks]) {
+      if (mark.isConnected) continue;
+      parkMarks.delete(id);
+      const current = findOutputEl(document, id);
+      const rec = outputs.get(id);
+      if (current && !holder?.contains(current)) {
+        if (current.closest('.hc-output')) {
+          if (rec) rec.orphaned = true;
+        } else {
+          parkId(id);
+        }
+        continue;
+      }
+      if (holder) dropParked(holder, id);
+      if (rec) clearWait(rec);
+      outputs.delete(id);
+      shells.delete(id);
+    }
+    for (const [html, node] of parkedHtml) if (!node.isConnected) parkedHtml.delete(html);
   };
 
   let outputWatch = null;
@@ -420,8 +556,10 @@
         keep_alive: { type: 'boolean', required: false },
       },
       flatten: () => '',
-      render: (b, _record, ctx) => {
+      render: (b, record, ctx) => {
         const id = typeof b.output === 'string' ? b.output : '';
+        // The engine says which item this box is drawn for in the record; the mount below is not told (it gets the box).
+        const tipId = record?.tip_id;
         const keepAlive = b.keep_alive !== false;
         const doc = ctx.doc;
         const root = doc.createElement('div');
@@ -512,7 +650,9 @@
               },
             };
           }
-          const mine = { root, hostEl };
+          // `wrapper` and `outputEl` are the box's own: a region that draws again while the tip is open puts its new output
+          // in the box (see `parkId`), so what `destroy` lets go of is read from here.
+          const mine = { root, hostEl, wrapper, outputEl };
           takeOver(rec);
           rec.live.push(mine);
           captureShell(id, wrapper);
@@ -535,7 +675,10 @@
           }
           // An output drawn for another item still holds that item's content: show loading until the server answers
           // for this one. A server that never reads the open item sends nothing, so after SWITCH_WAIT the content stays.
-          const item = itemOf(info?.box);
+          // The record says whose tip this is, which stays true with several pins open, where "the item that is open" is
+          // no one's; without it, the item that is open.
+          const owner = tipId ?? info?.id;
+          const item = owner ? find(String(owner)) : itemOf(info?.box);
           if (item && rec.item && item !== rec.item && rec.state === 'ready') {
             rec.state = 'loading';
             rec.stale = true;
@@ -554,7 +697,7 @@
           return {
             resize: () => {
               const jq = doc.defaultView?.jQuery ?? window.jQuery;
-              if (jq && outputEl.isConnected) jq(outputEl).trigger('resize');
+              if (jq && mine.outputEl.isConnected) jq(mine.outputEl).trigger('resize');
             },
             mode: () => {
               const jq = doc.defaultView?.jQuery ?? window.jQuery;
@@ -569,20 +712,26 @@
               // A box that stayed open (a pin) gets the node back; a redraw parks it, and the new box asks for it.
               const next = rec.live.at(-1);
               if (!redraw && next?.root.isConnected) {
-                next.hostEl.append(wrapper);
+                next.hostEl.append(mine.wrapper);
+                [next.wrapper, next.outputEl] = [mine.wrapper, mine.outputEl];
                 rec.slot = next.root;
                 applySlotState(id);
-                refreshOutput(next.hostEl, outputEl, id);
+                refreshOutput(next.hostEl, mine.outputEl, id);
                 return;
               }
-              if (!hostEl.contains(wrapper)) return;
-              if (keepAlive || redraw) {
+              if (!hostEl.contains(mine.wrapper)) return;
+              if (rec.orphaned) {
+                // The region that made the output went while this tip held it: no one parks it again, and nothing keeps
+                // its records.
+                releaseNode(hostEl, mine.wrapper);
+                clearWait(rec);
+                outputs.delete(id);
+                shells.delete(id);
+              } else if (keepAlive || redraw) {
                 const holder = getPark(doc);
-                if (holder) holder.append(wrapper);
+                if (holder) holder.append(mine.wrapper);
               } else {
-                const shiny = doc.defaultView?.Shiny ?? window.Shiny;
-                if (shiny?.unbindAll) shiny.unbindAll(wrapper, true);
-                wrapper.remove();
+                releaseNode(hostEl, mine.wrapper);
                 clearWait(rec);
                 rec.state = 'idle';
                 rec.message = '';
@@ -708,14 +857,24 @@
     }
   };
 
+  // The pin boxes that were on show at the last pin event: with several pins open, the box a pin just opened in is the one
+  // that was not there before.
+  let shownPins = new Set();
+  const visiblePins = () => {
+    const cls = names?.css ?? 'hc-tip';
+    return [...document.querySelectorAll(`.${cls}.${cls}-pin:not([hidden])`)];
+  };
   const animatePinGrowth = (event) => {
     const detail = event.detail;
     if (!detail) return;
     if (detail.state === 'closed') {
       cancelGrowth();
+      shownPins = new Set(visiblePins());
       return;
     }
     if (detail.state !== 'pinned') return;
+    const fresh = visiblePins().filter((box) => !shownPins.has(box));
+    shownPins = new Set(visiblePins());
     const prev = lastHint;
     lastHint = null;
     const el = event.target?.nodeType === 1 ? event.target : find(detail.id);
@@ -726,11 +885,12 @@
 
     // Run right after the engine's synchronous pinMotion.enter() and before the first browser paint.
     Promise.resolve().then(() => {
-      const cls = names?.css ?? 'hc-tip';
-      const pinBox = document.querySelector(`.${cls}.${cls}-pin:not([hidden])`);
+      const pinBox = fresh.at(-1) ?? visiblePins().at(-1);
       if (!pinBox) return;
       // The long form starts with a hairline, as in the hover form (the engine draws no wrapper for it when pinned).
       longBlocks(pinBox, prev.blocks)[0]?.classList.add('hc-long-first');
+      // A panel under a table row is already where it grows: no morph from the hint's rectangle.
+      if (pinBox.dataset.side === 'in') return;
       if (reducedMotion() || typeof pinBox.animate !== 'function') return;
       cancelGrowth();
       // Cancel any opacity-0 entrance animation from the engine so the already-visible tip does not flicker.
@@ -818,14 +978,14 @@
   // Output tags that R hands over as HTML (a `more` template that holds a tag): put in the park holder once there is a
   // body, each only once, and bound by Shiny when it is already running.
   const pendingHtml = [];
-  const parkedHtml = new Set();
+  const parkedHtml = new Map(); // the HTML -> the node that was made from it
   const flushParkHtml = () => {
     if (!document.body || !pendingHtml.length) return;
     const holder = getPark(document);
     for (const html of pendingHtml.splice(0)) {
       if (parkedHtml.has(html)) continue;
-      parkedHtml.add(html);
       holder.insertAdjacentHTML('beforeend', html);
+      parkedHtml.set(html, holder.lastElementChild);
     }
     if (window.Shiny?.shinyapp && window.Shiny.bindAll) window.Shiny.bindAll(holder);
   };
@@ -835,6 +995,11 @@
   };
 
   window.HovercraftShiny = Object.freeze({
+    // runtime.js, before it closes a pin that went past its pool's limit: the close then reports as the engine's own limit
+    // does (reason "replaced", by whoever pinned the new tip) in the pin input.
+    replaced: (id, info) => replacedBy.set(String(id), info),
+    // For the tests: what is kept for the outputs that tips hold.
+    stats: () => ({ outputs: outputs.size, shells: shells.size, marks: parkMarks.size }),
     start: (config) => {
       if (names) return;
       names = config;
@@ -864,6 +1029,13 @@
       };
       ready();
       if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', ready);
+      let checking = 0;
+      new MutationObserver(() => {
+        reapParked();
+        clearTimeout(checking);
+        checking = setTimeout(checkIds, 500);
+      }).observe(document.documentElement, { childList: true, subtree: true });
+      checkIds();
     },
     parkHtml: (html) => {
       if (typeof html !== 'string' || !html) return;

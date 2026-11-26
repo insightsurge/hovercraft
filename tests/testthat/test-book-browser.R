@@ -121,7 +121,7 @@ describe("hovercraft book in a browser", {
       "document.querySelector('#looks .js-copy').click();"
     ))
     expect_true(page$wait_until("typeof window.copied === 'string'"))
-    expect_match(js("window.copied"), "tip_dependency(", fixed = TRUE)
+    expect_match(js("window.copied"), "use_hovercraft(", fixed = TRUE)
     expect_identical(js("document.documentElement.getAttribute('data-bs-theme')"), "dark")
     expect_true(page$wait_until("window.Shiny.shinyapp.$inputValues.page_mode === 'dark'"))
     js("document.querySelector('#looks .theme-set input[value=light]').click()")
@@ -131,12 +131,12 @@ describe("hovercraft book in a browser", {
     scroll_to("output")
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(logged("output", "drawn for North"), 15))
+    expect_true(page$wait_until(logged("output", "drawn for North")))
     expect_true(page$wait_until(ticked("output", 0L)))
     page$press("Escape", wait = 0.4)
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(logged("output", "kept for North"), 10))
+    expect_true(page$wait_until(logged("output", "kept for North")))
     expect_true(page$wait_until(ticked("output", 1L)))
     drawn <- "[...document.querySelectorAll('[data-log=\"output\"] li')].filter((li) => li.textContent.includes('drawn for North')).length"
     expect_identical(js(drawn), 1L)
@@ -157,24 +157,24 @@ describe("hovercraft book in a browser", {
     # Coast first, so North's plot is drawn anew when North is pinned.
     focus(tip("region_coast"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(sprintf("%s > 0", count("drawn for Coast")), 15))
+    expect_true(page$wait_until(sprintf("%s > 0", count("drawn for Coast"))))
     page$press("Escape", wait = 0.4)
     drawn_before <- js(count("drawn for North"))
     kept_before <- js(count("kept for North"))
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before), 15))
+    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before)))
     page$press("Escape", wait = 0.4)
     coast_before <- js(count("drawn for Coast"))
     # Pinning Coast draws the shared plot for Coast; pinning North again must draw it again, not keep it.
     focus(tip("region_coast"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for Coast"), coast_before), 15))
+    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for Coast"), coast_before)))
     page$press("Escape", wait = 0.4)
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
-    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before + 1L), 15))
-    Sys.sleep(2)
+    expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before + 1L)))
+    page$hold(2) # North must not be drawn again: nothing happening has no signal
     expect_identical(js(count("kept for North")), kept_before)
     page$press("Escape", wait = 0.4)
     # Resting on Coast in between may or may not draw the plot for Coast, as Shiny decides; either way the log tells
@@ -182,11 +182,20 @@ describe("hovercraft book in a browser", {
     drawn_now <- js(count("drawn for North"))
     kept_now <- js(count("kept for North"))
     page$hover(tip("region_coast"))
-    Sys.sleep(1)
+    page$hold(1) # Shiny may or may not draw the plot for Coast: either way, let it decide before moving on
     page$mouse(5, 5)
     focus(tip("region_north"))
     page$press("p", wait = 0.2)
-    Sys.sleep(3)
+    expect_true(page$wait_until(sprintf(
+      "%s > %d || %s > %d",
+      count("drawn for North"),
+      drawn_now,
+      count("kept for North"),
+      kept_now
+    )))
+    # Let the other counter move too, were it going to: "drawn and kept" must be caught, not only the first signal. No
+    # signal says that nothing else comes, so this is a wait for time to pass, not for an event.
+    page$hold(2)
     drew <- js(count("drawn for North")) > drawn_now
     kept <- js(count("kept for North")) > kept_now
     expect_true(xor(drew, kept))
@@ -210,7 +219,7 @@ describe("hovercraft book in a browser", {
         expect_true(page$wait_until(sprintf("document.documentElement.getAttribute('data-bs-theme') === '%s'", scheme)))
         for (id in book_section_ids) {
           scroll_to(id)
-          expect_true(page$wait_until(figure(id), 15), info = paste(id, width, scheme))
+          expect_true(page$wait_until(figure(id)), info = paste(id, width, scheme))
           expect_lte(js("document.documentElement.scrollWidth"), width)
         }
       }
@@ -242,7 +251,7 @@ describe("hovercraft book in a browser", {
     expect_true(page$wait_until(logged("server", "\"leave\"")))
     expect_false(js(ticked("server", 1L)))
     js("document.getElementById('srv_show').click()")
-    expect_true(page$wait_until(logged("server", "by = \"host\""), 10))
+    expect_true(page$wait_until(logged("server", "by = \"host\"")))
     expect_true(page$wait_until(ticked("server", 0L)))
     js("document.getElementById('srv_hide').click()")
     expect_true(page$wait_until(ticked("server", 1L)))

@@ -99,8 +99,8 @@ output_observer_code <- function() {
       "  local({",
       "    region <- region",
       "    id <- paste0(\"region_\", tolower(region))",
-      "    shiny::observeEvent(input[[paste0(id, \"_tip\")]], {",
-      "      state <- input[[paste0(id, \"_tip\")]]$state",
+      "    shiny::observeEvent(input[[paste0(id, \"_pin\")]], {",
+      "      state <- input[[paste0(id, \"_pin\")]]$state",
       "      if (state == \"pinned\") {",
       "        pinned(region)",
       "        open(region)",
@@ -242,7 +242,7 @@ plate_output_server <- function(input, output, session) {
   for (region in book_regions$region) {
     local({
       region <- region
-      name <- paste0("region_", tolower(region), "_tip")
+      name <- paste0("region_", tolower(region), "_pin")
       shiny::observeEvent(input[[name]], {
         value <- input[[name]]
         if (identical(value$state, "closed")) {
@@ -278,6 +278,6 @@ plate_output_server <- function(input, output, session) {
     }
   })
   ids <- paste0("region_", tolower(book_regions$region))
-  log_inputs(input, session, "output", c(paste0(ids, "_tip"), "region_trend_retry"))
+  log_inputs(input, session, "output", c(paste0(ids, "_pin"), "region_trend_retry"))
   ticks
 }

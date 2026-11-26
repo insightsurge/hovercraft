@@ -51,9 +51,12 @@
     const active = wrapper.ownerDocument.activeElement;
     if (control?.matches(':disabled') && reason) {
       if (wrapper.getAttribute(names.reason) !== reason) wrapper.setAttribute(names.reason, reason);
-      // The wrapper is the tip's item while the control is off, so it answers to the control's id and events.
-      const id = control.getAttribute(names.id) ?? (control.id || null);
-      const events = control.getAttribute(names.events);
+      // The wrapper is the tip's item while the control is off, so it answers to the id and events of the tagged element:
+      // the first thing inside it, where tip_on() wrote them (a Shiny input is a `div` round the control, and it is the
+      // `div` that is tagged), else the control itself.
+      const tagged = wrapper.firstElementChild;
+      const id = tagged?.getAttribute(names.id) ?? control.getAttribute(names.id) ?? (control.id || null);
+      const events = tagged?.getAttribute(names.events) ?? control.getAttribute(names.events);
       if (id !== null && wrapper.getAttribute(names.id) !== id) wrapper.setAttribute(names.id, id);
       if (events !== null && wrapper.getAttribute(names.events) !== events) wrapper.setAttribute(names.events, events);
       const stop = wrapper.getAttribute('tabindex') === '0';

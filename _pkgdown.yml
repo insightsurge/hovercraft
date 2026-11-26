@@ -17,29 +17,41 @@ navbar:
     right: [search, github, lightswitch]
 
 reference:
-  - title: Put a tip on a tag
+  - title: Stable, in 0.1.x
+    desc: >
+      Put a tip on a tag, name its templates, set up the page. These keep their names, values and defaults.
+  - subtitle: Put a tip on a tag
     contents:
       - tip_on
-  - title: Drive a tip from the server (experimental)
-    contents:
-      - tip_server
-  - title: Tips on tables (experimental)
-    contents:
-      - tip_table
-      - tip_spec
-  - title: Templates
+  - subtitle: Templates
     contents:
       - tip_define
       - tip_template
       - tip_blocks
+  - subtitle: The page and its look by name
+    contents:
+      - use_hovercraft
+      - tip_presets
+  - title: Experimental
+    desc: >
+      These may change in a later 0.x release; the help says which arguments of a stable function are in this group.
+  - subtitle: The long form
+    contents:
+      - tip_more
+  - subtitle: Tips on tables
+    contents:
+      - tip_table
+      - tip_spec
+  - subtitle: Drive a tip from the server
+    contents:
+      - tip_server
+  - subtitle: Live outputs in a tip
+    contents:
       - tip_output
-  - title: Looks
+  - subtitle: Looks as objects
     contents:
       - tip_style
-      - tip_presets
       - tip_theme
       - tip_marker
-  - title: The engine
-    contents: tip_dependency
-  - title: The book (experimental)
+  - subtitle: The book
     contents: hovercraft_book
