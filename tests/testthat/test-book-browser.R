@@ -37,7 +37,7 @@ describe("hovercraft book in a browser", {
       "!!window.Shiny?.shinyapp?.isConnected() && [...document.querySelectorAll('[data-code]')].every((p) => p.dataset.raw)",
       30
     ))
-    expect_identical(js("document.querySelectorAll('.plate').length"), length(book_section_ids))
+    expect_identical(js("document.querySelectorAll('.plate').length"), length(book_section_ids()))
     # The page's colours reach the server with no click: the dark-mode steps can tick on a dark system.
     expect_true(page$wait_until("['light', 'dark'].includes(window.Shiny.shinyapp.$inputValues.page_mode)"))
     expect_identical(page$problems(), character())
@@ -217,7 +217,7 @@ describe("hovercraft book in a browser", {
       for (scheme in c("light", "dark")) {
         page$emulate("prefers-color-scheme", scheme)
         expect_true(page$wait_until(sprintf("document.documentElement.getAttribute('data-bs-theme') === '%s'", scheme)))
-        for (id in book_section_ids) {
+        for (id in book_section_ids()) {
           scroll_to(id)
           expect_true(page$wait_until(figure(id)), info = paste(id, width, scheme))
           expect_lte(js("document.documentElement.scrollWidth"), width)

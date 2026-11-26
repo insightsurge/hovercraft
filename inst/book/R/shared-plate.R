@@ -167,7 +167,6 @@ steps_note <- function(id, steps) {
   )
 }
 
-# The Inputs sent note: what the server received while you tried the plate, newest first.
 # What the section shows, from contents.R, grouped by the badge the help gives each: stable, experimental, or stable
 # for some values only (such as `style` by a preset's name). Closed until opened; the words say the group, so the
 # badge never rests on colour.
@@ -196,6 +195,7 @@ covers_note <- function(id) {
   )
 }
 
+# The Inputs sent note: what the server received while you tried the plate, newest first.
 log_note <- function(id, empty, title = "Inputs sent") {
   htmltools::tags$section(
     class = "note",

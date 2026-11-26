@@ -55,12 +55,17 @@ code_uses <- function(text, content = character()) {
       ""
     }
     if (name %in% exports) {
-      matched <- as.list(match.call(getExportedValue("hovercraft", name), x, expand.dots = FALSE))[-1]
+      # Code that passes `...` on can't be matched; its named arguments still count.
+      matched <- tryCatch(
+        as.list(match.call(getExportedValue("hovercraft", name), x, expand.dots = FALSE))[-1],
+        error = function(e) as.list(x)[-1]
+      )
       dots <- if (!name %in% content) names(matched[["..."]])
       args <- setdiff(c(names(matched), dots), c("", "..."))
       found <<- c(found, name, if (length(args)) paste0(name, "(", args, ")"))
     }
-    lapply(as.list(x)[-1], function(part) if (!missing(part)) walk(part))
+    # The head too, for a call such as `(function(x) tip_on(x))(1)`.
+    lapply(as.list(x), function(part) if (!missing(part)) walk(part))
     invisible()
   }
   for (expr in parse(text = text, keep.source = FALSE)) walk(expr)
@@ -127,10 +132,11 @@ describe("the book's files", {
 
   it("has no placeholder section left", {
     folder <- system.file("book", "R", package = "hovercraft")
-    for (id in book$book_sections$id) {
+    placeholder <- Filter(function(id) {
       text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
-      expect_false(grepl("This section is being written.", text, fixed = TRUE), info = id)
-    }
+      grepl("This section is being written.", text, fixed = TRUE)
+    }, book$book_sections$id)
+    expect_identical(placeholder, character())
   })
 
   it("has the three functions of a section, and 3 to 5 test steps, for every section", {
@@ -144,7 +150,8 @@ describe("the book's files", {
 
   it("lists every export and every argument of the package, from its help pages, in some section", {
     args <- book$book_rd_args()
-    # Every argument a function has is on its help page.
+    # Every export has a help page, and every argument it has is on that page.
+    expect_identical(setdiff(getNamespaceExports("hovercraft"), args$fn), character())
     expect_identical(book$book_rd_names(args[!args$documented, ]), character())
     # Every export and argument is listed by a section; a function with arguments is listed by its arguments.
     needed <- book$book_rd_names(args)[!(is.na(args$arg) & args$fn %in% args$fn[!is.na(args$arg)])]
@@ -202,19 +209,27 @@ describe("what each section's code uses", {
     args <- book$book_rd_args()
     real <- book$book_rd_names(args)
     content <- unique(args$fn[args$content_dots])
+    # One expectation each for all sections, named "section: fn(arg)", so a long list never hits testthat's cap on
+    # failures and hides the tests after it.
+    unused <- removed <- character()
+    named <- function(id, items) if (length(items)) paste0(id, ": ", items)
     for (i in seq_along(ids)) {
       uses <- unique(unlist(lapply(seen$code[[ids[[i]]]], code_uses, content = content)))
-      # A section that lists an argument its code never uses fails here: show it in the code, or take it off the list
-      # in inst/book/R/contents.R.
-      expect_identical(setdiff(book$book_sections$covers[[i]], uses), character(), info = ids[[i]])
-      # And its code calls no argument the package no longer has (one a function's empty `...` would swallow).
-      expect_identical(setdiff(uses, real), character(), info = ids[[i]])
+      unused <- c(unused, named(ids[[i]], setdiff(book$book_sections$covers[[i]], uses)))
+      removed <- c(removed, named(ids[[i]], setdiff(uses, real)))
     }
+    # A section that lists an argument its code never uses fails here: show it in the code, or take it off the list
+    # in inst/book/R/contents.R.
+    expect_identical(unused, character())
+    # And no section's code calls an argument the package no longer has (one a function's empty `...` would swallow).
+    expect_identical(removed, character())
   })
 
   it("names in its words, as code, each argument it shows only in words", {
     for (i in seq_along(ids)) {
       prose <- book$book_sections$prose[[i]]
+      # Only the book's own function may be shown in words alone; every other argument is shown in code.
+      expect_identical(unique(sub("[(].*$", "", prose)), if (length(prose)) "hovercraft_book" else character())
       if (!length(prose)) next
       html <- as.character(htmltools::renderTags(section_get(book, ids[[i]], "plate_%s_ui")())$html)
       codes <- gsub("&quot;", "\"", gsub("</?code>", "", regmatches(html, gregexpr("<code>.*?</code>", html))[[1]]))

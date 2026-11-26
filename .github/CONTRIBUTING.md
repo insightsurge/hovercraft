@@ -98,8 +98,8 @@ book in the same pull request, and a test fails until it does.
   and the page in `R/page.R`. `www/shared.css` and `www/shared.js` go with the shared helpers; `www/book.css` and `www/book.js` are
   the page's own look, its index and search, its phone layout and the checklist.
 - **The contents** are in one file, `R/contents.R`: the parts, their sections in order, and what each section shows
-  (`covers`, as `list(fn = c("arg", ...))`, with `character()` for a function shown without arguments; `prose` for the
-  few arguments a section shows only in its words). Numbers come from the order; the ids stay, since links and
+  (`covers`, as `list(fn = c("arg", ...))`, with `character()` for a function shown without arguments; `prose` only for
+  `hovercraft_book()`'s own arguments, which a section shows in its words). Numbers come from the order; the ids stay, since links and
   `hovercraft_book(section =)` use them. `hovercraft_book()` reads the ids from this file.
 - **A section** also has its own file, `R/plate-<id>.R`, with `plate_<id>_ui()`, `plate_<id>_server()` and
   `<id>_steps()` (3 to 5 test steps). The page and its server find them by the id. Every section sends the code it
@@ -121,8 +121,8 @@ book in the same pull request, and a test fails until it does.
   ticked by hand; a step with one is ticked only by its proof. The checklist (the key C, or `?checklist=1`) shows
   one step at a time.
 - **The index** lists the parts and opens only the part being read; a click on a part's title goes to its first
-  section. Its search box matches each section's number, title, part and `<id>_covers`, written into the page by the
-  server, and opens every part with a match.
+  section. Its search box matches each section's number, title, part and the functions and arguments it shows (its
+  `covers` in `contents.R`), written into the page by the server, and opens every part with a match.
 - **App code** calls other packages as `pkg::fn()`, and nothing in it writes an attribute or class name of the tip
   engine: they come from the engine's `tip.json`.
 - **Tests:** `tests/testthat/test-book.R` (the launcher, the page, every export and argument covered, every

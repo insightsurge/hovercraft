@@ -6,8 +6,8 @@
 # `covers` lists the exports and arguments the section's shown R code uses, as list(function = arguments), with
 # character() for a function shown without arguments. test-book.R reads the arguments from the help pages, fails
 # while one is in no section, and runs every section's choices to check that its code really uses each one it lists.
-# `prose` is for the few arguments a section shows in its words rather than its code (such as hovercraft_book()'s
-# own); the test looks for them in the section's text instead.
+# `prose` is only for hovercraft_book()'s own arguments, which the first section shows in its words rather than its
+# code; the test looks for them in the section's text instead.
 #
 # hovercraft_book() reads this file on its own, so it holds only plain data and the two helpers below.
 
