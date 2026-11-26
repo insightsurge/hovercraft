@@ -21,7 +21,7 @@ names of the inputs (\verb{_hint}, \verb{_pin}, \verb{_pinned}, \verb{_copy}, \v
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} and free to change: \code{\link[=tip_table]{tip_table()}} and \code{\link[=tip_spec]{tip_spec()}}; \code{events} and the fields of
 the input values; \code{\link[=tip_show]{tip_show()}}, \code{\link[=tip_hide]{tip_hide()}} and \code{\link[=tip_update]{tip_update()}}; \code{when_disabled}; \code{\link[=tip_output]{tip_output()}}; \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_theme]{tip_theme()}} and \code{\link[=tip_marker]{tip_marker()}}, and \code{style} or \code{marker} given those objects; \code{\link[=tip_more]{tip_more()}}; \code{max_pins} and \code{keys}
-of \code{\link[=use_hovercraft]{use_hovercraft()}}; and \code{\link[=tip_studio]{tip_studio()}}.
+of \code{\link[=use_hovercraft]{use_hovercraft()}}; and \code{\link[=hovercraft_book]{hovercraft_book()}}.
 }
 
 \section{Known limits}{

@@ -68,7 +68,9 @@ code_uses <- function(text, content = character()) {
     lapply(as.list(x), function(part) if (!missing(part)) walk(part))
     invisible()
   }
-  for (expr in parse(text = text, keep.source = FALSE)) walk(expr)
+  for (expr in parse(text = text, keep.source = FALSE)) {
+    walk(expr)
+  }
   unique(found)
 }
 
@@ -132,10 +134,13 @@ describe("the book's files", {
 
   it("has no placeholder section left", {
     folder <- system.file("book", "R", package = "hovercraft")
-    placeholder <- Filter(function(id) {
-      text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
-      grepl("This section is being written.", text, fixed = TRUE)
-    }, book$book_sections$id)
+    placeholder <- Filter(
+      function(id) {
+        text <- paste(readLines(file.path(folder, paste0("plate-", id, ".R"))), collapse = "\n")
+        grepl("This section is being written.", text, fixed = TRUE)
+      },
+      book$book_sections$id
+    )
     expect_identical(placeholder, character())
   })
 
@@ -174,10 +179,13 @@ describe("the book's files", {
   })
 
   it("lists in hovercraft_book()'s help every section it takes", {
-    item <- Filter(function(i) identical(book$rd_item_names(i), "section"), unlist(
-      book$rd_part(book$book_rd_db()[["hovercraft_book.Rd"]], "\\arguments"),
-      FALSE
-    ))
+    item <- Filter(
+      function(i) identical(book$rd_item_names(i), "section"),
+      unlist(
+        book$rd_part(book$book_rd_db()[["hovercraft_book.Rd"]], "\\arguments"),
+        FALSE
+      )
+    )
     text <- paste(unlist(item), collapse = "")
     for (id in book$book_sections$id) {
       expect_match(text, paste0("\"", id, "\""), fixed = TRUE, info = id)
@@ -230,7 +238,9 @@ describe("what each section's code uses", {
       prose <- book$book_sections$prose[[i]]
       # Only the book's own function may be shown in words alone; every other argument is shown in code.
       expect_identical(unique(sub("[(].*$", "", prose)), if (length(prose)) "hovercraft_book" else character())
-      if (!length(prose)) next
+      if (!length(prose)) {
+        next
+      }
       html <- as.character(htmltools::renderTags(section_get(book, ids[[i]], "plate_%s_ui")())$html)
       codes <- gsub("&quot;", "\"", gsub("</?code>", "", regmatches(html, gregexpr("<code>.*?</code>", html))[[1]]))
       # A call in the words counts as code does (`hovercraft_book("pins")` shows `section`), and so does `arg =`.
@@ -307,12 +317,15 @@ describe("the page-wide settings a section reloads the page with", {
   })
 
   it("turns each keys choice into the value use_hovercraft() takes", {
-    expect_identical(lapply(c("all", "no_pin", "no_more", "none"), book$pin_limits_keys_value), list(
-      TRUE,
-      c(pin = FALSE),
-      c(more = FALSE),
-      FALSE
-    ))
+    expect_identical(
+      lapply(c("all", "no_pin", "no_more", "none"), book$pin_limits_keys_value),
+      list(
+        TRUE,
+        c(pin = FALSE),
+        c(more = FALSE),
+        FALSE
+      )
+    )
   })
 
   it("marks the choices that reload the page, checked at the address's value", {

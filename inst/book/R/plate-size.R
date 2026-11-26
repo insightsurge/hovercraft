@@ -117,4 +117,3 @@ plate_size_server <- function(input, output, session) {
   log_inputs(input, session, "size", c("size_wait_hint", "size_wait_pin", "size_wait_pinned"))
   ticks
 }
-

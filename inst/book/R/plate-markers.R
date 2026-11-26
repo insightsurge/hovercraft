@@ -143,4 +143,3 @@ plate_markers_server <- function(input, output, session) {
   log_inputs(input, session, "markers", c("markers_phrase_hint", "markers_heading_hint", "markers_box_hint"))
   ticks
 }
-

@@ -19,7 +19,13 @@ rd_badge <- function(x) {
     stable = grepl("lifecycle-stable", text, fixed = TRUE),
     experimental = grepl("lifecycle-experimental", text, fixed = TRUE)
   )
-  if (all(found)) "mixed" else if (any(found)) names(found)[found] else NA_character_
+  if (all(found)) {
+    "mixed"
+  } else if (any(found)) {
+    names(found)[found]
+  } else {
+    NA_character_
+  }
 }
 
 # The name of an \item, split where one item names several arguments ("row, column"); `...` as "...".
@@ -47,7 +53,9 @@ book_rd_args <- function(db = book_rd_db(), exports = getNamespaceExports("hover
     items <- Filter(function(x) identical(attr(x, "Rd_tag"), "\\item"), unlist(rd_part(rd, "\\arguments"), FALSE))
     item_badge <- list()
     for (item in items) {
-      for (name in rd_item_names(item)) item_badge[[name]] <- rd_badge(item[[2]])
+      for (name in rd_item_names(item)) {
+        item_badge[[name]] <- rd_badge(item[[2]])
+      }
     }
     dots_text <- if (!is.null(item_badge[["..."]])) {
       paste(unlist(Filter(function(i) identical(rd_item_names(i), "..."), items)), collapse = " ")
@@ -55,20 +63,25 @@ book_rd_args <- function(db = book_rd_db(), exports = getNamespaceExports("hover
     open_dots <- !is.null(dots_text) && !grepl("Must be empty", dots_text, fixed = TRUE)
     formals_of <- lapply(aliases, function(fn) names(formals(getExportedValue("hovercraft", fn))))
     passed <- setdiff(names(item_badge), c(unlist(formals_of), "..."))
-    do.call(rbind, lapply(seq_along(aliases), function(i) {
-      fn <- aliases[[i]]
-      args <- setdiff(formals_of[[i]], "...")
-      if (open_dots && "..." %in% formals_of[[i]]) args <- c(args, passed)
-      badge <- vapply(args, function(a) item_badge[[a]] %||% NA_character_, "")
-      badge[is.na(badge)] <- page_badge
-      data.frame(
-        fn = fn,
-        arg = c(NA_character_, args),
-        badge = c(page_badge, unname(badge)),
-        documented = c(TRUE, args %in% names(item_badge)),
-        content_dots = open_dots && "..." %in% formals_of[[i]]
-      )
-    }))
+    do.call(
+      rbind,
+      lapply(seq_along(aliases), function(i) {
+        fn <- aliases[[i]]
+        args <- setdiff(formals_of[[i]], "...")
+        if (open_dots && "..." %in% formals_of[[i]]) {
+          args <- c(args, passed)
+        }
+        badge <- vapply(args, function(a) item_badge[[a]] %||% NA_character_, "")
+        badge[is.na(badge)] <- page_badge
+        data.frame(
+          fn = fn,
+          arg = c(NA_character_, args),
+          badge = c(page_badge, unname(badge)),
+          documented = c(TRUE, args %in% names(item_badge)),
+          content_dots = open_dots && "..." %in% formals_of[[i]]
+        )
+      })
+    )
   })
   do.call(rbind, rows)
 }

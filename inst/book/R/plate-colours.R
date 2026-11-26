@@ -177,4 +177,3 @@ plate_colours_server <- function(input, output, session) {
   log_inputs(input, session, "colours", "colours_wait_hint")
   ticks
 }
-
