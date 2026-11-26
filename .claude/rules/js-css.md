@@ -1,6 +1,7 @@
 ---
 paths:
   - "inst/**"
+  - "tests/testthat/apps/testbench/www/**"
   - "tools/copy-engine.R"
 ---
 

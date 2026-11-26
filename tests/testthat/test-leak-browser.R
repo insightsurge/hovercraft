@@ -8,7 +8,11 @@ skip_if_not_installed("withr")
 skip_if_not_installed("DT")
 skip_if_not_installed("reactable")
 skip_if_not_installed("bslib")
+skip_if_not_installed("shinyjs")
+skip_if_not_installed("promises")
+skip_if_not_installed("later")
 skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_bench()
 
 # What the page script makes and must let go of when Shiny draws or removes its host (#131): watchers
 # (MutationObserver, ResizeObserver), event listeners, animation frames, timers, helper boxes (pin and More strips,
@@ -95,186 +99,10 @@ leak_shim <- "
 "
 
 describe("a host that Shiny draws again or removes", {
-  app <- start_app(function() {
-    long <- function() tip_more("The long form.", on = "button")
-    card_ui <- function(id) {
-      ns <- shiny::NS(id)
-      tip_on(shiny::actionButton(ns("btn"), "Mod"), "A module's tip", id = ns("tip"), pin = TRUE, more = long())
-    }
-    card_server <- function(id) shiny::moduleServer(id, function(input, output, session) NULL)
-    version <- function(input, name) input[[name]] %||% 0L
-    # The words change with every draw, so a watcher left from an earlier draw would write the old words back.
-    rows <- function(n = 0L) {
-      tip_spec(
-        paste0("v", n, " **{{ team }}**: {{ v }}"),
-        pin = TRUE,
-        more = tip_more("More {{ team }}.", on = "button")
-      )
-    }
-
-    held_ui <- function(name, keep_alive, items = 1L) {
-      tip_template_name <- paste0(name, "_t")
-      shiny::tagList(
-        do.call(
-          tip_define,
-          stats::setNames(
-            list(tip_template(tip_text("Held {{ n }}"), tip_output(paste0(name, "_out"), keep_alive = keep_alive))),
-            tip_template_name
-          )
-        ),
-        lapply(seq_len(items), function(i) {
-          suffix <- if (i == 1L) "" else i
-          tip_on(
-            shiny::actionButton(paste0(name, "_btn", suffix), toupper(name)),
-            template = tip_template_name,
-            record = list(n = i),
-            id = paste0(name, "_tip", suffix),
-            pin = TRUE
-          )
-        }),
-        shiny::uiOutput(name)
-      )
-    }
-
-    ui <- bslib::page_fluid(
-      use_hovercraft(max_pins = 2),
-      shiny::uiOutput("ru"),
-      shiny::div(id = "ins_slot"),
-      shiny::div(id = "mod_slot"),
-      shiny::uiOutput("pk"),
-      shiny::textOutput("pk_text"),
-      # Outputs that a region draws and a tip outside the region holds (the tip_define() is not in the region).
-      held_ui("pkb", keep_alive = TRUE),
-      held_ui("pkc", keep_alive = FALSE),
-      held_ui("pkd", keep_alive = TRUE),
-      # Two items that share one output, and a region that draws it and defines the template the item uses.
-      held_ui("pkf", keep_alive = TRUE, items = 2L),
-      tip_on(
-        shiny::actionButton("pke_btn", "PKE"),
-        template = "pke_t",
-        record = list(n = 1),
-        id = "pke_tip",
-        pin = TRUE
-      ),
-      shiny::uiOutput("pke"),
-      DT::DTOutput("dtp"),
-      DT::DTOutput("dt"),
-      reactable::reactableOutput("rt")
-    )
-    server <- function(input, output, session) {
-      output$ru <- shiny::renderUI({
-        n <- version(input, "ru_go")
-        tip_on(
-          shiny::actionButton("ru_btn", paste0("RU v", n)),
-          paste("Render tip", n),
-          id = "ru_tip",
-          pin = TRUE,
-          more = long()
-        )
-      })
-
-      shiny::observeEvent(input$ins_go, {
-        shiny::insertUI(
-          "#ins_slot",
-          ui = tip_on(
-            shiny::actionButton("ins_btn", "Inserted"),
-            "Inserted tip",
-            id = "ins_tip",
-            pin = TRUE,
-            more = long()
-          )
-        )
-      })
-      shiny::observeEvent(input$ins_rm, shiny::removeUI("#ins_btn"))
-
-      shiny::observeEvent(input$mod_go, {
-        id <- paste0("m", input$mod_go)
-        shiny::insertUI("#mod_slot", ui = shiny::div(id = paste0("w-", id), card_ui(id)))
-        card_server(id)
-      })
-      shiny::observeEvent(input$mod_rm, shiny::removeUI(paste0("#w-m", input$mod_rm)))
-
-      # An output that the tip holds, inside the region that draws again: the repro of the parked-output leak.
-      output$pk_text <- shiny::renderText("The output the tip holds")
-      output$pk <- shiny::renderUI({
-        n <- version(input, "pk_go")
-        if (isTRUE(input$pk_clear > 0)) {
-          return(NULL)
-        }
-        shiny::tagList(
-          tip_define(pk_t = tip_template(tip_text("Parked {{ n }}"), tip_output(shiny::textOutput("pk_out")))),
-          tip_on(
-            shiny::actionButton("pk_btn", paste0("PK v", n)),
-            template = "pk_t",
-            record = list(n = n),
-            id = "pk_tip",
-            pin = TRUE
-          )
-        )
-      })
-      output$pk_out <- shiny::renderText("The output the tip holds")
-
-      # A region that draws the output a tip holds (version in `data-v`, so a draw can be told), and that clears on request.
-      region <- function(name) {
-        output[[name]] <- shiny::renderUI({
-          n <- version(input, paste0(name, "_go"))
-          if (isTRUE(input[[paste0(name, "_clear")]] %% 2 == 1)) {
-            return(NULL)
-          }
-          shiny::tagAppendAttributes(shiny::textOutput(paste0(name, "_out")), `data-v` = n)
-        })
-        output[[paste0(name, "_out")]] <- shiny::renderText(paste("Answer", name))
-      }
-      for (name in c("pkb", "pkc", "pkd", "pkf")) {
-        region(name)
-      }
-
-      # The template comes with the region, and the item that uses it does not: clearing the region leaves the item and its
-      # open tip, and drawing the region again defines the template again.
-      output$pke <- shiny::renderUI({
-        n <- version(input, "pke_go")
-        if (isTRUE(input$pke_clear %% 2 == 1)) {
-          return(NULL)
-        }
-        shiny::tagList(
-          shiny::span(id = "pke_v", `data-v` = n),
-          tip_define(pke_t = tip_template(tip_text("Held {{ n }}"), tip_output(shiny::textOutput("pke_out"))))
-        )
-      })
-      output$pke_out <- shiny::renderText("Answer pke")
-
-      output$dtp <- DT::renderDT(
-        {
-          n <- version(input, "dtp_go")
-          tip_table(
-            DT::datatable(data.frame(team = c("Owls", "Foxes"), v = n), rownames = FALSE),
-            rows = tip_spec("**{{ team }}**: {{ v }}", pin = TRUE, to = "in_place"),
-            id = "dtp"
-          )
-        },
-        server = FALSE
-      )
-
-      output$dt <- DT::renderDT(
-        {
-          n <- version(input, "dt_go")
-          tip_table(
-            DT::datatable(data.frame(team = c("Owls", "Foxes"), v = n), rownames = FALSE),
-            rows = rows(),
-            id = "dt"
-          )
-        },
-        server = FALSE
-      )
-      output$rt <- reactable::renderReactable({
-        # `?rt=31` starts the table at the words of the 31st draw, for a fresh draw to compare with.
-        n <- input$rt_go %||% as.integer(shiny::parseQueryString(session$clientData$url_search)$rt %||% 0L)
-        tip_table(reactable::reactable(data.frame(team = c("Owls", "Foxes"), v = n)), rows = rows(n), id = "rt")
-      })
-    }
-    shiny::shinyApp(ui, server)
-  })
-  page <- local_page(app$url, environment(), init = leak_shim)
+  # The bench's leak tab (apps/testbench/R/tab-leaks.R), alone and with two pins open.
+  app <- start_bench(environment())
+  leaks_url <- bench_url(app, "leaks", list(max_pins = 2))
+  page <- local_page(leaks_url, environment(), init = leak_shim)
   first_template <- NULL
 
   snapshot <- function() {
@@ -318,7 +146,7 @@ describe("a host that Shiny draws again or removes", {
   # What the first row of the reactable says its template is: a name made from the words, so it changes with them.
   row_template <- function(p) {
     p$evaluate(sprintf(
-      "document.querySelector('#rt [class*=\"hovercraft-row-\"]')?.getAttribute('%s')",
+      "document.querySelector('#leaks_rt [class*=\"hovercraft-row-\"]')?.getAttribute('%s')",
       tip_attribute("template")
     ))
   }
@@ -326,29 +154,33 @@ describe("a host that Shiny draws again or removes", {
   it("starts and connects", {
     expect_true(app$proc$is_alive())
     expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
-    expect_true(page$wait_until("document.getElementById('ru_btn') !== null"))
-    expect_true(page$wait_until("document.querySelector('#dt td') !== null"))
-    expect_true(page$wait_until("document.querySelector('#rt .rt-td') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_ru_btn') !== null"))
+    expect_true(page$wait_until("document.querySelector('#leaks_dt td') !== null"))
+    expect_true(page$wait_until("document.querySelector('#leaks_rt .rt-td') !== null"))
     expect_true(page$wait_until(sprintf(
-      "document.querySelector('#rt [class*=\"hovercraft-row-\"]')?.hasAttribute('%s') === true",
+      "document.querySelector('#leaks_rt [class*=\"hovercraft-row-\"]')?.hasAttribute('%s') === true",
       tip_attribute("template")
     )))
     first_template <<- row_template(page)
   })
 
   it("keeps the counts of a tagged item that renderUI() draws 30 times", {
-    page$hover("#ru_btn")
+    page$hover("#leaks_ru_btn")
     before <- snapshot()
-    redraw("ru_go", "document.getElementById('ru_btn')?.textContent?.includes('RU v%d')", hover = "#ru_btn")
+    redraw(
+      "leaks_ru_go",
+      "document.getElementById('leaks_ru_btn')?.textContent?.includes('RU v%d')",
+      hover = "#leaks_ru_btn"
+    )
     expect_no_growth(before, snapshot())
   })
 
   it("keeps the counts of a tagged item that insertUI() adds and removeUI() takes away 30 times", {
     cycle <- function(i) {
-      set_input("ins_go", i)
-      expect_true(page$wait_until("document.getElementById('ins_btn') !== null"))
-      set_input("ins_rm", i)
-      expect_true(page$wait_until("document.getElementById('ins_btn') === null"))
+      set_input("leaks_ins_go", i)
+      expect_true(page$wait_until("document.getElementById('leaks_ins_btn') !== null"))
+      set_input("leaks_ins_rm", i)
+      expect_true(page$wait_until("document.getElementById('leaks_ins_btn') === null"))
     }
     cycle(1L)
     before <- snapshot()
@@ -360,10 +192,10 @@ describe("a host that Shiny draws again or removes", {
 
   it("keeps the counts of a module that is added and removed 30 times", {
     cycle <- function(i) {
-      set_input("mod_go", i)
-      expect_true(page$wait_until(sprintf("document.getElementById('m%d-btn') !== null", i)))
-      set_input("mod_rm", i)
-      expect_true(page$wait_until(sprintf("document.getElementById('m%d-btn') === null", i)))
+      set_input("leaks_mod_go", i)
+      expect_true(page$wait_until(sprintf("document.getElementById('leaks_m%d-btn') !== null", i)))
+      set_input("leaks_mod_rm", i)
+      expect_true(page$wait_until(sprintf("document.getElementById('leaks_m%d-btn') === null", i)))
     }
     cycle(1L)
     before <- snapshot()
@@ -375,13 +207,13 @@ describe("a host that Shiny draws again or removes", {
 
   it("keeps the counts of a DT table that renderDT() draws 30 times", {
     before <- snapshot()
-    redraw("dt_go", "document.querySelector('#dt tbody tr td:nth-child(2)')?.textContent === '%d'")
+    redraw("leaks_dt_go", "document.querySelector('#leaks_dt tbody tr td:nth-child(2)')?.textContent === '%d'")
     expect_no_growth(before, snapshot())
   })
 
   it("keeps the counts of a reactable table that renderReactable() draws 30 times", {
     before <- snapshot()
-    redraw("rt_go", "document.querySelector('#rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '%d'")
+    redraw("leaks_rt_go", "document.querySelector('#leaks_rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '%d'")
     expect_no_growth(before, snapshot())
   })
 
@@ -391,20 +223,22 @@ describe("a host that Shiny draws again or removes", {
     page$evaluate(paste(
       "window.writes = 0;",
       "new MutationObserver((list) => { window.writes += list.length; }).observe(",
-      "  document.getElementById('rt'), { subtree: true, childList: true, attributes: true, characterData: true }",
+      "  document.getElementById('leaks_rt'), { subtree: true, childList: true, attributes: true, characterData: true }",
       "); 0"
     ))
-    set_input("rt_go", leak_draws + 1L)
-    expect_true(page$wait_until("document.querySelector('#rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '31'"))
+    set_input("leaks_rt_go", leak_draws + 1L)
+    expect_true(page$wait_until(
+      "document.querySelector('#leaks_rt .rt-tbody .rt-td:nth-child(2)')?.textContent === '31'"
+    ))
     page$settle(1)
     page$evaluate("window.writes = 0; 0")
     page$hold(0.4)
     expect_lt(page$evaluate("window.writes"), 5L)
     # The words are the last draw's, not the first's and not an earlier one's: the same as a table drawn once with them.
-    fresh <- local_page(paste0(app$url, "?rt=31"), environment())
-    expect_true(fresh$wait_until("document.querySelector('#rt [class*=\"hovercraft-row-\"]') !== null"))
+    fresh <- local_page(bench_url(app, "leaks", list(max_pins = 2, rt = 31)), environment())
+    expect_true(fresh$wait_until("document.querySelector('#leaks_rt [class*=\"hovercraft-row-\"]') !== null"))
     expect_true(fresh$wait_until(sprintf(
-      "document.querySelector('#rt [class*=\"hovercraft-row-\"]')?.hasAttribute('%s') === true",
+      "document.querySelector('#leaks_rt [class*=\"hovercraft-row-\"]')?.hasAttribute('%s') === true",
       tip_attribute("template")
     )))
     expect_identical(row_template(page), row_template(fresh))
@@ -412,19 +246,19 @@ describe("a host that Shiny draws again or removes", {
   })
 
   it("keeps one parked output for a tip_output() whose region draws again, and none when it is cleared", {
-    expect_true(page$wait_until("document.getElementById('pk_btn') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_pk_btn') !== null"))
     page$settle()
     before <- snapshot()
-    redraw("pk_go", "document.getElementById('pk_btn')?.textContent?.includes('PK v%d')")
+    redraw("leaks_pk_go", "document.getElementById('leaks_pk_btn')?.textContent?.includes('PK v%d')")
     expect_no_growth(before, snapshot())
     # The output is whole when the tip opens: once in the page, bound once, with its text.
-    expect_identical(count_id("pk_out"), 1L)
-    pin_item("pk_btn")
+    expect_identical(count_id("leaks_pk_out"), 1L)
+    pin_item("leaks_pk_btn")
     expect_true(page$wait_until(
-      "document.querySelector('.hc-tip-pin #pk_out')?.textContent === 'The output the tip holds'"
+      "document.querySelector('.hc-tip-pin #leaks_pk_out')?.textContent === 'The output the tip holds'"
     ))
-    expect_identical(count_id("pk_out"), 1L)
-    expect_true(bound_once("pk_out"))
+    expect_identical(count_id("leaks_pk_out"), 1L)
+    expect_true(bound_once("leaks_pk_out"))
     # Its text is in the tip once, not twice.
     expect_identical(
       page$evaluate(
@@ -433,133 +267,133 @@ describe("a host that Shiny draws again or removes", {
       1L
     )
     close_tips()
-    set_input("pk_clear", 1L)
-    expect_true(page$wait_until("document.getElementById('pk_btn') === null"))
+    set_input("leaks_pk_clear", 1L)
+    expect_true(page$wait_until("document.getElementById('leaks_pk_btn') === null"))
     page$settle()
-    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"pk_out\"]').length"), 0L)
-    expect_identical(count_id("pk_out"), 0L)
+    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"leaks_pk_out\"]').length"), 0L)
+    expect_identical(count_id("leaks_pk_out"), 0L)
   })
 
   it("parks the output once when only its region draws again, and its tip is defined outside the region", {
-    expect_true(page$wait_until("document.getElementById('pkb_out') !== null"))
-    redraw("pkb_go", "document.getElementById('pkb_out')?.dataset.v === '%d'")
+    expect_true(page$wait_until("document.getElementById('leaks_pkb_out') !== null"))
+    redraw("leaks_pkb_go", "document.getElementById('leaks_pkb_out')?.dataset.v === '%d'")
     page$settle()
-    expect_identical(count_id("pkb_out"), 1L)
-    pin_item("pkb_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pkb_out')?.textContent === 'Answer pkb'"))
-    expect_identical(count_id("pkb_out"), 1L)
-    expect_true(bound_once("pkb_out"))
+    expect_identical(count_id("leaks_pkb_out"), 1L)
+    pin_item("leaks_pkb_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pkb_out')?.textContent === 'Answer pkb'"))
+    expect_identical(count_id("leaks_pkb_out"), 1L)
+    expect_true(bound_once("leaks_pkb_out"))
     close_tips()
-    expect_identical(count_id("pkb_out"), 1L)
+    expect_identical(count_id("leaks_pkb_out"), 1L)
   })
 
   it("keeps one element with the id when the region draws again while its tip is open", {
-    pin_item("pkb_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pkb_out') !== null"))
-    set_input("pkb_go", 99L)
-    expect_true(page$wait_until("document.getElementById('pkb_out')?.dataset.v === '99'"))
-    expect_true(page$wait_until("document.querySelectorAll('[id=\"pkb_out\"]').length === 1"))
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pkb_out') !== null"))
-    expect_true(bound_once("pkb_out"))
+    pin_item("leaks_pkb_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pkb_out') !== null"))
+    set_input("leaks_pkb_go", 99L)
+    expect_true(page$wait_until("document.getElementById('leaks_pkb_out')?.dataset.v === '99'"))
+    expect_true(page$wait_until("document.querySelectorAll('[id=\"leaks_pkb_out\"]').length === 1"))
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pkb_out') !== null"))
+    expect_true(bound_once("leaks_pkb_out"))
     close_tips()
-    expect_identical(count_id("pkb_out"), 1L)
+    expect_identical(count_id("leaks_pkb_out"), 1L)
   })
 
   it("lets go of an output whose region is cleared while its tip is open, when the tip closes", {
-    expect_true(page$wait_until("document.getElementById('pkd_out') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_pkd_out') !== null"))
     before <- held_stats()
-    pin_item("pkd_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pkd_out') !== null"))
-    set_input("pkd_clear", 1L)
+    pin_item("leaks_pkd_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pkd_out') !== null"))
+    set_input("leaks_pkd_clear", 1L)
     expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]] - 1L)))
     close_tips()
-    expect_identical(count_id("pkd_out"), 0L)
-    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"pkd_out\"]').length"), 0L)
+    expect_identical(count_id("leaks_pkd_out"), 0L)
+    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"leaks_pkd_out\"]').length"), 0L)
     after <- held_stats()
     expect_identical(unname(after[["outputs"]]), unname(before[["outputs"]]))
     expect_identical(unname(after[["shells"]]), unname(before[["shells"]]) - 1L)
   })
 
   it("keeps nothing for an output with keep_alive = FALSE once its region is cleared after its tip closed", {
-    expect_true(page$wait_until("document.getElementById('pkc_out') !== null"))
-    pin_item("pkc_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pkc_out') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_pkc_out') !== null"))
+    pin_item("leaks_pkc_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pkc_out') !== null"))
     close_tips()
     before <- held_stats()
-    set_input("pkc_clear", 1L)
+    set_input("leaks_pkc_clear", 1L)
     expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]] - 1L)))
     after <- held_stats()
     expect_identical(unname(after[["outputs"]]), unname(before[["outputs"]]) - 1L)
     expect_identical(unname(after[["shells"]]), unname(before[["shells"]]) - 1L)
-    expect_identical(count_id("pkc_out"), 0L)
+    expect_identical(count_id("leaks_pkc_out"), 0L)
   })
 
   it("shows the output again when its region is cleared and drawn again while the tip is open, and the tip then closes", {
-    expect_true(page$wait_until("document.getElementById('pke_v') !== null"))
-    expect_true(page$wait_until("document.getElementById('pke_out') !== null"))
-    pin_item("pke_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
+    expect_true(page$wait_until("document.getElementById('leaks_pke_v') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_pke_out') !== null"))
+    pin_item("leaks_pke_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pke_out')?.textContent === 'Answer pke'"))
     before <- held_stats()
-    set_input("pke_clear", 1L)
-    expect_true(page$wait_until("document.getElementById('pke_v') === null"))
+    set_input("leaks_pke_clear", 1L)
+    expect_true(page$wait_until("document.getElementById('leaks_pke_v') === null"))
     expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]] - 1L)))
-    set_input("pke_clear", 2L)
-    expect_true(page$wait_until("document.getElementById('pke_v') !== null"))
+    set_input("leaks_pke_clear", 2L)
+    expect_true(page$wait_until("document.getElementById('leaks_pke_v') !== null"))
     expect_true(page$wait_until(sprintf("window.HovercraftShiny.stats().marks === %d", before[["marks"]])))
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
-    expect_identical(count_id("pke_out"), 1L)
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pke_out')?.textContent === 'Answer pke'"))
+    expect_identical(count_id("leaks_pke_out"), 1L)
     close_tips()
     # The output is parked, whole, and shows when the tip opens again.
-    expect_identical(count_id("pke_out"), 1L)
-    pin_item("pke_btn")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #pke_out')?.textContent === 'Answer pke'"))
-    expect_identical(count_id("pke_out"), 1L)
-    expect_true(bound_once("pke_out"))
+    expect_identical(count_id("leaks_pke_out"), 1L)
+    pin_item("leaks_pke_btn")
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin #leaks_pke_out')?.textContent === 'Answer pke'"))
+    expect_identical(count_id("leaks_pke_out"), 1L)
+    expect_true(bound_once("leaks_pke_out"))
     close_tips()
   })
 
   it("hands a redrawn output to the box that holds it when two pinned tips share one output", {
-    expect_true(page$wait_until("document.getElementById('pkf_out') !== null"))
+    expect_true(page$wait_until("document.getElementById('leaks_pkf_out') !== null"))
     before <- held_stats()
-    pin_item("pkf_btn")
-    pin_item("pkf_btn2")
+    pin_item("leaks_pkf_btn")
+    pin_item("leaks_pkf_btn2")
     expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 2"))
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden]) #pkf_out') !== null"))
-    set_input("pkf_go", 2L)
-    expect_true(page$wait_until("document.getElementById('pkf_out')?.dataset.v === '2'"))
-    expect_true(page$wait_until("document.querySelectorAll('[id=\"pkf_out\"]').length === 1"))
-    expect_true(bound_once("pkf_out"))
+    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden]) #leaks_pkf_out') !== null"))
+    set_input("leaks_pkf_go", 2L)
+    expect_true(page$wait_until("document.getElementById('leaks_pkf_out')?.dataset.v === '2'"))
+    expect_true(page$wait_until("document.querySelectorAll('[id=\"leaks_pkf_out\"]').length === 1"))
+    expect_true(bound_once("leaks_pkf_out"))
     # The box that holds the output closes first (the newest pin), and the other takes it.
-    page$evaluate("window.Hovercraft.close(document.getElementById('pkf_btn2')); 0")
+    page$evaluate("window.Hovercraft.close(document.getElementById('leaks_pkf_btn2')); 0")
     expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 1"))
     expect_true(page$wait_until(
-      "document.querySelector('.hc-tip-pin:not([hidden]) #pkf_out')?.textContent === 'Answer pkf'"
+      "document.querySelector('.hc-tip-pin:not([hidden]) #leaks_pkf_out')?.textContent === 'Answer pkf'"
     ))
-    expect_identical(count_id("pkf_out"), 1L)
-    expect_true(bound_once("pkf_out"))
-    page$evaluate("window.Hovercraft.close(document.getElementById('pkf_btn')); 0")
+    expect_identical(count_id("leaks_pkf_out"), 1L)
+    expect_true(bound_once("leaks_pkf_out"))
+    page$evaluate("window.Hovercraft.close(document.getElementById('leaks_pkf_btn')); 0")
     expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden])') === null"))
     page$settle()
-    expect_identical(count_id("pkf_out"), 1L)
-    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"pkf_out\"]').length"), 1L)
+    expect_identical(count_id("leaks_pkf_out"), 1L)
+    expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"leaks_pkf_out\"]').length"), 1L)
     after <- held_stats()
     expect_identical(unname(after[["shells"]]), unname(before[["shells"]]))
     expect_identical(unname(after[["marks"]]), unname(before[["marks"]]))
   })
 
   it("takes a panel and the watcher of its table back at each close, over 30 pins and redraws", {
-    expect_true(page$wait_until("document.querySelector('#dtp tbody tr[data-hovercraft-tip-id]') !== null"))
+    expect_true(page$wait_until("document.querySelector('#leaks_dtp tbody tr[data-hovercraft-tip-id]') !== null"))
     cycle <- function(i) {
       # As a keyboard reader does: the row takes focus (the table gives it a tab stop a frame after it is drawn), then P.
-      row <- "#dtp tbody tr[data-hovercraft-tip-id]"
+      row <- "#leaks_dtp tbody tr[data-hovercraft-tip-id]"
       expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", row)))
       page$evaluate(sprintf("document.querySelector('%s').focus(); 0", row))
       page$press("p", wait = 0.2)
       # The pin has its panel and the panel's width has a watcher: the counts that no other scenario moves.
       expect_true(page$wait_until("HovercraftTable.stats().panels === 1 && HovercraftTable.stats().observers === 1"))
-      set_input("dtp_go", i)
+      set_input("leaks_dtp_go", i)
       expect_true(page$wait_until(sprintf(
-        "document.querySelector('#dtp tbody tr td:nth-child(2)')?.textContent === '%d'",
+        "document.querySelector('#leaks_dtp tbody tr td:nth-child(2)')?.textContent === '%d'",
         i
       )))
       page$evaluate("window.Hovercraft.close(); 0")

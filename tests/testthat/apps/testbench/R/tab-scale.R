@@ -1,5 +1,6 @@
 # Performance and cleanup, HC-072 to HC-077: many items, many cells, many instances, and what redraws leave behind.
-# The heavy parts draw on request, so the tab stays light until asked. test-leak-browser.R holds the counted checks.
+# The heavy parts draw on request, so the tab stays light until asked. The counted checks are on the leak tab
+# (R/tab-leaks.R, test-leak-browser.R).
 
 tab_scale_ui <- function() {
   htmltools::tagList(
