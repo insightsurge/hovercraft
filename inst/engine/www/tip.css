@@ -1,4 +1,4 @@
-/* hovercraft tip engine 0.59.0, built from its source; do not edit. */
+/* hovercraft tip engine 0.60.0, built from its source; do not edit. */
 :where(:root) {
   --hovercraft-ink: var(--bs-emphasis-color, #212529);
   --hovercraft-page: var(--bs-body-bg, #ffffff);
@@ -59,6 +59,10 @@
   inset: auto;
   margin: 0;
   overflow: visible;
+}
+
+:root:has(.modal.show, .modal.in) .hc-tip:not(.modal *) {
+  z-index: calc(var(--hovercraft-tip-layer, 1100) - 60);
 }
 
 .hc-tip::before {
