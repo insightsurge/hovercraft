@@ -7,8 +7,8 @@ bench_dir <- function() {
 }
 
 # Skips where the tests run without the bench's folder beside them.
-skip_if_no_bench <- function() {
-  testthat::skip_if_not(dir.exists(bench_dir()), "The test bench is not beside these tests.")
+skip_if_no_bench <- function(dir = bench_dir()) {
+  testthat::skip_if_not(dir.exists(dir), "The test bench is not beside these tests.")
 }
 
 # Starts the bench in a background R process, as start_app() starts any app, and stops it when `env` ends.

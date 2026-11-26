@@ -47,3 +47,7 @@ waits for a Chrome to start. A Chrome that has died is replaced (twice at most p
 (`page$hold()` is the exception; its comment says why). Click anything Shiny can redraw with
 `page$click_now()`, which finds and clicks in one step in the page. Apps under test start with `start_app()` and are stopped when
 the test ends. Each test file must run on its own, as files run in parallel and in any order.
+
+The test bench in `apps/testbench/` holds the Shiny-practice and behaviour scenarios in one app. Start it in a test with
+`start_bench()` and open one tab with `bench_page(bench, "<tab>")` (`helper-bench.R`); its README says how to run it by
+hand.

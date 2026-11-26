@@ -5,7 +5,9 @@
 #   ?strip=0|1      the log strip at the bottom; on for the whole bench, off with ?only (the tests point at the page)
 #   ?dir=rtl        a right-to-left page
 #   ?theme=dark     start in dark mode
-#   ?keys=no_pin|no_more|off, ?max_pins=1..10, ?labels=custom: page-wide settings of use_hovercraft(). The page reads
+#   ?font=large     a 24 px root font, a tight line-height and a serif font
+#   ?keys=no_pin|no_more|off, ?max_pins=1..10, ?labels=custom, ?style=<preset>: page-wide settings of
+#                   use_hovercraft(). The page reads
 #                   them once, so they live in the address and a change reloads the page; a setting left out is not
 #                   written at all, as a reader's own app leaves it out.
 # A value the bench does not know falls back to the default.
@@ -28,7 +30,9 @@ bench_query <- function(search) {
     theme = bench_choice(query$theme, c("light", "dark"), "light"),
     keys = bench_choice(query$keys, c("no_pin", "no_more", "off"), ""),
     max_pins = bench_choice(query$max_pins, as.character(1:10), ""),
-    labels = bench_choice(query$labels, "custom", "")
+    labels = bench_choice(query$labels, "custom", ""),
+    style = bench_choice(query$style, hovercraft::tip_presets()$name, ""),
+    font = bench_choice(query$font, "large", "")
   )
 }
 
@@ -51,6 +55,9 @@ bench_hovercraft <- function(settings) {
   }
   if (nzchar(settings$labels)) {
     args$labels <- bench_custom_labels
+  }
+  if (nzchar(settings$style)) {
+    args$style <- hovercraft::tip_style(settings$style)
   }
   do.call(hovercraft::use_hovercraft, args)
 }
@@ -108,10 +115,14 @@ bench_ui <- function(request) {
         header = htmltools::tagList(
           htmltools::tags$head(
             htmltools::tags$link(rel = "stylesheet", href = "bench.css"),
-            htmltools::tags$script(src = "bench-log.js")
+            htmltools::tags$script(src = "bench-log.js"),
+            htmltools::tags$script(src = "bench.js")
           ),
           bench_boot(),
           if (settings$dir == "rtl") htmltools::tags$script(htmltools::HTML("document.documentElement.dir = 'rtl';")),
+          if (nzchar(settings$font)) {
+            htmltools::tags$style("html { font-size: 24px; line-height: 1.1; font-family: Georgia, serif; }")
+          },
           bench_hovercraft(settings)
         ),
         footer = if (settings$strip) bench_log_strip()

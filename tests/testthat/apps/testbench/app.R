@@ -13,4 +13,4 @@ if (!isNamespaceLoaded("hovercraft")) {
   }
 }
 
-shiny::shinyApp(ui = bench_ui, server = bench_server)
+shiny::shinyApp(ui = bench_ui, server = bench_server, enableBookmarking = "url")
