@@ -96,6 +96,26 @@ chrome_close <- function(browser) {
   invisible()
 }
 
+# Polls `check()` every `poll` seconds until it is true on `holds` polls in a row, and says so; false when `seconds` pass
+# first. The answer is what the polls saw, never a fresh look after the loop: a page that is true for one poll and
+# changes before a last check would otherwise fail a test at once ("waited 0.1 s of 30 s", #128), and a condition that
+# flickers true while the page is still changing would pass before the page has settled. The short pause is the polling
+# interval, not a fixed wait.
+wait_polls <- function(check, seconds, poll = 0.05, holds = 2L) {
+  deadline <- Sys.time() + seconds
+  run <- 0L
+  repeat {
+    run <- if (isTRUE(check())) run + 1L else 0L
+    if (run >= holds) {
+      return(TRUE)
+    }
+    if (Sys.time() >= deadline) {
+      return(FALSE)
+    }
+    Sys.sleep(poll)
+  }
+}
+
 # Opens a page (an HTML file or a URL) in a new tab of the shared Chrome and gives a small set of helpers. The tab is
 # closed when the calling test ends, pass or fail.
 local_page <- function(html_file, env = parent.frame(), init = NULL) {
@@ -129,14 +149,10 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
   session$Page$navigate(if (grepl("^https?://", html_file)) html_file else paste0("file://", normalizePath(html_file)))
 
   evaluate <- function(js) session$Runtime$evaluate(js, returnByValue = TRUE)$result$value
-  # Waits until the JavaScript `js` is true in the page; false when `seconds` (the shared limit by default) pass first.
-  # It returns at once when the condition already holds. The short pause is the polling interval, not a fixed wait.
+  # Waits until the JavaScript `js` is true in the page on two polls in a row; false when `seconds` (the shared limit by
+  # default) pass first. See `wait_polls()`.
   wait_until <- function(js, seconds = browser_timeout / 1000) {
-    deadline <- Sys.time() + seconds
-    while (!isTRUE(evaluate(js)) && Sys.time() < deadline) {
-      Sys.sleep(0.05)
-    }
-    isTRUE(evaluate(js))
+    wait_polls(function() evaluate(js), seconds)
   }
   # Waits until the page has gone quiet: nothing in the DOM changed for `quiet` seconds, Shiny is not busy and no
   # transition or animation that has an end is running, and no DT table is loading and the window has stopped scrolling. Use it where a test acted on the page (a redraw, a scroll, a

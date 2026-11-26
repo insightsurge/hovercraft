@@ -101,7 +101,10 @@ describe("labels = changes the words a tip shows itself", {
         )
       )
     )
-    shiny::shinyApp(ui, function(input, output, session) NULL)
+    # A server function whose whole body is `NULL` ends every session at once ("could not find function server"), so the
+    # page connects for an instant and the test only passed when its check happened to run in that instant.
+    server <- function(input, output, session) invisible()
+    shiny::shinyApp(ui, server)
   })
   page <- local_page(app$url, environment())
   css <- tip_names()$css
