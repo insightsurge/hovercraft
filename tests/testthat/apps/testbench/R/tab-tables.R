@@ -1,7 +1,7 @@
 # Tables, HC-042 to HC-049, with the scenarios that need a table from other categories (HC-020, HC-021, HC-033,
 # HC-039, HC-060, HC-064): DT in client and server mode, reactable, in-place panels, column changes, a hidden tab, a
-# modal and two tables side by side. test-practice-table-browser.R, test-table-*-browser.R and test-leak-browser.R
-# hold the automated checks; this tab is for trying them by hand.
+# modal and two tables side by side. test-table-*-browser.R hold the automated checks; this tab is for trying them
+# by hand. The table update checks (test-practice-table-browser.R) have a tab of their own, R/tab-updates.R.
 
 tbl_long <- "The long form of {{ site }}: {{ patients }} patients in {{ country }}."
 

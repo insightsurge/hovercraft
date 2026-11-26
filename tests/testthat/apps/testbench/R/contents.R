@@ -2,7 +2,20 @@
 # `tab_<id>_server(input, output, session)`, in R/tab-<id>.R. Element ids in a tab start with its id, so every tab can
 # share one page; the practice tab keeps the ids its test has always used.
 bench_tabs <- data.frame(
-  id = c("practice", "js", "layering", "placement", "input", "tables", "host", "a11y", "theme", "scale"),
+  id = c(
+    "practice",
+    "js",
+    "layering",
+    "placement",
+    "input",
+    "tables",
+    "updates",
+    "host",
+    "a11y",
+    "theme",
+    "scale",
+    "leaks"
+  ),
   title = c(
     "Shiny practices",
     "JavaScript-driven UI",
@@ -10,9 +23,11 @@ bench_tabs <- data.frame(
     "Placement",
     "Keys, pointer, touch",
     "Tables",
+    "Table updates",
     "Shiny host",
     "Accessibility",
     "Theme",
-    "Scale and leaks"
+    "Scale and leaks",
+    "Leak counts"
   )
 )
