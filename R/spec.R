@@ -37,7 +37,8 @@
 #'   "pin")` and `tip_more(pin = TRUE)` work only in the spec for `rows` of a [tip_table()] with `pin = TRUE`, the one
 #'   target that can pin; anywhere else in a table they stop with an error. `tip_more(on = "click")` stops with an
 #'   error in a table, where a click selects a row. `tip_more(as = , where = )` choose the look and side of the
-#'   control, a button or a text link, as in [tip_on()].
+#'   control, a button or a text link, as in [tip_on()]. In a table a cell does not inherit the long form of its row: a
+#'   cell with no `more` of its own shows its short tip only, and a cell's own `more` replaces the row's.
 #' @param pin Whether a reader can keep this target's tip open: `NULL` (the default) or `FALSE` for no pin, or `TRUE`
 #'   for a pin handle in the corner of the tip and a pin key, as in [tip_on()]. Only the tips of `rows` pin for now: a
 #'   spec with a pin given to `cells` or `headers` stops with "only rows pin for now". A click on a row selects it in

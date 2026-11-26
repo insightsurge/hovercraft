@@ -357,6 +357,9 @@ tip_table_check_values <- function(data, fields, call) {
   invisible(data)
 }
 
+# The name of the empty template a cell takes as its long form when its row's opens on hover or pin and it has none.
+tip_table_no_more <- "table_no_more"
+
 # What an element carries for one content: its template, the fixed kind of its target, the placement when there is
 # one, and, for a cell or a header cell, the anchor `content`, so the tip points at the text and not at the whole cell
 # (a right-aligned header would point at empty space). A row keeps the engine's pointer alignment. With a table `id`,
@@ -371,6 +374,9 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
     attrs[[tip_attribute("placement")]] <- content$placement
   }
   reset <- NULL
+  if (isTRUE(content$no_more)) {
+    attrs[[tip_attribute("more_template")]] <- tip_table_no_more
+  }
   if (!is.null(content$more)) {
     attrs <- c(
       attrs,
@@ -1131,6 +1137,15 @@ tip_table <- function(
       content
     })
   }
+  # The same goes for a long form that opens on hover or pin: the engine reads it from the nearest tagged ancestor, so a
+  # cell with none of its own would show its row's. The cell says it has none: an empty template, which draws nothing.
+  # (A long form behind the More button sits on the row alone.)
+  if (!is.null(plan$rows$more) && !plan$rows$more_on %in% c("button", "click")) {
+    plan$cells <- lapply(plan$cells, function(content) {
+      content$no_more <- is.null(content$more) || content$more_on %in% c("button", "click")
+      content
+    })
+  }
   column_of <- function(column) match(column, shown)
   plan$specs <- list(
     rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, "row", id = id),
@@ -1147,6 +1162,9 @@ tip_table <- function(
   )
   plan$table_id <- if (!is.null(id)) list(id = id)
   plan$defines <- tip_table_defines(c(list(plan$rows), plan$cells, plan$headers))
+  if (any(vapply(plan$cells, function(content) isTRUE(content$no_more), NA))) {
+    plan$defines[[tip_table_no_more]] <- "[]"
+  }
   plan$outputs <- unique(unlist(lapply(c(list(plan$rows), plan$cells, plan$headers), function(content) {
     content$outputs
   })))
