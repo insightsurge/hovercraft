@@ -15,7 +15,7 @@ skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 skip_if_no_bench()
 
 # The bench's keyboard, pointer and touch scenarios that had no test (#158): Escape in a modal's field and over an open
-# menu (HC-028), odd mouse buttons and double clicks (HC-036), the pointer leaving the window (HC-037), and touch
+# menu (HC-028), odd mouse buttons and double clicks (HC-036, partly), the pointer leaving the window (HC-037), and touch
 # scrolling, pinching and tapping (HC-041).
 describe("the bench's input scenarios", {
   bench <- start_bench(environment())
@@ -86,6 +86,50 @@ describe("the bench's input scenarios", {
     expect_lte(pins_open(page), 1L)
     events <- bench_tip_events(page, since)
     expect_identical(sum(startsWith(events, "pinned inp_travel_tip")), 1L)
+
+    # A press inside a pinned tip, a drag and a release outside it keeps the pin (#167); a plain click out there still
+    # closes it (reason "outside"), so the drag is not simply outside the engine's reach.
+    expect_true(bench_close_tips(page))
+    bench_scroll_to(page, "#inp-targets")
+    page$hover("#inp-targets")
+    page$press("p")
+    expect_true(page$wait_until(sprintf("document.querySelector('.%s-pin:not([hidden])') !== null", tip_names()$css)))
+    page$settle()
+    tip <- bench_tips(page)
+    inside <- c(tip$left + 14, tip$top + 14)
+    outside <- c(min(tip$right + 120, 880), min(tip$bottom + 120, 680))
+    since <- page$mark()
+    page$session$Input$dispatchMouseEvent(
+      type = "mousePressed",
+      x = inside[[1]],
+      y = inside[[2]],
+      button = "left",
+      buttons = 1L,
+      clickCount = 1L
+    )
+    for (step in 1:5) {
+      page$session$Input$dispatchMouseEvent(
+        type = "mouseMoved",
+        x = inside[[1]] + (outside[[1]] - inside[[1]]) * step / 5,
+        y = inside[[2]] + (outside[[2]] - inside[[2]]) * step / 5,
+        button = "left",
+        buttons = 1L
+      )
+    }
+    page$session$Input$dispatchMouseEvent(
+      type = "mouseReleased",
+      x = outside[[1]],
+      y = outside[[2]],
+      button = "left",
+      buttons = 0L,
+      clickCount = 1L
+    )
+    page$settle()
+    expect_identical(pins_open(page), 1L)
+    expect_false(any(grepl("^closed inp_targets_tip", bench_tip_events(page, since))))
+    press_button(page, outside, "left")
+    expect_true(page$wait_until(sprintf("document.querySelector('.%s-pin:not([hidden])') === null", tip_names()$css)))
+    expect_true(any(grepl("^closed inp_targets_tip outside", bench_tip_events(page, since))))
     expect_bench_clean(page)
   })
 
