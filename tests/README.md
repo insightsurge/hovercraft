@@ -53,3 +53,5 @@ The test bench in `apps/testbench/` holds the Shiny-practice and behaviour scena
 hand. The behaviour scenarios are tested in `test-bench-<tab>-browser.R`, with `helper-bench-scenarios.R`; each ends with
 `expect_bench_clean()` (no tip left open, no `inert` or locked scroll, nothing on the console). For input the page
 helpers do not cover (another mouse button, a touch gesture), `page$session` is the tab's chromote session.
+The bench's scripts and styles (`apps/testbench/www`) are checked with `biome ci .`; the quality gate and CI check only
+`inst/` until launchR's Biome step is widened.

@@ -2,7 +2,12 @@
   "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
   "root": true,
   "files": {
-    "includes": ["inst/**/*.js", "inst/**/*.css", "tests/testthat/apps/testbench/www/**/*.js"]
+    "includes": [
+      "inst/**/*.js",
+      "inst/**/*.css",
+      "tests/testthat/apps/testbench/www/**/*.js",
+      "tests/testthat/apps/testbench/www/**/*.css"
+    ]
   },
   "formatter": {
     "enabled": true,
