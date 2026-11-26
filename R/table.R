@@ -585,6 +585,17 @@ tip_table_dt <- function(widget, plan, call) {
       tip_json(specs)
     ))
   }
+  # DT draws its rows, cells and header cells while it is built, before the widget's render hook runs, so the templates
+  # are defined first, in the draw's first callback. `define()` skips a template it already has.
+  x$options$preDrawCallback <- tip_table_dt_first(
+    x$options$preDrawCallback,
+    sprintf(
+      "HovercraftTable.define(%s, %s, null, %s);",
+      tip_json(plan$defines),
+      tip_json(tip_description_class()),
+      tip_json(tip_table_open())
+    )
+  )
   widget$x <- x
   tip_table_on_render(
     widget,
@@ -608,6 +619,16 @@ tip_table_dt <- function(widget, plan, call) {
       tip_table_panel_config(plan)
     )
   )
+}
+
+# A DT callback option with `code` run first, then the table's own callback when it has one (its answer is the answer).
+tip_table_dt_first <- function(existing, code) {
+  user <- if (inherits(existing, "JS_EVAL")) {
+    sprintf("(%s).apply(this, arguments)", as.character(existing))
+  } else {
+    "undefined"
+  }
+  tip_js(sprintf("function() { %s return %s; }", code, user))
 }
 
 # A reactable class option is a string or a JS function; the layer's class is added to whatever the table has.
