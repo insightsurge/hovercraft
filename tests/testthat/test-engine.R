@@ -184,6 +184,8 @@ describe("use_hovercraft()", {
 describe("tip_reset()", {
   it("forgets the templates defined in this session", {
     skip_if_not_installed("withr")
+    # Templates are process state: another file run earlier in this process may have left some (#175).
+    tip_reset()
     withr::defer(tip_reset())
     tip_define(demo = tip_template(tip_text("x")))
     expect_named(tip_known(), "demo")

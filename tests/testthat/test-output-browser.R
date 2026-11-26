@@ -375,8 +375,11 @@ describe("tip_output() in a live Shiny app", {
 # server never reads, one output shared by several items, and a pin that another item's hint takes the output from.
 describe("tip_output() in ordinary use", {
   pin_attr <- tip_attribute("pin")
+  # While this file exists, the render of the shared output waits: the test holds the "loading" state as long as it needs
+  # and then deletes the file, instead of catching a state that lasts a fixed 0.4 s (#175).
+  hold_file <- tempfile("hold-render-")
   made <- start_app(
-    function(pin_attr) {
+    function(pin_attr, hold_file) {
       pinnable <- function(tag) htmltools::tagAppendAttributes(tag, !!pin_attr := "")
       # The engine's own click pin, written by hand after the tip: `pin = "click"` refuses a button.
       button <- function(id, label, tpl) {
@@ -417,7 +420,12 @@ describe("tip_output() in ordinary use", {
         }
         output$shared_out <- shiny::renderText({
           item <- open_item()
-          Sys.sleep(0.4) # a slow render on purpose: the output must stay busy for a moment (this sleeps in the app, not the test)
+          # A slow render on the test's say: the output stays busy while the test's hold file exists (the app waits, not
+          # the test). The limit keeps a test that failed before it deleted the file from hanging the app.
+          release <- Sys.time() + 30
+          while (file.exists(hold_file) && Sys.time() < release) {
+            Sys.sleep(0.05)
+          }
           paste0("shows-item-", item)
         })
         # A render that fails and never reads `input$quiet_out_retry`: Retry cannot make it run again.
@@ -425,7 +433,8 @@ describe("tip_output() in ordinary use", {
       }
       shiny::shinyApp(ui, server)
     },
-    pin_attr = pin_attr
+    pin_attr = pin_attr,
+    hold_file = hold_file
   )
   page <- local_page(made$url, environment())
   css <- tip_names()$css
@@ -458,8 +467,10 @@ describe("tip_output() in ordinary use", {
       "document.querySelector('.hc-tip:not([hidden]) #shared_out')?.textContent === 'shows-item-A'"
     ))
     close_tip()
+    file.create(hold_file)
+    withr::defer(unlink(hold_file))
     page$hover("#btn_b")
-    # While the server works for item B, the box does not show item A's text.
+    # While the server works for item B (it waits for the test to delete the hold file), the box does not show item A's text.
     expect_true(page$wait_until(paste0(state_of, " === 'loading'")))
     expect_identical(
       page$evaluate("document.querySelector('.hc-tip:not([hidden]) .hc-output').dataset.stale"),
@@ -469,6 +480,7 @@ describe("tip_output() in ordinary use", {
       page$evaluate("getComputedStyle(document.querySelector('.hc-tip:not([hidden]) .hc-output-host')).visibility"),
       "hidden"
     )
+    unlink(hold_file)
     expect_true(page$wait_until(
       "document.querySelector('.hc-tip:not([hidden]) #shared_out')?.textContent === 'shows-item-B'"
     ))
