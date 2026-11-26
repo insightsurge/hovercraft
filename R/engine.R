@@ -108,6 +108,9 @@ tip_reset <- function() {
 #' The engine's script and CSS, ready to add to a page. [tip_on()] and [tip_define()] attach it for you; use this when
 #' you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
 #' with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
+#' Which names on the page your own CSS and JavaScript may rely on, and which are internal, is in the section "What is
+#' public on the page" of the
+#' [README](https://github.com/insightsurge/hovercraft#what-is-public-on-the-page).
 #'
 #' @param style `r lifecycle::badge("stable")` as a preset name, `r lifecycle::badge("experimental")` as a style object.
 #'   How the tips look on the whole page, or `NULL` (the default) to take the page's own bslib variables,
@@ -154,7 +157,8 @@ tip_reset <- function() {
 #' @returns A list of [htmltools::htmlDependency()] objects: the engine's script and style sheet, then, with a `style`
 #'   that sets something, `hovercraft-style`, which holds the page's theme CSS and sets the page's preset and class as
 #'   the engine's attributes on the page, with a `max_pins`, `keys` or `labels` that is given one of their own, and last
-#'   `hovercraft-runtime`, which starts the engine and the layers. Put it
+#'   `hovercraft-runtime`, which starts the engine and the layers (the names of these dependencies are internal and may
+#'   change). Put it
 #'   once in the page's UI, for example `bslib::page_fluid(use_hovercraft(style = "sober"), ...)`.
 #'
 #'   Nothing in them is inline script or style: they are files and data, so a page served with

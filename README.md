@@ -174,6 +174,22 @@ bundles a preset, a theme, a class for the tip box, and its motion and size (`ti
 A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See
 `vignette("themes")`, and `vignette("hovercraft")` to get started.
 
+## What is public on the page
+
+hovercraft puts the tip engine and a few helper scripts on a page. Your own CSS and JavaScript may rely on these names:
+
+- the `Hovercraft` global of the tip engine;
+- the events the tip engine sends: `hovercraft:tip`, `hovercraft:hint` and `hovercraft:copy`;
+- the `data-hovercraft-tip*` attributes;
+- the `hc-*` classes of the tip, and the `--hovercraft-tip-*` CSS variables that `tip_style(theme = )` sets (see
+  `vignette("themes")`).
+
+Everything else the package puts on a page is internal and may change in any release: the helper scripts and their
+other global names (`HovercraftPin`, `HovercraftMore`, `HovercraftDisabled`, `HovercraftTable`, `HovercraftShiny` and
+`HovercraftRuntime`), their file names and so their URLs, the names of the dependencies, the
+`<meta name="hovercraft-...-config">` tags that carry their settings, their classes and CSS variables that do not
+start with `hc-` or `--hovercraft-tip-`, and the other `data-hovercraft-*` attributes that R writes for them.
+
 ## Try every feature in the studio
 
 hovercraft studio is a Shiny app with every tip feature on one page. Rest the pointer on a figure, change its choices,
