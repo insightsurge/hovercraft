@@ -26,7 +26,8 @@ paths:
     whose process has ended is replaced when a test asks for it; after 2 replacements in a run the browser tests skip
     with a message instead of looping.
   - **One wait limit,** `browser_timeout` (30 s), for every browser wait; starting Chrome gets 60 s. A wait that passes
-    returns at once, so a long limit costs nothing on a fast machine. No wait has a shorter limit of its own.
+    returns at once, so a long limit costs nothing on a fast machine. No wait has a shorter limit of its own, except
+    `hover()`, which waits for the engine's own delay at most.
   - **No fixed sleeps.** Wait for the signal the test needs: `page$wait_until()` for a DOM state or value,
     `page$settle()` after an action that redraws (the page is quiet and Shiny is idle), `page$wait_open()` and
     `page$wait_closed()` for tips. Put each wait in `expect_true()`, so a timeout fails the test. `page$hold()` is for
@@ -38,5 +39,15 @@ paths:
     `page$click()` and `mouse_at()` read a position first and press there, so a redraw in between misses.
   - Each file runs on its own: files run in parallel, in any order, so a file never relies on another's Chrome tabs,
     apps or state.
+  - **One browser run at a time.** Two test runs at once (two sessions, or a gate and a test file) slow each other and
+    make the waits that are right look flaky: start one, wait for it to end, then start the next.
+  - **A short-lived state** (loading, a flash, an animation) is recorded in the page or held by the test (the app waits
+    for a signal the test sends, such as a file it deletes); it is never polled after a `hover()`, `press()` or
+    `click()`, and an app's own `Sys.sleep()` is not a state to wait for. (Older tests that still poll are listed in
+    #175.)
+  - **A frame-by-frame comparison** of positions or opacities allows for one dropped frame (compare with the frame
+    before as well), and puts the worst frames in the failure message. Do not widen a number to pass.
+  - **A test that defines or reads templates** (`tip_define()`, `tip_known()`) starts with `tip_reset()` and defers one
+    (`withr::defer(tip_reset())`), and never relies on another file having cleaned up.
 - **The engine's shared cases** (`inst/engine/placeholders.json`) are run through the R parser; a new placeholder rule
   needs a case there first, in the engine's source, not here.

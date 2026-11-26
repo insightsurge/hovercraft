@@ -212,11 +212,21 @@ describe("the inputs of tip_table() in a Shiny app", {
 
   it("sends the data row of a reactable row after a sort", {
     page$click_now("#rt [role=columnheader]:nth-child(2)")
+    # The sort has landed when the rows carry the addresses of their new places, not only their new text: Voles (data
+    # row 5) first, and the Hares row (data row 3) with its own address. Then the page is left to settle (#175).
     expect_true(page$wait_until(
-      "document.querySelector('#rt [role=row][data-hovercraft-tip-id]').textContent.trim().startsWith('Voles')"
+      "(() => { const first = document.querySelector('#rt [role=row][data-hovercraft-tip-id]'); return first.textContent.trim().startsWith('Voles') && first.getAttribute('data-hovercraft-tip-id') === 'rt/row/5'; })()"
     ))
+    expect_true(page$wait_until(sprintf(
+      "%s?.getAttribute('data-hovercraft-tip-id') === 'rt/row/3'",
+      row_of(rows_in("rt", "rt"), "Hares")
+    )))
+    page$settle()
     pin_row(rows_in("rt", "rt"), "Hares")
-    expect_true(wait_seen("rt_pin", "v.state === 'pinned'"))
+    expect_true(
+      wait_seen("rt_pin", "v.state === 'pinned'"),
+      info = paste("the last rt_pin input:", jsonlite::toJSON(seen("rt_pin"), auto_unbox = TRUE, null = "null"))
+    )
     got <- seen("rt_pin")
     expect_identical(got$row, 3L)
     expect_identical(got$target, "row")

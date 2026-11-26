@@ -213,17 +213,33 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     Sys.sleep(seconds)
     invisible()
   }
+  # Where the pointer goes to rest on the element `selector` names; a selector that matches nothing fails the test with
+  # that said, as `click_now()` does, not with a JSON error from reading an empty answer.
+  box_of <- function(selector) {
+    box <- evaluate(sprintf(
+      "(() => { const n = document.querySelector(%s); if (!n) return null; const r = n.getBoundingClientRect(); return JSON.stringify([r.x + 10, r.y + r.height / 2]); })()",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    ))
+    if (is.null(box)) {
+      cli::cli_abort("No element matches {.val {selector}}.")
+    }
+    jsonlite::fromJSON(box)
+  }
   # Moves the pointer onto the element and rests there longer than the engine's delay, then reads the tips on show.
   hover <- function(selector) {
-    box <- jsonlite::fromJSON(evaluate(sprintf(
-      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify([r.x + 10, r.y + r.height / 2]); })()",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
+    box <- box_of(selector)
+    hint_js <- sprintf("document.querySelector('.%1$s:not(.%1$s-pin):not([hidden])') !== null", tip_names()$css)
     session$Input$dispatchMouseEvent(type = "mouseMoved", x = 890, y = 690)
-    hold(0.2) # the engine's close delay, for the tip the pointer leaves
+    # The engine's close delay, for the tip the pointer leaves: wait until no hint is on show, for the delay at most (a
+    # hint that stays, such as one a focus holds open, gives no signal).
+    wait_polls(function() !isTRUE(evaluate(hint_js)), 0.2, poll = 0.02, holds = 1L)
     session$Input$dispatchMouseEvent(type = "mouseMoved", x = box[[1]] - 2, y = box[[2]])
     session$Input$dispatchMouseEvent(type = "mouseMoved", x = box[[1]], y = box[[2]])
-    hold(0.6) # the engine's open delay: a tag with no tip gives no signal either
+    # The engine's open delay: wait until a hint is on show, for the delay at most. A tag with no tip gives no signal, and
+    # a test that hovers one (to see that nothing opens) waits the whole time, as it must.
+    # It is over when the hint has stopped moving too: a test that measures the tip after `hover()` reads where it rests.
+    still_js <- "document.getAnimations().every((a) => a.playState !== 'running' || a.effect.getComputedTiming().iterations === Infinity)"
+    wait_polls(function() isTRUE(evaluate(hint_js)) && isTRUE(evaluate(still_js)), 0.6, poll = 0.02, holds = 2L)
     shown()
   }
   shown <- function() {
@@ -272,20 +288,21 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     )
     do.call(session$Input$dispatchKeyEvent, c(list(type = "rawKeyDown"), args))
     do.call(session$Input$dispatchKeyEvent, c(list(type = "keyUp"), args))
-    hold(wait) # the engine's open and close delay, as for hover
+    # The engine's open and close delay. A key can open a tip, close one, move to another or do nothing, so no page state
+    # tells that the engine is done: hold for the delay.
+    hold(wait)
     shown()
   }
   # Rests the pointer on the element (so its tip opens), then clicks it with the mouse; returns the tips on show.
   click <- function(selector) {
     hover(selector)
-    box <- jsonlite::fromJSON(evaluate(sprintf(
-      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify([r.x + 10, r.y + r.height / 2]); })()",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
+    box <- box_of(selector)
     for (type in c("mousePressed", "mouseReleased")) {
       session$Input$dispatchMouseEvent(type = type, x = box[[1]], y = box[[2]], button = "left", clickCount = 1)
     }
-    hold(0.7) # the engine's open and close delay, as for hover
+    # The engine's open and close delay. A click can pin, toggle, close or do nothing, so no page state tells that the
+    # engine is done: hold for the delay.
+    hold(0.7)
     shown()
   }
   # Emulates a media feature of the reader, such as `emulate("prefers-reduced-motion", "reduce")`.
@@ -383,6 +400,17 @@ start_app <- function(make, env = parent.frame(), ...) {
   )
   withr::defer(proc$kill(), envir = env)
   url <- paste0("http://127.0.0.1:", port)
-  wait_for_app(proc, url)
+  if (!wait_for_app(proc, url)) {
+    # Say why: a page that never connects tells nothing about an app that did not start (#175).
+    output <- function(lines) if (length(lines) == 0L) "(nothing)" else paste(utils::tail(lines, 20L), collapse = "\n")
+    err <- output(proc$read_error_lines())
+    out <- output(proc$read_output_lines())
+    cli::cli_abort(c(
+      "The test app did not answer at {.url {url}}.",
+      "i" = if (proc$is_alive()) "Its process is still running." else "Its process has ended.",
+      "i" = "Its error output (the last lines):\n{err}",
+      "i" = "Its output (the last lines):\n{out}"
+    ))
+  }
   list(url = url, proc = proc)
 }
