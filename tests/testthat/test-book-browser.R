@@ -308,3 +308,135 @@ describe("hovercraft book in a browser", {
     expect_identical(js("document.querySelector('#toc a[aria-current=\"true\"]').dataset.plate"), "table_pins")
   })
 })
+
+# The five sections added for the 0.1.0 API, in a book of their own: the last test reloads the page with a page-wide
+# setting, which the tests above must not see.
+describe("hovercraft book's newer sections in a browser", {
+  app <- start_app(function() hovercraft_book(run = FALSE))
+  page <- local_page(app$url)
+  page$resize(1440, 900)
+  js <- function(code) page$evaluate(code)
+  json <- function(x) jsonlite::toJSON(x, auto_unbox = TRUE)
+  tip <- function(id) sprintf("[%s-id=\"%s\"]", tip_names()$attribute, id)
+  shown <- sprintf("document.querySelector('.%s:not([hidden])')", tip_names()$css)
+  # The More control is drawn beside the tip's box, not in it: its words are the button's text.
+  control <- "document.querySelector('.hovercraft-more-strip:not([hidden]) .hovercraft-more-strip-button')"
+  says <- function(words) sprintf("(%s?.textContent ?? '').includes(%s)", control, json(words))
+  ticked <- function(plate, i) {
+    sprintf("!!document.querySelector('[data-steps=\"%s\"] > li[data-i=\"%d\"].ck-done')", plate, i)
+  }
+  logged <- function(plate, words) {
+    sprintf(
+      "[...document.querySelectorAll('[data-log=\"%s\"] li')].some((li) => li.textContent.includes(%s))",
+      plate,
+      json(words)
+    )
+  }
+  scroll_to <- function(id) js(sprintf("document.getElementById('%s').scrollIntoView({ behavior: 'instant' })", id))
+  focus <- function(selector) js(sprintf("document.querySelector(%s).focus()", json(selector)))
+  value <- function(name) sprintf("window.Shiny.shinyapp.$inputValues[%s]", json(name))
+  ready <- paste(
+    "!!window.Shiny?.shinyapp?.isConnected() &&",
+    "[...document.querySelectorAll('[data-code]')].every((p) => p.dataset.raw)"
+  )
+  expect_true(page$wait_until(ready, 30))
+
+  it("opens a table row's tip from the server, and closes it again (Table tips from the server)", {
+    scroll_to("table_server")
+    expect_true(page$wait_until("!!document.querySelector('#table_server tbody tr')", 20))
+    page$click_now("#tsrv_show")
+    expect_true(page$wait_until(logged("table_server", "input$branch_tips_hint")))
+    expect_true(page$wait_until(ticked("table_server", 0L)))
+    expect_true(page$wait_open())
+    page$click_now("#tsrv_hide")
+    expect_true(page$wait_until(ticked("table_server", 1L)))
+    expect_true(page$wait_closed())
+  })
+
+  it("draws a row's pinned tip as a card under the row, which a click away leaves open (A pinned tip ...)", {
+    scroll_to("in_place")
+    row <- "#in_place tbody tr"
+    expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(row)), 20))
+    focus(row)
+    page$press("p", wait = 0.2)
+    card <- sprintf(
+      "document.querySelector(%s)?.nextElementSibling?.hasAttribute('data-hovercraft-panel') === true",
+      json(row)
+    )
+    expect_true(page$wait_until(card))
+    expect_true(page$wait_until(logged("in_place", "input$queue_cards_pin")))
+    expect_true(page$wait_until(ticked("in_place", 0L)))
+    page$mouse(5, 5)
+    page$click(".colophon")
+    # The engine's close delay: a card that a click away closed would be gone by now.
+    page$hold(0.4)
+    expect_true(js(card))
+    page$press("Escape", wait = 0.2)
+    expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
+  })
+
+  it("grows a tip in place with More, says Less, and takes the words chosen (The More button)", {
+    scroll_to("more_button")
+    focus(tip("more_button_open"))
+    expect_true(page$wait_open())
+    expect_true(page$wait_until(says("More")))
+    page$press("m", wait = 0.2)
+    expect_true(page$wait_until(sprintf("%s?.textContent.includes('How it is counted')", shown)))
+    expect_true(page$wait_until(says("Less")))
+    page$press("Escape", wait = 0.2)
+    js("document.activeElement.blur()")
+    expect_true(page$wait_closed())
+    js("document.querySelector('#more_button_label input:not(:checked)').click()")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('[data-code=\"more_button\"]').dataset.raw.includes(%s)",
+      json("label =")
+    )))
+    focus(tip("more_button_open"))
+    expect_true(page$wait_until(says("Show all")))
+    page$press("Escape", wait = 0.2)
+    js("document.activeElement.blur()")
+  })
+
+  it("gives one tag's tip its own words, and the tag next to it keeps the page's (The tip's built-in words)", {
+    scroll_to("words")
+    js("document.querySelector('#words_words input[value=english]').click()")
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('[data-code=\"words\"]').dataset.raw.includes(%s)",
+      json("Dismiss")
+    )))
+    expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(tip("words_wait_min")))))
+    focus(tip("words_wait_min"))
+    page$press("p", wait = 0.2)
+    expect_true(page$wait_until(logged("words", "input$words_wait_min_pin")))
+    # The close button says its word to a screen reader, as its name.
+    expect_true(page$wait_until(sprintf(
+      "[...%s?.querySelectorAll('button') ?? []].some((b) => b.getAttribute('aria-label') === 'Dismiss')",
+      shown
+    )))
+    page$press("Escape", wait = 0.2)
+    js("document.activeElement.blur()")
+    focus(tip("words_region"))
+    expect_true(page$wait_open())
+    expect_true(page$wait_until(says("More")))
+    js("document.activeElement.blur()")
+  })
+
+  it("reloads the book with max_pins = 3, at the same section, and keeps two pins open (Several pinned tips)", {
+    scroll_to("pin_limits")
+    js("document.querySelector('#pin_limits_pins input[value=\"3\"]').click()")
+    expect_true(page$wait_until(
+      "location.search.includes('max_pins=3') && location.search.includes('section=pin_limits')"
+    ))
+    expect_true(page$wait_until(ready, 30))
+    expect_true(js("document.querySelector('#pin_limits_pins input[value=\"3\"]').checked"))
+    for (id in c("pin_limits_visit_date", "pin_limits_region")) {
+      expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(tip(id))), 20))
+      focus(tip(id))
+      page$press("p", wait = 0.2)
+      expect_true(page$wait_until(sprintf("%s === true", value(paste0(id, "_pinned")))))
+    }
+    # With room for three, pinning the second leaves the first pinned.
+    expect_true(js(sprintf("%s === true", value("pin_limits_visit_date_pinned"))))
+    expect_identical(page$problems(), character())
+  })
+})
