@@ -64,6 +64,38 @@ describe("tip_table() on a DT table", {
     expect_match(js(got$x$options$createdRow), tip_attribute("record"), fixed = TRUE)
   })
 
+  it("gives a cell with no long form of its own an empty one when its row's opens on hover or pin", {
+    more <- tip_more("Long {{ team }}", on = "hover")
+    got <- tip_table(dt(), rows = tip_spec("{{ team }}", more = more), cells = c(wins = "{{ wins }} wins"))
+    cell <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)[[1]]
+    expect_match(
+      js(cell$createdCell),
+      paste0("\"", tip_attribute("more_template"), "\":\"table_no_more\""),
+      fixed = TRUE
+    )
+    expect_identical(got$jsHooks$render[[1]]$data$defines[["table_no_more"]], "[]")
+    own <- tip_table(
+      dt(),
+      rows = tip_spec("{{ team }}", more = more),
+      cells = list(wins = tip_spec("{{ wins }}", more = more))
+    )
+    cell <- Filter(function(def) !is.null(def$createdCell), own$x$options$columnDefs)[[1]]
+    expect_no_match(js(cell$createdCell), "table_no_more", fixed = TRUE)
+    button <- tip_table(dt(), rows = tip_spec("{{ team }}", more = tip_more("Long")), cells = c(wins = "{{ wins }}"))
+    expect_no_match(
+      js(Filter(function(def) !is.null(def$createdCell), button$x$options$columnDefs)[[1]]$createdCell),
+      "table_no_more",
+      fixed = TRUE
+    )
+    own_button <- tip_table(
+      dt(),
+      rows = tip_spec("{{ team }}", more = more),
+      cells = list(wins = tip_spec("{{ wins }}", more = tip_more("Long")))
+    )
+    cell <- Filter(function(def) !is.null(def$createdCell), own_button$x$options$columnDefs)[[1]]
+    expect_match(js(cell$createdCell), "table_no_more", fixed = TRUE)
+  })
+
   it("marks the cells of the named columns by their position, and the header cells", {
     got <- tip_table(dt(), cells = c(wins = "{{ wins }} wins"), headers = c(losses = "Games lost"))
     defs <- Filter(function(def) !is.null(def$createdCell), got$x$options$columnDefs)

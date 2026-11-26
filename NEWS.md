@@ -106,3 +106,4 @@
 * The engine-name clash warning (a record column named `tip_id` or `tip_index`) now fires for the long form, inline words and an inline template too (#150).
 * `tip_update(template = )` also takes the tag's plain text away when no `text` comes with it, since plain text beats a template (#150).
 * Status badges and the output error message follow the operating system's dark mode on a page with no `data-bs-theme`, and a tip's own dark mode; the in-place panel of a table uses a logical inset for right-to-left pages (#150).
+* `tip_table()` cells no longer show their row's long form when it opens on hover (or warn when it opens on pin): a cell with no long form of its own is given an empty one (#170).
