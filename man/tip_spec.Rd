@@ -47,7 +47,8 @@ long form shows. \code{NA} and \code{""} mean no long form. Words and a template
 default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. \code{tip_more(on = "pin")} and \code{tip_more(pin = TRUE)} work only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
 target that can pin; anywhere else in a table they stop with an error. \code{tip_more(on = "click")} stops with an
 error in a table, where a click selects a row. \code{tip_more(as = , where = )} choose the look and side of the
-control, a button or a text link, as in \code{\link[=tip_on]{tip_on()}}.}
+control, a button or a text link, as in \code{\link[=tip_on]{tip_on()}}. In a table a cell does not inherit the long form of its row: a
+cell with no \code{more} of its own shows its short tip only, and a cell's own \code{more} replaces the row's.}
 
 \item{pin}{Whether a reader can keep this target's tip open: \code{NULL} (the default) or \code{FALSE} for no pin, or \code{TRUE}
 for a pin handle in the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin for now: a
