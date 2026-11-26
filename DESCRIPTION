@@ -36,6 +36,7 @@ Suggests:
     rmarkdown,
     shiny,
     shinycssloaders,
+    shinyjs,
     testthat (>= 3.1.7),
     withr
 Config/quality-gate/coverage: 70
