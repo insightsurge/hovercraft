@@ -126,7 +126,9 @@ says how to run it and which settings its address takes.
 - **The log** (`www/bench-log.js`) keeps every tip event, input and custom message in `window.benchLog`. A test reads it
   with `page$log_has()`, which waits, and checks console errors with `page$problems()`.
 - **Tests:** `test-bench.R` (the list and the spots match, every tab draws and starts its server), `test-bench-browser.R`
-  (every tab in Chrome), `test-bench-js-browser.R` and `test-practice-browser.R`.
+  (every tab in Chrome), `test-bench-js-browser.R` and `test-practice-browser.R`; and one `test-bench-<tab>-browser.R`
+  per scenario tab, each scenario's test ending with `expect_bench_clean()` (`helper-bench-scenarios.R`). A scenario's
+  `tests` column in `scenarios.csv` names the file that covers it.
 
 ## NEWS.md
 

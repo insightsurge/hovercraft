@@ -52,4 +52,6 @@ same lines are in `window.benchLog` for the browser's console and for the tests.
 ## Tests that use it
 
 `start_bench()` and `bench_page()` in `tests/testthat/helper-bench.R`. `test-bench.R` checks that the scenario list and
-the spots match; `test-bench-browser.R`, `test-bench-js-browser.R` and `test-practice-browser.R` drive it in Chrome.
+the spots match; `test-bench-browser.R`, `test-bench-js-browser.R` and `test-practice-browser.R` drive it in Chrome, and
+the scenarios are tested tab by tab in `test-bench-<tab>-browser.R` (helpers in `helper-bench-scenarios.R`). The `tests`
+column of `scenarios.csv` names the file for each scenario.

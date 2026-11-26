@@ -344,7 +344,9 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     press = press,
     shown = shown,
     screenshot = screenshot,
-    problems = function() problems
+    problems = function() problems,
+    # The tab's chromote session, for input the helpers above do not cover (other mouse buttons, touch gestures).
+    session = session
   )
 }
 
