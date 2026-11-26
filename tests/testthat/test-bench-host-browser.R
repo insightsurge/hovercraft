@@ -43,7 +43,7 @@ describe("the bench's Shiny host scenarios", {
       "(() => { const r = document.getElementById('host-words-own').getBoundingClientRect();
         return r.top > 100 && r.bottom < innerHeight - 100; })()"
     ))
-    expect_contains(page$hover("#host-words-own"), "Pinned with its own words")
+    expect_true("Pinned with its own words" %in% page$hover("#host-words-own"))
     tips <- bench_tips(page)
     expect_true(tips$on_top[tips$text == "Pinned with its own words"])
     page$evaluate("document.getElementById('host-words-own').focus(); 0")
@@ -52,9 +52,7 @@ describe("the bench's Shiny host scenarios", {
       "[...document.querySelectorAll('.%s-pin:not([hidden])')].some((t) => t.textContent.includes('Pinned with its own words'))",
       tip_names()$css
     )))
-    expect_true(bench_close_tips(page))
-    expect_identical(page$problems(), character())
-    expect_length(Filter(function(row) row$kind %in% c("error", "warn"), page$log(0)), 0L)
-    expect_false(page$evaluate("document.body.inert"))
+    expect_bench_clean(page)
+    expect_length(Filter(function(row) identical(row$kind, "warn"), page$log(0)), 0L)
   })
 })

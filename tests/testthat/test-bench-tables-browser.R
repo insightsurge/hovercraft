@@ -79,7 +79,7 @@ describe("the bench's table scenarios", {
     expect_true(page$wait_until(sprintf("document.querySelector('.%s-pin:not([hidden])') !== null", css)))
     show_tab("open")
     expect_true(page$wait_until(no_pin))
-    expect_contains(bench_tip_events(page, since), "closed tbl_hidden/row/1 gone")
+    expect_true("closed tbl_hidden/row/1 gone" %in% bench_tip_events(page, since))
     nodes <- tip_nodes(page)
     show_tab("table")
     expect_true(page$wait_until(no_pin))

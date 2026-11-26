@@ -95,13 +95,13 @@ describe("the bench's input scenarios", {
     page$hover("#inp-key-1")
     page$press("p")
     expect_true(bench_wait_tips(page, "Tip 1"))
-    expect_contains(page$hover("#inp-key-3"), "Tip 3")
+    expect_true("Tip 3" %in% page$hover("#inp-key-3"))
     page$session$Input$dispatchMouseEvent(type = "mouseMoved", x = -20, y = -20)
     expect_true(bench_wait_tips(page, "Tip 1"))
     expect_true(bench_tips(page)$pinned)
 
     # A resize with the pointer still: a hint that stays is the one for the item under the pointer.
-    expect_contains(page$hover("#inp-key-3"), "Tip 3")
+    expect_true("Tip 3" %in% page$hover("#inp-key-3"))
     page$resize(700, 600)
     page$hold(0.6) # the engine's close delay, for a hint whose item moved from under the pointer
     tips <- bench_tips(page)

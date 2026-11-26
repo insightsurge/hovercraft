@@ -98,19 +98,22 @@ describe("the bench's scale scenarios", {
     expect_bench_clean(page)
   })
 
-  it("loads every tab with no error on the console, and no warning outside the table tabs (HC-077)", {
+  it("loads every tab with no error on the console, and no warning outside the table tabs (HC-077, partly)", {
     # The layering and tables tabs warn while a DT table with tips renders (a template named before it is defined),
     # reported in #158; their errors are still checked.
     warn_ok <- c("layering", "tables")
     for (tab in c("practice", "js", "layering", "placement", "input", "tables", "host", "a11y", "theme", "scale")) {
-      page <- bench_page(bench, tab)
-      expect_true(page$wait_until(sprintf("document.querySelector('.tab-pane[data-value=\"%s\"]') !== null", tab)))
-      page$settle()
-      expect_bench_clean(page)
-      if (!tab %in% warn_ok) {
-        warnings <- Filter(function(row) identical(row$kind, "warn"), page$log(0))
-        expect_length(warnings, 0L)
-      }
+      # Each tab is opened and closed in its own scope, so one Shiny session is open at a time.
+      local({
+        page <- bench_page(bench, tab)
+        expect_true(page$wait_until(sprintf("document.querySelector('.tab-pane[data-value=\"%s\"]') !== null", tab)))
+        page$settle()
+        expect_bench_clean(page)
+        if (!tab %in% warn_ok) {
+          warnings <- Filter(function(row) identical(row$kind, "warn"), page$log(0))
+          expect_length(warnings, 0L)
+        }
+      })
     }
   })
 })

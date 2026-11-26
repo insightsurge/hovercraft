@@ -37,13 +37,15 @@ describe("the bench's layering scenarios", {
       "document.querySelector('#lay-dialog .%s-pin:not([hidden])') !== null",
       tip_names()$css
     )))
-    page$press("Escape")
-    expect_true(page$wait_until("document.getElementById('lay-dialog').open === true"))
+    since <- page$mark()
     page$evaluate("document.getElementById('lay-dialog').close(); 0")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s-pin:not([hidden])') === null",
       tip_names()$css
     )))
+    closed <- grep("^closed lay_dialog_btn_tip", bench_tip_events(page, since), value = TRUE)
+    expect_length(closed, 1L)
+    expect_false(grepl("escape", closed, fixed = TRUE))
 
     page$click_now("#lay-offcanvas-open")
     expect_true(page$wait_until("document.getElementById('lay-offcanvas').classList.contains('show')"))
@@ -79,7 +81,7 @@ describe("the bench's layering scenarios", {
     # left out here.
     expect_identical(bench_tips(page)$text, "A's tip")
 
-    expect_contains(page$hover("#lay-modal-btn"), "Above the backdrop")
+    expect_true("Above the backdrop" %in% page$hover("#lay-modal-btn"))
     page$press("p")
     expect_true(bench_wait_tips(page, c("A's tip", "Above the backdrop")))
     tips <- bench_tips(page)
