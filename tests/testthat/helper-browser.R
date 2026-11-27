@@ -294,9 +294,14 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     Sys.sleep(seconds)
     invisible()
   }
-  # Where the pointer goes to rest on the element `selector` names; a selector that matches nothing fails the test with
-  # that said, as `click_now()` does, not with a JSON error from reading an empty answer.
+  # Where the pointer goes to rest on the element `selector` names. It waits (the shared limit) for the element to be in
+  # the page, since a page can still be drawing it; a selector that still matches nothing fails the test with that said,
+  # as `click_now()` does, not with a JSON error from reading an empty answer.
   box_of <- function(selector) {
+    wait_until(
+      sprintf("document.querySelector(%s) !== null", jsonlite::toJSON(selector, auto_unbox = TRUE)),
+      browser_wait()
+    )
     box <- evaluate(sprintf(
       "(() => { const n = document.querySelector(%s); if (!n) return null; const r = n.getBoundingClientRect(); return JSON.stringify([r.x + 10, r.y + r.height / 2]); })()",
       jsonlite::toJSON(selector, auto_unbox = TRUE)
