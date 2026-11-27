@@ -2,6 +2,8 @@
 
 <!-- badges: start -->
 [![R-CMD-check](https://github.com/insightsurge/hovercraft/actions/workflows/r-cmd-check.yaml/badge.svg)](https://github.com/insightsurge/hovercraft/actions/workflows/r-cmd-check.yaml)
+[![R code coverage](https://codecov.io/gh/insightsurge/hovercraft/graph/badge.svg)](https://app.codecov.io/gh/insightsurge/hovercraft)
+[![R-universe version](https://insightsurge.r-universe.dev/hovercraft/badges/version)](https://insightsurge.r-universe.dev/hovercraft)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Set up with launchR](https://img.shields.io/badge/set%20up%20with-launchR-f6ab85)](https://launch-r.web.app)
 <!-- badges: end -->
@@ -21,7 +23,17 @@ on JavaScript and CSS that ship inside the package: nothing to install in the br
 
 ## Installation
 
-hovercraft needs R 4.4.0 or later. It is not on CRAN yet: install the development version from GitHub.
+hovercraft needs R 4.4.0 or later. It is not on CRAN yet. Install the development version, built by
+[R-universe](https://insightsurge.r-universe.dev/hovercraft):
+
+```r
+install.packages(
+  "hovercraft",
+  repos = c("https://insightsurge.r-universe.dev", "https://cloud.r-project.org")
+)
+```
+
+Or install it from GitHub:
 
 ```r
 # install.packages("pak")
