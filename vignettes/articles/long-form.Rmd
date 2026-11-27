@@ -1,0 +1,92 @@
+---
+title: "A short tip with a long form"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Keep the tip to one line, and put the rest behind a "More" button in the same tip. Most readers never press it, and the few
+who do get the whole story.
+
+```{r}
+library(hovercraft)
+
+tip_on(
+  htmltools::tags$button("Run"),
+  "Runs the **check**",
+  more = "Checks every column and prints a summary. Takes about a minute on the full data."
+)
+```
+
+The tip stays open and stays on its side while it grows, and "Less" folds it back. The next time it opens, it is short
+again. With the focus on the item or the pointer resting on it, the `M` key does what the button does, except in a text
+field. A pinned tip has the same buttons. The default button needs no pin and no `id`.
+
+`more` takes words, a `tip_template()`, or a `tip_more()`. Words and a template are the same as `tip_more()` with its
+defaults.
+
+## When the long form shows
+
+`tip_more(on = )` chooses:
+
+| `on =` | The long form shows |
+|---|---|
+| `"button"` (default) | when the reader presses "More" |
+| `"hover"` | at once, with the short form |
+| `"pin"` | when the tip is pinned (the tag needs `pin` and an `id`) |
+| `"click"` | on a click on the item, with no button (not for a control, and not for a table, where a click selects a row) |
+
+```{r}
+tip_on(
+  htmltools::tags$span("ADSL", tabindex = "0"),
+  "Subject-level data",
+  more = tip_more("One row per subject. Built from the raw demographics.", on = "click")
+)
+```
+
+## The button
+
+These apply only with the default `on = "button"`; with another moment they stop with an error.
+
+- `label =` changes the words: one string for "More", or `c(more = "Show all", less = "Show less")`.
+- `as = "link"` draws an italic text link in place of a button, and `where = "start"` or `"end"` puts the control on the
+  side you choose. A link sits at the start by default, a button at the end.
+- `pin = TRUE` makes the button pin the tip too, so the long form stays when the pointer leaves. It needs a tip that can
+  pin: `pin = TRUE` and an `id` on the tag, or `rows = tip_spec(pin = TRUE)` and an `id` on `tip_table()`.
+
+```{r}
+tip_on(
+  htmltools::tags$div("ADAE", tabindex = "0"),
+  "Adverse events",
+  more = tip_more(
+    "Coded with the current dictionary. Serious events are flagged.",
+    as = "link",
+    pin = TRUE,
+    label = c(more = "Show details", less = "Show less")
+  ),
+  pin = TRUE,
+  id = "adae"
+)
+```
+
+## In a table, and with records
+
+The long form fills in `{{ field }}` placeholders from the tip's record, or from the row in a table, the same as the short
+form does:
+
+```{r}
+scores <- data.frame(team = c("Reds", "Blues"), wins = c(12, 9), coach = c("A. Reviewer", "B. Reviewer"))
+
+tip_table(
+  DT::datatable(scores),
+  rows = tip_spec("{{ team }}: {{ wins }} wins", more = "Coach: {{ coach }}")
+)
+```
+
+With `events = "pin"`, a pinned tip that grows sends `input$<id>_pin` with `state = "updated"`. A hover tip that grows
+sends nothing.
+
+`more` as words or a template is stable. `tip_more()` and its arguments are experimental in 0.1.0, so a later 0.x release
+may change them. Every option is a section of [the book](the-book.html), with a figure to try. For the rest of what a tip
+holds, see [Get started](hovercraft.html).
