@@ -1,4 +1,4 @@
-# hovercraft 0.1.0
+# hovercraft 0.0.90
 
 * `tip_on()` puts a tip on an HTML tag: plain text, or a named template filled from a record.
 * `tip_define()` and `tip_template()` build and name templates, with `tip_title()`, `tip_text()`, `tip_badge()`,
