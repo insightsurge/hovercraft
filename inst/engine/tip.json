@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.59.0",
+  "version": "0.60.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -325,7 +325,7 @@
             "data",
             "host"
           ],
-          "about": "Who caused it: \"reader\"; \"data\" for a \"gone\" close when the element left the page; \"host\" when a host command pinned or closed the tip."
+          "about": "Who caused it: \"reader\" (also for a pin a window resize below 600 px closed as \"replaced\"); \"data\" for a \"gone\" close when the element left the page, and for a \"replaced\" close when the page came under 600 px with no resize (a scroll bar that came); \"host\" when a host command pinned or closed the tip."
         },
         "from": {
           "type": "id",
@@ -338,7 +338,7 @@
             "key",
             "command"
           ],
-          "about": "How it was done: \"click\" or \"key\" by the reader, \"command\" by a host command; null when by is \"data\"."
+          "about": "How it was done: \"click\" or \"key\" by the reader, \"command\" by a host command; null when by is \"data\", and for a \"replaced\" close that a window narrowed below 600 px made (a phone keeps one sheet)."
         },
         "slots": {
           "type": "json",

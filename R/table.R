@@ -357,6 +357,9 @@ tip_table_check_values <- function(data, fields, call) {
   invisible(data)
 }
 
+# The name of the empty template a cell takes as its long form when its row's opens on hover or pin and it has none.
+tip_table_no_more <- "table_no_more"
+
 # What an element carries for one content: its template, the fixed kind of its target, the placement when there is
 # one, and, for a cell or a header cell, the anchor `content`, so the tip points at the text and not at the whole cell
 # (a right-aligned header would point at empty space). A row keeps the engine's pointer alignment. With a table `id`,
@@ -371,6 +374,9 @@ tip_table_spec <- function(content, target, column = NULL, id = NULL, column_nam
     attrs[[tip_attribute("placement")]] <- content$placement
   }
   reset <- NULL
+  if (isTRUE(content$no_more)) {
+    attrs[[tip_attribute("more_template")]] <- tip_table_no_more
+  }
   if (!is.null(content$more)) {
     attrs <- c(
       attrs,
@@ -579,6 +585,17 @@ tip_table_dt <- function(widget, plan, call) {
       tip_json(specs)
     ))
   }
+  # DT draws its rows, cells and header cells while it is built, before the widget's render hook runs, so the templates
+  # are defined first, in the draw's first callback. `define()` skips a template it already has.
+  x$options$preDrawCallback <- tip_table_dt_first(
+    x$options$preDrawCallback,
+    sprintf(
+      "HovercraftTable.define(%s, %s, null, %s);",
+      tip_json(plan$defines),
+      tip_json(tip_description_class()),
+      tip_json(tip_table_open())
+    )
+  )
   widget$x <- x
   tip_table_on_render(
     widget,
@@ -602,6 +619,16 @@ tip_table_dt <- function(widget, plan, call) {
       tip_table_panel_config(plan)
     )
   )
+}
+
+# A DT callback option with `code` run first, then the table's own callback when it has one (its answer is the answer).
+tip_table_dt_first <- function(existing, code) {
+  user <- if (inherits(existing, "JS_EVAL")) {
+    sprintf("(%s).apply(this, arguments)", as.character(existing))
+  } else {
+    "undefined"
+  }
+  tip_js(sprintf("function() { %s return %s; }", code, user))
 }
 
 # A reactable class option is a string or a JS function; the layer's class is added to whatever the table has.
@@ -1110,6 +1137,15 @@ tip_table <- function(
       content
     })
   }
+  # The same goes for a long form that opens on hover or pin: the engine reads it from the nearest tagged ancestor, so a
+  # cell with none of its own would show its row's. The cell says it has none: an empty template, which draws nothing.
+  # (A long form behind the More button sits on the row alone.)
+  if (!is.null(plan$rows$more) && !plan$rows$more_on %in% c("button", "click")) {
+    plan$cells <- lapply(plan$cells, function(content) {
+      content$no_more <- is.null(content$more) || content$more_on %in% c("button", "click")
+      content
+    })
+  }
   column_of <- function(column) match(column, shown)
   plan$specs <- list(
     rows = if (!is.null(plan$rows)) tip_table_spec(plan$rows, "row", id = id),
@@ -1126,6 +1162,9 @@ tip_table <- function(
   )
   plan$table_id <- if (!is.null(id)) list(id = id)
   plan$defines <- tip_table_defines(c(list(plan$rows), plan$cells, plan$headers))
+  if (any(vapply(plan$cells, function(content) isTRUE(content$no_more), NA))) {
+    plan$defines[[tip_table_no_more]] <- "[]"
+  }
   plan$outputs <- unique(unlist(lapply(c(list(plan$rows), plan$cells, plan$headers), function(content) {
     content$outputs
   })))

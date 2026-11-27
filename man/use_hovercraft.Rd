@@ -56,7 +56,8 @@ that both give takes the later one. Useful for a page in another language.}
 A list of \code{\link[htmltools:htmlDependency]{htmltools::htmlDependency()}} objects: the engine's script and style sheet, then, with a \code{style}
 that sets something, \code{hovercraft-style}, which holds the page's theme CSS and sets the page's preset and class as
 the engine's attributes on the page, with a \code{max_pins}, \code{keys} or \code{labels} that is given one of their own, and last
-\code{hovercraft-runtime}, which starts the engine and the layers. Put it
+\code{hovercraft-runtime}, which starts the engine and the layers (the names of these dependencies are internal and may
+change). Put it
 once in the page's UI, for example \code{bslib::page_fluid(use_hovercraft(style = "sober"), ...)}.
 
 Nothing in them is inline script or style: they are files and data, so a page served with
@@ -83,6 +84,9 @@ nothing else, or the page can use classes and a style sheet instead.
 The engine's script and CSS, ready to add to a page. \code{\link[=tip_on]{tip_on()}} and \code{\link[=tip_define]{tip_define()}} attach it for you; use this when
 you build the page's head yourself, or to give the page a look. The dependency is versioned with the engine, not
 with this package. The engine reads Bootstrap's colours where the page has them (bslib), and plain colours otherwise.
+Which names on the page your own CSS and JavaScript may rely on, and which are internal, is in the section "What is
+public on the page" of the
+\href{https://github.com/insightsurge/hovercraft#what-is-public-on-the-page}{README}.
 }
 \examples{
 use_hovercraft()

@@ -307,7 +307,7 @@ tip_presets <- function() {
 }
 
 # Every accepted form of `style =` as one object: NULL, a preset name, a tip_style(), or one part of a style, read as
-# tip_style(<part>) (in 0.1 a tip_theme() or a bslib theme). A bare list is not taken: it is ambiguous once a style has
+# tip_style(<part>) (for now a tip_theme() or a bslib theme). A bare list is not taken: it is ambiguous once a style has
 # more parts than a theme.
 tip_as_style <- function(x, arg = "style", call = rlang::caller_env()) {
   if (is.null(x) || inherits(x, "hovercraft_style")) {

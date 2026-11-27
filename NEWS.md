@@ -1,4 +1,4 @@
-# hovercraft 0.1.0
+# hovercraft 0.0.90
 
 * `tip_on()` puts a tip on an HTML tag: plain text, or a named template filled from a record.
 * `tip_define()` and `tip_template()` build and name templates, with `tip_title()`, `tip_text()`, `tip_badge()`,
@@ -106,3 +106,6 @@
 * The engine-name clash warning (a record column named `tip_id` or `tip_index`) now fires for the long form, inline words and an inline template too (#150).
 * `tip_update(template = )` also takes the tag's plain text away when no `text` comes with it, since plain text beats a template (#150).
 * Status badges and the output error message follow the operating system's dark mode on a page with no `data-bs-theme`, and a tip's own dark mode; the in-place panel of a table uses a logical inset for right-to-left pages (#150).
+* `tip_table()` cells no longer show their row's long form when it opens on hover (or warn when it opens on pin): a cell with no long form of its own is given an empty one (#170).
+* `tip_table()` on a `DT::datatable()` defines the tips' templates before the table draws its first row, so the console no longer warns that a template "is not defined" while the table renders (#168).
+* The README has a section "What is public on the page", linked from `?use_hovercraft`: the `Hovercraft` global, the `hovercraft:*` events, the `data-hovercraft-tip*` attributes, the `hc-*` classes and the `--hovercraft-tip-*` variables are public; the helper scripts' other names, their files, the dependency names and the `<meta>` tags are internal (#176).

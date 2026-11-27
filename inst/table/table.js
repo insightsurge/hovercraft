@@ -424,10 +424,17 @@
     };
   };
 
+  // A template name stands for its blocks (R builds the name from them), so a name that is already defined is left alone:
+  // DT asks for the templates before it draws (see `tip_table_dt()`), and the widget's render hook asks again.
+  const defined = new Map();
   const define = (defines, desc, park, open) => {
     if (desc) descClass = desc;
     if (open) [openAttribute, pinnedValue] = [open.attribute, open.pinned];
-    for (const [name, blocks] of Object.entries(defines ?? {})) window.Hovercraft?.define(name, JSON.parse(blocks));
+    for (const [name, blocks] of Object.entries(defines ?? {})) {
+      if (defined.get(name) === blocks) continue;
+      window.Hovercraft?.define(name, JSON.parse(blocks));
+      defined.set(name, blocks);
+    }
     for (const id of park ?? []) window.HovercraftShiny?.park(id);
   };
 

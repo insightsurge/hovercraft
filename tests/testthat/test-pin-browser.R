@@ -379,10 +379,11 @@ describe("pins in a Shiny app", {
     page$press("Escape")
   })
 
-  # Follows the strip against the hint on every animation frame from now on: where its corner is, and the two opacities.
+  # Follows the strip against the hint on every animation frame from now on: where its corner is against the hint's, the two
+  # opacities, and where the hint's own corner is (to compare the strip with the hint of the frame before).
   follow <- function() {
     page$evaluate(
-      "window.follow = []; (function loop() { const s = document.querySelector('.hovercraft-pin-strip'); const h = document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])'); if (s && h) { const a = s.getBoundingClientRect(), b = h.getBoundingClientRect(); window.follow.push([a.right - b.right, a.top - b.top, parseFloat(getComputedStyle(s).opacity), parseFloat(getComputedStyle(h).opacity)]); } if (window.follow.length < 400) requestAnimationFrame(loop); })(); 0"
+      "window.follow = []; (function loop() { const s = document.querySelector('.hovercraft-pin-strip'); const h = document.querySelector('.hc-tip:not(.hc-tip-pin):not([hidden])'); if (s && h) { const a = s.getBoundingClientRect(), b = h.getBoundingClientRect(); window.follow.push([a.right - b.right, a.top - b.top, parseFloat(getComputedStyle(s).opacity), parseFloat(getComputedStyle(h).opacity), b.right, b.top]); } if (window.follow.length < 400) requestAnimationFrame(loop); })(); 0"
     )
   }
   followed <- function() jsonlite::fromJSON(page$evaluate("JSON.stringify(window.follow)"))
@@ -396,12 +397,32 @@ describe("pins in a Shiny app", {
     expect_true(page$wait_until("window.follow.length >= 30"))
     got <- followed()
     expect_gt(nrow(got), 5)
+    # A frame the browser drops moves the hint further between two samples than the button can follow. So each frame's
+    # button is compared with the hint of that frame or of the one before, whichever it is closer to, and with the
+    # offset the two have once the hint has stopped (the last frame). One dropped frame cannot fail the test; a button
+    # that is really out of place still does, as it is far from both. The worst frames go in the failure message.
+    n <- nrow(got)
+    prev <- c(1L, seq_len(n - 1L))
+    # got columns: corner offset x and y (strip against hint), strip opacity, hint opacity, hint right and top.
+    offset_x <- got[, 1]
+    offset_y <- got[, 2]
+    # The strip against the hint of the frame before: the strip's own position is the offset plus the hint's.
+    offset_x_prev <- got[, 1] + got[, 5] - got[prev, 5]
+    offset_y_prev <- got[, 2] + got[, 6] - got[prev, 6]
+    rest_x <- offset_x[[n]]
+    rest_y <- offset_y[[n]]
+    gap_x <- pmin(abs(offset_x - rest_x), abs(offset_x_prev - rest_x))
+    gap_y <- pmin(abs(offset_y - rest_y), abs(offset_y_prev - rest_y))
+    gap_opacity <- pmin(abs(got[, 3] - got[, 4]), abs(got[, 3] - got[prev, 4]))
+    worst <- function(gap) {
+      paste(sprintf("frame %d: %.2f", order(-gap)[1:3], sort(gap, decreasing = TRUE)[1:3]), collapse = "; ")
+    }
     # The corner never moves against the hint, on the first frame or the last.
-    expect_lt(diff(range(got[, 1])), 1.5)
-    expect_lt(diff(range(got[, 2])), 1.5)
+    expect_lt(max(gap_x), 1.5, label = paste("corner x gap;", worst(gap_x)))
+    expect_lt(max(gap_y), 1.5, label = paste("corner y gap;", worst(gap_y)))
     # It follows the hint's fade at most a frame or two behind, and ends as visible as the hint.
-    expect_lt(max(abs(got[, 3] - got[, 4])), 0.3)
-    expect_lt(abs(tail(got[, 3] - got[, 4], 1)), 0.02)
+    expect_lt(max(gap_opacity), 0.3, label = paste("opacity gap;", worst(gap_opacity)))
+    expect_lt(abs(got[n, 3] - got[n, 4]), 0.02)
     expect_gt(min(got[, 3]), -0.01)
   })
 

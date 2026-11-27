@@ -5,10 +5,10 @@
 [![Set up with launchR](https://img.shields.io/badge/set%20up%20with-launchR-f6ab85)](https://launch-r.web.app)
 <!-- badges: end -->
 
-At 0.1.0 `tip_on()` (its words, templates, `pin` one at a time and `more`), the template and block functions,
-`tip_presets()` and `use_hovercraft(style = )` by a preset name are stable. Tables, server calls, `events`, `when_disabled`,
-`tip_output()`, looks given as objects (`tip_style()`, `tip_theme()`, `tip_marker()`), `tip_more()`, several pins and
-`keys` are experimental and may change. Each help page says which.
+`tip_on()` (its words, templates, `pin` one at a time and `more`), the template and block functions, `tip_presets()` and
+`use_hovercraft(style = )` by a preset name are stable, and stay as they are from 0.1.0, the first CRAN release. Tables,
+server calls, `events`, `when_disabled`, `tip_output()`, looks given as objects (`tip_style()`, `tip_theme()`,
+`tip_marker()`), `tip_more()`, several pins and `keys` are experimental and may change. Each help page says which.
 
 Tips for Shiny apps and bslib pages. Put a tip on any HTML tag: plain text, or a named template filled from the values
 of one item, such as a row of a table. The tip shows when the pointer rests on the tag or keyboard focus arrives, and
@@ -173,6 +173,22 @@ bundles a preset, a theme, a class for the tip box, and its motion and size (`ti
 
 A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See
 `vignette("themes")`, and `vignette("hovercraft")` to get started.
+
+## What is public on the page
+
+hovercraft puts the tip engine and a few helper scripts on a page. Your own CSS and JavaScript may rely on these names:
+
+- the `Hovercraft` global of the tip engine;
+- the events the tip engine sends: `hovercraft:tip`, `hovercraft:hint` and `hovercraft:copy`;
+- the `data-hovercraft-tip*` attributes;
+- the `hc-*` classes of the tip, and the `--hovercraft-tip-*` CSS variables that `tip_style(theme = )` sets (see
+  `vignette("themes")`).
+
+Everything else the package puts on a page is internal and may change in any release: the helper scripts and their
+other global names (`HovercraftPin`, `HovercraftMore`, `HovercraftDisabled`, `HovercraftTable`, `HovercraftShiny` and
+`HovercraftRuntime`), their file names and so their URLs, the names of the dependencies, the
+`<meta name="hovercraft-...-config">` tags that carry their settings, their classes and CSS variables that do not
+start with `hc-` or `--hovercraft-tip-`, and the other `data-hovercraft-*` attributes that R writes for them.
 
 ## Try every feature in the book
 

@@ -8,8 +8,9 @@ To change something yourself, read the workflow below and open a pull request.
 - **R**: the current release is recommended. The minimum version is in `DESCRIPTION`.
 - **Development packages**: from the package root, run `pak::local_install_dev_deps()`.
 - **Air**, the formatter for R code: <https://posit-dev.github.io/air/>. The settings are in `air.toml`.
-- **Biome**, the formatter and linter for JavaScript and CSS in `inst/`: <https://biomejs.dev>. The settings are in
-  `biome.json`.
+- **Biome**, the formatter and linter for JavaScript and CSS in `inst/` and for the test bench's scripts and styles
+  (`tests/testthat/apps/testbench/www`): <https://biomejs.dev>. The settings are in `biome.json`. The bench's files are
+  checked with `biome ci .`; the quality gate and CI check only `inst/` until launchR's Biome step is widened.
 - **Google Chrome or Chromium**, for the browser tests.
 - If you use renv, set up your own library; the repository does not ship one.
 
@@ -127,6 +128,26 @@ book in the same pull request, and a test fails until it does.
   engine: they come from the engine's `tip.json`.
 - **Tests:** `tests/testthat/test-book.R` (the launcher, the page, every export and argument covered, every
   section's figure for every combination of its choices, the proofs) and `test-book-browser.R` (the app in Chrome).
+
+## The test bench
+
+The test bench (`tests/testthat/apps/testbench/`) is one Shiny app with the Shiny-practice checks, a tab of
+JavaScript-driven UI and a spot for every behaviour scenario (HC-001 to HC-077). A person runs it by hand for a
+walkthrough, and the browser tests start it with `start_bench()` (`tests/testthat/helper-bench.R`). Its `README.md`
+says how to run it and which settings its address takes.
+
+- **Files.** `R/contents.R` lists the tabs; each tab `<id>` is `tab_<id>_ui()` and `tab_<id>_server()` in
+  `R/tab-<id>.R`. `scenarios.csv` lists the scenarios and the tab of each; `spot()` in `R/shared-spot.R` draws one.
+- **Ids** in a tab start with the tab's id, so all tabs can share a page. The practice tab keeps the ids its test uses.
+- **Page-wide settings** of `use_hovercraft()` (keys, pins, labels, style) go in the address, never in a tab: the page
+  reads them once.
+- **The log** (`www/bench-log.js`) keeps every tip event, input and custom message in `window.benchLog`. A test reads it
+  with `page$log_has()`, which waits, and checks console errors with `page$problems()`.
+- **Tests:** `test-bench.R` (the list and the spots match, every tab draws and starts its server), `test-bench-browser.R`
+  (every tab in Chrome), `test-bench-js-browser.R`, `test-practice-browser.R`, `test-practice-table-browser.R` and
+  `test-leak-browser.R` (the last two use the bench's tabs `updates` and `leaks`, which have no scenarios); and one `test-bench-<tab>-browser.R`
+  per scenario tab, each scenario's test ending with `expect_bench_clean()` (`helper-bench-scenarios.R`). A scenario's
+  `tests` column in `scenarios.csv` names the file that covers it.
 
 ## NEWS.md
 

@@ -101,16 +101,26 @@
   };
 
   // The two states are two sets of attributes the engine already watches, so it draws the open tip again by itself.
+  // The long-form template an item had before the long form took its place (a table cell says it has none of its own with
+  // one), put back when the long form goes.
+  const before = new WeakMap();
   function setState(item, long) {
     const a = A();
     if (long) {
+      if (!item.hasAttribute(a.state)) before.set(item, item.getAttribute(a.more_template));
       if (item.hasAttribute(a.held)) item.setAttribute(a.more, item.getAttribute(a.held));
       if (item.hasAttribute(a.held_template)) item.setAttribute(a.more_template, item.getAttribute(a.held_template));
       item.setAttribute(a.more_on, 'hover');
       item.setAttribute(a.state, 'long');
     } else {
+      // A hint that closes while still short has set nothing, so there is nothing to put back.
+      if (item.hasAttribute(a.state)) {
+        const kept = before.get(item) ?? null;
+        before.delete(item);
+        if (kept === null) item.removeAttribute(a.more_template);
+        else item.setAttribute(a.more_template, kept);
+      }
       item.removeAttribute(a.more);
-      item.removeAttribute(a.more_template);
       item.removeAttribute(a.more_on);
       item.removeAttribute(a.state);
     }
