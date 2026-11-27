@@ -1,0 +1,178 @@
+---
+title: "Tips in a Shiny app"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Tips can talk to your server. Your app can learn which tip a reader pinned, open or rewrite a tip from an observer, show
+the reason a button is switched off, and draw a plot inside a tip only while it is open.
+
+Each example below is a complete app: paste it into R and run it. The module snippet at the end is the exception.
+
+## Let the reader keep a tip open
+
+Give the tag `pin = TRUE` and an `id`. The tip gets a small pin button, and the `P` key pins it too. A pinned tip stays
+until the reader closes it, so they can read it while they work.
+
+`events = "pin"` sends what happened to the server, as `input$<id>_pin`.
+
+```{r}
+library(shiny)
+library(hovercraft)
+
+ui <- fluidPage(
+  tip_on(
+    actionButton("run", "Run"),
+    "Runs the **check** on every dataset",
+    pin = TRUE,
+    events = "pin",
+    id = "run"
+  ),
+  textOutput("state")
+)
+
+server <- function(input, output, session) {
+  output$state <- renderText({
+    if (is.null(input$run_pin)) "Nothing pinned yet" else paste("The tip is", input$run_pin$state)
+  })
+}
+
+shinyApp(ui, server)
+```
+
+`state` is `"pinned"` when the reader pins the tip and `"closed"` when it closes, and `reason` says why it closed. A third
+value, `"updated"`, means an already pinned tip was drawn again with new content, so test for `state == "pinned"` rather
+than for anything that is not `"closed"`. The input is `NULL` until the first event.
+
+One pin stays open at a time. To keep more, set `use_hovercraft(max_pins = 3)` once in the page's UI.
+
+`events = "hint"` reports the tip that shows on hover or focus, as `input$<id>_hint`: `state` is `"shown"` or `"hidden"`, and
+`reason` says why it closed. Use it when the app needs to know what a reader looked at, not what they kept. Events are off
+unless you ask for them, because `"hint"` sends a message to the server every time a tip opens or closes.
+
+## Open and change a tip from the server
+
+`tip_show()`, `tip_hide()` and `tip_update()` find the tip by its `id`.
+
+```{r}
+library(shiny)
+library(hovercraft)
+
+ui <- fluidPage(
+  tip_on(actionButton("run", "Run"), "Runs the **check**", id = "run"),
+  actionButton("help", "Show me"),
+  actionButton("done", "Mark as done")
+)
+
+server <- function(input, output, session) {
+  observeEvent(input$help, tip_show("run"))
+  observeEvent(input$done, tip_update("run", text = "The check **finished**"))
+}
+
+shinyApp(ui, server)
+```
+
+`tip_update()` takes `text`, `template`, `record` and `placement`. Leave one out and it stays as it is; `NA` takes it
+away. Two rules: a `template` given without `text` also drops the old plain text, because plain text beats a template,
+and a `record` needs a `template` (or `text` with placeholders) in the same call. An open tip draws the new words at once.
+
+`tip_hide()` closes a tip that shows on hover or focus, or one opened with `tip_show()`. It never closes a pin, and no
+server call pins a tip. A tip opened with `tip_show()` also closes when the reader clicks away, opens another tip or presses
+Escape.
+
+## Say why a button is off
+
+A switched-off button gets no pointer and no keyboard focus, so it cannot show a tip. Give `when_disabled` the reason, and
+the tip says "Not available:" and the reason, with a small lock.
+
+```{r}
+library(shiny)
+library(hovercraft)
+
+ui <- fluidPage(
+  tip_on(
+    actionButton("submit", "Submit"),
+    "Sends the form",
+    when_disabled = "Fill in every required field first"
+  ),
+  checkboxInput("ready", "Everything is filled in", FALSE)
+)
+
+server <- function(input, output, session) {
+  observe(updateActionButton(session, "submit", disabled = !input$ready))
+}
+
+shinyApp(ui, server)
+```
+
+When the button is switched on again, the reason goes and the tip is the normal one. hovercraft wraps a disabled control
+in a small element that can take the pointer and the keyboard, since the control itself cannot. The `tip_on()` help page
+lists what is not covered: a control directly inside a `btn-group`, `btn-group-vertical` or `input-group`, and one
+disabled with `aria-disabled` alone.
+
+## Put a live output in a tip
+
+`tip_output()` puts a plot, a table or any other Shiny output inside a template. The output is drawn while the tip is
+open, so a page with a hundred tips does not compute a hundred plots.
+
+```{r}
+library(shiny)
+library(hovercraft)
+
+ui <- fluidPage(
+  tip_define(
+    trend = tip_template(
+      tip_title("{{ label }}"),
+      tip_output(plotOutput("trend_plot", width = 260, height = 140))
+    )
+  ),
+  tip_on(
+    actionButton("adae", "ADAE"),
+    template = "trend",
+    record = list(label = "ADAE differences"),
+    id = "adae"
+  )
+)
+
+server <- function(input, output, session) {
+  output$trend_plot <- renderPlot({
+    par(mar = c(2, 2, 1, 1))
+    plot(c(3, 5, 4, 8), type = "b")
+  })
+}
+
+shinyApp(ui, server)
+```
+
+While the output computes, the tip shows a loading note. If the render fails, the tip shows the error with a Retry button.
+Retry sets `input$<output>_retry`, so put that input on a line of its own at the top of the render: Shiny runs a render
+again only when something it reads has changed.
+
+One output has one place on the page. When several items share a template, the tip shows the output for the item that is
+open. Your render learns which one by reading the `"hint"` input of the items (`events = "hint"`). The help page for
+`tip_output()` has a worked example with two items.
+
+## In modules
+
+A template belongs to the whole page, so two copies of a module share one unless its name carries the module's namespace.
+
+In a module's UI, give `ns()` to the `id` of `tip_on()`, to `tip_output()` and to the template's name. In its server, read
+`input$<id>_pin` and call `tip_show()`, `tip_hide()` and `tip_update()` with the plain id, without the namespace.
+
+```{r}
+tip_define(!!ns("row") := tip_template(tip_title("{{ label }}")))
+tip_on(htmltools::tags$tr(htmltools::tags$td("ADSL"), tabindex = "0"), template = ns("row"), record = list(label = "ADSL"))
+```
+
+## Where to go next
+
+- Every function on this page has a section in [the book](the-book.html), with live figures and the inputs your server
+  gets, shown as the reader acts.
+- Tips on the rows of a `DT` or `reactable` table also pin and send events: see [Tips on tables](tables.html).
+- The look of all of these is set in [Themes and looks](themes.html).
+
+`tip_on(pin = TRUE)` with an `id` is stable. `events`, `when_disabled`, `tip_show()`, `tip_hide()`, `tip_update()`,
+`tip_output()` and `use_hovercraft(max_pins = )` are experimental in 0.1.0 and may change in a later release. Each help page
+says which part is which.

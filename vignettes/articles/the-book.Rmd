@@ -1,0 +1,74 @@
+---
+title: "The book: try every feature"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+hovercraft ships a Shiny app, the book, with every feature of the package on one page, so you can rest a pointer on a tip
+before you write a line of code.
+
+```{r}
+hovercraft::hovercraft_book()
+```
+
+It needs an interactive R session and the suggested packages shiny and bslib. The table sections also need `DT` or
+`reactable`.
+
+## What a section gives you
+
+Each section is one feature, and has five things:
+
+- a live figure: rest the pointer on it, or tab to it
+- a line of choices that change the figure
+- the R code that draws what you see, ready to copy (the code shown is the code that runs)
+- a short list of what to test
+- the Shiny inputs your server would get, updated as you act
+
+## The six parts
+
+1. Getting started: one tip, and where it opens.
+2. Content: what a tip says, with templates, and the reason a control is off.
+3. Interaction: pins, the long form, and what your server hears.
+4. Look: presets, size, your own colours and the marks that show a tip is there.
+5. From Shiny: tips your server opens, changes and fills with live outputs.
+6. Tables: tips on the rows, cells and headers of `DT` and `reactable` tables.
+
+The index has a search box. Type a function or an argument, such as `tip_more` or `max_pins`, and it shows the sections
+that use it.
+
+## Start where you need to
+
+Open the book on one section:
+
+```{r}
+hovercraft::hovercraft_book(section = "pins")
+```
+
+The sections, by part:
+
+- Getting started: `"start"`, `"placement"`
+- Content: `"templates"`, `"disabled"` (`when_disabled`)
+- Interaction: `"pins"`, `"pin_limits"`, `"more"`, `"more_button"`, `"inputs"`, `"words"` (`labels`)
+- Look: `"looks"`, `"size"`, `"colours"`, `"markers"`
+- From Shiny: `"server"`, `"output"`
+- Tables: `"tables"`, `"columns"`, `"table_pins"`, `"in_place"`, `"table_server"`
+
+## The checklist
+
+Press `C` in the book, or open it with `checklist = TRUE`, and a short checklist shows one test step at a time. A step
+ticks when the server gets the input that proves it: pin a tip and the "pin" step is done. It is the quickest way to see
+that a feature does what its help page says, .
+
+```{r}
+hovercraft::hovercraft_book(section = "pins", checklist = TRUE)
+```
+
+## Where to read more
+
+The articles explain how the features fit together: [Get started](hovercraft.html), [Tips in a Shiny app](shiny.html),
+[Tips on tables](tables.html), [A short tip with a long form](long-form.html) and [Themes and looks](themes.html). The
+[reference](../reference/index.html) says exactly what every argument takes.
+
+`hovercraft_book()` is experimental: its sections may move before a later release.

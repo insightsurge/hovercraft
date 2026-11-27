@@ -1,24 +1,27 @@
-# hovercraft
+# hovercraft <!-- logo: add `<img src="man/figures/logo.png" align="right" height="139" alt="" />` here when the hex exists -->
 
 <!-- badges: start -->
+[![R-CMD-check](https://github.com/insightsurge/hovercraft/actions/workflows/r-cmd-check.yaml/badge.svg)](https://github.com/insightsurge/hovercraft/actions/workflows/r-cmd-check.yaml)
 [![Lifecycle: experimental](https://img.shields.io/badge/lifecycle-experimental-orange.svg)](https://lifecycle.r-lib.org/articles/stages.html#experimental)
 [![Set up with launchR](https://img.shields.io/badge/set%20up%20with-launchR-f6ab85)](https://launch-r.web.app)
 <!-- badges: end -->
 
-`tip_on()` (its words, templates, `pin` one at a time and `more`), the template and block functions, `tip_presets()` and
-`use_hovercraft(style = )` by a preset name are stable, and stay as they are from 0.1.0, the first CRAN release. Tables,
-server calls, `events`, `when_disabled`, `tip_output()`, looks given as objects (`tip_style()`, `tip_theme()`,
-`tip_marker()`), `tip_more()`, several pins and `keys` are experimental and may change. Each help page says which.
+Tips for Shiny apps and bslib pages. Rest the pointer on a button, a table row or a word, and a tip tells the reader what
+it is, or shows the values behind it. It works with the keyboard too, and follows your page's light and dark theme.
 
-Tips for Shiny apps and bslib pages. Put a tip on any HTML tag: plain text, or a named template filled from the values
-of one item, such as a row of a table. The tip shows when the pointer rests on the tag or keyboard focus arrives, and
-hides when either leaves.
+<!-- demo: add man/figures/readme-demo.gif (or .svg) here -->
 
-The tips are drawn by one small JavaScript file that ships with the package, so there is nothing to install in the
-browser and nothing to load from the internet. It reads Bootstrap's colours where the page has them (bslib), so a tip
-follows the page's light and dark theme.
+A tip is plain text, or a named template filled in from one record, such as a row of a table. Readers can pin a tip to
+keep it open, open a long form behind a "More" button, and your Shiny server can see what they did and show, hide or change a tip. The tips run
+on JavaScript and CSS that ship inside the package: nothing to install in the browser, nothing loaded from the internet.
+
+[Get started](https://insightsurge.github.io/hovercraft/articles/hovercraft.html) ·
+[Try every feature in the book](https://insightsurge.github.io/hovercraft/articles/the-book.html) ·
+[Function reference](https://insightsurge.github.io/hovercraft/reference/index.html)
 
 ## Installation
+
+hovercraft needs R 4.4.0 or later. It is not on CRAN yet: install the development version from GitHub.
 
 ```r
 # install.packages("pak")
@@ -27,7 +30,7 @@ pak::pak("insightsurge/hovercraft")
 
 ## Example
 
-A tip with plain text. The text is markdown, shown as written:
+Put a tip on any tag. The text is markdown:
 
 ```r
 library(hovercraft)
@@ -35,7 +38,7 @@ library(hovercraft)
 tip_on(htmltools::tags$button("Run"), "Runs the **check**")
 ```
 
-A tip drawn from a template, with one row of a data frame as the record for each row of a table:
+Or write the tip once as a template, and give each tag its own values:
 
 ```r
 rows <- data.frame(label = c("ADAE", "ADSL"), differences = c(3, 0))
@@ -60,15 +63,16 @@ ui <- bslib::page_fluid(
 ```
 
 A placeholder is `{{ field }}`, or `{{ field | number:2 }}` and `{{ field | percent:1 }}` to round. A value that is
-missing or blank shows a dash. Mistakes in a template, such as a placeholder that never closes, stop with an error when
-the template is made, not later in the browser.
+`NA` or `NULL` shows a dash. A mistake in a template, such as a placeholder that never closes, stops with an error when the template is
+made, not later in the browser.
 
-A tip the reader can keep open. With `pin = TRUE` the tip gets a small pin button, and the `P` key pins it too, with the focus on the item or the pointer resting on it; the tip
-then stays until the reader closes it. `events = "pin"` sends what happened to the server as `input$<id>_pin`, here
-`input$run_pin`:
+## In a Shiny app
+
+Pin a tip, and hear about it:
 
 ```r
 library(shiny)
+library(hovercraft)
 
 ui <- fluidPage(
   tip_on(
@@ -90,116 +94,58 @@ server <- function(input, output, session) {
 shinyApp(ui, server)
 ```
 
-One pin stays open at a time; `use_hovercraft(max_pins = 3)` in the page's UI keeps up to three (a table can have its own count with `tip_table(max_pins =)`).
+The guides cover the rest:
 
-The words a tip shows itself ("Copy", "Close", "More", "Pin this tip" and the rest) can be changed, for a page in another
-language: `use_hovercraft(labels = c(close = "Dismiss", copy = "Copy code"))` for the whole page, or `tip_on(labels =)`
-for one tip and what is inside it. The nearest words win, and a wrong key stops with an error that lists the right ones.
+- [Tips in a Shiny app](https://insightsurge.github.io/hovercraft/articles/shiny.html): pins, events, opening a tip from
+  the server, the reason a button is off, and live plots and tables in a tip.
+- [Tips on tables](https://insightsurge.github.io/hovercraft/articles/tables.html): a tip on every row, cell and header
+  of a `DT` or `reactable` table.
+- [A short tip with a long form](https://insightsurge.github.io/hovercraft/articles/long-form.html): a "More" button.
+- [Themes and looks](https://insightsurge.github.io/hovercraft/articles/themes.html): follow the page, pick a preset, or
+  set your own colours, with a contrast check.
 
-`state` is `"pinned"` when the reader pins the tip, and `"closed"` when it closes, with `reason` saying why. `events =
-"hint"` does the same for the tip that shows on hover or focus. `tip_show()`, `tip_hide()` and `tip_update()` change the
-tip from the server; for a table's tip they take the table's `id` with `row` and `column`
-(`tip_show("scores", row = 2, column = "wins")`).
+## Try every feature
 
-A short tip with a long form. `more =` holds the long form behind a "More" button at the bottom of the tip, and the `M`
-key opens it too (with the focus on the item or the pointer resting on it); "Less" closes it again. The tip stays open and on its side while it grows and shrinks, and it is short
-again the next time it opens. `tip_more()` says when the long form shows (`on = "button"`, `"hover"`, `"pin"` or `"click"`, a click on the item),
-whether the button pins the tip too (`pin = TRUE`), how the control looks and where it sits (`as = "link"`, an italic
-text link; `where = "start"` or `"end"`) and what the buttons say (`label =`); it is experimental:
+`hovercraft_book()` opens a Shiny app with every feature on one page. Rest the pointer on a figure, change its choices,
+copy the R code that draws it, and follow a short checklist of what to test.
 
 ```r
-tip_on(
-  actionButton("run", "Run"),
-  "Runs the **check**",
-  more = "Checks every column and prints a summary. Takes about a minute on the full data."
-)
+hovercraft::hovercraft_book()
+hovercraft::hovercraft_book(section = "pins", checklist = TRUE)
 ```
 
-A live Shiny output inside a tip. `tip_output()` puts a plot, a table or any other output in a template; the output is
-drawn while the tip is open:
+## Development status
 
-```r
-library(shiny)
+Planned as stable in 0.1.0, the first CRAN release: `tip_on()` with its words, templates, `record`, `placement`, `id`,
+`pin` one at a time and `more` as words or a template; the template and block functions; `tip_presets()`; and
+`use_hovercraft(style = )` with a preset name.
 
-ui <- fluidPage(
-  tip_define(
-    trend = tip_template(
-      tip_title("{{ label }}"),
-      tip_output(plotOutput("trend_plot", width = 260, height = 140))
-    )
-  ),
-  tip_on(
-    actionButton("adae", "ADAE"),
-    template = "trend",
-    record = list(label = "ADAE differences"),
-    id = "adae"
-  )
-)
-
-server <- function(input, output, session) {
-  output$trend_plot <- renderPlot({
-    par(mar = c(2, 2, 1, 1))
-    plot(c(3, 5, 4, 8), type = "b")
-  })
-}
-
-shinyApp(ui, server)
-```
-
-The tags work in a bslib page, in a plain Shiny page and in output made later with `renderUI()`. A tag inside
-`bslib::tooltip()` keeps the tip that bslib draws.
-
-A tip shows on keyboard focus as well as on a pointer, so a tag that cannot take focus (a table row, a `div`) gives a
-keyboard user no way to its tip. `tip_on()` says so once. It never adds a tab stop itself, because a table of 3,000 rows
-would become 3,000 Tab stops; give the tags worth a stop `tabindex = "0"`, as above, or put the tip on a button or a
-link. The rows, cells and headers of a `DT::datatable()` or `reactable::reactable()` table are the exception: `tip_table()` gives the table one tab
-stop and moves between them with the arrow keys.
-
-## Themes
-
-The tip follows the page: on a bslib page it uses the theme's colours and turns dark with `input_dark_mode()`. To set its look
-yourself, give `use_hovercraft()` a `tip_theme()` as `style` once, in the page's UI:
-
-```r
-brand <- tip_theme(
-  light = list(bg = "#1b3a6b", text = "#ffffff", radius = 10),
-  dark = list(bg = "#9ec5fe", text = "#0b1f3a")
-)
-bslib::page_fluid(use_hovercraft(style = brand), ...)
-```
-
-`style` also takes a preset name, `use_hovercraft(style = "sober")` (`tip_presets()` lists them), or a `tip_style()` that
-bundles a preset, a theme, a class for the tip box, and its motion and size (`tip_style(motion = "slide", max_width = 280)`). One tag can have its own look: `tip_on(btn, "Run", style = "dense")`.
-
-A theme can also be a `bslib::bs_theme()` or a list of CSS variables; the words are checked for contrast (4.5:1). See
-`vignette("themes")`, and `vignette("hovercraft")` to get started.
+Experimental, and may change in a later release: tables (`tip_table()`, `tip_spec()`), server calls (`tip_show()`,
+`tip_hide()`, `tip_update()`), `events`, `when_disabled`, `tip_output()`, looks given as objects (`tip_style()`,
+`tip_theme()`, `tip_marker()`), `marker`, `labels`, `tip_more()`, several pins at once, `keys` and `hovercraft_book()`.
+Each help page says which part is which.
 
 ## What is public on the page
 
-hovercraft puts the tip engine and a few helper scripts on a page. Your own CSS and JavaScript may rely on these names:
+hovercraft puts the tip engine and a few helper scripts on a page. Your own CSS and JavaScript may rely on:
 
 - the `Hovercraft` global of the tip engine;
-- the events the tip engine sends: `hovercraft:tip`, `hovercraft:hint` and `hovercraft:copy`;
+- the events it sends: `hovercraft:tip`, `hovercraft:hint` and `hovercraft:copy`;
 - the `data-hovercraft-tip*` attributes;
-- the `hc-*` classes of the tip, and the `--hovercraft-tip-*` CSS variables that `tip_style(theme = )` sets (see
-  `vignette("themes")`).
+- the `hc-*` classes of the tip, and the `--hovercraft-tip-*` CSS variables that `tip_style(theme = )` sets.
 
-Everything else the package puts on a page is internal and may change in any release: the helper scripts and their
-other global names (`HovercraftPin`, `HovercraftMore`, `HovercraftDisabled`, `HovercraftTable`, `HovercraftShiny` and
-`HovercraftRuntime`), their file names and so their URLs, the names of the dependencies, the
-`<meta name="hovercraft-...-config">` tags that carry their settings, their classes and CSS variables that do not
-start with `hc-` or `--hovercraft-tip-`, and the other `data-hovercraft-*` attributes that R writes for them.
+Everything else on the page is internal and may change in any release: the helper scripts and their other global names,
+file names and URLs, the settings tags, other classes and CSS variables, and the other `data-hovercraft-*` attributes.
 
-## Try every feature in the book
+## Getting help and contributing
 
-hovercraft book is a Shiny app with every feature of the package on one page, in six parts. Rest the pointer on a
-figure, change its choices, copy the R code that draws it, and follow a short checklist of what to test while the page
-shows the inputs your server would get. Its index has a search box that finds a section by a function or an argument.
-It needs shiny and bslib, and `DT` or `reactable` for its table sections.
+Found a bug, or have an idea? Open an [issue](https://github.com/insightsurge/hovercraft/issues). To contribute, read
+[CONTRIBUTING](https://github.com/insightsurge/hovercraft/blob/main/.github/CONTRIBUTING.md) first. Please follow the
+[code of conduct](https://github.com/insightsurge/hovercraft/blob/main/.github/CODE_OF_CONDUCT.md). To report a security
+problem, see the [security policy](https://github.com/insightsurge/hovercraft/blob/main/.github/SECURITY.md).
 
-```r
-hovercraft_book()
-hovercraft_book(section = "pins", checklist = TRUE)
-```
+## Licence
+
+MIT. See [LICENSE.md](LICENSE.md). The bundled tip engine is covered by the same licence.
 
 Set up with [launchR](https://launch-r.web.app).

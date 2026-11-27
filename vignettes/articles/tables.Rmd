@@ -1,0 +1,112 @@
+---
+title: "Tips on tables"
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(collapse = TRUE, comment = "#>", eval = FALSE)
+```
+
+Put the detail in a tip, not in another column. The row says "Reds", and the tip says how many games they won and who
+coaches them. A reader gets the detail without a second page.
+
+`tip_table()` puts a tip on the rows, cells and headers of a `DT::datatable()` or a `reactable::reactable()` table. The
+tip is drawn from the row's own values, and it follows the row when the reader sorts, filters or changes the page.
+
+## One tip for every row
+
+Give `rows` a string with `{{ column }}` placeholders. Each row is its own record.
+
+```{r}
+library(hovercraft)
+
+scores <- data.frame(
+  team = c("Reds", "Blues", "Greens"),
+  wins = c(12, 9, 4),
+  losses = c(3, 6, 11),
+  coach = c("A. Reviewer", "B. Reviewer", "C. Reviewer")
+)
+
+tip_table(
+  DT::datatable(scores),
+  rows = "**{{ team }}**: {{ wins }} wins, {{ losses }} losses. Coach: {{ coach }}"
+)
+```
+
+Every placeholder is checked against the table's columns in R. A name that is not a column stops with an error that lists
+the columns you can use, not with an empty tip in the browser.
+
+`reactable` works the same way:
+
+```{r}
+tip_table(
+  reactable::reactable(scores),
+  rows = "**{{ team }}**: {{ wins }} wins, {{ losses }} losses"
+)
+```
+
+## A tip for one column
+
+`cells` takes one entry per column, by name. `headers` does the same for the header cells, which have no row to read
+from, so a header tip is words or a template with no placeholders.
+
+```{r}
+tip_table(
+  DT::datatable(scores),
+  cells = list(wins = "{{ wins }} wins this season, {{ losses }} losses"),
+  headers = c(wins = "Games the team won this season")
+)
+```
+
+A cell's tip wins over its row's. A column you leave out has no cell tip; `NA` or `""` says so on purpose.
+
+A target that needs its own settings (a side, a look, a long form) takes a `tip_spec()` in place of words. Only `rows` can
+also pin and send events:
+
+```{r}
+tip_table(
+  DT::datatable(scores),
+  rows = tip_spec("{{ team }}: {{ wins }} wins", placement = "right", pin = TRUE, events = "pin"),
+  cells = list(wins = "{{ wins }} wins this season"),
+  id = "scores"
+)
+```
+
+## Show where the tips are
+
+A cell with a tip looks like any other until the reader rests the pointer on it. `marker = "corner"` draws a small triangle in the corner
+of each cell and header cell that has one, as a spreadsheet does for a note. A row takes no marker, so `marker` needs `cells`
+or `headers` too. The corner is the only marker a table draws for now.
+
+## Keyboard
+
+A table row cannot take focus by itself. `tip_table()` gives the table one tab stop. The arrow keys then move between the
+rows, cells and headers that have a tip, Home and End go to the ends of a row, and Ctrl with Home or End to the ends of
+the table. The tip shows for what has focus. A click on a row selects it, as it always did, so a row tip does not pin on
+click: it pins with the pin button or the `P` key.
+
+## Pins and the server
+
+Give the table an `id` and a `tip_spec(pin = TRUE)` for `rows`, and a reader can pin the tip of a row. Add `events = "pin"` to the spec and the
+server gets `input$scores_pin`. `max_pins` in `tip_table()` sets how many of the table's rows stay open at once, apart from
+`use_hovercraft(max_pins = )`; all pins on a page together stop at 10, and at one on a screen narrower than 600 pixels.
+
+To open, close or change one tip from the server, give `tip_show()`, `tip_hide()` or `tip_update()` the table's `id` and
+the address of the tip: `row` alone is a row, `row` with `column` is a cell, and `column` alone is a header cell.
+
+```{r}
+observeEvent(input$jump, tip_show("scores", row = 2, column = "wins"))
+```
+
+## Limits worth knowing
+
+- `row` is the row's place in the data the table has now. A row that is not on the current page has no element yet, so
+  `tip_show()` and `tip_update()` do nothing for it until it is. A `DT` table in server mode has only the rows of the
+  current page on screen.
+- The table's script does some work for each row on screen, so page a long table. In R, `tip_table()` reads the data once to
+  check the columns, so it takes longer the more rows you give it.
+- `tip_table()` is experimental in 0.1.0. Its shape may change, and the help page lists what was tried in a browser
+  (`DT` with `scrollX`, `scrollY`, `fixedHeader`, `colReorder`, `responsive` and server mode, `reactable` with selection,
+  `groupBy` and `details`).
+
+The book has a part on tables, with live figures for rows, cells, headers, pins and the server: see
+[The book](the-book.html). For the tip itself, see [Get started](hovercraft.html).

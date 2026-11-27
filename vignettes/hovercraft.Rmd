@@ -195,3 +195,20 @@ shinyApp(ui, server)
 A template belongs to the whole page. Inside a Shiny module, namespace the template name with `ns()` — for example
 `tip_define(!!ns("row") := tip_template(...))` and `tip_on(..., template = ns("row"))` — so two copies of the module
 keep their own templates.
+
+## The words a tip shows itself
+
+A tip says "Copy", "Close", "More" and "Pin this tip" in places. For a page in another language, change them once with
+`use_hovercraft(labels = c(close = "Dismiss", copy = "Copy code"))`, or for one tip and what is inside it with
+`tip_on(labels = )`. The nearest words win, and a wrong key stops with an error that lists the right ones.
+
+## Where to go next
+
+- [Tips in a Shiny app](https://insightsurge.github.io/hovercraft/articles/shiny.html): pins, events, tips opened from
+  the server, and live outputs in a tip.
+- [Tips on tables](https://insightsurge.github.io/hovercraft/articles/tables.html): a tip on every row, cell and header
+  of a `DT` or `reactable` table.
+- [A short tip with a long form](https://insightsurge.github.io/hovercraft/articles/long-form.html)
+- [Themes and looks](https://insightsurge.github.io/hovercraft/articles/themes.html), or `vignette("themes")`.
+- [The book](https://insightsurge.github.io/hovercraft/articles/the-book.html), or `hovercraft_book()`: every feature on
+  one page, to try.

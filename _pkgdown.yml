@@ -1,6 +1,9 @@
 url: https://insightsurge.github.io/hovercraft/
 destination: site
 
+# Slots for the design pass (logo, favicon, social card, fonts): no images ship yet.
+#   logo:      man/figures/logo.png  (pkgdown also finds favicons in pkgdown/favicon/)
+#   social card: add template.opengraph.image (src and alt) when the card exists.
 template:
   bootstrap: 5
   light-switch: true
@@ -11,47 +14,81 @@ template:
     link-color: "#145C68"
     link-color-dark: "#8CE1E4"
 
+home:
+  links:
+    - text: Security policy
+      href: SECURITY.html
+
 navbar:
+  components:
+    intro:
+      text: Get started
+      href: articles/hovercraft.html
+    guides:
+      text: Guides
+      menu:
+        - text: Tips in a Shiny app
+          href: articles/shiny.html
+        - text: Tips on tables
+          href: articles/tables.html
+        - text: A short tip with a long form
+          href: articles/long-form.html
+        - text: Themes and looks
+          href: articles/themes.html
+        - text: "The book: try every feature"
+          href: articles/the-book.html
+        - text: -------
+        - text: All articles
+          href: articles/index.html
   structure:
-    left: [reference, news, articles]
+    left: [intro, guides, reference, news]
     right: [search, github, lightswitch]
 
 reference:
-  - title: Stable, in 0.1.x
-    desc: >
-      Put a tip on a tag, name its templates, set up the page. These keep their names, values and defaults.
-  - subtitle: Put a tip on a tag
+  - title: Put a tip on a tag
+    desc: The one call most pages need, and the long form of a tip.
     contents:
       - tip_on
-  - subtitle: Templates
+      - tip_more
+  - title: Write what a tip says
+    desc: Name a template once, build it from blocks, and fill it from a record.
     contents:
       - tip_define
       - tip_template
       - tip_blocks
-  - subtitle: The page and its look by name
-    contents:
-      - use_hovercraft
-      - tip_presets
-  - title: Experimental
-    desc: >
-      These may change in a later 0.x release; the help says which arguments of a stable function are in this group.
-  - subtitle: The long form
-    contents:
-      - tip_more
-  - subtitle: Tips on tables
+      - tip_output
+  - title: Tips on tables
+    desc: Tips on the rows, cells and headers of a DT or reactable table.
     contents:
       - tip_table
       - tip_spec
-  - subtitle: Drive a tip from the server
+  - title: Drive tips from the server
+    desc: Open, close and change a tip from a Shiny server function.
     contents:
       - tip_server
-  - subtitle: Live outputs in a tip
+  - title: Set up the page and its look
+    desc: Add the engine to a page, and choose how tips look, from a preset name to your own colours.
     contents:
-      - tip_output
-  - subtitle: Looks as objects
-    contents:
+      - use_hovercraft
+      - tip_presets
       - tip_style
       - tip_theme
       - tip_marker
-  - subtitle: The book
-    contents: hovercraft_book
+  - title: Try every feature
+    contents:
+      - hovercraft_book
+  - title: Package
+    contents:
+      - hovercraft-package
+
+articles:
+  - title: Get started
+    contents:
+      - hovercraft
+  - title: Guides
+    contents:
+      - articles/shiny
+      - articles/tables
+      - articles/long-form
+      - themes
+      - articles/the-book
