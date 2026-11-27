@@ -1,14 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # The Shiny inputs of a table: one input per event, not one per row, with the address of the row (`row` is the 1-based
 # data row, also in server mode and after a sort), `input$<id>_pinned`, the plain id inside a module, and the warnings
@@ -91,17 +81,6 @@ describe("the inputs of tip_table() in a Shiny app", {
   page <- local_page(app$url, environment(), init = warns)
   global <- tip_names()$global
   # What the server sees under `name`, as parsed JSON, or NULL when the input has not been set.
-  seen <- function(name) {
-    all <- jsonlite::fromJSON(page$evaluate("document.getElementById('seen').textContent"), simplifyVector = FALSE)
-    all[[name]]
-  }
-  wait_seen <- function(name, test) {
-    page$wait_until(sprintf(
-      "(() => { try { const v = JSON.parse(document.getElementById('seen').textContent)[%s]; return !!(%s); } catch (e) { return false; } })()",
-      jsonlite::toJSON(name, auto_unbox = TRUE),
-      test
-    ))
-  }
   # The row of a table whose text starts with the team, found whatever place it has on the screen.
   row_of <- function(scope, team) {
     sprintf(
@@ -129,7 +108,7 @@ describe("the inputs of tip_table() in a Shiny app", {
 
   it("starts, and every input is NULL before its first event", {
     expect_true(app$proc$is_alive(), info = paste(app$proc$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length === 6", rows_in("dtc"))))
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length >= 6", rows_in("rt", "rt"))))
     # A server that has not heard of an event reads NULL: no input of the three kinds exists at all.
@@ -142,12 +121,12 @@ describe("the inputs of tip_table() in a Shiny app", {
 
   it("sends TRUE and FALSE as the _pinned input of a tag of tip_on()", {
     page$evaluate(sprintf("window.%s.pin(document.getElementById('go')); 0", global))
-    expect_true(wait_seen("go_tip_pin", "v.state === 'pinned'"))
-    expect_true(wait_seen("go_tip_pinned", "v === true"))
+    expect_true(page$wait_reported("go_tip_pin", "v.state === 'pinned'"))
+    expect_true(page$wait_reported("go_tip_pinned", "v === true"))
     close_all()
-    expect_true(wait_seen("go_tip_pin", "v.state === 'closed'"))
-    expect_true(wait_seen("go_tip_pinned", "v === false"))
-    expect_identical(seen("go_tip_pinned"), FALSE)
+    expect_true(page$wait_reported("go_tip_pin", "v.state === 'closed'"))
+    expect_true(page$wait_reported("go_tip_pinned", "v === false"))
+    expect_identical(page$reported("go_tip_pinned"), FALSE)
   })
 
   it("sends the data row of a pin in DT after a sort, not the row's place on the screen", {
@@ -158,31 +137,31 @@ describe("the inputs of tip_table() in a Shiny app", {
     ))
     # Hares is the fifth row on the screen and the third in the data.
     pin_row(rows_in("dtc"), "Hares")
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
-    got <- seen("dtc_pin")
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
+    got <- page$reported("dtc_pin")
     expect_identical(got$target, "row")
     expect_identical(got$row, 3L)
     expect_null(got$column)
     expect_identical(got$id, "dtc/row/3")
     expect_identical(got$state, "pinned")
     expect_identical(got$text, "Hares: 2 wins")
-    expect_true(wait_seen("dtc_pinned", "v.length === 1"))
-    pinned <- seen("dtc_pinned")
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 1"))
+    pinned <- page$reported("dtc_pinned")
     expect_identical(pinned[[1]], list(target = "row", row = 3L, column = NULL, id = "dtc/row/3"))
     # The tip changes size and side when the page gets narrow; it is still open, and the server is not told otherwise.
     page$viewport(420, 700)
     page$settle()
     expect_identical(open_pins(), "dtc/row/3")
-    expect_identical(seen("dtc_pin")$state, "pinned")
+    expect_identical(page$reported("dtc_pin")$state, "pinned")
     page$viewport(900, 700)
     page$settle()
     expect_identical(open_pins(), "dtc/row/3")
     close_all()
-    expect_true(wait_seen("dtc_pin", "v.state === 'closed'"))
-    expect_true(wait_seen("dtc_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'closed'"))
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 0"))
     # An empty list, not NULL: a pin has happened.
-    expect_identical(seen("dtc_pinned"), list())
-    expect_identical(seen("dtc_pin")$row, 3L)
+    expect_identical(page$reported("dtc_pinned"), list())
+    expect_identical(page$reported("dtc_pin")$row, 3L)
   })
 
   it("sends the data row in DT's server mode, where the browser holds one page", {
@@ -193,21 +172,21 @@ describe("the inputs of tip_table() in a Shiny app", {
     ))
     # Sorted by wins ascending, the third row on the page is Moles (data row 6), and Hares (data row 3) the second.
     pin_row(rows_in("dts"), "Hares")
-    expect_true(wait_seen("dts_pin", "v.state === 'pinned'"))
-    expect_identical(seen("dts_pin")$row, 3L)
-    expect_identical(seen("dts_pin")$id, "dts/row/3")
-    expect_identical(seen("dts_pinned")[[1]]$row, 3L)
+    expect_true(page$wait_reported("dts_pin", "v.state === 'pinned'"))
+    expect_identical(page$reported("dts_pin")$row, 3L)
+    expect_identical(page$reported("dts_pin")$id, "dts/row/3")
+    expect_identical(page$reported("dts_pinned")[[1]]$row, 3L)
     # The page changes: the row leaves it, and the pin goes with it (by the data), as the server hears.
     page$evaluate("$('#dts table').DataTable().page(1).draw(false); 0")
-    expect_true(wait_seen("dts_pin", "v.state === 'closed'"))
-    expect_identical(seen("dts_pin")$reason, "gone")
-    expect_identical(seen("dts_pin")$row, 3L)
-    expect_true(wait_seen("dts_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("dts_pin", "v.state === 'closed'"))
+    expect_identical(page$reported("dts_pin")$reason, "gone")
+    expect_identical(page$reported("dts_pin")$row, 3L)
+    expect_true(page$wait_reported("dts_pinned", "v.length === 0"))
     pin_row(rows_in("dts"), "Lynx")
-    expect_true(wait_seen("dts_pin", "v.state === 'pinned'"))
-    expect_identical(seen("dts_pin")$row, 4L)
+    expect_true(page$wait_reported("dts_pin", "v.state === 'pinned'"))
+    expect_identical(page$reported("dts_pin")$row, 4L)
     close_all()
-    expect_true(wait_seen("dts_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("dts_pinned", "v.length === 0"))
   })
 
   it("sends the data row of a reactable row after a sort", {
@@ -224,24 +203,27 @@ describe("the inputs of tip_table() in a Shiny app", {
     page$settle()
     pin_row(rows_in("rt", "rt"), "Hares")
     expect_true(
-      wait_seen("rt_pin", "v.state === 'pinned'"),
-      info = paste("the last rt_pin input:", jsonlite::toJSON(seen("rt_pin"), auto_unbox = TRUE, null = "null"))
+      page$wait_reported("rt_pin", "v.state === 'pinned'"),
+      info = paste(
+        "the last rt_pin input:",
+        jsonlite::toJSON(page$reported("rt_pin"), auto_unbox = TRUE, null = "null")
+      )
     )
-    got <- seen("rt_pin")
+    got <- page$reported("rt_pin")
     expect_identical(got$row, 3L)
     expect_identical(got$target, "row")
     expect_null(got$column)
-    expect_identical(seen("rt_pinned")[[1]]$row, 3L)
+    expect_identical(page$reported("rt_pinned")[[1]]$row, 3L)
     close_all()
-    expect_true(wait_seen("rt_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("rt_pinned", "v.length === 0"))
   })
 
   it("sends a hint input for the table too, with the same address", {
     page$evaluate("window.Hovercraft.hide(); 0")
     # Foxes is data row 2, wherever the table has put it on the screen.
     page$hover("#dtc tbody tr[data-hovercraft-tip-id='dtc/row/2'] td:nth-child(1)")
-    expect_true(wait_seen("dtc_hint", "v.state === 'shown'"))
-    got <- seen("dtc_hint")
+    expect_true(page$wait_reported("dtc_hint", "v.state === 'shown'"))
+    got <- page$reported("dtc_hint")
     expect_identical(got$target, "row")
     expect_null(got$column)
     expect_identical(got$row, 2L)
@@ -256,20 +238,20 @@ describe("the inputs of tip_table() in a Shiny app", {
     # The table was sorted by wins, descending: pin the data rows in the order 2, 1, 3.
     for (i in 1:3) {
       pin_row(rows_in("dtc"), c("Foxes", "Owls", "Hares")[[i]])
-      expect_true(wait_seen("dtc_pinned", sprintf("v.length === %d", i)))
+      expect_true(page$wait_reported("dtc_pinned", sprintf("v.length === %d", i)))
     }
-    expect_true(wait_seen("dtc_pinned", "v.length === 3"))
-    rows <- vapply(seen("dtc_pinned"), function(a) a$row, 0L)
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 3"))
+    rows <- vapply(page$reported("dtc_pinned"), function(a) a$row, 0L)
     expect_identical(rows, c(2L, 1L, 3L))
     expect_setequal(open_pins(), c("dtc/row/2", "dtc/row/1", "dtc/row/3"))
     page$evaluate(sprintf("window.%s.close(%s); 0", global, row_of(rows_in("dtc"), "Owls")))
-    expect_true(wait_seen("dtc_pinned", "v.length === 2"))
-    expect_identical(vapply(seen("dtc_pinned"), function(a) a$row, 0L), c(2L, 3L))
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 2"))
+    expect_identical(vapply(page$reported("dtc_pinned"), function(a) a$row, 0L), c(2L, 3L))
     # `_pin` is the event that just happened: the close of row 1.
-    expect_identical(seen("dtc_pin")$state, "closed")
-    expect_identical(seen("dtc_pin")$row, 1L)
+    expect_identical(page$reported("dtc_pin")$state, "closed")
+    expect_identical(page$reported("dtc_pin")$row, 1L)
     close_all()
-    expect_true(wait_seen("dtc_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 0"))
   })
 
   it("closes only the pin of a row that is given another data row, when several pins are allowed", {
@@ -277,9 +259,9 @@ describe("the inputs of tip_table() in a Shiny app", {
     page$evaluate("document.documentElement.setAttribute('data-hovercraft-tip-pins', '3'); 0")
     withr::defer(page$evaluate("document.documentElement.removeAttribute('data-hovercraft-tip-pins'); 0"))
     pin_row(rows_in("rt2", "rt"), "A")
-    expect_true(wait_seen("rt2_pinned", "v.length === 1"))
+    expect_true(page$wait_reported("rt2_pinned", "v.length === 1"))
     pin_row(rows_in("rt2", "rt"), "B")
-    expect_true(wait_seen("rt2_pinned", "v.length === 2"))
+    expect_true(page$wait_reported("rt2_pinned", "v.length === 2"))
     expect_setequal(open_pins(), c("rt2/row/1", "rt2/row/2"))
     # React gives the first row's element another data row (a sort does this to a reactable table, but a click on the
     # header would be a click away, which closes every pin): the table script re-marks the element, and that closes the
@@ -292,20 +274,20 @@ describe("the inputs of tip_table() in a Shiny app", {
       })()",
       row_of(rows_in("rt2", "rt"), "A")
     ))
-    expect_true(wait_seen("rt2_pinned", "v.length === 1"))
+    expect_true(page$wait_reported("rt2_pinned", "v.length === 1"))
     page$hold(0.5) # the count must stay at one: a second report, were it coming, has no signal to wait for
-    expect_identical(length(seen("rt2_pinned")), 1L)
-    expect_identical(seen("rt2_pinned")[[1]]$row, 2L)
+    expect_identical(length(page$reported("rt2_pinned")), 1L)
+    expect_identical(page$reported("rt2_pinned")[[1]]$row, 2L)
     expect_identical(open_pins(), "rt2/row/2")
-    expect_identical(seen("rt2_pin")$state, "closed")
-    expect_identical(seen("rt2_pin")$row, 1L)
+    expect_identical(page$reported("rt2_pin")$state, "closed")
+    expect_identical(page$reported("rt2_pin")$row, 1L)
     close_all()
-    expect_true(wait_seen("rt2_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("rt2_pinned", "v.length === 0"))
   })
 
   it("keeps the list of pins true when Shiny draws the table again while a row is pinned", {
     pin_row(rows_in("dtc"), "Owls")
-    expect_true(wait_seen("dtc_pinned", "v.length === 1"))
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 1"))
     page$evaluate("window.oldRow = document.querySelector('[data-hovercraft-tip-open=pin]'); 0")
     page$evaluate("Shiny.setInputValue('rerender', Date.now(), { priority: 'event' })")
     expect_true(page$wait_until("window.oldRow.isConnected === false"))
@@ -314,10 +296,10 @@ describe("the inputs of tip_table() in a Shiny app", {
     # What the server believes is pinned is what the page holds: the same count, the same row.
     held <- open_pins()
     expect_length(held, 1L)
-    expect_true(wait_seen("dtc_pinned", "v.length === 1"))
-    expect_identical(sprintf("dtc/row/%d", seen("dtc_pinned")[[1]]$row), held)
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 1"))
+    expect_identical(sprintf("dtc/row/%d", page$reported("dtc_pinned")[[1]]$row), held)
     close_all()
-    expect_true(wait_seen("dtc_pinned", "v.length === 0"))
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 0"))
   })
 
   it("names the inputs by the plain id in a module, for DT, DT in server mode and reactable", {
@@ -330,11 +312,11 @@ describe("the inputs of tip_table() in a Shiny app", {
       list(scope = rows_in("m-rt", "rt"), input = "m-rtips", team = "Owls", row = 1L)
     )) {
       pin_row(case$scope, case$team)
-      expect_true(wait_seen(paste0(case$input, "_pin"), "v.state === 'pinned'"), info = case$input)
-      expect_identical(seen(paste0(case$input, "_pin"))$row, case$row, info = case$input)
-      expect_identical(seen(paste0(case$input, "_pinned"))[[1]]$row, case$row, info = case$input)
+      expect_true(page$wait_reported(paste0(case$input, "_pin"), "v.state === 'pinned'"), info = case$input)
+      expect_identical(page$reported(paste0(case$input, "_pin"))$row, case$row, info = case$input)
+      expect_identical(page$reported(paste0(case$input, "_pinned"))[[1]]$row, case$row, info = case$input)
       close_all()
-      expect_true(wait_seen(paste0(case$input, "_pinned"), "v.length === 0"), info = case$input)
+      expect_true(page$wait_reported(paste0(case$input, "_pinned"), "v.length === 0"), info = case$input)
     }
     # No input of the plain, un-prefixed name was made: the prefix was added in the module's own render function.
     for (name in c("tips_pin", "tips_srv_pin", "rtips_pin")) {

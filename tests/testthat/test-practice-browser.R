@@ -1,12 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 skip_if_no_bench()
 
 # Shiny practices in a running bslib/Shiny app: renderUI() re-render, insertUI()/removeUI(), modules (two copies,
@@ -19,72 +11,56 @@ describe("Shiny practices in a running app", {
   url <- bench_url(bench, "practice")
   up <- wait_for_app(app, url)
   page <- local_page(url, environment())
-  press_button <- function(id) page$click_now(paste0("#", id))
-  hover_in_view <- function(selector) {
-    page$evaluate(sprintf(
-      "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    ))
-    page$settle(0.1)
-    page$hover(selector)
-  }
-  seen <- function(id, pattern) {
-    page$wait_until(sprintf(
-      "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
-      jsonlite::toJSON(pattern, auto_unbox = TRUE),
-      jsonlite::toJSON(id, auto_unbox = TRUE)
-    ))
-  }
 
   it("starts and connects", {
     expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("closes an open tip on renderUI() re-render and shows the new tip without reload", {
     expect_true(page$wait_until("document.getElementById('dyn_btn') !== null"))
-    expect_identical(hover_in_view("#dyn_btn"), "Render tip 1")
-    press_button("rerender")
+    expect_identical(page$hover_in_view("#dyn_btn"), "Render tip 1")
+    page$click_id("rerender")
     expect_true(page$wait_until("document.getElementById('dyn_btn')?.textContent?.includes('Version 2')"))
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('.%s:not([hidden])').length === 0",
       tip_names()$css
     )))
-    expect_identical(hover_in_view("#dyn_btn"), "Render tip 2")
+    expect_identical(page$hover_in_view("#dyn_btn"), "Render tip 2")
   })
 
   it("shows a tip on an insertUI() tag and closes it cleanly on removeUI()", {
-    press_button("ins_add")
+    page$click_id("ins_add")
     expect_true(page$wait_until("document.getElementById('ins_btn') !== null"))
     expect_identical(page$hover("#ins_btn"), "Inserted tip")
-    expect_true(seen("ins_seen", "^shown reader"))
-    press_button("ins_rm")
+    expect_true(page$wait_text("ins_seen", "^shown reader"))
+    page$click_id("ins_rm")
     expect_true(page$wait_until("document.getElementById('ins_btn') === null"))
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('.%s:not([hidden])').length === 0",
       tip_names()$css
     )))
-    expect_true(seen("ins_seen", "^hidden data"))
+    expect_true(page$wait_text("ins_seen", "^hidden data"))
   })
 
   it("isolates two module copies, nested modules, and a dynamically inserted module", {
     expect_identical(page$hover("#mod_a-btn"), "Alpha: Alpha")
     expect_identical(page$hover("#mod_b-btn"), "Beta: Beta")
-    press_button("mod_a-show")
+    page$click_id("mod_a-show")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Alpha: Alpha'",
       tip_names()$css
     )))
     expect_identical(page$hover("#outer-inner-btn"), "Nested: Nested")
-    press_button("outer-inner-show")
+    page$click_id("outer-inner-show")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Nested: Nested'",
       tip_names()$css
     )))
-    press_button("add_dyn_mod")
+    page$click_id("add_dyn_mod")
     expect_true(page$wait_until("document.getElementById('dyn_mod-btn') !== null"))
     expect_identical(page$hover("#dyn_mod-btn"), "Dynamic: Dynamic")
-    press_button("dyn_mod-show")
+    page$click_id("dyn_mod-show")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Dynamic: Dynamic'",
       tip_names()$css
@@ -97,21 +73,21 @@ describe("Shiny practices in a running app", {
     expect_true(page$wait_until(
       "document.getElementById('tab2_btn')?.getBoundingClientRect().height > 0"
     ))
-    expect_identical(hover_in_view("#tab2_btn"), "Hidden tab tip")
+    expect_identical(page$hover_in_view("#tab2_btn"), "Hidden tab tip")
 
     # Accordion: wait for Bootstrap's collapse animation to finish (.show and no .collapsing).
     page$evaluate("document.querySelector('#acc .accordion-button').click()")
     expect_true(page$wait_until(
       "document.querySelector('#acc .accordion-collapse.show') !== null && document.querySelector('#acc .accordion-collapse.collapsing') === null"
     ))
-    expect_identical(hover_in_view("#acc_btn"), "Accordion tip")
+    expect_identical(page$hover_in_view("#acc_btn"), "Accordion tip")
 
     # conditionalPanel
     page$click_now("#show_cond")
     expect_true(page$wait_until(
       "document.getElementById('cond_btn')?.getBoundingClientRect().height > 0"
     ))
-    expect_identical(hover_in_view("#cond_btn"), "Conditional tip")
+    expect_identical(page$hover_in_view("#cond_btn"), "Conditional tip")
 
     # Collapsed bslib sidebar
     page$evaluate("document.querySelector('.bslib-sidebar-layout .collapse-toggle').click()")
@@ -119,11 +95,11 @@ describe("Shiny practices in a running app", {
       "document.getElementById('sb_btn')?.getBoundingClientRect().width > 0"
     ))
     page$settle()
-    expect_identical(hover_in_view("#sb_btn"), "Sidebar tip")
+    expect_identical(page$hover_in_view("#sb_btn"), "Sidebar tip")
   })
 
   it("shows a tip inside showModal() above the modal backdrop", {
-    press_button("open_modal")
+    page$click_id("open_modal")
     expect_true(page$wait_until("document.getElementById('modal_btn') !== null"))
     page$settle()
     expect_identical(page$hover("#modal_btn"), "Modal tip")
@@ -165,25 +141,25 @@ describe("Shiny practices in a running app", {
   })
 
   it("keeps tips working after updateActionButton() and updateTextInput()", {
-    press_button("upd_inputs")
+    page$click_id("upd_inputs")
     expect_true(page$wait_until("document.getElementById('upd_btn')?.textContent?.includes('After')"))
     expect_true(page$wait_until("document.getElementById('upd_txt')?.value === 'v2'"))
-    expect_identical(hover_in_view("#upd_btn"), "Updated button tip")
-    expect_identical(hover_in_view("#upd_txt"), "Updated input tip")
+    expect_identical(page$hover_in_view("#upd_btn"), "Updated button tip")
+    expect_identical(page$hover_in_view("#upd_txt"), "Updated input tip")
   })
 
   it("handles a disabled button cleanly without console errors", {
     # Native disabled buttons suppress pointer events in browsers, so no tip opens and no error is raised.
-    shown_disabled <- hover_in_view("#dis_btn")
+    shown_disabled <- page$hover_in_view("#dis_btn")
     expect_length(shown_disabled, 0L)
     expect_identical(page$problems(), character())
   })
 
   it("works with appendTab() and closes an open tip on removeTab()", {
-    press_button("add_tab")
+    page$click_id("add_tab")
     expect_true(page$wait_until("document.getElementById('dyn_tab_btn')?.getBoundingClientRect().height > 0"))
-    expect_identical(hover_in_view("#dyn_tab_btn"), "Dynamic tab tip")
-    press_button("rm_tab")
+    expect_identical(page$hover_in_view("#dyn_tab_btn"), "Dynamic tab tip")
+    page$click_id("rm_tab")
     expect_true(page$wait_until("document.getElementById('dyn_tab_btn') === null"))
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('.%s:not([hidden])').length === 0",
@@ -193,7 +169,7 @@ describe("Shiny practices in a running app", {
 
   it("serves identical bindCache() renderUI() markup across two sessions and isolates server calls", {
     page2 <- local_page(url, environment())
-    expect_true(page2$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page2$wait_connected())
     expect_true(page$wait_until("document.getElementById('cached_btn') !== null"))
     expect_true(page2$wait_until("document.getElementById('cached_btn') !== null"))
 
@@ -210,15 +186,15 @@ describe("Shiny practices in a running app", {
       ))
     }
     expect_identical(server_html(page), server_html(page2))
-    expect_identical(hover_in_view("#cached_btn"), "Cached tip")
+    expect_identical(page$hover_in_view("#cached_btn"), "Cached tip")
     page2$evaluate("document.querySelector('#cached_btn')?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0")
     page2$settle(0.1)
     expect_identical(page2$hover("#cached_btn"), "Cached tip")
 
     # Clear tip in page2, trigger tip_show in page1, verify page2 stays closed.
-    page2$press("Escape", wait = 0.3)
-    expect_length(page2$shown(), 0L)
-    press_button("iso_show")
+    page2$press("Escape", wait = 0)
+    expect_true(page2$wait_shown())
+    page$click_id("iso_show")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Isolated tip'",
       tip_names()$css

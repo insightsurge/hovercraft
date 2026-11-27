@@ -1,10 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # A page under the strictest policy a package can be asked to live with: no inline script, no inline style, nothing but
 # files from the page's own origin. Tips must work, and the browser must report no violation.
@@ -171,7 +165,7 @@ describe("a page under a strict Content-Security-Policy", {
 
   it("draws the pin button, which is the pin layer's own script and style", {
     page$hover("#pinnable")
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_true(page$wait_pin_button())
   })
 
   it("keeps the width a disabled control had, and shows its reason", {
@@ -200,15 +194,8 @@ describe("a page under a strict Content-Security-Policy", {
 # need Shiny (the server calls and the inputs) work.
 describe("a Shiny page under a strict Content-Security-Policy", {
   skip_if_not_installed("shiny")
-  path <- find.package("hovercraft")
-  port <- httpuv::randomPort()
-  app <- callr::r_bg(
-    function(port, path, csp) {
-      if (dir.exists(file.path(path, "inst"))) {
-        pkgload::load_all(path, quiet = TRUE)
-      } else {
-        library(hovercraft)
-      }
+  app <- start_app(
+    function(csp) {
       ui <- function(req) {
         if (grepl("plain", req$QUERY_STRING, fixed = TRUE)) {
           return(shiny::fluidPage(shiny::actionButton("run", "Run")))
@@ -261,24 +248,21 @@ describe("a Shiny page under a strict Content-Security-Policy", {
         }
         response
       }
-      shiny::runApp(app, port = port, host = "127.0.0.1", launch.browser = FALSE)
+      app
     },
-    args = list(port = port, path = path, csp = csp),
-    supervise = TRUE
+    csp = csp
   )
-  withr::defer(app$kill())
-  url <- paste0("http://127.0.0.1:", port, "/")
-  up <- wait_for_app(app, url)
+  url <- paste0(app$url, "/")
   # What Shiny alone reports under the policy, to hold the page with tips to.
   plain <- local_page(paste0(url, "?plain"), environment(), init = watch)
-  expect_true(plain$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+  expect_true(plain$wait_connected())
   baseline <- violations(plain)
   page <- local_page(url, environment(), init = watch)
   css <- tip_names()$css
 
   it("starts and connects", {
-    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(app$proc$is_alive())
+    expect_true(page$wait_connected())
   })
 
   it("adds no violation to what a page without a tip reports", {
@@ -296,9 +280,9 @@ describe("a Shiny page under a strict Content-Security-Policy", {
     expect_true(page$wait_closed())
     page$click_now("#show")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_true(page$wait_pin_button())
     # A hint the server asked for stays until it is closed.
-    page$press("Escape")
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') === null", css, css)))
   })
 
@@ -359,7 +343,7 @@ describe("the icons drawn from data: images, under a policy with default-src", {
     for (id in c("marked", "off", "pinnable")) {
       page$hover(paste0("#", id))
     }
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_true(page$wait_pin_button())
     page$hover("#off")
     list(violations = violations(page), page = page)
   }

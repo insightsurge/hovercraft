@@ -1,8 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("bslib")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # One bslib page with a plain text tip, a template tip on a table row, a button inside bslib::tooltip() that already
 # has a tip of its own, and the shared placeholder cases as buttons, each with a template made of one text block.

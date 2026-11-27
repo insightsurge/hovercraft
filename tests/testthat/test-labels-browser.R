@@ -1,12 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # labels = on use_hovercraft() and tip_on(): the words the tip shows itself change on the page, on one tip and on
 # what is inside a tagged scope, and the nearest words win, key by key. The words of the engine ("Close", "More when
@@ -123,14 +115,14 @@ describe("labels = changes the words a tip shows itself", {
       hint_box,
       css
     )))
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
     close <- page$evaluate(sprintf(
       "document.querySelector('%s .%s-close').getAttribute('aria-label')",
       pinned_box,
       css
     ))
-    page$press("Escape", wait = 0.3)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", pinned_box)))
     page$evaluate("document.activeElement?.blur()")
     page$settle()
@@ -142,12 +134,12 @@ describe("labels = changes the words a tip shows itself", {
     expect_true(page$wait_until("document.querySelector('.hovercraft-more-strip-button') !== null"))
     page$settle()
     before <- page$evaluate("document.querySelector('.hovercraft-more-strip-button').textContent")
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(
       "document.querySelector('.hovercraft-more-strip-button')?.getAttribute('aria-expanded') === 'true'"
     ))
     after <- page$evaluate("document.querySelector('.hovercraft-more-strip-button').textContent")
-    page$press("Escape", wait = 0.3)
+    page$press("Escape", wait = 0)
     page$evaluate("document.activeElement?.blur()")
     expect_true(page$wait_closed())
     list(before = before, after = after)
@@ -155,7 +147,7 @@ describe("labels = changes the words a tip shows itself", {
 
   it("starts and connects", {
     expect_true(app$proc$is_alive(), info = paste(app$proc$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("shows the words of two use_hovercraft() calls together, the later one winning a key both give", {
@@ -191,7 +183,7 @@ describe("labels = changes the words a tip shows itself", {
     page$evaluate("document.activeElement?.blur()")
     page$evaluate("document.getElementById('r_code').focus(); 0")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_box)))
-    page$press("p")
+    page$press("p", wait = 0)
     copy_button <- sprintf("%s .%s-copy", pinned_box, css)
     status <- sprintf("%s .%s-status", pinned_box, css)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", copy_button)))
@@ -208,7 +200,7 @@ describe("labels = changes the words a tip shows itself", {
       "document.querySelector('%s')?.textContent === 'Kopieren ging nicht (page)'",
       status
     )))
-    page$press("Escape", wait = 0.3)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", pinned_box)))
     page$evaluate("document.activeElement?.blur()")
   })
@@ -223,7 +215,7 @@ describe("labels = changes the words a tip shows itself", {
       page$evaluate(sprintf("%s.focus(); 0", wrapper(case$id)))
       expect_true(page$wait_open())
       expect_identical(page$shown(), case$words)
-      page$press("Escape", wait = 0.3)
+      page$press("Escape", wait = 0)
       expect_true(page$wait_closed())
     }
   })

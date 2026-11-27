@@ -1,14 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # tip_show(), tip_hide() and tip_update() with `row` and `column` on the tips of DT (client and server mode) and
 # reactable tables in a running Shiny app, and after the table sorts. The calls are driven by an input the page sets, not
@@ -100,7 +90,7 @@ describe("server calls on the tips of a table in a Shiny app", {
   }
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     for (table in c("dtc", "dts", "rt")) {
       expect_true(has_rows(table), info = table)
     }
@@ -156,14 +146,14 @@ describe("server calls on the tips of a table in a Shiny app", {
     call("show", "dts", row = 5)
     expect_true(page$wait_until("window.notes.some((x) => x.includes('dts/row/5'))"))
     expect_identical(page$evaluate(open_id), "dts/row/4")
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("does not end the session for a table that is never drawn, with a column name", {
     call("show", "nodraw", row = 1, column = "wins")
     call("show", "dtc", row = 1)
     expect_true(shows("Owls: 7 wins"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("opens the tip of a row, a cell and a header cell of a reactable table, also after it sorts", {

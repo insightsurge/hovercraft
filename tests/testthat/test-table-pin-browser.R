@@ -1,14 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # tip_spec(pin = TRUE, events = ) for the rows in a running Shiny app: the pin handle in a row's tip, the pin key, the
 # Shiny inputs of the table, and what happens to a pinned row when the table sorts, pages, is given new data or is drawn again.
@@ -116,6 +106,14 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
   strip <- ".hovercraft-pin-strip-button"
   pins <- function() as.character(jsonlite::fromJSON(page$evaluate(sprintf("JSON.stringify(%s)", open_pins))))
   seen <- function() jsonlite::fromJSON(page$evaluate("document.getElementById('seen').textContent"))
+  # Waits until exactly these pinned tips are open (none by default), by their ids.
+  wait_pins <- function(ids = character()) {
+    page$wait_until(sprintf(
+      "JSON.stringify(%s) === %s",
+      open_pins,
+      jsonlite::toJSON(jsonlite::toJSON(ids), auto_unbox = TRUE)
+    ))
+  }
   seen_has <- function(name, value) {
     page$wait_until(sprintf(
       "(() => { try { return JSON.parse(document.getElementById('seen').textContent)[%s] === %s; } catch (e) { return false; } })()",
@@ -123,14 +121,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       jsonlite::toJSON(value, auto_unbox = TRUE)
     ))
   }
-  rect <- function(selector) {
-    jsonlite::fromJSON(page$evaluate(sprintf(
-      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }); })()",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
-  }
   mouse_at <- function(selector, click = FALSE) {
-    box <- rect(selector)
+    box <- page$rect(selector)
     page$mouse((box$left + box$right) / 2, (box$top + box$bottom) / 2, click)
   }
   view <- function(selector) {
@@ -141,7 +133,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     page$settle()
   }
   reset <- function() {
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     page$evaluate("document.activeElement?.blur(); window.scrollTo(0, 0)")
     page$mouse(5, 5, FALSE)
     expect_true(page$wait_closed())
@@ -152,9 +144,9 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
   pin_by_handle <- function(row) {
     view(row)
     page$hover(row)
-    expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+    expect_true(page$wait_pin_button())
     mouse_at(strip, click = TRUE)
-    expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+    expect_true(page$wait_pinned())
   }
   # Presses an action button's input from the page without a click: a click would close a pin as a click away.
   poke <- function(id, value = "Date.now()") {
@@ -165,7 +157,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
 
   it("starts and draws every table with its rows ready to pin", {
     expect_true(app$proc$is_alive(), info = paste(app$proc$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     expect_true(page$wait_until(
       "document.querySelectorAll('#dtc tbody tr[data-hovercraft-tip-pin=manual]').length === 3"
     ))
@@ -195,14 +187,14 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
         "\"target\":\"row\",\"row\":2,\"column\":null,\"id\":\"dtc/row/2\"}"
       )
     )
-    page$press("Escape")
+    page$press("Escape", wait = 0)
     expect_true(seen_has("dtc_pin", "closed"))
     expect_identical(pins(), character())
   })
 
   it("does not pin on a click of the row, and the click still selects it", {
     reset()
-    page$click(rows_dt("dtc")[[1]])
+    page$click(rows_dt("dtc")[[1]]) # a click that must not pin: nothing happening has no signal
     page$settle()
     expect_identical(pins(), character())
     expect_true(page$wait_until("document.querySelector('#dtc tbody tr.selected') !== null"))
@@ -211,26 +203,29 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
   it("pins by the pin key from the row, and from a cell of the row, and nowhere else", {
     reset()
     page$evaluate("document.querySelector('#dtc tbody tr:nth-child(3)').focus()")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') !== null"))
     expect_identical(pins(), "dtc/row/3")
     expect_true(seen_has("dtc_pin", "pinned"))
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].via"), "key")
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].row"), 3L)
-    page$press("Escape")
-    expect_identical(pins(), character())
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
     # A cell with a tip of its own, inside a pinnable row: only the row can pin, so the key pins the row's tip.
     page$evaluate("document.querySelector('#dtc tbody tr:nth-child(1) td:nth-child(3)').focus()")
-    page$press("p")
-    expect_identical(pins(), "dtc/row/1")
+    page$press("p", wait = 0)
+    expect_true(wait_pins("dtc/row/1"))
     # The cell's own hint may be open too: Escape closes the hint, then the pin.
     for (i in 1:2) {
-      if (length(pins())) page$press("Escape")
+      if (length(pins())) {
+        page$press("Escape", wait = 0)
+        page$settle(0.1)
+      }
     }
-    expect_identical(pins(), character())
+    expect_true(wait_pins())
     # No focus on the table: the key does nothing.
     page$evaluate("document.activeElement.blur()")
-    page$press("p")
+    page$press("p") # the key must pin nothing: nothing happening has no signal
     expect_identical(pins(), character())
   })
 
@@ -244,11 +239,12 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('Owls')", pinned_box)))
     expect_identical(pins(), "dtc/row/1")
     expect_true(page$evaluate("document.querySelector('[data-hovercraft-tip-open=pin]').isConnected"))
-    page$press("Escape")
-    expect_identical(pins(), character())
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
     pin_by_handle(rows_dt("dtc")[[2]])
     expect_identical(pins(), "dtc/row/2")
-    page$press("Escape")
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
   })
 
   it("keeps a pin on its row when DT sorts, and closes it when the row leaves the page", {
@@ -324,8 +320,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$wait_until("document.querySelector('#rt').textContent.includes('Lynx')"))
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('Lynx')", pinned_box)))
     expect_identical(pins(), "rt/row/1")
-    page$press("Escape")
-    expect_identical(pins(), character())
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
   })
 
   it("keeps a pinned DT row of the server mode when DT::replaceData() gives it new values", {
@@ -336,7 +332,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$wait_until("document.querySelector('#dts').textContent.includes('Lynx')"))
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('Voles')", pinned_box)))
     expect_identical(pins(), "dts/row/2")
-    page$press("Escape")
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
   })
 
   it("keeps a pin on its row when DT in server mode sorts it to another place on the page", {
@@ -362,7 +359,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     ))
     expect_identical(pins(), row)
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('%s')", pinned_box, team)))
-    page$press("Escape")
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
   })
 
   it("names the inputs by the plain id inside a module, as the module's server reads them", {
@@ -372,7 +370,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_match(pins(), "^m-tips/row/[0-9]+$")
     expect_true(seen_has("m-tips_pin", "pinned"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: pinned'"))
-    page$press("Escape")
+    page$press("Escape", wait = 0)
     expect_true(seen_has("m-tips_pin", "closed"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: closed'"))
   })
@@ -399,7 +397,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       "1/row"
     )
     expect_equal(page$evaluate("window.copyFired"), 1)
-    page$press("Escape")
+    page$press("Escape", wait = 0)
+    expect_true(wait_pins())
   })
 
   it("shows a row's tip on a tap and pins it with a tap on the handle, in DT and in reactable", {
@@ -407,16 +406,17 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     hint_box <- sprintf(".%s:not(.%s-pin):not([hidden])", css, css)
     for (row in c(rows_dt("dtq")[[1]], rt_row(1))) {
       view(row)
-      box <- rect(row)
+      box <- page$rect(row)
       page$touch_tap(box$left + 20, (box$top + box$bottom) / 2)
       expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_box)))
-      expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
+      expect_true(page$wait_pin_button())
       expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
-      button <- rect(strip)
+      button <- page$rect(strip)
       page$touch_tap((button$left + button$right) / 2, (button$top + button$bottom) / 2)
-      expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
+      expect_true(page$wait_pinned())
       page$touch_off()
-      page$press("Escape")
+      page$press("Escape", wait = 0)
+      expect_true(wait_pins())
       reset()
     }
   })
@@ -443,8 +443,8 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       reset()
       view(rows_dt("dtc")[[2]])
       page$hover(rows_dt("dtc")[[2]])
-      expect_true(page$wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null"))
-      button <- rect(strip)
+      expect_true(page$wait_pin_button())
+      button <- page$rect(strip)
       expect_gte(button$width, 24)
       expect_gte(button$height, 24)
       expect_gte(
@@ -457,11 +457,12 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       expect_length(background, 3L + (length(background) == 4L))
       expect_gte(contrast(glyph[1:3], background[1:3]), 3)
       backgrounds[[scheme]] <- background[1:3]
-      expect_lte(rect(hint_sel)$right, 375)
+      expect_lte(page$rect(hint_sel)$right, 375)
       mouse_at(strip, click = TRUE)
-      expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pinned_box)))
-      expect_lte(rect(pinned_box)$right, 375)
-      page$press("Escape")
+      expect_true(page$wait_pinned())
+      expect_lte(page$rect(pinned_box)$right, 375)
+      page$press("Escape", wait = 0)
+      expect_true(wait_pins())
     }
     # The dark page really gave the tip another background: the check above ran against both.
     expect_gt(luminance(backgrounds$light), luminance(backgrounds$dark) + 0.3)

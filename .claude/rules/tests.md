@@ -33,10 +33,24 @@ paths:
     `page$wait_closed()` for tips. Put each wait in `expect_true()`, so a timeout fails the test. `page$hold()` is for
     what no signal can tell, that nothing happens or that the engine's own timer has run out; give it a comment saying
     which.
-  - **Apps under test** start through `start_app()`, or `wait_for_app()` after `callr::r_bg()`, with the same limit,
-    and stop with `withr::defer(app$kill())` right after they start, pass or fail.
+  - **Apps under test** start through `start_app()`: its `make` function builds the app (`shiny::shinyApp(ui, server)`)
+    in the background process, and `start_app()` stops it in the calling frame, pass or fail. Only a server that is not
+    a Shiny app starts with `callr::r_bg()` and `wait_for_app()`, with the same limit, and stops with
+    `withr::defer(app$kill())` right after it starts.
   - **Click what Shiny can redraw in one step:** `page$click_now(selector)` finds and clicks in the page, while
     `page$click()` and `mouse_at()` read a position first and press there, so a redraw in between misses.
+  - **Test only what the package handles.** A browser test is for an input or a state hovercraft itself acts on: a
+    hover, a key, a click, a tap, a resize, a Shiny input. Never for what the browser does without hovercraft (middle
+    click, pinch zoom, autoscroll, a rotation or a zoom level that reaches the page only as a window size), however much
+    the scenario asks for it: such a test costs days when it flakes on one platform, and it protects nothing.
+  - **Write a new browser test with the shared helpers** in `tests/testthat/helper-browser.R` (read the comments there):
+    `skip_if_no_browser()` as the file's first line (`skip_if_no_browser(c("DT", "reactable"))` for extra packages;
+    a file-only skip such as `skip_if_no_bench()` goes under it), `start_app()` for an app, `page_file()` and `place()`
+    for a small static page, and the page's named waits: `wait_connected()`, `wait_pin_button()`, `wait_pinned()`,
+    `wait_unpinned()`, `wait_shown()`, `wait_text()`, `wait_reported()`. `page$press()` and `page$click()` hold 0.6 and
+    0.7 s unless you pass `wait = 0`: do that where the test goes on to wait for a signal, and keep the hold where it
+    checks that nothing happens. Do not copy a helper (`rect`, `centre`, `seen`) into a file: use the page's own, or
+    add it to the helper.
   - Each file runs on its own: files run in parallel, in any order, so a file never relies on another's Chrome tabs,
     apps or state.
   - **One browser run at a time.** Two test runs at once (two sessions, or a gate and a test file) slow each other and

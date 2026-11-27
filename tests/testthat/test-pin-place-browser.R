@@ -1,20 +1,8 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # Where a pinned tip is drawn (engine 0.59.0): a tip pinned from its hover hint stays where the hint was (hovercraft #135),
 # and two pinned tips that would cover each other are drawn apart (hovercraft #138).
 describe("where a pinned tip is drawn", {
-  page_file <- function(..., .env = parent.frame()) {
-    file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
-    htmltools::save_html(
-      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", ...)),
-      file
-    )
-    file
-  }
-  place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
   open_boxes <- "[...document.querySelectorAll('.hc-tip-pin:not([hidden])')]"
   rects <- function(page) {
     jsonlite::fromJSON(

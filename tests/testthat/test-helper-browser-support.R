@@ -76,6 +76,32 @@ describe("wait_polls()", {
   })
 })
 
+describe("skip_if_no_browser()", {
+  it("skips a file that needs a package which is not installed, and names it", {
+    withr::local_envvar(NOT_CRAN = "true")
+    skip_if_not_installed("chromote")
+    skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+    skipped <- tryCatch(skip_if_no_browser("notapackage.hovercraft"), skip = function(cond) cond)
+    expect_s3_class(skipped, "skip")
+    expect_match(conditionMessage(skipped), "notapackage.hovercraft", fixed = TRUE)
+  })
+
+  it("skips on CRAN", {
+    withr::local_envvar(NOT_CRAN = "false")
+    expect_s3_class(tryCatch(skip_if_no_browser(), skip = function(cond) cond), "skip")
+  })
+})
+
+describe("page_file() and place()", {
+  it("write a page with the tags at a fixed spot", {
+    file <- page_file(place(htmltools::tags$button("Go", id = "go"), "left: 5px; top: 6px;"), dir = "rtl")
+    expect_true(file.exists(file))
+    html <- paste(readLines(file), collapse = "\n")
+    expect_match(html, "position: absolute; left: 5px; top: 6px;", fixed = TRUE)
+    expect_match(html, "dir=\"rtl\"", fixed = TRUE)
+  })
+})
+
 describe("the test bench's helpers", {
   it("find the bench beside the tests, and skip where it is not", {
     expect_true(dir.exists(bench_dir()))

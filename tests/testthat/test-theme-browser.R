@@ -1,8 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("bslib")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # One page with a theme: a tip's fill and words in light mode, then after the page's own data-bs-theme says dark.
 theme_page <- function(dir, theme) {

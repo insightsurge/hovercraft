@@ -1,61 +1,39 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # tip_table() in a running Shiny app: DT in its server mode (the browser holds one page of rows; the data row number in
 # a tip id and the row a click selects must still be the data row), inside a module's namespace.
 describe("tip_table() in a Shiny app, DT in server mode", {
-  path <- find.package("hovercraft")
-  port <- httpuv::randomPort()
-  app <- callr::r_bg(
-    function(port, path) {
-      if (dir.exists(file.path(path, "inst"))) {
-        pkgload::load_all(path, quiet = TRUE)
-      } else {
-        library(hovercraft)
-      }
-      scores <- data.frame(
-        team = c("Owls", "Foxes", "Hares", "Lynx", "Voles"),
-        wins = c(7, 5, 2, 9, 1),
-        note = c("Top", NA, "Late", "Best", NA)
-      )
-      module_ui <- function(id) {
-        ns <- shiny::NS(id)
-        shiny::tagList(DT::DTOutput(ns("dt")), reactable::reactableOutput(ns("rt")))
-      }
-      module_server <- function(id) {
-        shiny::moduleServer(id, function(input, output, session) {
-          tips <- function(widget) {
-            tip_table(
-              widget,
-              rows = "**{{ team }}**: {{ wins | number:0 }} wins",
-              cells = c(note = "Note: {{ note }}"),
-              id = session$ns("tips")
-            )
-          }
-          output$dt <- DT::renderDT(
-            tips(DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2)))
+  app <- start_app(function() {
+    scores <- data.frame(
+      team = c("Owls", "Foxes", "Hares", "Lynx", "Voles"),
+      wins = c(7, 5, 2, 9, 1),
+      note = c("Top", NA, "Late", "Best", NA)
+    )
+    module_ui <- function(id) {
+      ns <- shiny::NS(id)
+      shiny::tagList(DT::DTOutput(ns("dt")), reactable::reactableOutput(ns("rt")))
+    }
+    module_server <- function(id) {
+      shiny::moduleServer(id, function(input, output, session) {
+        tips <- function(widget) {
+          tip_table(
+            widget,
+            rows = "**{{ team }}**: {{ wins | number:0 }} wins",
+            cells = c(note = "Note: {{ note }}"),
+            id = session$ns("tips")
           )
-          output$rt <- reactable::renderReactable(tips(reactable::reactable(scores, defaultPageSize = 2)))
-        })
-      }
-      ui <- shiny::fluidPage(module_ui("mod1"))
-      server <- function(input, output, session) module_server("mod1")
-      shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
-    },
-    args = list(port = port, path = path),
-    supervise = TRUE
-  )
-  withr::defer(app$kill())
-  url <- paste0("http://127.0.0.1:", port)
-  up <- wait_for_app(app, url)
+        }
+        output$dt <- DT::renderDT(
+          tips(DT::datatable(scores, rownames = FALSE, options = list(pageLength = 2)))
+        )
+        output$rt <- reactable::renderReactable(tips(reactable::reactable(scores, defaultPageSize = 2)))
+      })
+    }
+    ui <- shiny::fluidPage(module_ui("mod1"))
+    server <- function(input, output, session) module_server("mod1")
+    shiny::shinyApp(ui, server)
+  })
+  url <- app$url
   page <- local_page(url, environment())
   ids <- function(scope) {
     page$evaluate(sprintf(
@@ -65,7 +43,7 @@ describe("tip_table() in a Shiny app, DT in server mode", {
   }
 
   it("starts", {
-    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
+    expect_true(app$proc$is_alive())
   })
 
   it("gives the rows ids from a namespaced id, and the ids follow the data row after a sort and a page", {
@@ -90,7 +68,7 @@ describe("tip_table() in a Shiny app, DT in server mode", {
   })
 
   it("selects the data row a clicked tip belongs to", {
-    page$click("#mod1-dt tbody tr:first-child td:first-child")
+    page$click("#mod1-dt tbody tr:first-child td:first-child", wait = 0)
     expect_true(page$wait_until("Shiny.shinyapp.$inputValues['mod1-dt_rows_selected'] !== undefined"))
     # Page two of the sort by wins, descending: Foxes is data row 2.
     expect_identical(page$evaluate("JSON.stringify(Shiny.shinyapp.$inputValues['mod1-dt_rows_selected'])"), "[2]")

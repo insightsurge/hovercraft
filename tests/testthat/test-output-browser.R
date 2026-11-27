@@ -1,11 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # End-to-end Shiny browser tests for tip_output(output, keep_alive = TRUE):
 # - plot, DT and reactable outputs rendered inside tips
@@ -20,15 +13,8 @@ describe("tip_output() in a live Shiny app", {
   has_spin <- requireNamespace("shinycssloaders", quietly = TRUE)
   has_promises <- requireNamespace("promises", quietly = TRUE) && requireNamespace("later", quietly = TRUE)
 
-  path <- find.package("hovercraft")
-  port <- httpuv::randomPort()
-  app <- callr::r_bg(
-    function(port, path, has_dt, has_rt, has_spin, has_promises) {
-      if (dir.exists(file.path(path, "inst"))) {
-        pkgload::load_all(path, quiet = TRUE)
-      } else {
-        library(hovercraft)
-      }
+  app <- start_app(
+    function(has_dt, has_rt, has_spin, has_promises) {
       counts <- new.env(parent = emptyenv())
       counts$alive <- 0L
       counts$dead <- 0L
@@ -196,26 +182,19 @@ describe("tip_output() in a live Shiny app", {
           shiny::bindCache("static-out-key")
       }
 
-      shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
+      shiny::shinyApp(ui, server)
     },
-    args = list(
-      port = port,
-      path = path,
-      has_dt = has_dt,
-      has_rt = has_rt,
-      has_spin = has_spin,
-      has_promises = has_promises
-    ),
-    supervise = TRUE
+    has_dt = has_dt,
+    has_rt = has_rt,
+    has_spin = has_spin,
+    has_promises = has_promises
   )
-  withr::defer(app$kill())
-  url <- paste0("http://127.0.0.1:", port)
-  up <- wait_for_app(app, url)
+  url <- app$url
   page <- local_page(url, environment())
   css <- tip_names()$css
 
   close_tip <- function() {
-    page$press("Escape", wait = 0.25)
+    page$press("Escape", wait = 0)
     # Best effort, as it was: after the Retry that gets no answer (the test "goes back to an error") the tip stays open
     # on Escape, and the next tests go on with it. A wait that fails here would hide nothing new, but the limit makes it
     # slow, so it is not an assertion. Reported on the pull request.
@@ -223,8 +202,8 @@ describe("tip_output() in a live Shiny app", {
   }
 
   it("starts and connects", {
-    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(app$proc$is_alive())
+    expect_true(page$wait_connected())
   })
 
   it("renders a plot inside a tip", {
@@ -440,7 +419,7 @@ describe("tip_output() in ordinary use", {
   css <- tip_names()$css
   state_of <- "document.querySelector('.hc-tip:not([hidden]) .hc-output')?.dataset.state"
   close_tip <- function() {
-    page$press("Escape", wait = 0.25)
+    page$press("Escape", wait = 0)
     # Best effort, as it was: after the Retry that gets no answer (the test "goes back to an error") the tip stays open
     # on Escape, and the next tests go on with it. A wait that fails here would hide nothing new, but the limit makes it
     # slow, so it is not an assertion. Reported on the pull request.
@@ -448,7 +427,7 @@ describe("tip_output() in ordinary use", {
   }
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("parks an output whose tag comes after the tip that names it, before any tip has opened", {
@@ -489,7 +468,7 @@ describe("tip_output() in ordinary use", {
   })
 
   it("leaves a pinned tip its output when another item's hint takes it, and gives it back", {
-    page$click("#btn_a")
+    page$click("#btn_a", wait = 0)
     expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden]) #shared_out').length === 1"))
     page$hover("#btn_b")
     expect_true(page$wait_until(
@@ -507,7 +486,9 @@ describe("tip_output() in ordinary use", {
       page$evaluate("document.querySelector('.hc-tip-pin:not([hidden]) .hc-output').dataset.state"),
       "ready"
     )
-    page$press("Escape")
+    # The first Escape closes the hint of "btn_solo" and leaves the pin: the next test starts from that.
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_closed())
   })
 
   it("goes back to an error with a clear message when the server does not answer Retry", {
@@ -563,7 +544,8 @@ describe("tip_output() in a tip_table() template, in a live Shiny app", {
     expect_true(page$evaluate("Boolean(document.querySelector('.hc-output-park #row_out'))"))
     page$hover("#dt tbody tr:first-child td:first-child")
     expect_true(page$wait_until(shown("row_out", "row-output-ready")))
-    page$press("Escape", wait = 0.25)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_closed())
   })
 
   it("parks the output at load and shows it in a reactable row's tip", {
@@ -571,7 +553,8 @@ describe("tip_output() in a tip_table() template, in a live Shiny app", {
     expect_true(page$evaluate("Boolean(document.querySelector('.hc-output-park #rt_row_out'))"))
     page$hover("#rt .rt-tbody .rt-tr:first-child .rt-td:first-child")
     expect_true(page$wait_until(shown("rt_row_out", "rt-output-ready")))
-    page$press("Escape", wait = 0.25)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_closed())
   })
 
   it("leaves the console without errors", {

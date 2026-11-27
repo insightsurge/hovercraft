@@ -15,6 +15,17 @@ chrome_restart_limit <- 2L
 # on a fast machine. Never sleep for a fixed time instead: wait for the signal.
 browser_timeout <- 30000
 
+# The first line of every -browser.R file: skips the file on CRAN, without Chrome, or without a package the browser tests
+# need (Shiny and the packages that run an app in the background), plus the `pkgs` this file uses (`"DT"`). A skip
+# that is only this file's own (the test bench's folder) goes on the next line.
+skip_if_no_browser <- function(pkgs = character()) {
+  testthat::skip_on_cran()
+  for (pkg in c("chromote", "shiny", "bslib", "callr", "httpuv", "pkgload", "withr", pkgs)) {
+    testthat::skip_if_not_installed(pkg)
+  }
+  testthat::skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+}
+
 # The Chrome shared by the tests: the running one, or a new one when its process has ended. It skips the calling test
 # first on CRAN or without Chrome, so no test starts a Chrome there.
 test_browser <- function() {
@@ -210,6 +221,52 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
   wait_closed <- function() {
     wait_until(sprintf("document.querySelector('.%1$s:not(.%1$s-pin):not([hidden])') === null", tip_names()$css))
   }
+  # Waits until Shiny has connected to its server.
+  wait_connected <- function() {
+    wait_until("window.Shiny?.shinyapp?.isConnected?.() === true")
+  }
+  # Waits until the hint on show has its Pin button.
+  wait_pin_button <- function() {
+    wait_until("document.querySelector('.hovercraft-pin-strip-button') !== null")
+  }
+  # Waits until the text of the element with this id matches the regular expression `pattern`: an output of the app
+  # under test that reports what the server heard.
+  wait_text <- function(id, pattern) {
+    wait_until(sprintf(
+      "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
+      jsonlite::toJSON(pattern, auto_unbox = TRUE),
+      jsonlite::toJSON(id, auto_unbox = TRUE)
+    ))
+  }
+  # The app's `#seen` output holds a JSON object of what the server heard: `reported(name)` reads one of its fields,
+  # `wait_reported(name, test)` waits until the JavaScript `test` is true of it (as `v`).
+  reported <- function(name) {
+    all <- jsonlite::fromJSON(evaluate("document.getElementById('seen').textContent"), simplifyVector = FALSE)
+    all[[name]]
+  }
+  wait_reported <- function(name, test) {
+    wait_until(sprintf(
+      "(() => { try { const v = JSON.parse(document.getElementById('seen').textContent)[%s]; return !!(%s); } catch (e) { return false; } })()",
+      jsonlite::toJSON(name, auto_unbox = TRUE),
+      test
+    ))
+  }
+  # Waits until a pinned tip is on show; `wait_unpinned()` until none is (a hint may still be on show).
+  wait_pinned <- function() {
+    wait_until(sprintf("document.querySelector('.%s-pin:not([hidden])') !== null", tip_names()$css))
+  }
+  wait_unpinned <- function() {
+    wait_until(sprintf("document.querySelector('.%s-pin:not([hidden])') === null", tip_names()$css))
+  }
+  # Waits until the tips on show (hints and pins) have exactly these words, in page order: `wait_shown("Owls: 7 wins")`,
+  # or `wait_shown()` for none. Use it where a test read `press()` or `click()`'s answer after a hold.
+  wait_shown <- function(texts = character()) {
+    wait_until(sprintf(
+      "JSON.stringify([...document.querySelectorAll('.%s')].filter((t) => !t.hidden).map((t) => t.textContent)) === %s",
+      tip_names()$css,
+      jsonlite::toJSON(jsonlite::toJSON(as.character(texts)), auto_unbox = TRUE)
+    ))
+  }
   # Waits the given seconds. Only for what a signal cannot tell: that nothing happens (a tip that must stay shut, or
   # stay open) or that the engine's own timer, its open and close delay, has run out. Say in a comment what the wait is for.
   hold <- function(seconds) {
@@ -263,7 +320,9 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     )
     session$Page$captureScreenshot(format = "png", clip = clip)$data
   }
-  # Presses and releases a key the way a keyboard does (focus-visible follows), then waits past the engine's delay.
+  # Presses and releases a key the way a keyboard does (focus-visible follows), then holds `wait` seconds, the engine's
+  # delay, and returns the tips on show. Pass `wait = 0` where the test goes on to wait for a signal (`wait_open()`,
+  # `wait_closed()`, `wait_until()`), and keep the hold where it checks that nothing happens.
   press <- function(key, ctrl = FALSE, wait = 0.6) {
     codes <- c(
       Tab = 9,
@@ -291,8 +350,8 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     )
     do.call(session$Input$dispatchKeyEvent, c(list(type = "rawKeyDown"), args))
     do.call(session$Input$dispatchKeyEvent, c(list(type = "keyUp"), args))
-    # The engine's open and close delay. A key can open a tip, close one, move to another or do nothing, so no page state
-    # tells that the engine is done: hold for the delay.
+    # A key can open a tip, close one, move to another or do nothing: a test that expects a change waits for its signal
+    # (`wait = 0`); one that expects nothing holds for the engine's delay.
     hold(wait)
     shown()
   }
@@ -302,16 +361,49 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     Sys.sleep(0.2)
     invisible()
   }
-  # Rests the pointer on the element (so its tip opens), then clicks it with the mouse; returns the tips on show.
-  click <- function(selector) {
+  # Clicks the element with this id, found and clicked in the page: `click_now()` for an id (a button the test presses).
+  click_id <- function(id) {
+    click_now(paste0("#", id))
+  }
+  # The box of the element `selector` names, as a list of left, top, right, bottom, width and height in CSS pixels.
+  rect <- function(selector) {
+    jsonlite::fromJSON(evaluate(sprintf(
+      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }); })()",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    )))
+  }
+  # The middle of the element's box, as c(x, y).
+  centre <- function(selector) {
+    box <- rect(selector)
+    c((box$left + box$right) / 2, (box$top + box$bottom) / 2)
+  }
+  # Scrolls the element to the middle of the window, waits until the page is quiet, then hovers it.
+  hover_in_view <- function(selector) {
+    evaluate(sprintf(
+      "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
+      jsonlite::toJSON(selector, auto_unbox = TRUE)
+    ))
+    settle(0.1)
+    hover(selector)
+  }
+  # Gives the element a tab stop (a table's keyboard layer does it a frame after drawing a row), focuses it and presses
+  # the pin key. Where the test goes on to wait for the pin.
+  pin_key <- function(selector) {
+    json <- jsonlite::toJSON(selector, auto_unbox = TRUE)
+    wait_until(sprintf("document.querySelector(%s)?.hasAttribute('tabindex') === true", json))
+    evaluate(sprintf("document.querySelector(%s).focus()", json))
+    press("p", wait = 0)
+  }
+  # Rests the pointer on the element (so its tip opens), then clicks it with the mouse, holds `wait` seconds and returns
+  # the tips on show. Pass `wait = 0` where the test goes on to wait for a signal, as for `press()`.
+  click <- function(selector, wait = 0.7) {
     hover(selector)
     box <- box_of(selector)
     for (type in c("mousePressed", "mouseReleased")) {
       session$Input$dispatchMouseEvent(type = type, x = box[[1]], y = box[[2]], button = "left", clickCount = 1)
     }
-    # The engine's open and close delay. A click can pin, toggle, close or do nothing, so no page state tells that the
-    # engine is done: hold for the delay.
-    hold(0.7)
+    # A click can pin, toggle, close or do nothing: see `press()` for `wait`.
+    hold(wait)
     shown()
   }
   # Emulates a media feature of the reader, such as `emulate("prefers-reduced-motion", "reduce")`.
@@ -364,6 +456,19 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     click_now = click_now,
     wait_open = wait_open,
     wait_closed = wait_closed,
+    wait_shown = wait_shown,
+    wait_pinned = wait_pinned,
+    wait_unpinned = wait_unpinned,
+    wait_connected = wait_connected,
+    wait_pin_button = wait_pin_button,
+    wait_text = wait_text,
+    reported = reported,
+    wait_reported = wait_reported,
+    click_id = click_id,
+    rect = rect,
+    centre = centre,
+    hover_in_view = hover_in_view,
+    pin_key = pin_key,
     hold = hold,
     hover = hover,
     click = click,
@@ -375,6 +480,22 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     # The tab's chromote session, for input the helpers above do not cover (other mouse buttons, touch gestures).
     session = session
   )
+}
+
+# Writes `...` (HTML tags) into a page file in a temporary folder, to open with `local_page()`. The file goes when the
+# calling test ends. `dir` is the body's text direction ("rtl").
+page_file <- function(..., dir = NULL, .env = parent.frame()) {
+  file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
+  htmltools::save_html(
+    htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", dir = dir, ...)),
+    file
+  )
+  file
+}
+
+# Puts `x` at a fixed spot of a page made with `page_file()`: `place(x, "left: 40px; top: 40px;")`.
+place <- function(x, style) {
+  htmltools::div(style = paste("position: absolute;", style), x)
 }
 
 # Waits until the app in the background process `app` answers at `url`, for at most the shared limit; false when it

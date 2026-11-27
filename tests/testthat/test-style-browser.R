@@ -1,8 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("bslib")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # The look of a style in a real browser: the page's preset and theme together (a page theme once sat on :root, where the
 # engine took it for inherited and a page preset overwrote it), a tag's own style against the page's, and the class.
@@ -156,7 +152,14 @@ open_tip <- function(page, id, click = FALSE) {
   page$settle(0.3)
   expect_true(bench_close_tips(page))
   page$evaluate("window.__animations = []; 0")
-  shown <- if (click) page$click(paste0("#", id)) else page$hover(paste0("#", id))
+  if (click) {
+    page$click(paste0("#", id), wait = 0)
+    expect_true(page$wait_open())
+    page$settle()
+    shown <- page$shown()
+  } else {
+    shown <- page$hover(paste0("#", id))
+  }
   info <- jsonlite::fromJSON(
     page$evaluate(sprintf(
       paste0(

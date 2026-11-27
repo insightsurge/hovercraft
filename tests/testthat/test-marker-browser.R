@@ -1,8 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("bslib")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # Markers in a real browser: the line each preset draws for an underline (and the nearest preset winning), the wave in
 # the text's own colour, an explicit line beating the preset, no shift in the tag's box, the pointer, the contrast in

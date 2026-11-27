@@ -1,12 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser("DT")
 
 # A row's long form opens on hover or pin. The engine reads it from the nearest tagged ancestor, so a cell with a tip of
 # its own must say it has no long form, or it shows its row's (on hover) or warns that it cannot pin (on pin).

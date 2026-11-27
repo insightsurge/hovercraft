@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # The test bench itself in a browser: every tab loads alone and together with nothing on the console, the log records
@@ -57,10 +44,10 @@ describe("the test bench in a browser", {
     page$evaluate("document.getElementById('spot-HC-006').scrollIntoView({ block: 'center', behavior: 'instant' }); 0")
     page$settle(0.1)
     page$hover("#lay-touch-1")
-    page$press("p")
-    page$hover("#lay-touch-2")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$log_has("tip", "lay_touch_1_tip", state = "pinned", since = since))
+    page$hover("#lay-touch-2")
+    page$press("p", wait = 0)
     expect_true(page$log_has("tip", "lay_touch_2_tip", state = "pinned", since = since))
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('.%s-pin:not([hidden])').length === 2",

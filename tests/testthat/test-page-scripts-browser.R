@@ -1,20 +1,8 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # The page scripts of the interim branch (hovercraft #149): the key announcements as a list of keys, and a More button
 # that does not stay on a plain hint. Static pages, no Shiny.
 describe("the page scripts on a static page", {
-  page_file <- function(..., .env = parent.frame()) {
-    file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
-    htmltools::save_html(
-      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", ...)),
-      file
-    )
-    file
-  }
-  place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
   keys_of <- function(page, id) {
     page$evaluate(sprintf("document.getElementById('%s').getAttribute('aria-keyshortcuts')", id))
   }
@@ -156,7 +144,7 @@ describe("the page scripts on a static page", {
     page$evaluate(
       "(() => { const box = [...document.querySelectorAll('.hc-tip-pin:not([hidden])')].find((b) => b.textContent.includes('Short one')); const r = box.getBoundingClientRect(); [...document.querySelectorAll('.hovercraft-more-strip-button')].find((b) => { const q = b.getBoundingClientRect(); return q.left >= r.left && q.right <= r.right && q.top >= r.top && q.bottom <= r.bottom; }).focus(); })()"
     )
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until("document.querySelectorAll('.hc-tip-pin:not([hidden])').length === 1"))
     expect_true(page$wait_until(
       "document.querySelector('.hc-tip-pin:not([hidden])').textContent.includes('Short two')"
@@ -301,11 +289,6 @@ describe("the page scripts in a Shiny app", {
     init = "window.__warns = []; const w = console.warn; console.warn = (...a) => { window.__warns.push(a.join(' ')); w.apply(console, a); };"
   )
   open_pins <- "[...document.querySelectorAll('.hc-tip-pin:not([hidden])')]"
-  pin_key <- function(selector) {
-    expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", selector)))
-    page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-    page$press("p", wait = 0.2)
-  }
   pin_tag <- function(id) {
     page$evaluate(sprintf("window.Hovercraft.pin(document.getElementById('%s'), { by: 'reader', via: 'key' }); 0", id))
   }
@@ -364,11 +347,11 @@ describe("the page scripts in a Shiny app", {
   it("puts a table row's More button on the row's own box when its pool closes an older row", {
     # The table's pool allows one row; the app's allows two. Row 1, then the plain tag, then row 2: row 1 closes while
     # row 2 opens, and the button of row 2 must land on row 2's box, not on the plain tag's.
-    pin_key("#dt tbody tr[data-hovercraft-tip-id=\"dt/row/1\"]")
+    page$pin_key("#dt tbody tr[data-hovercraft-tip-id=\"dt/row/1\"]")
     expect_true(page$wait_until(sprintf("%s.some((b) => b.textContent.includes('Owls'))", open_pins)))
     pin_tag("pl")
     expect_true(page$wait_until(sprintf("%s.some((b) => b.textContent.includes('Plain pinned'))", open_pins)))
-    pin_key("#dt tbody tr[data-hovercraft-tip-id=\"dt/row/2\"]")
+    page$pin_key("#dt tbody tr[data-hovercraft-tip-id=\"dt/row/2\"]")
     expect_true(page$wait_until(sprintf(
       "%s.some((b) => b.textContent.includes('Foxes')) && !%s.some((b) => b.textContent.includes('Owls'))",
       open_pins,
@@ -387,7 +370,7 @@ describe("the page scripts in a Shiny app", {
   })
 
   it("gives the More button of an in-place panel the colours of the panel's box", {
-    pin_key("#dtp tbody tr[data-hovercraft-tip-id=\"dtp/row/1\"]")
+    page$pin_key("#dtp tbody tr[data-hovercraft-tip-id=\"dtp/row/1\"]")
     expect_true(page$wait_until(
       "document.querySelector('#dtp [data-hovercraft-panel] .hovercraft-more-strip-button') !== null"
     ))
