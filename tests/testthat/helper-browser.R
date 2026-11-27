@@ -120,6 +120,9 @@ wait_polls <- function(check, seconds, poll = 0.05, holds = 2L) {
 # closed when the calling test ends, pass or fail.
 local_page <- function(html_file, env = parent.frame(), init = NULL) {
   session <- chromote::ChromoteSession$new(parent = test_browser(), width = 900, height = 700)
+  # Motion is on by default, whatever the machine says: the macOS and Windows CI runners ask for reduced motion, and
+  # the engine honours it, so no tip would animate there. Tests of the reduced case set it with `emulate()`.
+  session$Emulation$setEmulatedMedia(features = list(list(name = "prefers-reduced-motion", value = "no-preference")))
   # A close that fails (Chrome died meanwhile) must not hide the error that ended the test.
   withr::defer(
     tryCatch(if (session$parent$is_active()) session$close(), error = function(e) NULL),

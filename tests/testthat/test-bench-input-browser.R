@@ -73,6 +73,9 @@ describe("the bench's input scenarios", {
       page$mouse(890, 690)
       expect_true(page$wait_closed(), info = button)
     }
+    # On Windows a middle click starts Chrome's autoscroll, which takes the next mouse moves (no hover reached the
+    # item in #102's CI); a left click on empty space ends it, as a reader's next click would.
+    press_button(page, c(890, 690), "left")
 
     since <- page$mark()
     page$hover("#inp-travel")
