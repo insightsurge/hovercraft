@@ -19,7 +19,35 @@ paths:
   purpose, and say so in the pull request.
 - Coverage has a lower limit, set in `DESCRIPTION` (`Config/quality-gate/coverage`). Don't lower it.
 
-- **Browser tests** drive headless Chrome through chromote, with Chrome's profile in `tempdir()`. They skip on CRAN
-  and where Chrome is missing. A Shiny app under test runs in a background R process (callr).
+- **Browser tests** drive headless Chrome through chromote. They skip on CRAN and where Chrome is missing. A Shiny app
+  under test runs in a background R process (callr).
+  - **One Chrome per test process, shared** by the files that process runs. `local_page()` opens a tab in it, closed
+    when the test ends; never start a Chrome in a test. Its profile and temporary files are in `tempdir()`. A Chrome
+    whose process has ended is replaced when a test asks for it; after 2 replacements in a run the browser tests skip
+    with a message instead of looping.
+  - **One wait limit,** `browser_timeout` (30 s), for every browser wait; starting Chrome gets 60 s. A wait that passes
+    returns at once, so a long limit costs nothing on a fast machine. No wait has a shorter limit of its own, except
+    `hover()`, which waits for the engine's own delay at most.
+  - **No fixed sleeps.** Wait for the signal the test needs: `page$wait_until()` for a DOM state or value,
+    `page$settle()` after an action that redraws (the page is quiet and Shiny is idle), `page$wait_open()` and
+    `page$wait_closed()` for tips. Put each wait in `expect_true()`, so a timeout fails the test. `page$hold()` is for
+    what no signal can tell, that nothing happens or that the engine's own timer has run out; give it a comment saying
+    which.
+  - **Apps under test** start through `start_app()`, or `wait_for_app()` after `callr::r_bg()`, with the same limit,
+    and stop with `withr::defer(app$kill())` right after they start, pass or fail.
+  - **Click what Shiny can redraw in one step:** `page$click_now(selector)` finds and clicks in the page, while
+    `page$click()` and `mouse_at()` read a position first and press there, so a redraw in between misses.
+  - Each file runs on its own: files run in parallel, in any order, so a file never relies on another's Chrome tabs,
+    apps or state.
+  - **One browser run at a time.** Two test runs at once (two sessions, or a gate and a test file) slow each other and
+    make the waits that are right look flaky: start one, wait for it to end, then start the next.
+  - **A short-lived state** (loading, a flash, an animation) is recorded in the page or held by the test (the app waits
+    for a signal the test sends, such as a file it deletes); it is never polled after a `hover()`, `press()` or
+    `click()`, and an app's own `Sys.sleep()` is not a state to wait for. (Older tests that still poll are listed in
+    #175.)
+  - **A frame-by-frame comparison** of positions or opacities allows for one dropped frame (compare with the frame
+    before as well), and puts the worst frames in the failure message. Do not widen a number to pass.
+  - **A test that defines or reads templates** (`tip_define()`, `tip_known()`) starts with `tip_reset()` and defers one
+    (`withr::defer(tip_reset())`), and never relies on another file having cleaned up.
 - **The engine's shared cases** (`inst/engine/placeholders.json`) are run through the R parser; a new placeholder rule
   needs a case there first, in the engine's source, not here.

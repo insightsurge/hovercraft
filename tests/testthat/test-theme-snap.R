@@ -18,13 +18,13 @@ describe("the theme errors and warnings", {
     expect_snapshot(tip_as_theme(3), error = TRUE)
   })
   it("warn about low contrast with the pair and the ratio", {
-    expect_snapshot(invisible(tip_theme(light = list(bg = "#ffffff", ink = "#dddddd"))))
-    expect_snapshot(invisible(tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", code_bg = "#7a9cc6"))))
+    expect_snapshot(invisible(tip_theme(light = list(bg = "#ffffff", text = "#dddddd"))))
+    expect_snapshot(invisible(tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff", code_bg = "#7a9cc6"))))
   })
   it("print a theme", {
     expect_snapshot(tip_theme(
-      light = list(bg = "navy", ink = "white", radius = 8),
-      dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+      light = list(bg = "navy", text = "white", radius = 8),
+      dark = list(bg = "#9ec5fe", text = "#0b1f3a")
     ))
     expect_snapshot(tip_theme())
   })

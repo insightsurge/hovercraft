@@ -45,6 +45,15 @@ keep their own. A tag that takes more than words, such as the \code{div} Shiny p
 as a whole: put the marker on the label tag, or on the words, when that is what you mean.
 }
 
+\section{While the tip is open}{
+
+A marked tag is highlighted while its tip shows, so a reader sees which marker the tip belongs to: a soft grey tint
+on the words of an underline and on the tag of an icon or a corner (a table cell, a label), and a glow round a
+\code{\link[bslib:value_box]{bslib::value_box()}}, which has a background of its own. It goes when the tip closes. There is no argument for it,
+and a tag with no marker is not highlighted. It follows the tip engine's open mark on the tag, for a tip that shows
+on hover or focus and for one that is pinned.
+}
+
 \section{Words that wrap}{
 
 For an underline, the words of a block tag (a \code{td}, a \code{p}, a \code{div} and so on) are put in a \code{span} inside the tag, so
@@ -69,13 +78,16 @@ tip_on(
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

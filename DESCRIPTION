@@ -1,6 +1,6 @@
 Package: hovercraft
 Title: Tooltips for 'Shiny' and 'bslib' Pages
-Version: 0.1.0
+Version: 0.0.90
 Authors@R: 
     person(
       "Harsh", "Verma",
@@ -28,11 +28,15 @@ Suggests:
     DT,
     httpuv,
     knitr,
+    later,
     lifecycle,
     pkgload,
+    promises,
     reactable,
     rmarkdown,
     shiny,
+    shinycssloaders,
+    shinyjs,
     testthat (>= 3.1.7),
     withr
 Config/quality-gate/coverage: 70

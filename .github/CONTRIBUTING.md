@@ -8,8 +8,9 @@ To change something yourself, read the workflow below and open a pull request.
 - **R**: the current release is recommended. The minimum version is in `DESCRIPTION`.
 - **Development packages**: from the package root, run `pak::local_install_dev_deps()`.
 - **Air**, the formatter for R code: <https://posit-dev.github.io/air/>. The settings are in `air.toml`.
-- **Biome**, the formatter and linter for JavaScript and CSS in `inst/`: <https://biomejs.dev>. The settings are in
-  `biome.json`.
+- **Biome**, the formatter and linter for JavaScript and CSS in `inst/` and for the test bench's scripts and styles
+  (`tests/testthat/apps/testbench/www`): <https://biomejs.dev>. The settings are in `biome.json`. The bench's files are
+  checked with `biome ci .`; the quality gate and CI check only `inst/` until launchR's Biome step is widened.
 - **Google Chrome or Chromium**, for the browser tests.
 - If you use renv, set up your own library; the repository does not ship one.
 
@@ -84,6 +85,52 @@ air format .           # R code style
 Tests use testthat 3rd edition, one test file per R file. Add a test for every new behaviour and every fixed bug, and keep example
 data made up.
 Browser and snapshot tests that CRAN skips live in their own files and run in CI.
+
+## The studio
+
+hovercraft studio (`inst/studio/`, opened by `tip_studio()`) shows every tip feature on one page, one numbered plate
+per feature. A pull request that changes an export or an argument updates the studio in the same pull request.
+
+- **Files.** `app.R` starts the app. Shiny loads every file in `R/` first: the shared helpers in `R/shared-*.R` (code
+  as text, running it, the plate frame and its margin, the test steps and their proofs, the inputs log), one file
+  per plate in `R/plate-<id>.R`, the made-up data in `R/data.R` and the page in `R/page.R`. `www/shared.css` and
+  `www/shared.js` go with the shared helpers; `www/studio.css` and `www/studio.js` are the page's own look, its phone
+  layout and Guide me.
+- **One source of truth.** Each plate builds its R code as text from its choices (`<id>_code()`); the margin shows
+  that text and the figure is the same text, run with only the package's exports in reach. A plate's server code
+  (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the same way.
+  Code that would fail in a reader's app fails in the studio too. The one exception is the page's look on the Start
+  plate: a dependency loads once per page, so the studio writes the attribute and variable that
+  `use_hovercraft(style = )` writes, with the names from the engine's `tip.json`.
+- **Test steps tick from real inputs.** A step is `step(text, bug, target, proof)`; a proof names the Shiny input that
+  shows the step was done (`on_hint()`, `on_pin()`, `on_copy()`). By default a proof counts only the reader's own
+  actions (`by = "reader"`), so a tip the page closes and pins again never ticks a step. A step without a proof is
+  ticked by hand; a step with one is ticked only by its proof.
+- **App code** calls other packages as `pkg::fn()`, and nothing in it writes an attribute or class name of the tip
+  engine: they come from the engine's `tip.json`.
+- **Tests:** `tests/testthat/test-studio.R` (the launcher, the page, every plate's code for every combination of its
+  choices, the proofs)
+  and `test-studio-browser.R` (the app in Chrome).
+
+## The test bench
+
+The test bench (`tests/testthat/apps/testbench/`) is one Shiny app with the Shiny-practice checks, a tab of
+JavaScript-driven UI and a spot for every behaviour scenario (HC-001 to HC-077). A person runs it by hand for a
+walkthrough, and the browser tests start it with `start_bench()` (`tests/testthat/helper-bench.R`). Its `README.md`
+says how to run it and which settings its address takes.
+
+- **Files.** `R/contents.R` lists the tabs; each tab `<id>` is `tab_<id>_ui()` and `tab_<id>_server()` in
+  `R/tab-<id>.R`. `scenarios.csv` lists the scenarios and the tab of each; `spot()` in `R/shared-spot.R` draws one.
+- **Ids** in a tab start with the tab's id, so all tabs can share a page. The practice tab keeps the ids its test uses.
+- **Page-wide settings** of `use_hovercraft()` (keys, pins, labels, style) go in the address, never in a tab: the page
+  reads them once.
+- **The log** (`www/bench-log.js`) keeps every tip event, input and custom message in `window.benchLog`. A test reads it
+  with `page$log_has()`, which waits, and checks console errors with `page$problems()`.
+- **Tests:** `test-bench.R` (the list and the spots match, every tab draws and starts its server), `test-bench-browser.R`
+  (every tab in Chrome), `test-bench-js-browser.R`, `test-practice-browser.R`, `test-practice-table-browser.R` and
+  `test-leak-browser.R` (the last two use the bench's tabs `updates` and `leaks`, which have no scenarios); and one `test-bench-<tab>-browser.R`
+  per scenario tab, each scenario's test ending with `expect_bench_clean()` (`helper-bench-scenarios.R`). A scenario's
+  `tests` column in `scenarios.csv` names the file that covers it.
 
 ## NEWS.md
 

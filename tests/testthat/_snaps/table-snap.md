@@ -68,8 +68,8 @@
       tip_table(dt(), rows = "x", id = "two words")
     Condition
       Error in `tip_table()`:
-      ! `id` is not right: Must be one non-empty string without whitespace.
-      i Give one non-empty string with no spaces, such as `ns("scores")`, or `NULL`.
+      ! `id` is not right: Must be one non-empty string without whitespace or a colon.
+      i Give one non-empty string with no spaces and no `:` (Shiny reads what follows a colon as the type of an input), such as `"scores"`, or `NULL`.
 
 ---
 
@@ -124,6 +124,97 @@
       Error in `tip_table()`:
       ! `marker` has no cell or header cell to mark.
       i A row takes no marker. Give `cells` or `headers` some words too.
+
+# the tip_table() errors / say what a pin and the events of a row need
+
+    Code
+      tip_table(dt(), rows = tip_spec("x", pin = "click"), id = "t")
+    Condition
+      Error in `tip_table()`:
+      ! `pin` is "click", but a click on a table row selects it, so it cannot pin.
+      i Give `pin = TRUE`: a reader pins a row's tip with the pin handle in its corner or with the pin key.
+
+---
+
+    Code
+      tip_table(dt(), rows = tip_spec("x", pin = TRUE))
+    Condition
+      Error in `tip_table()`:
+      ! `pin` needs an `id`: the table's inputs are named after it.
+      i Give `tip_table()` an `id`, such as `id = "scores_tips"`.
+
+---
+
+    Code
+      tip_table(dt(), cells = list(wins = tip_spec("x", pin = TRUE)), id = "t")
+    Condition
+      Error in `tip_table()`:
+      ! `cells[["wins"]]` has a pin: only rows pin for now.
+      i Give `pin` to the `tip_spec()` of `rows`, or leave it out.
+
+---
+
+    Code
+      tip_table(dt(), rows = tip_spec("x", events = "hint"))
+    Condition
+      Error in `tip_table()`:
+      ! `events` needs an `id`: the table's inputs are named after it.
+      i Give `tip_table()` an `id`, such as `id = "scores_tips"`.
+
+---
+
+    Code
+      tip_table(dt(), headers = list(wins = tip_spec("x", events = "hint")), id = "t")
+    Condition
+      Error in `tip_table()`:
+      ! `headers[["wins"]]` has events: only rows send events for now.
+      i Give `events` to the `tip_spec()` of `rows`, or leave it out.
+
+---
+
+    Code
+      tip_table(dt(), rows = "x", id = "t", pin = TRUE)
+    Condition
+      Error in `tip_table()`:
+      ! `pin` moved: `tip_table()` no longer takes it.
+      i Give it to the `tip_spec()` of `rows`: `rows = tip_spec("...", pin = ...)`.
+
+---
+
+    Code
+      tip_table(dt(), cells = list(wins = tip_spec("x", more = tip_more("y", on = "pin"))),
+      rows = tip_spec("x", pin = TRUE), id = "t")
+    Condition
+      Error in `tip_table()`:
+      ! `cells[["wins"]]` sets `more` with `tip_more(on = "pin")`, but this tip cannot pin.
+      i Only the tips of `rows` can pin, with `tip_spec(pin = TRUE)`. Or use `on = "hover"` or `"button"`.
+
+# the tip_table() errors / say what a spec's events need
+
+    Code
+      tip_spec("x", events = "pin")
+    Condition
+      Error in `tip_spec()`:
+      ! `events` asks for "pin", and the tip has no pin.
+      i Give `pin` as `TRUE` or `"click"`, or ask only for "hint".
+
+# the tip_table() errors / say what a column list and a template name must be
+
+    Code
+      tip_table(dt(), cells = list(wins = "a", wins = "b"))
+    Condition
+      Error in `tip_table()`:
+      ! `cells` names a column more than once: "wins".
+      i Give each column one entry. Put the words of both in one `tip_spec()`, or in one string.
+
+---
+
+    Code
+      tip_table(dt(), rows = "row_tip")
+    Condition
+      Error in `tip_table()`:
+      ! `rows` is "row_tip", the name of a template made with `tip_define()`; a table cannot use a name.
+      i Give the template itself: a `tip_template()`, such as `rows = tip_template(tip_text("..."))`.
 
 # the tip_table() errors / say what a style must be
 

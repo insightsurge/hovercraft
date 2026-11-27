@@ -7,14 +7,14 @@
 # role -> the engine's variable, after `--<prefix>-`.
 tip_roles <- c(
   bg = "tip-bg",
-  ink = "tip-ink",
-  line = "tip-line",
+  text = "tip-ink",
+  border = "tip-line",
   code_bg = "tip-code-bg",
   radius = "tip-radius",
   shadow = "tip-shadow",
   font = "tip-font"
 )
-tip_colour_roles <- c("bg", "ink", "line", "code_bg")
+tip_colour_roles <- c("bg", "text", "border", "code_bg")
 
 # What the engine draws by default on a bslib page, for a role the theme leaves out when a pair is measured: a shade of
 # the page, Bootstrap's tertiary background with the page's own text colour, in the page's mode (a little darker than a
@@ -23,8 +23,8 @@ tip_colour_roles <- c("bg", "ink", "line", "code_bg")
 # light and under `[data-bs-theme="dark"]`. A page without bslib gets the engine's own fallbacks, a little different but
 # as readable.
 tip_assumed <- list(
-  light = c(bg = "#f8f8f8", ink = "#1d1f21"),
-  dark = c(bg = "#292d34", ink = "#dee2e6")
+  light = c(bg = "#f8f8f8", text = "#1d1f21"),
+  dark = c(bg = "#292d34", text = "#dee2e6")
 )
 
 # The page colour of each mode that a translucent fill is measured over: bslib's default `--bs-body-bg`.
@@ -67,6 +67,17 @@ tip_roles_clean <- function(x, where, call) {
   if (is.null(x)) {
     return(list())
   }
+  renamed <- c(ink = "text", line = "border")
+  old <- intersect(names(x), names(renamed))
+  if (length(old)) {
+    tip_theme_abort(
+      c(
+        "{.arg {where}} has {.val {old}}, which {?is no longer a role/are no longer roles}.",
+        i = paste0("Use ", paste0("{.val ", renamed[old], "}", collapse = " and "), " instead.")
+      ),
+      call = call
+    )
+  }
   unknown <- setdiff(names(x), names(tip_roles))
   if (length(unknown)) {
     tip_theme_abort(
@@ -97,10 +108,10 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' light and for dark. A role left out keeps what the page gives: the tip reads Bootstrap's variables where the page has
 #' them (bslib), so a page that already has a `bslib::bs_theme()` needs no theme, and its tips follow light and dark on
 #' their own. Use a theme when the tips must look different from the page, or when the page has no bslib. Give the
-#' result to [tip_dependency()] once, in the page's UI, or to [tip_on()] for one tag, as `style =`.
+#' result to [use_hovercraft()] once, in the page's UI, or to [tip_on()] for one tag, as `style =`.
 #'
-#' The roles are `bg` (the tip's fill), `ink` (its words), `line` (its border, seen in forced-colours mode and in a tip
-#' that stays open), `code_bg` (behind code), `radius` (the corner), `shadow` and `font`. Colours may be names, hex,
+#' The roles are `bg` (the tip's fill), `text` (its words), `border` (its border, seen in forced-colours mode and in a
+#' tip that stays open), `code_bg` (behind code), `radius` (the corner), `shadow` and `font`. Colours may be names, hex,
 #' [grDevices::rgb()] output, `"rgba(0, 0, 0, 0.8)"` text or three numbers from 0 to 255. A value that is a CSS
 #' variable, `"--team-blue"` or `"var(--team-blue)"`, is read by the browser where the page defines it; R cannot check
 #' it. A theme can also be a [bslib::bs_theme()] or a plain list, see [tip_style()].
@@ -111,7 +122,7 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' opaque: with a translucent `bg` (`"rgba(0, 0, 0, 0.8)"`) the tip has no arrow.
 #'
 #' @section Contrast warnings:
-#' The words of a tip must be readable on its fill. For each mode, the `ink` on the `bg` (and on the `code_bg`, if you
+#' The words of a tip must be readable on its fill. For each mode, the `text` on the `bg` (and on the `code_bg`, if you
 #' give one) is measured, and a ratio below 4.5:1, the usual level for text, gives a warning of class
 #' `hovercraft_contrast`; the colours are kept. A role you leave out is taken to be what Bootstrap's default theme
 #' gives, a shade of the page: Bootstrap's tertiary background with the page's text colour (a `#f8f8f8` fill with
@@ -122,13 +133,13 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #' silence only them:
 #' ```r
 #' withCallingHandlers(
-#'   tip_theme(light = list(bg = "#ffffff", ink = "#dddddd")),
+#'   tip_theme(light = list(bg = "#ffffff", text = "#dddddd")),
 #'   hovercraft_contrast = function(w) invokeRestart("muffleWarning")
 #' )
 #' ```
 #'
 #' @param ... Must be empty. It makes a misspelt argument an error.
-#' @param light,dark Named lists of roles, or `NULL`. Roles: `bg`, `ink`, `line`, `code_bg`, `radius`, `shadow`,
+#' @param light,dark Named lists of roles, or `NULL`. Roles: `bg`, `text`, `border`, `code_bg`, `radius`, `shadow`,
 #'   `font`. `radius` is a number of pixels or a length such as `"0.5rem"`; `shadow` is CSS `box-shadow` text or
 #'   `"none"`; `font` is CSS `font-family` text. Values may only hold letters, digits, spaces and
 #'   `, . ' " ( ) # % _ + * -`.
@@ -137,15 +148,15 @@ new_tip_theme <- function(light = list(), dark = list(), mode = "auto", tokens =
 #'   the page says. A tip is drawn at the page level, so a `data-bs-theme` on a smaller part of the page does not
 #'   reach it.
 #'
-#' @returns A `hovercraft_theme` object, to give as `style =` to [tip_dependency()] or [tip_on()], or to
+#' @returns A `hovercraft_theme` object, to give as `style =` to [use_hovercraft()] or [tip_on()], or to
 #'   [tip_style()]. Its fields are internal; pass the object on.
 #' @family tooltips
 #' @examples
 #' tip_theme()
-#' tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 8))
+#' tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff", radius = 8))
 #' tip_theme(
-#'   light = list(bg = "#1b3a6b", ink = "#ffffff"),
-#'   dark = list(bg = "#9ec5fe", ink = "#0b1f3a"),
+#'   light = list(bg = "#1b3a6b", text = "#ffffff"),
+#'   dark = list(bg = "#9ec5fe", text = "#0b1f3a"),
 #'   mode = "auto"
 #' )
 #' tip_theme(light = list(bg = "--brand-blue", font = "Georgia, serif"))
@@ -193,10 +204,10 @@ tip_theme_contrast <- function(theme, call) {
   found <- list()
   for (mode in if (theme$mode == "auto") c("light", "dark") else theme$mode) {
     roles <- tip_theme_roles(theme, mode)
-    if (!length(intersect(names(roles), c("bg", "ink", "code_bg")))) {
+    if (!length(intersect(names(roles), c("bg", "text", "code_bg")))) {
       next
     }
-    ink <- roles$ink %||% tip_assumed[[mode]][["ink"]]
+    ink <- roles$text %||% tip_assumed[[mode]][["text"]]
     # A translucent fill shows over the page of its mode, and a translucent code background over the fill.
     bg <- roles$bg %||% tip_assumed[[mode]][["bg"]]
     if (!tip_is_var(bg)) {
@@ -218,7 +229,7 @@ tip_theme_contrast <- function(theme, call) {
     ratio <- tip_contrast(pair$ink, pair$fill)
     if (ratio < 4.5) {
       said <- sprintf(
-        "In %s mode the tip's {.field ink} {.code %s} on its {.field %s} {.code %s} has contrast %s:1.",
+        "In %s mode the tip's {.field text} {.code %s} on its {.field %s} {.code %s} has contrast %s:1.",
         paste(pair$modes, collapse = " and "),
         pair$ink,
         pair$back,
@@ -235,7 +246,7 @@ tip_theme_contrast <- function(theme, call) {
   invisible()
 }
 
-# The theme as <style> text, for the tags under `scope`: the light roles on `scope`, and the dark roles that differ
+# The theme as CSS text, for the tags under `scope`: the light roles on `scope`, and the dark roles that differ
 # under data-bs-theme="dark" (and under the visitor's own dark setting when the page names no theme). A page's theme is
 # scoped to `body`, never `:root`: the engine takes a variable it finds on the page's root as inherited, so a page
 # preset would overwrite a theme written there. A tag's theme is scoped to the tag's own marker.
@@ -274,7 +285,7 @@ tip_theme_css <- function(theme, scope = "body") {
       }
     )
   )
-  if (nzchar(body)) paste0("<style>\n", body, "</style>") else ""
+  body
 }
 
 # A font that is a bslib variable (a Bootswatch theme's `var(--bs-font-sans-serif)`) gets a fallback: a page with no
@@ -351,19 +362,19 @@ tip_theme_from_bslib <- function(x, call) {
   shade <- function(fill, ink, page) {
     read("bg", vars[[fill]]) %||% tip_page_shade(ink, read("bg", vars[[page]]))
   }
-  light_ink <- read("ink", vars[["body-color"]])
-  dark_ink <- read("ink", vars[["body-color-dark"]])
+  light_ink <- read("text", vars[["body-color"]])
+  dark_ink <- read("text", vars[["body-color-dark"]])
   light <- keep(list(
     bg = shade("body-tertiary-bg", light_ink, "body-bg"),
-    ink = light_ink,
-    line = read("line", vars[["border-color"]]),
+    text = light_ink,
+    border = read("border", vars[["border-color"]]),
     radius = read("radius", vars[["border-radius"]]),
     font = read("font", tip_font_fallback(vars[["font-family-base"]]))
   ))
   dark <- keep(list(
     bg = shade("body-tertiary-bg-dark", dark_ink, "body-bg-dark"),
-    ink = dark_ink,
-    line = read("line", vars[["border-color-dark"]])
+    text = dark_ink,
+    border = read("border", vars[["border-color-dark"]])
   ))
   theme <- new_tip_theme(light, dark, "auto")
   tip_theme_contrast(theme, call)

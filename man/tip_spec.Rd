@@ -4,7 +4,17 @@
 \alias{tip_spec}
 \title{A tip with settings of its own, for a table}
 \usage{
-tip_spec(content, ..., style = NULL, placement = NULL, marker = NULL)
+tip_spec(
+  content,
+  ...,
+  style = NULL,
+  placement = NULL,
+  to = NULL,
+  marker = NULL,
+  more = NULL,
+  pin = NULL,
+  events = NULL
+)
 }
 \arguments{
 \item{content}{The words of the tip (markdown, with \code{{{ column }}} placeholders for \code{rows} and \code{cells}), or a
@@ -14,14 +24,43 @@ tip_spec(content, ..., style = NULL, placement = NULL, marker = NULL)
 
 \item{style}{How this target's tips look, or \code{NULL} to take the table's: whatever \code{style} takes in \code{\link[=tip_on]{tip_on()}} (a
 preset name, a \code{\link[=tip_style]{tip_style()}}, a \code{\link[=tip_theme]{tip_theme()}} or a \code{\link[bslib:bs_theme]{bslib::bs_theme()}}). A row's own style also reaches the cells
-in that row that have none of their own, because the tip engine reads the nearest tagged element.}
+in that row that have none of their own, because the tip engine reads the nearest tagged element. A list of CSS
+variables (\code{tip_style(theme = list("--x" = ...))}) is for the whole page, so a spec refuses it with an error: give
+it to \code{\link[=use_hovercraft]{use_hovercraft()}}, or use the roles of \code{\link[=tip_theme]{tip_theme()}}.}
 
 \item{placement}{Where this tip shows: \code{"auto"}, \code{"top"}, \code{"bottom"}, \code{"left"} or \code{"right"}, or \code{NULL} to take the
 table's. A cell or header cell with no placement of its own follows the table's, not its row's.}
 
+\item{to}{\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}} Where this target's pinned tip is drawn: \code{NULL} or \code{"float"} (the
+default) for a tip that floats beside the row, or \code{"in_place"} for a panel under the row that holds what any
+pinned tip holds (its blocks, the long form, a \code{\link[=tip_output]{tip_output()}}). The hover tip still floats at \code{placement}. In place
+needs a pin (\code{pin = TRUE}), the \code{rows} target and the table's \code{id} (\code{\link[=tip_table]{tip_table()}} says which is missing), and it
+opens by the pin handle or the pin key only. Any other string is an error. See \code{\link[=tip_table]{tip_table()}} for what it does when
+the table sorts, filters and pages, and for what is not covered.}
+
 \item{marker}{The visible cue for this target's cells or header cells: \code{"corner"}, \code{"none"} to take the marker off
 a column when the table has one, or \code{NULL} (the default) to take the table's. A spec for \code{rows} takes none: a row
 is not marked. See the \code{marker} argument of \code{\link[=tip_table]{tip_table()}}.}
+
+\item{more}{Extra content for the long form of this tip, or \code{NULL} (the default) for none: words (markdown, with \code{{{ column }}} placeholders for \code{rows} and \code{cells}), a \code{\link[=tip_template]{tip_template()}}, or a \code{\link[=tip_more]{tip_more()}} that also says when the
+long form shows. \code{NA} and \code{""} mean no long form. Words and a template are the same as \code{tip_more()} with its
+default: a "More" button in the tip opens the long form, in a row, a cell and a header cell alike. \code{tip_more(on = "pin")} and \code{tip_more(pin = TRUE)} work only in the spec for \code{rows} of a \code{\link[=tip_table]{tip_table()}} with \code{pin = TRUE}, the one
+target that can pin; anywhere else in a table they stop with an error. \code{tip_more(on = "click")} stops with an
+error in a table, where a click selects a row. \code{tip_more(as = , where = )} choose the look and side of the
+control, a button or a text link, as in \code{\link[=tip_on]{tip_on()}}. In a table a cell does not inherit the long form of its row: a
+cell with no \code{more} of its own shows its short tip only, and a cell's own \code{more} replaces the row's.}
+
+\item{pin}{Whether a reader can keep this target's tip open: \code{NULL} (the default) or \code{FALSE} for no pin, or \code{TRUE}
+for a pin handle in the corner of the tip and a pin key, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} pin for now: a
+spec with a pin given to \code{cells} or \code{headers} stops with "only rows pin for now". A click on a row selects it in
+both widgets, so the \code{"click"} pin of \code{\link[=tip_on]{tip_on()}} is refused in a table. A pin needs the table's \code{id}. With
+\code{pin = TRUE}, \code{tip_more(on = "pin")} opens the long form when the row is pinned.}
+
+\item{events}{The Shiny inputs this target's tips send: one or more of \code{"hint"}, \code{"pin"} and \code{"copy"}, or \code{NULL} (the
+default) for none. \code{"pin"} and \code{"copy"} belong to a pinned tip, so asking for either without a \code{pin} stops with an
+error, as in \code{\link[=tip_on]{tip_on()}}. Only the tips of \code{rows} send them for now ("only rows send events for now"), and they need
+the table's \code{id}. The inputs belong to the table, one per event, not one per row: see the "Shiny inputs" section of
+\code{\link[=tip_table]{tip_table()}}.}
 }
 \value{
 An object of class \code{hovercraft_spec}, to give to \code{\link[=tip_table]{tip_table()}}.
@@ -43,8 +82,21 @@ DT::datatable(scores) |>
   tip_table(
     rows = "**{{ team }}**: {{ wins | number:0 }} wins",
     cells = list(
-      note = tip_spec("{{ note }}", style = "sober", placement = "right", marker = "corner")
+      note = tip_spec(
+        "{{ team }}",
+        more = tip_more("{{ note }}", on = "hover"),
+        style = "sober",
+        placement = "right",
+        marker = "corner"
+      )
     )
+  )
+
+# A row that can be pinned, and a Shiny input that says which row was pinned
+DT::datatable(scores) |>
+  tip_table(
+    rows = tip_spec("**{{ team }}**: {{ wins | number:0 }} wins", pin = TRUE, events = "pin"),
+    id = "scores_tips"
   )
 \dontshow{\}) # examplesIf}
 }
@@ -52,13 +104,16 @@ DT::datatable(scores) |>
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

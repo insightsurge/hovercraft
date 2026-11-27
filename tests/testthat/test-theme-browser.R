@@ -7,7 +7,7 @@ skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 # One page with a theme: a tip's fill and words in light mode, then after the page's own data-bs-theme says dark.
 theme_page <- function(dir, theme) {
   page <- bslib::page_fluid(
-    tip_dependency(style = theme),
+    use_hovercraft(style = theme),
     tip_on(htmltools::tags$button(id = "go", "Run"), "Runs the check")
   )
   path <- file.path(dir, "page.html")
@@ -18,8 +18,8 @@ theme_page <- function(dir, theme) {
 describe("a themed page", {
   dir <- withr::local_tempdir()
   theme <- tip_theme(
-    light = list(bg = "#1b3a6b", ink = "#ffffff", radius = 9),
-    dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+    light = list(bg = "#1b3a6b", text = "#ffffff", radius = 9),
+    dark = list(bg = "#9ec5fe", text = "#0b1f3a")
   )
   page <- local_page(theme_page(dir, theme), environment())
   look <- function() {

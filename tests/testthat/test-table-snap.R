@@ -28,6 +28,32 @@ describe("the tip_table() errors", {
     expect_snapshot(tip_table(dt(), rows = tip_spec("x", marker = "corner")), error = TRUE)
     expect_snapshot(tip_table(dt(), rows = "x", marker = "corner"), error = TRUE)
   })
+  it("say what a pin and the events of a row need", {
+    expect_snapshot(tip_table(dt(), rows = tip_spec("x", pin = "click"), id = "t"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = tip_spec("x", pin = TRUE)), error = TRUE)
+    expect_snapshot(tip_table(dt(), cells = list(wins = tip_spec("x", pin = TRUE)), id = "t"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = tip_spec("x", events = "hint")), error = TRUE)
+    expect_snapshot(tip_table(dt(), headers = list(wins = tip_spec("x", events = "hint")), id = "t"), error = TRUE)
+    expect_snapshot(tip_table(dt(), rows = "x", id = "t", pin = TRUE), error = TRUE)
+    expect_snapshot(
+      tip_table(
+        dt(),
+        cells = list(wins = tip_spec("x", more = tip_more("y", on = "pin"))),
+        rows = tip_spec("x", pin = TRUE),
+        id = "t"
+      ),
+      error = TRUE
+    )
+  })
+  it("say what a spec's events need", {
+    expect_snapshot(tip_spec("x", events = "pin"), error = TRUE)
+  })
+  it("say what a column list and a template name must be", {
+    expect_snapshot(tip_table(dt(), cells = list(wins = "a", wins = "b")), error = TRUE)
+    withr::defer(tip_reset())
+    tip_define(row_tip = tip_template(tip_text("{{ team }}")))
+    expect_snapshot(tip_table(dt(), rows = "row_tip"), error = TRUE)
+  })
   it("say what a style must be", {
     expect_snapshot(tip_table(dt(), rows = "x", style = "nope"), error = TRUE)
     expect_snapshot(tip_spec("x", style = "color: red"), error = TRUE)

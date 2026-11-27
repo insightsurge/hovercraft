@@ -1,6 +1,6 @@
 {
   "product": "hovercraft",
-  "version": "0.50.0",
+  "version": "0.60.0",
   "global": "Hovercraft",
   "prefix": "hovercraft",
   "css": "hc",
@@ -16,6 +16,10 @@
     "preset": "data-hovercraft-tip-preset",
     "arrow": "data-hovercraft-tip-arrow",
     "class": "data-hovercraft-tip-class",
+    "open": "data-hovercraft-tip-open",
+    "anchor": "data-hovercraft-tip-anchor",
+    "part": "data-hovercraft-tip-part",
+    "pins": "data-hovercraft-tip-pins",
     "more": "data-hovercraft-tip-more",
     "more_template": "data-hovercraft-tip-more-template",
     "more_on": "data-hovercraft-tip-more-on",
@@ -40,6 +44,13 @@
   },
   "class": {
     "pattern": "^-?[_a-zA-Z][_a-zA-Z0-9-]*$"
+  },
+  "anchor": {
+    "default": "item",
+    "values": [
+      "item",
+      "content"
+    ]
   },
   "more": {
     "on": {
@@ -286,7 +297,7 @@
         },
         "ids": {
           "type": "json",
-          "about": "The ids pinned after this event: [id] after a pin, [] after a close."
+          "about": "The ids pinned after this event, oldest first: [id] after a pin and [] after a close while the page keeps one pin (the default), up to ten when data-<prefix>-tip-pins says so. The pin a \"closed\" event closes is not in the list."
         },
         "reason": {
           "type": "enum",
@@ -301,7 +312,7 @@
             "host",
             "redraw"
           ],
-          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin, the element left the page, a layer around it closed (not sent by this build), a host command closed it, or the tip was drawn again with another set of host slots (\"redraw\", by \"data\": a \"pinned\" follows at once); null on a pin."
+          "about": "Why it closed: the same element again, Escape, the close button, a click away, another pin took its place (the oldest, when the page keeps several), the element left the page, a layer around it closed (not sent by this build), a host command closed it, or the tip was drawn again with another set of host slots (\"redraw\", by \"data\": a \"pinned\" follows at once); null on a pin."
         },
         "text": {
           "type": "string",
@@ -314,11 +325,11 @@
             "data",
             "host"
           ],
-          "about": "Who caused it: \"reader\"; \"data\" for a \"gone\" close when the element left the page; \"host\" when a host command pinned or closed the tip."
+          "about": "Who caused it: \"reader\" (also for a pin a window resize below 600 px closed as \"replaced\"); \"data\" for a \"gone\" close when the element left the page, and for a \"replaced\" close when the page came under 600 px with no resize (a scroll bar that came); \"host\" when a host command pinned or closed the tip."
         },
         "from": {
           "type": "id",
-          "about": "The id pinned before this step, or null."
+          "about": "The id pinned before this step, or null. With several pins: the id this pin replaced, when it is the same part's, else null."
         },
         "via": {
           "type": "enum",
@@ -327,7 +338,7 @@
             "key",
             "command"
           ],
-          "about": "How it was done: \"click\" or \"key\" by the reader, \"command\" by a host command; null when by is \"data\"."
+          "about": "How it was done: \"click\" or \"key\" by the reader, \"command\" by a host command; null when by is \"data\", and for a \"replaced\" close that a window narrowed below 600 px made (a phone keeps one sheet)."
         },
         "slots": {
           "type": "json",

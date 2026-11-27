@@ -40,20 +40,20 @@ inherit. It is also kept inside the window.}
 inherit.}
 }
 \value{
-A \code{hovercraft_style} object, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=tip_dependency]{tip_dependency()}}. Its fields are
+A \code{hovercraft_style} object, to give as \verb{style =} to \code{\link[=tip_on]{tip_on()}} or \code{\link[=use_hovercraft]{use_hovercraft()}}. Its fields are
 internal; pass the object on.
 }
 \description{
 \ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
 Bundles what makes a tip look the way it does: a preset (a named look), a theme (colours, corner and font), a class
 on the tip box, and how it enters and how big it is. Give the result as \verb{style =} to \code{\link[=tip_on]{tip_on()}} for one tag, or to
-\code{\link[=tip_dependency]{tip_dependency()}} for the whole page.
+\code{\link[=use_hovercraft]{use_hovercraft()}} for the whole page.
 A part left out is left alone: it is inherited from the page, or from the page's own bslib variables.
 }
 \details{
 A value set nearer the tip wins: a tag's \code{style} beats the page's. A theme is merged role by role, so a tag that sets
-only \code{bg} keeps the page's \code{ink}. A preset is replaced as a whole by the nearer one, and \code{"none"} clears an inherited
-preset. A theme beats a preset set at the same place or further out, role by role, so
+only \code{bg} keeps the page's \code{text}. A preset is replaced as a whole by the nearer one, and \code{"none"} clears an
+inherited preset. A theme beats a preset set at the same place or further out, role by role, so
 \code{tip_style("sober", theme = ...)} is sober with those roles changed; a preset set nearer the tip than a theme beats
 that theme.
 }
@@ -84,18 +84,18 @@ There is no \code{delay} argument: the tip engine reads the delay before a hint 
 
 \section{Themes on one tag}{
 
-A theme given to a tag sets the roles \code{bg}, \code{ink}, \code{line}, \code{code_bg}, \code{radius}, \code{shadow} and \code{font}. CSS variables
+A theme given to a tag sets the roles \code{bg}, \code{text}, \code{border}, \code{code_bg}, \code{radius}, \code{shadow} and \code{font}. CSS variables
 given as a list of names that start with \verb{--} reach the tip only from the page, not from a tag, because a tip is
 drawn away from its tag.
 }
 
 \examples{
 tip_style("sober")
-tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", ink = "#ffffff")))
+tip_style("sober", theme = tip_theme(light = list(bg = "#1b3a6b", text = "#ffffff")))
 tip_style(class = "wide")
 tip_style(class = "") # clears a class set above
 tip_style("sober", motion = "slide", max_width = 280)
-tip_dependency(style = tip_style(motion = "fade", gap = 10))
+use_hovercraft(style = tip_style(motion = "fade", gap = 10))
 tip_on(
   htmltools::tags$button("Run"),
   "Runs the **check**",
@@ -106,13 +106,16 @@ tip_on(
 Other tooltips:
 \code{\link{tip_blocks}},
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

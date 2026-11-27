@@ -17,7 +17,7 @@ word <- function(id, marker = "underline", preset = NULL, css = NULL, text = "Ba
 
 marker_page <- function(dir, ..., preset = NULL, dark = FALSE, name = "page.html") {
   page <- bslib::page_fluid(
-    tip_dependency(style = preset),
+    use_hovercraft(style = preset),
     if (dark) tags$script("document.documentElement.setAttribute('data-bs-theme', 'dark');"),
     ...
   )
@@ -374,5 +374,65 @@ describe("an icon stays with the last word", {
 
   it("has no console error", {
     expect_identical(page$problems(), character())
+  })
+})
+
+describe("a marked tag is highlighted while its tip is open", {
+  dir <- withr::local_tempdir()
+  box <- tags$div(
+    tags$span(id = "label", tabindex = "0", "Total"),
+    id = "vbox",
+    class = "bslib-value-box",
+    tabindex = "0"
+  )
+  path <- marker_page(
+    dir,
+    word("w-underline"),
+    word("w-icon", "icon"),
+    word("w-none", "none"),
+    suppressWarnings(tip_on(box, "Box tip", marker = "icon")),
+    tags$p("Elsewhere", id = "elsewhere")
+  )
+  page <- local_page(path, environment())
+  expect_true(page$wait_until("document.getElementById('w-none') !== null"))
+  open_attr <- tip_attribute("open")
+  state <- function(id) {
+    jsonlite::fromJSON(page$evaluate(sprintf(
+      paste0(
+        "(() => { const e = document.getElementById('%s'); const s = getComputedStyle(e);",
+        " return JSON.stringify({ open: e.getAttribute('%s'), fill: s.backgroundColor, shadow: s.boxShadow }); })()"
+      ),
+      id,
+      open_attr
+    )))
+  }
+  transparent <- "rgba(0, 0, 0, 0)"
+
+  it("tints an underlined word and an icon's tag while the tip shows, and not before or after", {
+    for (id in c("w-underline", "w-icon")) {
+      expect_identical(state(id)$fill, transparent, info = id)
+      page$hover(paste0("#", id))
+      got <- state(id)
+      expect_identical(got$open, "hint", info = id)
+      expect_match(got$fill, "^rgba\\(127, 127, 127", info = id)
+      page$hover("#elsewhere")
+      expect_identical(state(id)$fill, transparent, info = id)
+      expect_null(state(id)$open, info = id)
+    }
+  })
+
+  it("does not tint a tag with no marker, though its tip is open", {
+    page$hover("#w-none")
+    expect_identical(state("w-none")$open, "hint")
+    expect_identical(state("w-none")$fill, transparent)
+  })
+
+  it("glows round a value box and leaves its own background", {
+    expect_identical(state("vbox")$shadow, "none")
+    page$hover("#vbox")
+    got <- state("vbox")
+    expect_identical(got$open, "hint")
+    expect_false(identical(got$shadow, "none"))
+    expect_identical(got$fill, transparent)
   })
 })

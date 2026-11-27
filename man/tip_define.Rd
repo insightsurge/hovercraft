@@ -7,18 +7,25 @@
 tip_define(...)
 }
 \arguments{
-\item{...}{Templates, each with a name: \code{tip_define(diff = tip_template(...))}. A template may also be a list of
-blocks.}
+\item{...}{Templates, each with a name: \code{tip_define(diff = tip_template(...))}, or in a Shiny module
+\code{tip_define(!!ns("diff") := tip_template(...))}. A template may also be a list of blocks. Supports dynamic dots
+(\code{rlang::list2()}).}
 }
 \value{
 Tags to put in the page's UI.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
-Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the
-page's UI, once. A name is lower-case letters, digits and \verb{_}, starting with a letter. Defining a name again replaces
-the earlier template under it, with a warning when the blocks differ. Templates belong to the whole page, so a Shiny
-module should put its id in the names it defines, such as \code{paste0(id, "_row")}.
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}} Puts named templates on the page, so a tag can use one with \code{tip_on(tag, template = "name")}. Put the result in the page's UI, once. Names are page-wide. A name is lower-case letters, digits and \verb{_},
+starting with a letter; inside a Shiny module, prefix it with \code{ns()} (for example \code{tip_define(!!ns("row") := tip_template(...))}) so two copies of the module keep their own templates without overwriting each other. Defining
+the same name again replaces the earlier template under it, with a warning when the blocks differ.
+}
+\details{
+The templates are also kept in R, so that \code{\link[=tip_on]{tip_on()}} can check a record against them. Defined in a Shiny session (in
+\code{renderUI()} or a module's server), they belong to that session: two sessions of one app may define one name with
+different fields and each is checked against its own. Defined where the UI is built, they belong to the process and
+every session is checked against them; a session may define the name again for itself, without a warning. A
+\code{renderUI()} that is cached with \code{bindCache()} does not run again for the next session, so a template it defines is
+known in R only to the session that ran it: define a template that sessions share where the UI is built.
 }
 \examples{
 tip_define(
@@ -31,14 +38,17 @@ tip_define(
 \seealso{
 Other tooltips:
 \code{\link{tip_blocks}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

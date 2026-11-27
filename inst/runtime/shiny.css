@@ -1,0 +1,250 @@
+/* hovercraft's own styles on top of the tip engine: live Shiny outputs (loading, error with Retry, empty) and parking
+   holder. Uses the tip engine's own custom properties and Bootstrap 5 variables with light and dark fallbacks. */
+
+.hc-output-park[hidden] {
+  display: none;
+}
+
+.hc-output {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+  margin-block-start: var(--hovercraft-space-1, 4px);
+}
+
+.hc-output-host {
+  min-width: 0;
+  width: 100%;
+  max-width: 100%;
+}
+
+.hc-output-host > .shiny-plot-output,
+.hc-output-host > .shiny-image-output,
+.hc-output-host > .html-widget-output,
+.hc-output-host > .shiny-spinner-output-container {
+  max-width: 100%;
+}
+
+.hc-output-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--hovercraft-space-2, 8px);
+  padding: var(--hovercraft-space-2, 8px) 0;
+  color: var(--hc-tip-quiet, inherit);
+  font-size: 0.92em;
+}
+
+.hc-output-loading[hidden],
+.hc-output[data-has-loader="true"] .hc-output-loading {
+  display: none;
+}
+
+.hc-output-pulse {
+  display: inline-block;
+  width: 0.75em;
+  height: 0.75em;
+  border-radius: 999px;
+  border: 2px solid currentColor;
+  border-inline-end-color: transparent;
+  flex: none;
+  animation: hc-output-spin 0.8s linear infinite;
+}
+
+@keyframes hc-output-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hc-output-pulse {
+    animation: none;
+    border-inline-end-color: currentColor;
+    opacity: 0.6;
+  }
+}
+
+.hc-output-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--hovercraft-space-2, 8px);
+  padding: 6px 10px;
+  border-radius: var(--hovercraft-radius-s, 6px);
+  border: 1px solid var(--bs-danger-border-subtle, #f1aeb5);
+  background: var(--bs-danger-bg-subtle, #f8d7da);
+  color: var(--bs-danger-text-emphasis, #58151c);
+  font-size: 0.92em;
+}
+
+[data-bs-theme="dark"] .hc-output-error,
+[data-hovercraft-mode="dark"] .hc-output-error {
+  border-color: var(--bs-danger-border-subtle, #842029);
+  background: var(--bs-danger-bg-subtle, #2c0b0e);
+  color: var(--bs-danger-text-emphasis, #ea868f);
+}
+
+/* The operating system's dark mode, on a page that has no `data-bs-theme` (a tip forced to light stays light). */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme]) .hc-output-error:not([data-hovercraft-mode="light"] .hc-output-error) {
+    border-color: var(--bs-danger-border-subtle, #842029);
+    background: var(--bs-danger-bg-subtle, #2c0b0e);
+    color: var(--bs-danger-text-emphasis, #ea868f);
+  }
+}
+
+.hc-output-error[hidden] {
+  display: none;
+}
+
+.hc-output-error-msg {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.hc-output-retry {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid currentColor;
+  border-radius: var(--hovercraft-radius-s, 6px);
+  padding: 2px 10px;
+  min-block-size: 26px;
+  cursor: pointer;
+  flex: none;
+}
+
+.hc-output-retry:focus-visible {
+  outline: var(--hovercraft-focus-width, 2px) solid currentColor;
+  outline-offset: 2px;
+}
+
+.hc-output[data-state="error"] .hc-output-host .shiny-output-error:not(.shiny-output-error-validation) {
+  display: none;
+}
+
+/* The output still holds another item's content while the server answers for this one: keep it out of sight. */
+.hc-output[data-stale="true"] .hc-output-host {
+  max-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+}
+
+.hc-output-moved {
+  padding: 6px 0;
+  color: var(--hc-tip-quiet, inherit);
+  font-style: italic;
+  font-size: 0.92em;
+}
+
+.hc-output-moved[hidden] {
+  display: none;
+}
+
+.hc-output[data-state="moved"] .hc-output-host {
+  display: none;
+}
+
+.hc-output-empty {
+  padding: 6px 0;
+  color: var(--hc-tip-quiet, inherit);
+  font-style: italic;
+  font-size: 0.92em;
+}
+
+.hc-output-empty[hidden] {
+  display: none;
+}
+
+@media (forced-colors: active) {
+  .hc-output-error {
+    border: 1px solid CanvasText;
+    background: Canvas;
+    color: CanvasText;
+  }
+
+  .hc-output-retry {
+    border-color: ButtonText;
+    color: ButtonText;
+  }
+
+  .hc-slot-divider {
+    border-top-color: CanvasText;
+  }
+}
+
+/* ---- Template slots (foot divider and muted footer) -------------------------------------------------------------- */
+
+.hc-slot-divider {
+  border: 0;
+  border-top: 1px solid var(--hc-tip-edge, currentColor);
+  opacity: 0.35;
+  margin: var(--hovercraft-space-2, 8px) 0 var(--hovercraft-space-1, 4px);
+}
+
+.hc-slot-divider + .hc-tip-group {
+  color: var(--hc-tip-quiet, inherit);
+  font-size: 0.92em;
+}
+
+/* ---- Short/long form (`more =`) visual consistency across presets, light and dark -------------------------------- */
+
+.hc-tip-more {
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+  padding-block-start: var(--hovercraft-space-1, 4px);
+  margin-block-start: var(--hovercraft-space-2, 8px);
+  font: inherit;
+  color: inherit;
+  line-height: inherit;
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .hc-tip-more {
+    border-top-color: color-mix(in srgb, var(--hc-tip-ink, currentColor) 16%, transparent);
+  }
+}
+
+.hc-long-first {
+  border-top: 1px solid rgba(127, 127, 127, 0.25);
+  padding-block-start: var(--hovercraft-space-1, 4px);
+  margin-block-start: var(--hovercraft-space-2, 8px);
+}
+
+@supports (color: color-mix(in srgb, red 50%, blue)) {
+  .hc-long-first {
+    border-top-color: color-mix(in srgb, var(--hc-tip-ink, currentColor) 16%, transparent);
+  }
+}
+
+.hc-tip-more > :first-child {
+  margin-block-start: 0;
+}
+
+.hc-tip-more > :last-child {
+  margin-block-end: 0;
+}
+
+.hc-tip-cue {
+  font-size: 0.88em;
+}
+
+@media (forced-colors: active) {
+  .hc-tip-more,
+  .hc-long-first {
+    border-top-color: CanvasText;
+  }
+}
+
+/* ---- The bottom sheet of a pinned tip on a narrow screen -------------------------------------------------------- */
+
+/* A sheet has no arrow, but its hover area (::before) and arrow (::after) still add room below the text, so the sheet
+   scrolled by a few pixels. It also keeps its last line off the bottom edge and clear of a phone's home bar. */
+.hc-tip.hc-tip-pin[data-side="sheet"]::before,
+.hc-tip.hc-tip-pin[data-side="sheet"]::after {
+  content: none;
+}
+
+.hc-tip.hc-tip-pin[data-side="sheet"] {
+  padding-block-end: calc(var(--hovercraft-space-3, 12px) + env(safe-area-inset-bottom, 0px));
+}

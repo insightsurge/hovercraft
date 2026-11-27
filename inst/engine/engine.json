@@ -1,6 +1,6 @@
 {
-  "engine": "0.50.0",
-  "commit": "1826123fac74aa8f4af9c7db54c3d9f594beb9c0",
+  "engine": "0.60.0",
+  "commit": "b99d701d004bcc948bf8d46cb7640c928c778781",
   "branch": "main",
   "files": [
     "placeholders.json",
@@ -15,9 +15,9 @@
   ],
   "sha256": {
     "placeholders.json": "9fcdbb659edddf8664b0d8500814041b7cdd132235de71a085ab905a06f5dd05",
-    "tip.json": "c3d98fd97508289687eef4cb1faff6d79e4f5abd3e47e457facf0119249f3f76",
-    "www/tip.css": "5d2c550c373af4ab2098dd6a0154419b90c27989d1516da5279573d249e1b29b",
-    "www/tip.js": "b7ff1f6337b5ca1d03d3f4edaf91469e04faf1b9c00834ff1eacb27374a6e43c",
+    "tip.json": "db5ac9cc12fca9675fc89939f80d17586def72c5fb274f303961659acb5952ef",
+    "www/tip.css": "af088c1ac217aa930ef2737421cf61aa890c741ae7bd018e24805fce5a384da8",
+    "www/tip.js": "3aefb7a3c7ce62190f89c322dc881c4b04f9565587307db4ef204078dd8cbeeb",
     "presets/dense.json": "8447dd84b6f7f49c3588d5159da771fbe5f928ab6b8b6fe18a28c020622556a7",
     "presets/editorial.json": "a6a9136d30a697c19544a6b1b47b783dee1e6bdacaebafee137258a4d1ec4f24",
     "presets/lively.json": "204afca9a747f599c3fd319229159e9e28857c736e552bb12a4d4b1f0f6bb338",
@@ -47,6 +47,7 @@
         "default_record_key": "record",
         "arrow_option": "tooltip_arrow",
         "class_option": "tooltip_class",
+        "anchor_option": "tooltip_anchor",
         "labels_option": "tooltip_labels",
         "more_field": "tooltip_more",
         "more_template_option": "tooltip_more_template",
@@ -67,8 +68,21 @@
       "arrow": {
         "default": true
       },
+      "anchor": {
+        "default": "item",
+        "values": [
+          "item",
+          "content"
+        ]
+      },
       "class": {
         "pattern": "^-?[_a-zA-Z][_a-zA-Z0-9-]*$"
+      },
+      "open": {
+        "values": [
+          "hint",
+          "pin"
+        ]
       },
       "labels": {
         "defaults": {
@@ -352,6 +366,10 @@
           "preset": "-preset",
           "arrow": "-arrow",
           "class": "-class",
+          "open": "-open",
+          "anchor": "-anchor",
+          "part": "-part",
+          "pins": "-pins",
           "more": "-more",
           "more_template": "-more-template",
           "more_on": "-more-on",

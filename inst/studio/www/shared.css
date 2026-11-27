@@ -1,0 +1,416 @@
+/* Shared styles of the studio's pages: the tokens (light, and dark as a cyanotype), the base, the choices set as a
+   sentence, and the margin notes (R code, What to test, Inputs sent). Plain CSS; no inline styles, so a strict
+   Content-Security-Policy allows the page. */
+/* ==== Tokens ==================================================================================================
+   Two layers, as in a proof sheet: the print (black ink, a book serif) and the annotation (Prussian blue, a sans).
+   In dark the page turns into a cyanotype: the Prussian blue becomes the ground and the annotation goes pale. */
+:root {
+  --paper: #f4f6f7;
+  --ink: #1b1f24;
+  --ink-2: #4f5761;
+  --blue: #1a4b77;
+  --blue-soft: #8fb2cf;
+  --wash: #e2eaf1;
+  --rule: #cfd6dc;
+  --on-blue: #f4f6f7;
+
+  --serif: Charter, "Bitstream Charter", "Sitka Text", Cambria, Georgia, serif;
+  --sans: "Avenir Next", Avenir, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+  --mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+
+  /* Modular scale, major third from 17 px */
+  --s-2: 0.694rem;
+  --s-1: 0.833rem;
+  --s0: 1rem;
+  --s1: 1.25rem;
+  --s2: 1.563rem;
+  --s3: 1.953rem;
+  --s4: 2.441rem;
+  --s5: 3.052rem;
+  --s6: 3.815rem;
+
+  --index-w: 216px;
+  --margin-w: 336px;
+  --leader: 64px;
+  --bar-h: 52px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-bs-theme="light"]) {
+    --paper: #0f2c47;
+    --ink: #eef3f7;
+    --ink-2: #b4c5d5;
+    --blue: #a3d2f4;
+    --blue-soft: #4b7aa3;
+    --wash: #173b5e;
+    --rule: #2d5274;
+    --on-blue: #0f2c47;
+    color-scheme: dark;
+  }
+}
+:root[data-bs-theme="dark"] {
+  --paper: #0f2c47;
+  --ink: #eef3f7;
+  --ink-2: #b4c5d5;
+  --blue: #a3d2f4;
+  --blue-soft: #4b7aa3;
+  --wash: #173b5e;
+  --rule: #2d5274;
+  --on-blue: #0f2c47;
+  color-scheme: dark;
+}
+
+/* ==== Base ===================================================================================================== */
+html {
+  font-size: 17px;
+  scroll-behavior: smooth;
+  scroll-padding-top: 24px;
+}
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+* {
+  box-sizing: border-box;
+}
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font: 400 var(--s0) / 1.6 var(--serif);
+  font-kerning: normal;
+  font-variant-numeric: oldstyle-nums proportional-nums;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection {
+  background: var(--blue);
+  color: var(--on-blue);
+}
+a {
+  color: inherit;
+}
+:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+  border-radius: 2px;
+}
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+code,
+.mono {
+  font-family: var(--mono);
+  font-size: 0.84em;
+  font-variant-numeric: normal;
+}
+p {
+  margin: 0 0 0.8em;
+}
+
+/* Choice sets: a run of words where the chosen one is boxed in blue. Used in the index and in every legend. */
+.choice {
+  display: inline;
+  border: 0;
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+}
+.choice legend {
+  padding: 0;
+}
+.choice label {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  cursor: pointer;
+  padding: 0 5px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  color: var(--ink-2);
+  line-height: 1.5;
+  white-space: nowrap;
+}
+.choice label:hover {
+  color: var(--ink);
+  border-color: var(--rule);
+}
+.choice input {
+  position: absolute;
+  opacity: 0;
+  width: 1px;
+  height: 1px;
+  margin: 0;
+}
+.choice input:checked + span {
+  color: var(--blue);
+}
+.choice label:has(input:checked) {
+  border-color: var(--blue);
+  color: var(--blue);
+}
+.choice label:has(input:focus-visible) {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.choice .sep {
+  color: var(--ink-2);
+  padding: 0 4px;
+}
+.theme-set {
+  font-family: var(--sans);
+}
+.theme-set .lab {
+  display: block;
+  margin-bottom: 4px;
+  color: var(--ink-2);
+}
+
+/* ==== The margin: notes joined to the plate by hairlines ======================================================= */
+.margin {
+  grid-column: 3;
+  font-family: var(--sans);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  color: var(--ink);
+  min-width: 0;
+}
+.margin-head {
+  display: none;
+}
+.note {
+  position: relative;
+  padding: 0 0 26px;
+}
+.note::before {
+  /* the leader */
+  content: "";
+  position: absolute;
+  top: 0.72em;
+  right: calc(100% + 6px);
+  width: calc(var(--leader) + 3px);
+  height: 1px;
+  background: var(--blue-soft);
+  transform-origin: right center;
+}
+.note::after {
+  /* where it lands on the figure */
+  content: "";
+  position: absolute;
+  top: calc(0.72em - 3px);
+  right: calc(100% + var(--leader) + 6px);
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: 1px solid var(--blue);
+  background: var(--paper);
+}
+.note h3 {
+  font: 600 0.82rem / 1.45 var(--sans);
+  color: var(--blue);
+  margin: 0 0 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+.note-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+.note-head h3 {
+  margin: 0;
+}
+.note-head button {
+  margin-left: auto;
+}
+.note h3 .aside {
+  font-weight: 400;
+  color: var(--ink-2);
+  margin-left: auto;
+}
+
+.code {
+  position: relative;
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--wash);
+  border-radius: 3px;
+  font: 400 0.72rem / 1.6 var(--mono);
+  white-space: pre;
+  overflow-x: auto;
+  color: var(--ink);
+  tab-size: 2;
+}
+.code .s {
+  color: var(--blue);
+}
+.code .c {
+  color: var(--ink-2);
+  font-style: italic;
+}
+.code .f {
+  font-weight: 600;
+}
+.code-foot {
+  margin: 8px 0 0;
+  color: var(--ink-2);
+  font-size: 0.76rem;
+}
+.code-foot b {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.btn-quiet {
+  font: 500 0.76rem / 1 var(--sans);
+  color: var(--blue);
+  background: none;
+  border: 1px solid var(--blue-soft);
+  border-radius: 3px;
+  min-height: 24px;
+  padding: 4px 8px;
+  cursor: pointer;
+}
+.btn-quiet:hover {
+  border-color: var(--blue);
+}
+.btn-quiet[data-done] {
+  background: var(--blue);
+  color: var(--on-blue);
+  border-color: var(--blue);
+}
+
+.tests {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  counter-reset: t;
+}
+.tests li {
+  counter-increment: t;
+  display: grid;
+  grid-template-columns: 1.4em 1fr;
+  padding: 0 0 9px;
+}
+.tests li::before {
+  content: counter(t);
+  color: var(--blue);
+  font-variant-numeric: tabular-nums;
+}
+.tests .bug {
+  display: block;
+  color: var(--ink-2);
+}
+.tests .bug::before {
+  content: "Bug if ";
+  font-style: italic;
+}
+
+.log {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font: 400 0.7rem / 1.45 var(--mono);
+  max-height: 236px;
+  overflow-y: auto;
+}
+.log li {
+  padding: 6px 8px;
+  border-left: 2px solid var(--blue-soft);
+  margin-bottom: 4px;
+}
+.log li.fresh {
+  animation: fresh 1.6s ease-out;
+}
+@keyframes fresh {
+  from {
+    background: var(--wash);
+    border-left-color: var(--blue);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .log li.fresh {
+    animation: none;
+  }
+}
+.log .k {
+  color: var(--blue);
+  font-weight: 600;
+}
+.log .t {
+  float: right;
+  color: var(--ink-2);
+}
+.log .v {
+  display: block;
+  color: var(--ink-2);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.log li.out {
+  border-left-style: dashed;
+}
+.log-empty {
+  color: var(--ink-2);
+  font-style: italic;
+  font-family: var(--serif);
+  font-size: 0.86rem;
+  margin: 0;
+}
+
+/* A step the server ticked: its number becomes a tick, guide on or off. */
+.tests li.g-done::before {
+  content: "\2713";
+}
+.tests li.g-done > span {
+  color: var(--ink-2);
+}
+.g-count-h:empty {
+  display: none;
+}
+
+/* What the package warned about, under a figure. */
+.figure-notes:empty {
+  display: none;
+}
+.figure-note {
+  margin: 14px 0 0;
+  padding: 8px 10px;
+  border-left: 2px solid var(--blue);
+  font: 400 0.82rem / 1.5 var(--sans);
+}
+.figure-note.is-error {
+  border-left-style: dashed;
+}
+
+/* Forced colours: a chosen word, a pinned item and a ticked step keep a visible edge. */
+@media (forced-colors: active) {
+  .choice label:has(input:checked) {
+    border-color: Highlight;
+  }
+  .is-pinned {
+    outline: 2px solid Highlight;
+  }
+}
+
+/* Bootstrap draws a legend large and floated; a choice set's legend is a word in the sentence. */
+.choice legend {
+  float: none;
+  width: auto;
+  margin: 0;
+  font: inherit;
+}
+
+/* A word of a choice set keeps the slash before it on its own line. */
+.choice .pick {
+  white-space: nowrap;
+}

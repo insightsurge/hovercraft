@@ -31,14 +31,7 @@ describe("a Shiny app where only renderUI() brings the engine", {
   )
   withr::defer(app$kill())
   url <- paste0("http://127.0.0.1:", port)
-  up <- FALSE
-  for (i in 1:100) {
-    up <- !is.null(tryCatch(suppressWarnings(readLines(url, n = 1L)), error = function(e) NULL))
-    if (up || !app$is_alive()) {
-      break
-    }
-    Sys.sleep(0.1)
-  }
+  up <- wait_for_app(app, url)
   page <- local_page(url, environment())
 
   it("starts", {

@@ -24,9 +24,12 @@ tip_code(field, language = NULL, copy = FALSE)
 links, short lists), and a value put in by a placeholder is never read as markdown.}
 
 \item{status}{What the badge says about its item, or \code{NULL} for a plain badge: one of \code{"success"}, \code{"warning"},
-\code{"danger"} or \code{"info"}, the words bslib uses. Any other word is an error. The badge is coloured from the page's
-Bootstrap colours for that status (with plain colours on a page without Bootstrap), and its text should say the
-same thing, because colour alone is not enough. A block written as a plain list, \code{list(type = "badge", text = "a", tone = "info")}, uses the engine's name for it, \code{tone}, with the same four words.}
+\code{"danger"} or \code{"info"}, the words bslib uses, or a placeholder such as \code{"{{ tone }}"} filled from the record. Any
+other fixed word is an error. When filled from a record, one of the four words colours the badge and any other
+value shows a plain badge. The badge is coloured from the page's Bootstrap colours for that status (with plain
+colours on a page without Bootstrap), and its text should say the same thing, because colour alone is not enough. A
+block written as a plain list, \code{list(type = "badge", text = "a", tone = "info")}, uses the engine's name for it,
+\code{tone}, with the same rule.}
 
 \item{...}{Named strings for \code{tip_fields()}: each name is a label (plain text) and each value a string that may hold
 placeholders, as in \code{tip_fields(Records = "{{ records | number:0 }}")}.}
@@ -36,14 +39,17 @@ and never filled in by placeholders.}
 
 \item{language}{One string naming the code's language, or \code{NULL}.}
 
-\item{copy}{\code{TRUE} asks for a Copy button, which lives in a tip that stays open. That comes in a later version, so
-for now only \code{FALSE} is accepted.}
+\item{copy}{\code{TRUE} asks for a Copy button under the code, which lives in a tip that stays open: give the tag that has
+this template \code{pin = TRUE} or \code{pin = "click"} in \code{\link[=tip_on]{tip_on()}}, or the button never shows. The button copies the code
+as text, also on a page that is not served over https (where the browser's clipboard is closed to a page, the
+copy is done the older way), and says "Copied" or "Copy failed" beside the button. With \code{events = "copy"} in
+\code{\link[=tip_on]{tip_on()}}, the server reads each press as \verb{input$<id>_copy}.}
 }
 \value{
 A block, to give to \code{\link[=tip_template]{tip_template()}}.
 }
 \description{
-\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#experimental}{\figure{lifecycle-experimental.svg}{options: alt='[Experimental]'}}}{\strong{[Experimental]}}
+\ifelse{html}{\href{https://lifecycle.r-lib.org/articles/stages.html#stable}{\figure{lifecycle-stable.svg}{options: alt='[Stable]'}}}{\strong{[Stable]}}
 The parts a template is made of. \code{tip_title()} is the first line, \code{tip_text()} a paragraph of markdown,
 \code{tip_badge()} a short label, \code{tip_fields()} a list of label and value pairs, and \code{tip_code()} a piece of code shown
 as text. Text and values may hold placeholders, \code{{{ field }}} or \code{{{ field | number:2 }}}, filled from the record of
@@ -61,14 +67,17 @@ tip_code("sql", language = "sql")
 \seealso{
 Other tooltips:
 \code{\link[=tip_define]{tip_define()}},
-\code{\link[=tip_dependency]{tip_dependency()}},
 \code{\link[=tip_marker]{tip_marker()}},
+\code{\link[=tip_more]{tip_more()}},
 \code{\link[=tip_on]{tip_on()}},
+\code{\link[=tip_output]{tip_output()}},
 \code{\link[=tip_presets]{tip_presets()}},
+\code{\link{tip_server}},
 \code{\link[=tip_spec]{tip_spec()}},
 \code{\link[=tip_style]{tip_style()}},
 \code{\link[=tip_table]{tip_table()}},
 \code{\link[=tip_template]{tip_template()}},
-\code{\link[=tip_theme]{tip_theme()}}
+\code{\link[=tip_theme]{tip_theme()}},
+\code{\link[=use_hovercraft]{use_hovercraft()}}
 }
 \concept{tooltips}

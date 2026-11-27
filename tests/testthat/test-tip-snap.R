@@ -39,6 +39,25 @@ describe("the tip_on() errors", {
     expect_snapshot(invisible(tip_on(button(), template = "withid", record = list(label = "x", tip_id = "u"))))
     expect_snapshot(invisible(tip_on(button(), "x", record = list(a = 1))))
   })
+  it("say what the long form needs", {
+    expect_snapshot(tip_on(button(), "x", more = tip_more("y", on = "pin")), error = TRUE)
+    expect_snapshot(tip_more("y", on = "hover", label = "Details"), error = TRUE)
+    expect_snapshot(tip_more("y", label = c(more = "a", other = "b")), error = TRUE)
+    expect_snapshot(tip_more("y", on = "tap"), error = TRUE)
+    expect_snapshot(tip_more("y", on = "hover", pin = TRUE), error = TRUE)
+    expect_snapshot(tip_on(button(), "x", more = tip_more("y", on = "click")), error = TRUE)
+    expect_snapshot(tip_on(button(), "x", more = tip_more("y", pin = TRUE)), error = TRUE)
+    expect_snapshot(
+      tip_on(
+        htmltools::tags$span("x", tabindex = "0"),
+        "x",
+        id = "x",
+        pin = "click",
+        more = tip_more("y", on = "click")
+      ),
+      error = TRUE
+    )
+  })
   it("say what a placement and an id must be", {
     expect_snapshot(tip_on(button(), "x", placement = "above"), error = TRUE)
     expect_snapshot(tip_on(button(), "x", id = "two words"), error = TRUE)

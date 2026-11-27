@@ -62,10 +62,10 @@ describe("tip_table() in a browser, on a reactable table", {
 
   it("keeps each row's words after a sort and after a change of page", {
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Voles: 1 wins")
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Foxes: 5 wins")
     expect_identical(page$problems(), character())
   })
@@ -140,7 +140,7 @@ describe("tip_table(id =) in a browser, on a reactable table", {
   it("keeps each id with its data row after a sort and a change of page", {
     row <- ".rt-tbody [role=row]:first-child"
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     expect_identical(page$hover(".rt-tbody [role=cell]:nth-child(1)"), "Voles: 1 wins")
     ends <- function(n) {
       page$wait_until(sprintf(
@@ -151,7 +151,7 @@ describe("tip_table(id =) in a browser, on a reactable table", {
     }
     expect_true(ends("row/5"))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_true(ends("row/2"))
     expect_false(anyDuplicated(all_ids(page)) > 0L)
     expect_identical(page$problems(), character())
@@ -164,20 +164,105 @@ describe("tip_table(id =) in a browser, on a reactable table", {
       page$evaluate(sprintf("document.querySelector('%s').hasAttribute('data-hovercraft-tip-id')", selector))
     }
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /previous/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
-    page$wait_until("document.querySelectorAll('.rt-tbody [role=cell][data-hovercraft-tip-id]').length > 0")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
+    expect_true(page$wait_until(
+      "document.querySelectorAll('.rt-tbody [role=cell][data-hovercraft-tip-id]').length > 0"
+    ))
     expect_false(has(cell(1)))
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s')?.getAttribute('data-hovercraft-tip-id')?.endsWith('cell/3/3')",
       cell(2)
     )))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s')?.getAttribute('data-hovercraft-tip-id')?.endsWith('cell/1/3')",
       cell(2)
     )))
     expect_false(has(cell(1)))
+  })
+})
+
+# A cell's or a header cell's tip points at its text, not at the whole cell: a right-aligned number in a wide column
+# used to get a tip far to its left. The first text node of the element is what the reader sees.
+text_and_tip <- function(page, selector) {
+  jsonlite::fromJSON(page$evaluate(sprintf(
+    paste0(
+      "(() => { const n = document.querySelector(%s); const w = document.createTreeWalker(n, NodeFilter.SHOW_TEXT,",
+      " { acceptNode: (t) => (t.nodeValue.trim() ? 1 : 3) }); const range = document.createRange();",
+      " range.selectNodeContents(w.nextNode()); const text = range.getBoundingClientRect(); const cell = n.getBoundingClientRect();",
+      " const tip = [...document.querySelectorAll('.%s')].filter((t) => !t.hidden)[0].getBoundingClientRect();",
+      " return JSON.stringify({ text: (text.left + text.right) / 2, cell: (cell.left + cell.right) / 2,",
+      " tip: (tip.left + tip.right) / 2, open: n.getAttribute('%s') }); })()"
+    ),
+    jsonlite::toJSON(selector, auto_unbox = TRUE),
+    tip_names()$css,
+    tip_attribute("open")
+  )))
+}
+
+describe("tip_table() anchors a cell's and a header cell's tip on its text, in a browser", {
+  wide <- data.frame(team = c("Owls", "Foxes"), wins = c(7, 5))
+  right <- function(widget) tip_table(widget, cells = c(wins = "{{ wins }} wins"), headers = c(wins = "Games won"))
+  dt_page <- local_page(
+    save_page(right(DT::datatable(
+      wide,
+      rownames = FALSE,
+      options = list(columnDefs = list(list(className = "dt-right", targets = 1L)))
+    ))),
+    environment()
+  )
+  rt_page <- local_page(
+    save_page(right(reactable::reactable(
+      wide,
+      columns = list(wins = reactable::colDef(align = "right", headerStyle = list(textAlign = "right")))
+    ))),
+    environment()
+  )
+  closer_to_text <- function(got) abs(got$tip - got$text) < abs(got$tip - got$cell)
+
+  it("points at the number in a right-aligned DT cell and at the text of its header", {
+    expect_true(dt_page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-tip-anchor]').length === 2"))
+    dt_page$hover("tbody tr:first-child td:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(dt_page, "tbody tr:first-child td:nth-child(2)")))
+    dt_page$hover("thead th:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(dt_page, "thead th:nth-child(2)")))
+  })
+
+  it("does the same on a reactable table", {
+    expect_true(rt_page$wait_until("document.querySelectorAll('.rt-td[data-hovercraft-tip-anchor]').length >= 2"))
+    rt_page$hover(".rt-tbody [role=cell]:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(rt_page, ".rt-tbody [role=cell]:nth-child(2)")))
+    rt_page$hover("[role=columnheader]:nth-child(2)")
+    expect_true(closer_to_text(text_and_tip(rt_page, "[role=columnheader]:nth-child(2)")))
+  })
+})
+
+describe("tip_table(marker =) highlights a cell while its tip is open, in a browser", {
+  page <- local_page(
+    save_page(tip_table(
+      DT::datatable(scores, rownames = FALSE),
+      cells = c(wins = "{{ wins }} wins"),
+      marker = "corner"
+    )),
+    environment()
+  )
+  fill <- function(selector) {
+    page$evaluate(sprintf("getComputedStyle(document.querySelector('%s')).backgroundColor", selector))
+  }
+
+  it("tints the cell while the tip shows and takes the tint away when it closes", {
+    cell <- "tbody tr:first-child td:nth-child(2)"
+    expect_true(page$wait_until("document.querySelectorAll('tbody td[data-hovercraft-marker]').length === 5"))
+    expect_false(grepl("127", fill(cell), fixed = TRUE))
+    expect_identical(page$hover(cell), "7 wins")
+    expect_identical(
+      page$evaluate(sprintf("document.querySelector('%s').getAttribute('%s')", cell, tip_attribute("open"))),
+      "hint"
+    )
+    expect_match(fill(cell), "rgba(127, 127, 127", fixed = TRUE)
+    page$hover("tbody tr:first-child td:nth-child(1)")
+    expect_false(grepl("127", fill(cell), fixed = TRUE))
   })
 })
 
@@ -207,8 +292,12 @@ describe("a cell's placement in a browser", {
 owned_stops <- "document.querySelectorAll('tbody [data-hovercraft-tip-kind][tabindex=\"0\"], .rt-tbody [data-hovercraft-tip-kind][tabindex=\"0\"]').length"
 described <- "[...document.querySelectorAll('[data-hovercraft-tip-template]')].every((n) => (n.getAttribute('aria-describedby') ?? '').split(' ').filter(Boolean).some((id) => document.getElementById(id)))"
 focus <- function(page, selector) {
+  # Let go of the tip a tag held before: it would still be on show when the next one is asked for, and be read as it.
+  page$evaluate("document.activeElement?.blur()")
+  expect_true(page$wait_closed())
   page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-  Sys.sleep(0.8)
+  expect_true(page$wait_open())
+  page$settle(0.1)
   page$shown()
 }
 
@@ -248,7 +337,7 @@ describe("tip_table() with the keyboard, on a DT table", {
     expect_identical(page$press("ArrowUp"), "Games won")
     page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
     page$evaluate("$('table').DataTable().page(1).draw(false)")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, "tbody tr:first-child"), "Foxes: 5 wins")
     expect_identical(page$evaluate(described), TRUE)
@@ -281,10 +370,10 @@ describe("tip_table() with the keyboard, on a reactable table", {
   it("describes every tagged element to a screen reader, also after a sort and a page", {
     expect_identical(page$evaluate(described), TRUE)
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
     page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')")
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Foxes')"))
+    page$settle()
     expect_identical(page$evaluate(described), TRUE)
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, ".rt-tbody [role=row]"), "Foxes: 5 wins")
@@ -311,7 +400,9 @@ describe("tip_table() with reactable's row selection, in a browser", {
 
   it("keeps each row's words and selection after a click on a sorted table", {
     page$evaluate("document.querySelectorAll('.rt-th')[2].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td:nth-child(2)').textContent.startsWith('Voles')")
+    expect_true(page$wait_until(
+      "document.querySelector('.rt-tbody .rt-td:nth-child(2)').textContent.startsWith('Voles')"
+    ))
     expect_identical(page$click(".rt-tbody [role=row] .rt-td:nth-child(2)"), "Voles: 1 wins")
     # Owls, selected before the sort, is on another page now, so only the Voles row shows as selected.
     expect_identical(page$evaluate(selected), "Voles")
@@ -389,7 +480,7 @@ describe("tip_table() with DT's ColReorder, in a browser", {
   it("keeps a column's header and cell tips with the column after it moves", {
     dt_ready(page)
     page$evaluate("$('table').DataTable().colReorder.move(3, 0); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(page$hover("thead th:first-child"), "About")
     expect_identical(page$hover("tbody tr:first-child td:first-child"), "Note: Note 1")
     expect_identical(page$hover("tbody tr:first-child td:nth-child(2)"), "Team 01: 7 wins")
@@ -433,8 +524,8 @@ describe("tip_table() descriptions on a reactable table that reuses its rows", {
   it("keeps a description with the row and the cell it describes after a sort", {
     expect_true(page$wait_until("document.querySelectorAll('[role=row][aria-describedby]').length >= 5"))
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
-    page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')")
-    Sys.sleep(0.5)
+    expect_true(page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Voles')"))
+    page$settle()
     got <- jsonlite::fromJSON(page$evaluate(described_by), simplifyVector = FALSE)
     expect_length(got, 5L)
     for (row in got) {
@@ -522,7 +613,7 @@ describe("tip_table(id =) and the keyboard with DT's copies of the header", {
     page <- local_page(file, environment())
     dt_ready(page)
     page$evaluate("$('.dataTables_scrollBody table').DataTable().order([1, 'desc']).draw(); 0")
-    Sys.sleep(0.5)
+    page$settle()
     expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
     focus(page, ".dataTables_scrollBody tbody tr:first-child")
     expect_identical(page$press("ArrowUp"), "Games won")
@@ -595,7 +686,7 @@ describe("tip_table(marker =) in a browser", {
     expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
     expect_match(corner(rt_page, "[role=columnheader][data-hovercraft-marker]")$image, "linear-gradient", fixed = TRUE)
     rt_page$evaluate("[...document.querySelectorAll('button')].find((b) => /next/i.test(b.textContent)).click()")
-    rt_page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Hares')")
+    expect_true(rt_page$wait_until("document.querySelector('.rt-tbody .rt-td').textContent.startsWith('Hares')"))
     expect_match(corner(rt_page, ".rt-tbody [role=cell]:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
     expect_identical(rt_page$problems(), character())
   })
@@ -660,5 +751,85 @@ describe("tip_on(placement =) in a browser", {
     expect_identical(page$hover("#below"), "Tip below")
     expect_identical(side_of(page), "below")
     expect_identical(page$problems(), character())
+  })
+})
+
+describe("tip_table() on a DT table with a header of more than one row, in a browser", {
+  two <- DT::datatable(
+    scores,
+    rownames = FALSE,
+    container = htmltools::tags$table(
+      htmltools::tags$thead(
+        htmltools::tags$tr(htmltools::tags$th(colspan = 2, "Team"), htmltools::tags$th(colspan = 1, "Notes")),
+        htmltools::tags$tr(lapply(names(scores), htmltools::tags$th))
+      )
+    )
+  )
+  page <- local_page(
+    save_page(tip_table(two, rows = rows, cells = cells, headers = c(wins = "Games won"))),
+    environment()
+  )
+
+  it("shows the header tip on the cell of the column, and the row's and cell's tips", {
+    expect_true(page$wait_until("document.querySelectorAll('tbody tr[data-hovercraft-tip-template]').length === 5"))
+    expect_identical(page$hover("thead tr:nth-child(2) th:nth-child(2)"), "Games won")
+    expect_identical(page$hover("tbody tr:first-child td:first-child"), "Owls: 7 wins")
+    expect_identical(page$hover("tbody tr:first-child td:last-child"), "Note: Top")
+    expect_identical(page$problems(), character())
+  })
+})
+
+# A filter box under a header (#86): the header cell has the tip, the filter cell under it has none. reactable puts a
+# column's `headerClassName` on both, and the layer used to mark both, so the header's tip opened over the filter box.
+describe("tip_table() with a filter row, in a browser", {
+  tipped <- "[data-hovercraft-tip-template], [data-hovercraft-tip-kind], [aria-describedby]"
+  # How many of the elements the selector names hold a tip, a tip kind or a description.
+  count <- function(page, selector) {
+    page$evaluate(sprintf(
+      "[...document.querySelectorAll(%s)].filter((n) => n.matches(%s)).length",
+      jsonlite::toJSON(selector, auto_unbox = TRUE),
+      jsonlite::toJSON(tipped, auto_unbox = TRUE)
+    ))
+  }
+
+  it("gives a reactable header cell the tip and its filter cell none", {
+    file <- save_page(
+      tip_table(
+        reactable::reactable(scores, filterable = TRUE, defaultPageSize = 5),
+        rows = rows,
+        cells = cells,
+        headers = c(wins = "Wins so far")
+      )
+    )
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("document.querySelectorAll('.rt-tbody [data-hovercraft-tip-template]').length >= 5"))
+    expect_identical(page$evaluate("document.querySelectorAll('.rt-td-filter').length"), 3L)
+    expect_identical(page$evaluate("document.querySelectorAll('.rt-th[data-hovercraft-tip-template]').length"), 1L)
+    expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
+    expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
+    # The filter box under the tipped header is free: no tip opens over it.
+    expect_length(page$hover(".rt-td-filter:nth-child(2)"), 0L)
+    # A sort re-marks the table; the filter cell stays free, and the header and the rows keep their tips.
+    page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
+    page$settle()
+    expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
+    expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
+    expect_match(page$hover(".rt-tbody .rt-tr:first-child .rt-td:first-child"), "wins$")
+    expect_identical(page$problems(), character())
+  })
+
+  it("leaves DT's filter row as it was: no tip on it", {
+    file <- save_page(
+      tip_table(
+        DT::datatable(scores, rownames = FALSE, filter = "top", options = list(pageLength = 5)),
+        rows = rows,
+        headers = c(wins = "Wins so far")
+      )
+    )
+    page <- local_page(file, environment())
+    expect_true(page$wait_until("document.querySelectorAll('tbody tr[data-hovercraft-tip-template]').length === 5"))
+    expect_identical(page$evaluate("document.querySelectorAll('thead th[data-hovercraft-tip-template]').length"), 1L)
+    expect_identical(count(page, "thead tr:nth-child(2) td, thead tr:nth-child(2) th"), 0L)
+    expect_identical(page$hover("thead tr:first-child th:nth-child(2)"), "Wins so far")
   })
 })

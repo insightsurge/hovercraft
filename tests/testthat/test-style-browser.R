@@ -11,7 +11,7 @@ preset_light <- function(name) jsonlite::read_json(tip_path("presets", paste0(na
 
 style_page <- function(dir, style, ...) {
   page <- bslib::page_fluid(
-    tip_dependency(style = style),
+    use_hovercraft(style = style),
     htmltools::tags$button(id = "plain", "Plain") |> tip_on("Plain tip"),
     ...
   )
@@ -38,10 +38,10 @@ wait_for_engine <- function(page) page$wait_until(sprintf("typeof %s === 'object
 describe("a page with a preset and a theme", {
   dir <- withr::local_tempdir()
   navy <- tip_theme(
-    light = list(bg = "#1b3a6b", ink = "#ffffff"),
-    dark = list(bg = "#9ec5fe", ink = "#0b1f3a")
+    light = list(bg = "#1b3a6b", text = "#ffffff"),
+    dark = list(bg = "#9ec5fe", text = "#0b1f3a")
   )
-  maroon <- tip_theme(light = list(bg = "#7a1f1f", ink = "#ffffff"))
+  maroon <- tip_theme(light = list(bg = "#7a1f1f", text = "#ffffff"))
   path <- style_page(
     dir,
     tip_style("sober", theme = navy, class = "page-wide"),
@@ -147,25 +147,32 @@ watch_animations <- function(page) {
     )
   )
 }
+# Opens one tag's tip and measures it. The pointer goes to the page's corner first, so the scroll moves no tag under
+# it, and any tip still open is closed: a long pinned tip can reach over the next tag (it does with Linux's wider
+# default font), and the click or hover would then land on the tip, not the tag (#183).
 open_tip <- function(page, id, click = FALSE) {
+  page$session$Input$dispatchMouseEvent(type = "mouseMoved", x = 1, y = 1)
   page$evaluate(sprintf("document.getElementById('%s').scrollIntoView({block: 'center', behavior: 'instant'}); 0", id))
-  # The page moved under the pointer, which may open another tag's tip: let it settle before the one under test.
-  Sys.sleep(0.8)
+  page$settle(0.3)
+  expect_true(bench_close_tips(page))
   page$evaluate("window.__animations = []; 0")
   shown <- if (click) page$click(paste0("#", id)) else page$hover(paste0("#", id))
   info <- jsonlite::fromJSON(
     page$evaluate(sprintf(
       paste0(
         "(() => { const a = document.getElementById('%s').getBoundingClientRect();",
-        " const t = [...document.querySelectorAll('.%s')].filter((b) => !b.hidden)[0];",
-        " const r = t.getBoundingClientRect();",
-        " return JSON.stringify({ gap: r.top - a.bottom, width: r.width, animations: window.__animations }); })()"
+        " const open = [...document.querySelectorAll('.%s')].filter((b) => !b.hidden);",
+        " const r = open[0].getBoundingClientRect();",
+        " return JSON.stringify({ open: open.length, gap: r.top - a.bottom, width: r.width,",
+        " animations: window.__animations }); })()"
       ),
       id,
       tip_names()$css
     )),
     simplifyVector = FALSE
   )
+  # One tip on show, so the one measured is the one this tag opened.
+  expect_identical(info$open, 1L)
   info$shown <- shown
   info$animations <- unlist(info$animations)
   info

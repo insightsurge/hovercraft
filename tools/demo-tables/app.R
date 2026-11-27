@@ -35,10 +35,14 @@ bs_theme <- reactable::reactableTheme(
 code <- list(
   dt = 'DT::datatable(study, rownames = FALSE, filter = "top", options = list(pageLength = 8)) |>
   tip_table(
-    rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+    rows = tip_spec(
+      "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+      pin = TRUE, events = "pin"
+    ),
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
-    placement = "bottom"
+    placement = "bottom",
+    id = "sites_dt"
   )',
   rt = 'reactable::reactable(
   study,
@@ -46,10 +50,14 @@ code <- list(
   columns = list(response = reactable::colDef(format = reactable::colFormat(percent = TRUE, digits = 1)))
 ) |>
   tip_table(
-    rows = "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+    rows = tip_spec(
+      "**{{ site }}** ({{ country }}): {{ patients | number:0 }} patients, {{ response | percent:1 }} responded",
+      pin = TRUE, events = "pin"
+    ),
     cells = c(status = "{{ status }}: see the site\'s monthly report", note = "{{ note }}"),
     headers = c(response = "Share of patients who responded to treatment"),
-    placement = "bottom"
+    placement = "bottom",
+    id = "sites_rt"
   )',
   rt_cell = '# In the UI, once: tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}")))
 reactable::reactable(
@@ -70,7 +78,7 @@ reactable::reactable(
     )
   )
 )',
-  dt_html = '# In the UI, once: tip_dependency() and the same tip_define() as above
+  dt_html = '# In the UI, once: use_hovercraft() and the same tip_define() as above
 shown <- study[c("site", "country", "status")]
 shown$status <- vapply(seq_len(nrow(study)), function(i) {
   as.character(tip_on(
@@ -91,25 +99,23 @@ widgets <- lapply(code, run)
 as_json <- function(x) jsonlite::toJSON(x, auto_unbox = TRUE, pretty = TRUE, null = "null")
 added_dt <- function(w) {
   defs <- Filter(function(d) !is.null(d$createdCell), w$x$options$columnDefs)
-  hidden <- Filter(function(d) isTRUE(d$visible == FALSE), w$x$options$columnDefs)
   paste(
     c(
-      "# 1. One hidden column, '.hovercraft', holds each row's record as JSON (first two rows):",
-      utils::head(w$x$data[[".hovercraft"]], 2),
+      "# 1. No column is added to the data, so DT::replaceData() with your own data frame still fits.",
+      paste("#    The data still has the columns", paste(names(w$x$data), collapse = ", "), "."),
       "",
-      "# 2. Its column definition (hidden, not searchable, named so server-side paging can find it):",
-      as_json(hidden[[1]]),
-      "",
-      "# 3. options$createdRow: DT calls it for each row it draws; it writes the tip's attributes onto the row:",
+      "# 2. options$createdRow: DT calls it for each row it draws. It reads the row's record from the data DT hands over",
+      "#    (the positions say where each field sits; the last argument says which columns DT escaped) and writes the",
+      "#    tip's attributes onto the row:",
       as.character(w$x$options$createdRow),
       "",
-      "# 4. columnDefs[[...]]$createdCell: the same for the cells of one column (status):",
+      "# 3. columnDefs[[...]]$createdCell: the same for the cells of one column (status):",
       as.character(defs[[1]]$createdCell),
       "",
-      "# 5. options$initComplete: marks the header cells once DT has drawn its header:",
+      "# 4. options$initComplete: marks the header cells once DT has drawn its header:",
       as.character(w$x$options$initComplete),
       "",
-      "# 6. A render hook defines the templates in the browser (name -> blocks):",
+      "# 5. A render hook defines the templates in the browser (name -> blocks):",
       as_json(w$jsHooks$render[[1]]$data$defines)
     ),
     collapse = "\n"
@@ -121,18 +127,19 @@ added_rt <- function(w) {
   cfg <- w$jsHooks$render[[1]]$data
   paste(
     c(
-      "# 1. rowClass becomes a function that puts the data row number in a class (reactable has no row attribute hook):",
+      "# 1. rowClass becomes a function that puts the data row number and the row's record in a class (reactable has",
+      "#    no row attribute hook); the record is read from reactable's own row values each time a row is drawn:",
       as.character(tag$attribs$rowClassName),
       "",
-      "# 2. The status column's class function does the same for its cells:",
+      "# 2. The status column's class function puts the data row number in a class for its cells:",
       as.character(tag$attribs[["columns"]][[match("status", ids)]]$className),
       "",
       "# 3. The response header gets a class naming its column position:",
       tag$attribs[["columns"]][[match("response", ids)]]$headerClassName,
       "",
       "# 4. The page layer (inst/table/table.js) reads those classes and gets this data: the specs that say which",
-      "#    attributes each row, cell and header gets, and one JSON record per data row (first two shown):",
-      as_json(list(rows = cfg$rows, cells = cfg$cells, headers = cfg$headers, records = utils::head(cfg$records, 2))),
+      "#    attributes each row, cell and header gets:",
+      as_json(list(rows = cfg$rows, cells = cfg$cells, headers = cfg$headers)),
       "",
       "# 5. And the templates to define in the browser (name -> blocks):",
       as_json(cfg$defines)
@@ -146,7 +153,7 @@ added <- list(
   rt = added_rt(widgets$rt),
   rt_cell = paste(
     "tip_table() is not used here. reactable calls the cell function for each cell and hands the returned tag to the",
-    "page, so tip_on() writes the tip's attributes into that tag itself: no layer, no hidden column.",
+    "page, so tip_on() writes the tip's attributes into that tag itself: no layer, no added column.",
     "",
     "The tag for the first status cell, as R made it:",
     as.character(tip_on(
@@ -235,11 +242,15 @@ demo_head <- shiny::tags$head(
 ui <- bslib::page_fluid(
   theme = bslib::bs_theme(version = 5),
   demo_head,
-  tip_dependency(),
+  use_hovercraft(),
   tip_define(site = tip_template(tip_title("{{ site }}"), tip_text("{{ patients }} patients in {{ country }}"))),
   bslib::input_dark_mode(id = "mode"),
   shiny::h2("tip_table() demo (experimental)"),
-  shiny::p("Hover rows, status and note cells, and the response header. Sort, search, change page, switch to dark."),
+  shiny::p(
+    "Hover rows, status and note cells, and the response header. Sort, search, change page, switch to dark.",
+    "In the first two tables a row's tip can be pinned: press the pin handle in its corner, or focus the row and press P."
+  ),
+  shiny::verbatimTextOutput("pins"),
   example(
     "dt",
     "DT with tip_table()",
@@ -285,6 +296,16 @@ server <- function(input, output, session) {
     study$site[input$dt_rows_selected]
   ))
   output$rt <- reactable::renderReactable(run(code$rt))
+  # A pinned row sends input$<id>_pin, one input for the whole table, with the data row in `row`; input$<id>_pinned lists
+  # the rows pinned now.
+  output$pins <- shiny::renderPrint({
+    cat("Pin inputs (the last event, and the rows pinned now):\n")
+    for (id in c("sites_dt", "sites_rt")) {
+      last <- input[[paste0(id, "_pin")]]
+      now <- vapply(input[[paste0(id, "_pinned")]], function(at) at$row, 0L)
+      cat(" ", id, "->", last$state %||% "nothing yet", "row", last$row %||% "-", "| pinned:", toString(now), "\n")
+    }
+  })
   output$rt_cell <- reactable::renderReactable(run(code$rt_cell))
   output$dt_html <- DT::renderDT(run(code$dt_html))
   output$file_text <- shiny::renderText(paste(readLines(package_files[[input$file]], warn = FALSE), collapse = "\n"))

@@ -70,20 +70,55 @@ tip_arg_data <- function(x, arg, call = rlang::caller_env()) {
   tip_arg(checkmate::check_data_frame(x), arg, "Give a data frame.", call)
 }
 
-# A Shiny id, the same rule for every `id =` in the package: one non-empty string with no whitespace. Hyphens are fine,
-# so an id made by `ns()` works. `null_ok`: `NULL` means no id.
+# A Shiny id, the same rule for every `id =` in the package: one non-empty string with no whitespace and no colon.
+# Hyphens are fine, so an id made by `ns()` works. A colon is not: Shiny reads the part of an input's name after it as
+# the input's type, so `a:b_pin` would ask for a handler of type `b_pin` and end the session. `null_ok`: `NULL` means no
+# id.
 tip_check_id <- function(x, arg = "id", null_ok = TRUE, call = rlang::caller_env()) {
-  ok <- checkmate::test_string(x, min.chars = 1L, null.ok = null_ok) && (is.null(x) || !grepl("[[:space:]]", x))
+  ok <- checkmate::test_string(x, min.chars = 1L, null.ok = null_ok) &&
+    (is.null(x) || !grepl("[[:space:]:]", x))
   tip_arg(
-    if (ok) TRUE else "Must be one non-empty string without whitespace.",
+    if (ok) TRUE else "Must be one non-empty string without whitespace or a colon.",
     arg,
     paste0(
-      "Give one non-empty string with no spaces, such as {.code ns(\"scores\")}",
+      "Give one non-empty string with no spaces and no {.code :} (Shiny reads what follows a colon as the type of an ",
+      "input), such as {.code \"scores\"}",
       if (null_ok) ", or {.code NULL}",
       "."
     ),
     call
   )
+}
+
+# The tag's own id is the base of the tip's Shiny inputs when `events` or a pin is given and the call gives no `id`, so
+# it follows the rule of `tip_check_id()`.
+tip_check_tag_id <- function(tag_id, call = rlang::caller_env()) {
+  if (!checkmate::test_string(tag_id, min.chars = 1L) || grepl("[[:space:]:]", tag_id)) {
+    tip_abort(
+      c(
+        "The tag's own id, {.val {tag_id}}, names the tip's Shiny inputs, and it has whitespace or a colon.",
+        i = paste(
+          "Give {.fn tip_on} an {.arg id} of its own (one string with no spaces and no {.code :}),",
+          "or change the tag's id."
+        )
+      ),
+      class = "hovercraft_error_argument",
+      call = call
+    )
+  }
+  invisible()
+}
+
+# Where a pinned tip of a table is drawn: floating beside its target (NULL or "float") or "in_place", a panel under the
+# row. "float" is NULL: the checks and the page see one value.
+tip_check_to <- function(x, arg = "to", call = rlang::caller_env()) {
+  tip_arg(
+    checkmate::check_choice(x, c("float", "in_place"), null.ok = TRUE),
+    arg,
+    "Give {.code \"float\"} or {.code NULL} for a tip that floats, or {.code \"in_place\"} for a panel under the row.",
+    call
+  )
+  if (identical(x, "in_place")) x
 }
 
 # Where a tip shows: one of the engine's placements, or `NULL` for the page's choice.

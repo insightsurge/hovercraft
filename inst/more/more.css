@@ -1,0 +1,96 @@
+/* hovercraft's "More" and "Less" control: a small button over the bottom corner of a tip (at its end, or its start; or a
+   text link), and the room kept for it.
+   This is hovercraft's own layer, on top of the tip engine; it never changes the engine. The class names are spelt as
+   inst/more/more.js writes them (hovercraft-more-strip) and the tip box is the engine's own (hc-tip); test-more.R holds
+   both. */
+.hovercraft-more-strip {
+  position: fixed;
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 1);
+  display: flex;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  inset: auto;
+  overflow: visible;
+}
+/* A hint's button sits above the hint, which sits above the pinned tips (see pin.css); a pinned tip's button stays one
+   layer above its own box and below a hint. */
+.hovercraft-more-strip-hint {
+  z-index: calc(var(--hovercraft-tip-layer, 1100) + 3);
+}
+.hovercraft-more-strip-button {
+  display: inline-flex;
+  align-items: center;
+  box-sizing: border-box;
+  block-size: 24px;
+  margin: 0;
+  padding: 0 8px;
+  font: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  min-inline-size: 48px;
+  justify-content: center;
+  color: inherit;
+  background: var(--hovercraft-more-bg, Canvas);
+  border: 1px solid color-mix(in srgb, currentcolor 35%, transparent);
+  border-radius: 4px;
+  cursor: pointer;
+}
+.hovercraft-more-strip-button:hover,
+.hovercraft-more-strip-button:focus-visible {
+  background: color-mix(in srgb, currentcolor 14%, var(--hovercraft-more-bg, Canvas));
+}
+.hovercraft-more-strip-button:focus-visible {
+  outline: 2px solid currentcolor;
+  outline-offset: 1px;
+}
+/* A text link instead of the button: a real button (it says "button" and "expanded" to a screen reader, takes Enter and
+   Space and never navigates) with the look of a link. It keeps the button's height, so the room under the last line is
+   the same, and its background, so words that scroll under it stay hidden. */
+.hovercraft-more-strip-link .hovercraft-more-strip-button {
+  min-inline-size: 0;
+  padding-inline: 4px;
+  font-style: italic;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+  border-color: transparent;
+}
+.hovercraft-more-strip-link .hovercraft-more-strip-button:hover,
+.hovercraft-more-strip-link .hovercraft-more-strip-button:focus-visible {
+  text-decoration-thickness: 2px;
+}
+@media (forced-colors: active) {
+  .hovercraft-more-strip-button {
+    border-color: ButtonText;
+    forced-color-adjust: none;
+    color: CanvasText;
+    background: Canvas;
+  }
+  .hovercraft-more-strip-link .hovercraft-more-strip-button {
+    border-color: Canvas;
+    color: LinkText;
+  }
+}
+/* With `tip_more(on = "click")` the strip is there and hidden: a click on the item is the control. */
+.hovercraft-more-strip[hidden] {
+  display: none;
+}
+/* Room under the last line for the button. */
+.hc-tip[data-hovercraft-more-room] {
+  padding-block-end: 36px;
+}
+.hovercraft-more-strip-live {
+  position: absolute;
+  inline-size: 1px;
+  block-size: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+/* A bottom sheet (a narrow window) has room of its own under its last line, for the phone's home bar; with the button it
+   keeps the room for the button as well, or the button would sit on the last line. */
+.hc-tip.hc-tip-pin[data-side="sheet"][data-hovercraft-more-room] {
+  padding-block-end: calc(36px + env(safe-area-inset-bottom, 0px));
+}

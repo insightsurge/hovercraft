@@ -73,6 +73,13 @@ new_tip_marker <- function(type, line = NULL, icon = NULL) {
 #' keep their own. A tag that takes more than words, such as the `div` Shiny puts around an input, is marked
 #' as a whole: put the marker on the label tag, or on the words, when that is what you mean.
 #'
+#' @section While the tip is open:
+#' A marked tag is highlighted while its tip shows, so a reader sees which marker the tip belongs to: a soft grey tint
+#' on the words of an underline and on the tag of an icon or a corner (a table cell, a label), and a glow round a
+#' [bslib::value_box()], which has a background of its own. It goes when the tip closes. There is no argument for it,
+#' and a tag with no marker is not highlighted. It follows the tip engine's open mark on the tag, for a tip that shows
+#' on hover or focus and for one that is pinned.
+#'
 #' @section Words that wrap:
 #' For an underline, the words of a block tag (a `td`, a `p`, a `div` and so on) are put in a `span` inside the tag, so
 #' that the line goes under the words and not across the whole cell or paragraph. In a [bslib::value_box()] the title
@@ -325,7 +332,7 @@ tip_marker_has_span <- function(x) {
 # Takes a marker's earlier work off a tag: its attributes, its icon child, and the span round its words, so tip_on()
 # called twice on one tag leaves one marker.
 tip_marker_clear <- function(tag) {
-  own <- startsWith(names(tag$attribs), tip_marker_attribute())
+  own <- startsWith(names(tag$attribs) %||% character(), tip_marker_attribute())
   tag$attribs[own] <- NULL
   unwrap <- function(x) {
     if (inherits(x, "html") && startsWith(as.character(x), paste0("&#8288;<span class=\"", tip_marker_class("icon")))) {

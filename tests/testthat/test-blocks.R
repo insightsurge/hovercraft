@@ -11,11 +11,27 @@ describe("the block functions", {
     }
   })
 
-  it("write a badge's status into the engine's tone field, for each of the four words", {
+  it("write a badge's status into the engine's tone field, for each of the four words or a placeholder", {
     for (status in c("success", "warning", "danger", "info")) {
       expect_identical(unclass(tip_badge("a", status = status))$tone, status)
     }
+    expect_identical(unclass(tip_badge("{{ label }}", status = "{{ tone }}"))$tone, "{{ tone }}")
     expect_null(unclass(tip_badge("a"))$tone)
+  })
+
+  it("check the placeholder syntax when a badge's status uses one", {
+    expect_error(tip_badge("a", status = "{{ }}"), class = "hovercraft_error_placeholder")
+    expect_error(tip_badge("a", status = "{{ tone"), class = "hovercraft_error_placeholder")
+    expect_error(tip_badge("a", status = "{{ tone | nope }}"), class = "hovercraft_error_placeholder")
+  })
+
+  it("take a status placeholder only when it is the whole value", {
+    expect_s3_class(tip_badge("a", status = "{{ tone }}"), "hovercraft_block")
+    expect_s3_class(tip_badge("a", status = "  {{ tone }}  "), "hovercraft_block")
+    # "pre success" is not one of the four words, so a badge made from it would always be plain.
+    expect_error(tip_badge("a", status = "pre {{ tone }}"), class = "hovercraft_error_status")
+    expect_error(tip_badge("a", status = "{{ tone }} post"), class = "hovercraft_error_status")
+    expect_error(tip_badge("a", status = "{{ a }}{{ b }}"), class = "hovercraft_error_status")
   })
 
   it("stop on any other status word, and list the four", {
@@ -57,8 +73,10 @@ describe("the block functions", {
     expect_warning(tip_fields(`{{ a }}` = "b"), class = "hovercraft_warning_label")
   })
 
-  it("refuse Copy until the tip can stay open", {
-    expect_error(tip_code("a", copy = TRUE), class = "hovercraft_error_pin")
+  it("take Copy, which the engine draws in a tip that stays open, and write nothing for no Copy", {
+    expect_true(tip_code("a", copy = TRUE)$copy)
+    expect_false("copy" %in% names(tip_code("a")))
+    expect_error(tip_code("a", copy = "yes"), class = "hovercraft_error_argument")
   })
 
   it("print one line", {
