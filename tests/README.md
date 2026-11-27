@@ -47,10 +47,15 @@ waits for a Chrome to start. A Chrome that has died is replaced (twice at most p
 (`page$hold()` is the exception; its comment says why). Click anything Shiny can redraw with
 `page$click_now()`, which finds and clicks in one step in the page. Apps under test start with `start_app()` (its `make`
 function builds the app) and are stopped when the test ends. A file starts with `skip_if_no_browser()` (extra packages
-as `skip_if_no_browser("DT")`). `page$press()` and `page$click()` hold a fixed time unless you pass `wait = 0`: do that
-where the test goes on to wait for a signal. The page also has the named waits `wait_connected()`, `wait_pin_button()`,
-`wait_pinned()`, `wait_unpinned()`, `wait_shown()`, `wait_text()` and `wait_reported()`, and the readers `rect()`,
-`centre()` and `reported()`; `page_file()` and `place()` build a small static page. A browser test covers what
+as `skip_if_no_browser("DT")`). `page$hover()` fails the test when the element's own hint does not open within that limit; pass `opens = FALSE` where
+none is expected. `page$press()`, `page$click()`, `page$click_now()` and `page$click_id()` take `until =`, a JavaScript
+expression to wait for after the action (it fails the test when it never holds); `press()` and `click()` otherwise hold
+a fixed time unless you pass `wait = 0`, for a test that goes on to wait for a signal. A hold is for a check that
+nothing happens, and `page$settle()` does not tell that a change happened. `test-helper-browser-support.R` fails where
+an action is read before a wait; `test-helper-browser-waits-browser.R` tests the failures of the waits themselves. The
+page also has the named waits `wait_connected()`, `wait_pin_button()`, `wait_pinned()`, `wait_unpinned()`,
+`wait_shown()`, `wait_text()` and `wait_reported()`, and the readers `rect()`, `centre()` and `reported()`;
+`page_file()` and `place()` build a small static page. A browser test covers what
 hovercraft handles (an input or a state it acts on), not what the browser does alone, such as a middle click or a pinch.
 Each test file must run on its own, as files run in parallel and in any order.
 

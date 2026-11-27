@@ -150,10 +150,12 @@ describe("the inputs of tip_table() in a Shiny app", {
     expect_identical(pinned[[1]], list(target = "row", row = 3L, column = NULL, id = "dtc/row/3"))
     # The tip changes size and side when the page gets narrow; it is still open, and the server is not told otherwise.
     page$viewport(420, 700)
+    page$hold(0.3) # the pin must stay open when the page narrows: nothing happening has no signal
     page$settle()
     expect_identical(open_pins(), "dtc/row/3")
     expect_identical(page$reported("dtc_pin")$state, "pinned")
     page$viewport(900, 700)
+    page$hold(0.3) # the pin must stay open when the page widens: nothing happening has no signal
     page$settle()
     expect_identical(open_pins(), "dtc/row/3")
     close_all()

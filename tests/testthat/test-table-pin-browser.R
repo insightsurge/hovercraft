@@ -114,7 +114,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       jsonlite::toJSON(jsonlite::toJSON(ids), auto_unbox = TRUE)
     ))
   }
-  seen_has <- function(name, value) {
+  wait_seen <- function(name, value) {
     page$wait_until(sprintf(
       "(() => { try { return JSON.parse(document.getElementById('seen').textContent)[%s] === %s; } catch (e) { return false; } })()",
       jsonlite::toJSON(name, auto_unbox = TRUE),
@@ -172,7 +172,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     pin_by_handle(rows_dt("dtc")[[2]])
     expect_identical(pins(), "dtc/row/2")
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Foxes')", pinned_box)))
-    expect_true(seen_has("dtc_pin", "pinned"))
+    expect_true(wait_seen("dtc_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#dtc tbody tr.selected') === null"))
     # The reader's own pin: by the reader, with a click on the handle.
     expect_identical(
@@ -188,13 +188,13 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
       )
     )
     page$press("Escape", wait = 0)
-    expect_true(seen_has("dtc_pin", "closed"))
+    expect_true(wait_seen("dtc_pin", "closed"))
     expect_identical(pins(), character())
   })
 
   it("does not pin on a click of the row, and the click still selects it", {
     reset()
-    page$click(rows_dt("dtc")[[1]]) # a click that must not pin: nothing happening has no signal
+    page$click(rows_dt("dtc")[[1]], wait = 0.7) # a click that must not pin: nothing happening has no signal
     page$settle()
     expect_identical(pins(), character())
     expect_true(page$wait_until("document.querySelector('#dtc tbody tr.selected') !== null"))
@@ -206,7 +206,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     page$press("p", wait = 0)
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') !== null"))
     expect_identical(pins(), "dtc/row/3")
-    expect_true(seen_has("dtc_pin", "pinned"))
+    expect_true(wait_seen("dtc_pin", "pinned"))
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].via"), "key")
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].row"), 3L)
     page$press("Escape", wait = 0)
@@ -225,7 +225,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(wait_pins())
     # No focus on the table: the key does nothing.
     page$evaluate("document.activeElement.blur()")
-    page$press("p") # the key must pin nothing: nothing happening has no signal
+    page$press("p", wait = 0.6) # the key must pin nothing: nothing happening has no signal
     expect_identical(pins(), character())
   })
 
@@ -261,7 +261,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$evaluate(sprintf("document.querySelector('%s').textContent.includes('Owls')", pinned_box)))
     page$evaluate("$('#dtc table').DataTable().search('Voles').draw(); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dtc_pin", "closed"))
+    expect_true(wait_seen("dtc_pin", "closed"))
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].reason"), "gone")
     expect_identical(page$evaluate("Shiny.shinyapp.$inputValues['dtc_pin'].row"), 1L)
     page$evaluate("$('#dtc table').DataTable().search('').draw(); 0")
@@ -273,7 +273,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_identical(pins(), "dts/row/1")
     page$evaluate("$('#dts table').DataTable().page(1).draw(false); 0")
     expect_true(page$wait_until("document.querySelector('[data-hovercraft-tip-open=pin]') === null"))
-    expect_true(seen_has("dts_pin", "closed"))
+    expect_true(wait_seen("dts_pin", "closed"))
     page$evaluate("$('#dts table').DataTable().page(0).draw(false); 0")
   })
 
@@ -281,7 +281,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     reset()
     pin_by_handle(rt_row(2))
     expect_identical(pins(), "rt/row/2")
-    expect_true(seen_has("rt_pin", "pinned"))
+    expect_true(wait_seen("rt_pin", "pinned"))
     expect_true(page$evaluate("document.querySelector('#rt .rt-tr.-selected, #rt [aria-selected=true]') === null"))
     # The server moves the table to its second page: React keeps the row nodes and gives them other rows, which must
     # not show under the pin made for the row it was.
@@ -293,7 +293,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$wait_until(
       "document.querySelector('#rt [role=row][data-hovercraft-tip-id=\"rt/row/5\"]') !== null"
     ))
-    expect_true(seen_has("rt_pin", "closed"))
+    expect_true(wait_seen("rt_pin", "closed"))
     expect_identical(pins(), character())
     expect_false(page$evaluate("window.sawRow5"))
     # The layer closes the pin through the engine's host command, so the engine says who and why that way (a DT row that
@@ -368,10 +368,10 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     expect_true(page$wait_until("document.querySelectorAll('#m-dt tbody tr[data-hovercraft-tip-pin]').length === 6"))
     pin_by_handle("#m-dt tbody tr:nth-child(1)")
     expect_match(pins(), "^m-tips/row/[0-9]+$")
-    expect_true(seen_has("m-tips_pin", "pinned"))
+    expect_true(wait_seen("m-tips_pin", "pinned"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: pinned'"))
     page$press("Escape", wait = 0)
-    expect_true(seen_has("m-tips_pin", "closed"))
+    expect_true(wait_seen("m-tips_pin", "closed"))
     expect_true(page$wait_until("document.getElementById('m-seen_in').textContent === 'inside: closed'"))
   })
 
@@ -388,7 +388,7 @@ describe("tip_spec(pin = TRUE) for the rows in a Shiny app", {
     )))
     page$settle(0.5)
     mouse_at(sprintf("%s .%s-copy", pinned_box, css), click = TRUE)
-    expect_true(seen_has("dtq_copy", "sql"))
+    expect_true(wait_seen("dtq_copy", "sql"))
     # The copy input has the row's address too, with the copy's own fields.
     expect_identical(
       page$evaluate(

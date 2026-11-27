@@ -150,7 +150,7 @@ describe("Shiny practices in a running app", {
 
   it("handles a disabled button cleanly without console errors", {
     # Native disabled buttons suppress pointer events in browsers, so no tip opens and no error is raised.
-    shown_disabled <- page$hover_in_view("#dis_btn")
+    shown_disabled <- page$hover_in_view("#dis_btn", opens = FALSE)
     expect_length(shown_disabled, 0L)
     expect_identical(page$problems(), character())
   })

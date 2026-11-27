@@ -187,7 +187,7 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
     page$evaluate("document.getElementById('js').disabled = false")
     expect_true(page$wait_until(sprintf("%s.getAttribute('role') === null", wrapper("js"))))
     expect_equal(state("js"), rep(NA, 3L))
-    expect_length(page$hover("#js"), 0L)
+    expect_length(page$hover("#js", opens = FALSE), 0L)
   })
 
   it("follows a control that a disabled fieldset switches off and on", {
@@ -235,8 +235,8 @@ describe("tip_on(when_disabled = ) in a Shiny app", {
     expect_true(page$wait_open())
     expect_identical(page$shown(), "Not available: Disabled at build")
     # Enter and Space do nothing, so the engine's delay is held: the reason must still be open after it.
-    expect_identical(page$press("Enter"), "Not available: Disabled at build")
-    expect_identical(page$press(" "), "Not available: Disabled at build")
+    expect_identical(page$press("Enter", wait = 0.6), "Not available: Disabled at build")
+    expect_identical(page$press(" ", wait = 0.6), "Not available: Disabled at build")
     page$press("Escape", wait = 0)
     expect_true(page$wait_shown())
     expect_identical(page$problems(), character())
@@ -468,7 +468,7 @@ describe("tip_update() on a control with when_disabled", {
   it("takes the text away on a control that is on, and the control then has no tip of its own", {
     page$click_id("clear")
     expect_true(page$wait_until(sprintf("!document.getElementById('tx').hasAttribute('%s')", tip_attrs[[1]])))
-    expect_length(page$hover("#tx"), 0L)
+    expect_length(page$hover("#tx", opens = FALSE), 0L)
   })
 
   it("leaves the console without errors", {

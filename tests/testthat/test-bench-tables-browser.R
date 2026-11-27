@@ -33,11 +33,11 @@ describe("the bench's table scenarios", {
     since <- page$mark()
 
     page$mouse(890, 690)
-    page$hover(cell)
+    page$hover(cell, opens = FALSE)
     page$hold(2) # the scenario's two-second rest: no second tip must appear, which has no signal
     expect_identical(bench_tips(page)$text, pinned)
     expect_true(bench_tips(page)$pinned)
-    page$press("p") # the pin key on a pinned tip must do nothing: nothing happening has no signal
+    page$press("p", wait = 0.6) # the pin key on a pinned tip must do nothing: nothing happening has no signal
     expect_identical(bench_tips(page)$text, pinned)
     expect_identical(tip_nodes(page), nodes)
     expect_identical(bench_tip_events(page, since), character())
@@ -112,7 +112,7 @@ describe("the bench's table scenarios", {
     bench_scroll_to(page, "#tbl_scroll")
     # At rest, a hint on show is for the row under the pointer, and says that row's site: never a hint left over empty
     # space or over a row it is not for.
-    honest <- function() {
+    wait_honest <- function() {
       page$hold(0.6) # the engine's open and close delay, after the rows moved under a still pointer
       page$evaluate(sprintf(
         "(() => { const hint = document.querySelector('.%s:not(.%s-pin):not([hidden])');
@@ -132,7 +132,7 @@ describe("the bench's table scenarios", {
     page$session$Input$insertText(text = "Peru")
     expect_true(page$wait_until("document.querySelectorAll('#tbl_scroll tbody tr').length === 10"))
     page$settle()
-    expect_true(honest())
+    expect_true(wait_honest())
     expect_true(any(startsWith(bench_tip_events(page, since), "hidden tbl_scroll/row/2")))
 
     page$evaluate("$('#tbl_scroll table.dataTable').DataTable().search('').draw(); document.activeElement.blur(); 0")
@@ -142,10 +142,10 @@ describe("the bench's table scenarios", {
       "document.querySelector('#tbl_scroll .dataTables_scrollBody, #tbl_scroll .dt-scroll-body').scrollTop += 400; 0"
     )
     page$settle()
-    expect_true(honest())
+    expect_true(wait_honest())
     page$evaluate("window.scrollBy(0, 300); 0")
     page$settle()
-    expect_true(honest())
+    expect_true(wait_honest())
     expect_bench_clean(page)
   })
 })

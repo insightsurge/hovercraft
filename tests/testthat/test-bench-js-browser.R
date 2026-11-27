@@ -118,7 +118,7 @@ describe("tips on a page whose own JavaScript changes it", {
     page$press("Escape", wait = 0)
     expect_true(page$wait_closed())
 
-    expect_length(page$hover_in_view("#js-bs-tooltip"), 0L)
+    expect_length(page$hover_in_view("#js-bs-tooltip", opens = FALSE), 0L)
     expect_true(page$wait_until("document.querySelector('.tooltip.show') !== null"))
     expect_identical(page$hover_in_view("#js-bs-near"), "A tip beside Bootstrap's")
 

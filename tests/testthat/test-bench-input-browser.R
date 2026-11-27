@@ -36,7 +36,7 @@ describe("the bench's input scenarios", {
 
     page$settle()
     menu_open <- "document.querySelector('#inp-menu + .dropdown-menu').classList.contains('show')"
-    page$click("#inp-menu", wait = 0)
+    page$click("#inp-menu", wait = 0, opens = FALSE) # a menu button with no tip
     expect_true(page$wait_until(menu_open))
     expect_identical(page$hover("#inp-near-menu"), "Open me over the menu")
     page$press("Escape", wait = 0)

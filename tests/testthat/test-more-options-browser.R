@@ -133,11 +133,11 @@ describe("tip_more() options for opening the long form", {
     expect_true(page$wait_until(ready))
     page$evaluate("window.Hovercraft.pin(document.getElementById('one'), { by: 'reader', via: 'key' }); 0")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
-    page$click("#one", wait = 0)
+    page$click("#one", wait = 0, opens = FALSE) # the tip is pinned: no hint opens
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('LONG')", pin_sel)))
     expect_identical(buttons(page), 0L)
     expect_identical(state_of(page, "one"), "pin")
-    page$click("#one", wait = 0)
+    page$click("#one", wait = 0, opens = FALSE) # the tip is pinned: no hint opens
     expect_true(page$wait_until(sprintf("!document.querySelector('%s')?.textContent.includes('LONG')", pin_sel)))
     expect_identical(state_of(page, "one"), "pin")
   })

@@ -104,7 +104,7 @@ describe("a bslib page", {
   })
 
   it("leaves a tag inside bslib::tooltip() to bslib", {
-    shown <- page$hover("#inside")
+    shown <- page$hover("#inside", opens = FALSE)
     expect_false(any(grepl("From hovercraft", shown, fixed = TRUE)))
   })
 

@@ -245,6 +245,7 @@ describe("a row's pinned tip drawn in place", {
     expect_identical(page$reported("dtc_pin")$reason, "gone")
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
     page$evaluate("$('#dtc table').DataTable().search('').draw(); 0")
+    page$hold(0.3) # nothing must reopen when the row comes back: nothing happening has no signal
     page$settle()
     expect_identical(count("[data-hovercraft-panel]"), 0L)
     expect_identical(open_pins(), character())
@@ -394,6 +395,7 @@ describe("a row's pinned tip drawn in place", {
     # The same after a click inside the panel.
     page$evaluate("document.querySelector('#rt [data-hovercraft-panel] .hc-tip').click(); 0")
     page$evaluate("document.querySelector('#rt [data-hovercraft-panel]').click(); 0")
+    page$hold(0.3) # the click must select nothing: nothing happening has no signal
     page$settle()
     expect_identical(page$evaluate("document.getElementById('rsel').textContent"), "selected: ")
   })

@@ -134,9 +134,15 @@ describe("the More button on a tag", {
   hint_sel <- sprintf(".%s:not(.%s-pin):not([hidden])", css, css)
   pin_sel <- sprintf(".%s.%s-pin:not([hidden])", css, css)
   strip_button <- ".hovercraft-more-strip-button"
-  press_button <- function() {
+  # Presses the More/Less button. `until` is a JavaScript expression for what the press changes (the long form appearing
+  # or going, `aria-expanded`): the test waits for it, so a press that changes nothing fails here, and then for the tip to
+  # stop moving.
+  press_button <- function(until = NULL) {
     at <- page$centre(strip_button)
     page$mouse(at[[1]], at[[2]], click = TRUE)
+    if (!is.null(until)) {
+      page$wait_after("pressed the More button", until)
+    }
     page$settle()
   }
   box_of <- function(selector = hint_sel) {
@@ -145,14 +151,19 @@ describe("the More button on a tag", {
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     )))
   }
-  # Waits until the tip `selector` names (the hint by default) has, or has not, these words in it.
-  wait_words <- function(words, has = TRUE, selector = hint_sel) {
-    page$wait_until(sprintf(
+  # The JavaScript that says the tip `selector` names (the hint by default) has, or has not, these words in it.
+  has_words <- function(words, has = TRUE, selector = hint_sel) {
+    sprintf(
       "document.querySelector(%s)?.textContent.includes(%s) === %s",
       jsonlite::toJSON(selector, auto_unbox = TRUE),
       jsonlite::toJSON(words, auto_unbox = TRUE),
       tolower(has)
-    ))
+    )
+  }
+  wait_words <- function(words, has = TRUE, selector = hint_sel) page$wait_until(has_words(words, has, selector))
+  # The JavaScript that says the button's `aria-expanded` is true (the long form is open) or false.
+  is_expanded <- function(open = TRUE) {
+    sprintf("document.querySelector('%s').getAttribute('aria-expanded') === '%s'", strip_button, tolower(open))
   }
   button_text <- function() page$evaluate(sprintf("document.querySelector('%s').textContent", strip_button))
   expanded <- function() {
@@ -193,7 +204,7 @@ describe("the More button on a tag", {
     expect_identical(short$side, "below")
     # From here on, count the hint events the page hears: a tip that grows or shrinks sends none.
     page$evaluate("window.hints = 0; document.addEventListener('hovercraft:hint', () => { window.hints += 1; }); 0")
-    press_button()
+    press_button(until = has_words("business hours"))
     long <- box_of()
     expect_match(long$text, "business hours")
     expect_identical(button_text(), "Less")
@@ -215,7 +226,7 @@ describe("the More button on a tag", {
 
   it("closes the long form with Less, and the tip stays open, short, on its side", {
     before <- box_of()
-    press_button()
+    press_button(until = has_words("business hours", FALSE))
     page$settle()
     after <- box_of()
     expect_false(is.null(after))
@@ -230,7 +241,7 @@ describe("the More button on a tag", {
   })
 
   it("starts short the next time it opens", {
-    press_button()
+    press_button(until = has_words("business hours"))
     expect_match(box_of()$text, "business hours")
     rest()
     expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", hint_sel)))
@@ -245,7 +256,7 @@ describe("the More button on a tag", {
     wait_hint("#mid")
     short <- box_of()
     expect_identical(short$side, "below")
-    press_button()
+    press_button(until = has_words("business hours"))
     page$settle()
     long <- box_of()
     expect_false(is.null(long))
@@ -259,7 +270,7 @@ describe("the More button on a tag", {
       TRUE
     )
     # It scrolls instead of flipping to the other side.
-    press_button()
+    press_button(until = has_words("business hours", FALSE))
     page$settle()
     expect_identical(box_of()$side, "below")
     expect_no_match(box_of()$text, "business hours")
@@ -270,7 +281,7 @@ describe("the More button on a tag", {
     wait_hint("#edge")
     fresh <- box_of()
     expect_identical(fresh$side, "above")
-    press_button()
+    press_button(until = has_words("second line of words"))
     page$settle()
     grown <- box_of()
     expect_identical(grown$side, "above")
@@ -352,7 +363,7 @@ describe("the More button on a tag", {
   it("says the buttons' own words", {
     wait_hint("#lb")
     expect_identical(button_text(), "Show all")
-    press_button()
+    press_button(until = is_expanded())
     expect_identical(button_text(), "Show less")
     rest()
   })
@@ -403,12 +414,12 @@ describe("the More button on a tag", {
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
     has_long <- function() box_of(pin_sel)$text |> grepl("long form of the pinned", x = _, fixed = TRUE)
-    long_pinned <- function(has = TRUE) wait_words("long form of the pinned", has, pin_sel)
+    wait_long_pinned <- function(has = TRUE) wait_words("long form of the pinned", has, pin_sel)
     expect_false(has_long())
     page$press("m", wait = 0)
-    expect_true(long_pinned())
+    expect_true(wait_long_pinned())
     page$press("m", wait = 0)
-    expect_true(long_pinned(FALSE))
+    expect_true(wait_long_pinned(FALSE))
     # The reader tabs into the pinned tip: the key works from there too.
     page$evaluate(sprintf("document.querySelector('%s').focus()", pin_sel))
     expect_identical(
@@ -416,9 +427,9 @@ describe("the More button on a tag", {
       TRUE
     )
     page$press("m", wait = 0)
-    expect_true(long_pinned())
+    expect_true(wait_long_pinned())
     page$press("m", wait = 0)
-    expect_true(long_pinned(FALSE))
+    expect_true(wait_long_pinned(FALSE))
     page$press("Escape", wait = 0)
     expect_true(page$wait_unpinned())
   })
@@ -519,7 +530,7 @@ describe("the More button on a tag", {
 
   it("removes the button when a renderUI() draws the item again, with no error", {
     wait_hint("#dy")
-    press_button()
+    press_button(until = has_words("Long dynamic words"))
     expect_match(box_of()$text, "Long dynamic words")
     page$evaluate("Shiny.setInputValue('hide', true, { priority: 'event' })")
     expect_true(page$wait_until("document.getElementById('dy') === null"))

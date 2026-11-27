@@ -285,6 +285,7 @@ describe("hovercraft book in a browser", {
 
   it("fits a phone: no sideways scroll, the margin opens as a drawer and Escape closes it", {
     page$resize(375, 812)
+    expect_true(page$wait_until("document.documentElement.scrollWidth <= 375"))
     expect_lte(js("document.documentElement.scrollWidth"), 375L)
     js("document.getElementById('pull').click()")
     expect_true(js("document.documentElement.classList.contains('drawer-open')"))
@@ -368,7 +369,7 @@ describe("hovercraft book's newer sections in a browser", {
     expect_true(page$wait_until(logged("in_place", "input$queue_cards_pin")))
     expect_true(page$wait_until(ticked("in_place", 0L)))
     page$mouse(5, 5)
-    page$click(".colophon")
+    page$click(".colophon", opens = FALSE)
     # The engine's close delay: a card that a click away closed would be gone by now.
     page$hold(0.4)
     expect_true(js(card))

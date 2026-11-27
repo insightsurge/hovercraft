@@ -102,7 +102,15 @@ describe("server calls and the hint input in a Shiny app", {
   )
   url <- app$url
   page <- local_page(url, environment())
-  # Waits for the server to have drawn an output with this text, then reads it.
+  # How many times Shiny has gone idle since the page opened (it is idle again when the server has answered everything it
+  # was sent). A test that sends something the server answers with no visible change waits for this count to rise:
+  # `idled <- idle_count()`, send, then `until = idle_since(idled)`.
+  idle_count <- function() {
+    page$evaluate(
+      "(() => { if (window.hcIdle === undefined) { window.hcIdle = 0; $(document).on('shiny:idle', () => { window.hcIdle += 1; }); } return window.hcIdle; })()"
+    )
+  }
+  idle_since <- function(count) sprintf("window.hcIdle > %d", count)
 
   it("starts and connects", {
     expect_true(app$proc$is_alive())
@@ -140,8 +148,9 @@ describe("server calls and the hint input in a Shiny app", {
 
   it("does nothing for a hide when that tip is not the one open", {
     page$hover("#quiet")
-    page$click_id("hide")
-    page$settle()
+    idled <- idle_count()
+    # The hide must change nothing: wait for the server's answer to have come back, then look.
+    page$click_id("hide", until = idle_since(idled))
     expect_identical(page$shown(), "A quiet tip")
   })
 
@@ -164,8 +173,9 @@ describe("server calls and the hint input in a Shiny app", {
     page$hover("#hover_b")
     expect_true(any(page$shown() == "Hover B"))
     # Not a click: a click away would close the pin by itself.
+    idled <- idle_count()
     page$evaluate("Shiny.setInputValue('hide_a', Date.now())")
-    page$settle()
+    expect_true(page$wait_until(idle_since(idled)))
     expect_true(any(page$shown() == "Hover B"))
   })
 
@@ -207,7 +217,9 @@ describe("server calls and the hint input in a Shiny app", {
     page$click_id("clear")
     page$settle()
     page$hover("#quiet")
-    expect_length(page$hover("#run"), 0L)
+    page$hover("#run", opens = FALSE)
+    expect_true(page$wait_closed())
+    expect_length(page$shown(), 0L)
   })
 
   it("leaves the console without errors", {

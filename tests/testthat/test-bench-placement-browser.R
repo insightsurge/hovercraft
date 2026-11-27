@@ -56,6 +56,7 @@ describe("the bench's placement scenarios", {
     expect_true(bench_tips(page)$drawn)
     expect_equal(gap(), first, tolerance = 1)
     page$evaluate("window.scrollBy(0, 40); 0")
+    page$hold(0.3) # the tip must keep its place when the page scrolls: nothing happening has no signal
     page$settle()
     expect_equal(gap(), first, tolerance = 1)
     expect_identical(bench_tip_events(page)[grepl("closed", bench_tip_events(page))], character())
@@ -73,7 +74,7 @@ describe("the bench's placement scenarios", {
     page$press("p", wait = 0)
     expect_true(bench_wait_tips(page, c("I stay with my item", "Sheet A")))
     page$resize(700, 800)
-    expect_true(in_view(page, 700, 800))
+    expect_true(wait_polls(function() in_view(page, 700, 800), browser_wait()))
     expect_true(beside(page, "I stay with my item", "#place-resize"))
     expect_true(beside(page, "Sheet A", "#place-sheet-a"))
 

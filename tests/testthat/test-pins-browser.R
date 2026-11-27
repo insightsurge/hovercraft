@@ -328,7 +328,7 @@ describe("the page's pin settings", {
     off <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
     expect_true(off$wait_until("window.HovercraftPin !== undefined"))
     off$evaluate("document.getElementById('one').focus(); 0")
-    off$press("p") # the key is off: nothing happening has no signal
+    off$press("p", wait = 0.6) # the key is off: nothing happening has no signal
     expect_identical(open_count(off), 0L)
     expect_true(off$wait_until("document.getElementById('one').getAttribute('aria-keyshortcuts') === null"))
     # The engine's own Escape stays, and the pin is still there for a pointer through the door the button uses.
@@ -498,7 +498,7 @@ describe("the page's pin settings", {
     page <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     expect_length(page$hover("#one"), 1L)
-    page$press("p") # the keys are off: nothing happening has no signal
+    page$press("p", wait = 0.6) # the keys are off: nothing happening has no signal
     expect_identical(open_count(page), 0L)
   })
 
@@ -538,7 +538,7 @@ describe("the page's pin settings", {
     skip <- local_page(page_of(use_hovercraft(keys = c(pin = FALSE)), pinnable("one")), environment())
     expect_true(skip$wait_until("window.HovercraftPin !== undefined"))
     skip$evaluate("document.getElementById('one').focus(); 0")
-    skip$press("p") # the pin key is off: nothing happening has no signal
+    skip$press("p", wait = 0.6) # the pin key is off: nothing happening has no signal
     expect_identical(open_count(skip), 0L)
   })
 

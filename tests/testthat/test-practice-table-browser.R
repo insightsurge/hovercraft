@@ -290,7 +290,7 @@ describe("tip_table() leaves DT's inputs as they are without it", {
         "document.querySelector('%s').scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
         selector
       ))
-      page$click(selector, wait = 0)
+      page$click(selector, wait = 0, opens = FALSE)
     }
     wait_for("updates_inputs_report", cols = 3, page_rows = "4,1,2", selected = "4")
     wait_for("updates_inputs_report_names", cols = 4, page_rows = "4,1,2", selected = "4")

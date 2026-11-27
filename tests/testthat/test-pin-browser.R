@@ -248,7 +248,7 @@ describe("pins in a Shiny app", {
   it("does not pin when the item itself is clicked, and its own click runs", {
     reset()
     before <- page$evaluate("window.rowClicks || 0")
-    page$click("#row_a") # a click that must not pin: nothing happening has no signal
+    page$click("#row_a", wait = 0.7) # a click that must not pin: nothing happening has no signal
     expect_equal(page$evaluate("window.rowClicks || 0"), before + 1)
     expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
   })
@@ -285,13 +285,13 @@ describe("pins in a Shiny app", {
   it("pins by the pin key while the focus is on the item, and nowhere else", {
     reset()
     page$evaluate("document.getElementById('row_c').focus()")
-    page$press("p") # the key must pin nothing: nothing happening has no signal
+    page$press("p", wait = 0.6) # the key must pin nothing: nothing happening has no signal
     expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
     page$evaluate("document.getElementById('field').focus()")
-    page$press("p") # the key must pin nothing: nothing happening has no signal
+    page$press("p", wait = 0.6) # the key must pin nothing: nothing happening has no signal
     expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
     page$evaluate("document.activeElement.blur()")
-    page$press("p") # the key must pin nothing: nothing happening has no signal
+    page$press("p", wait = 0.6) # the key must pin nothing: nothing happening has no signal
     expect_true(page$evaluate(sprintf("document.querySelector('%s') === null", pinned_box)))
     page$evaluate("document.getElementById('row_a').focus()")
     page$press("p", wait = 0)
@@ -312,7 +312,7 @@ describe("pins in a Shiny app", {
   it("sends an input only to a tag that asked for it", {
     reset()
     page$hover("#row_c")
-    page$click("#row_c") # a click that must send nothing: nothing happening has no signal
+    page$click("#row_c", wait = 0.7) # a click that must send nothing: nothing happening has no signal
     page$settle()
     expect_identical(read("seen_c"), "{\"hint\":null,\"pin\":null,\"copy\":null}")
     reset()
