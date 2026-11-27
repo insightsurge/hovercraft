@@ -86,31 +86,48 @@ Tests use testthat 3rd edition, one test file per R file. Add a test for every n
 data made up.
 Browser and snapshot tests that CRAN skips live in their own files and run in CI.
 
-## The studio
+## The book
 
-hovercraft studio (`inst/studio/`, opened by `tip_studio()`) shows every tip feature on one page, one numbered plate
-per feature. A pull request that changes an export or an argument updates the studio in the same pull request.
+hovercraft book (`inst/book/`, opened by `hovercraft_book()`) shows every feature of the package on one page: six
+parts, each with numbered sections, one feature per section. **Every export and every argument is in the book.** A pull
+request that adds, removes or changes an export or an argument (its name, values, default or behaviour) updates the
+book in the same pull request, and a test fails until it does.
 
 - **Files.** `app.R` starts the app. Shiny loads every file in `R/` first: the shared helpers in `R/shared-*.R` (code
-  as text, running it, the plate frame and its margin, the test steps and their proofs, the inputs log), one file
-  per plate in `R/plate-<id>.R`, the made-up data in `R/data.R` and the page in `R/page.R`. `www/shared.css` and
-  `www/shared.js` go with the shared helpers; `www/studio.css` and `www/studio.js` are the page's own look, its phone
-  layout and Guide me.
-- **One source of truth.** Each plate builds its R code as text from its choices (`<id>_code()`); the margin shows
-  that text and the figure is the same text, run with only the package's exports in reach. A plate's server code
-  (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the same way.
-  Code that would fail in a reader's app fails in the studio too. The one exception is the page's look on the Start
-  plate: a dependency loads once per page, so the studio writes the attribute and variable that
+  as text, running it, the section frame and its margin, the test steps and their proofs, the inputs log, the
+  tables), one file per section in `R/plate-<id>.R`, the contents in `R/contents.R`, the made-up data in `R/data.R`,
+  and the page in `R/page.R`. `www/shared.css` and `www/shared.js` go with the shared helpers; `www/book.css` and `www/book.js` are
+  the page's own look, its index and search, its phone layout and the checklist.
+- **The contents** are in one file, `R/contents.R`: the parts, their sections in order, and what each section shows
+  (`covers`, as `list(fn = c("arg", ...))`, with `character()` for a function shown without arguments; `prose` only for
+  `hovercraft_book()`'s own arguments, which a section shows in its words). Numbers come from the order; the ids stay, since links and
+  `hovercraft_book(section =)` use them. `hovercraft_book()` reads the ids from this file.
+- **A section** also has its own file, `R/plate-<id>.R`, with `plate_<id>_ui()`, `plate_<id>_server()` and
+  `<id>_steps()` (3 to 5 test steps). The page and its server find them by the id. Every section sends the code it
+  shows through `plate_code()`.
+- **Coverage is tested.** `test-book.R` reads every export and argument from the help pages, with its stable or
+  experimental badge, and fails while one is in no section's `covers`. It then sets every combination of each
+  section's choices and checks that the code the section shows really calls each function and argument it lists (an
+  argument given by position counts). To add a feature: add it to a section's code and to its `covers` in
+  `contents.R`, or add a section. The margin's "What this section shows" lists them with their badges.
+- **One source of truth.** Each section builds its R code as text from its choices (`<id>_code()`); the margin shows
+  that text and the figure is the same text, run with only the package's exports in reach. A section's server code
+  (Live output's observers and render, Disabled's update, From the server's observers) is run from its shown text the
+  same way. Code that would fail in a reader's app fails in the book too. The one exception is the page's look in
+  section 4.1: a dependency loads once per page, so the book writes the attribute and variable that
   `use_hovercraft(style = )` writes, with the names from the engine's `tip.json`.
 - **Test steps tick from real inputs.** A step is `step(text, bug, target, proof)`; a proof names the Shiny input that
   shows the step was done (`on_hint()`, `on_pin()`, `on_copy()`). By default a proof counts only the reader's own
   actions (`by = "reader"`), so a tip the page closes and pins again never ticks a step. A step without a proof is
-  ticked by hand; a step with one is ticked only by its proof.
+  ticked by hand; a step with one is ticked only by its proof. The checklist (the key C, or `?checklist=1`) shows
+  one step at a time.
+- **The index** lists the parts and opens only the part being read; a click on a part's title goes to its first
+  section. Its search box matches each section's number, title, part and the functions and arguments it shows (its
+  `covers` in `contents.R`), written into the page by the server, and opens every part with a match.
 - **App code** calls other packages as `pkg::fn()`, and nothing in it writes an attribute or class name of the tip
   engine: they come from the engine's `tip.json`.
-- **Tests:** `tests/testthat/test-studio.R` (the launcher, the page, every plate's code for every combination of its
-  choices, the proofs)
-  and `test-studio-browser.R` (the app in Chrome).
+- **Tests:** `tests/testthat/test-book.R` (the launcher, the page, every export and argument covered, every
+  section's figure for every combination of its choices, the proofs) and `test-book-browser.R` (the app in Chrome).
 
 ## The test bench
 

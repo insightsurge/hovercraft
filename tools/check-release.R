@@ -4,7 +4,7 @@
 #   - inst/engine/engine.json says the engine was not copied from its main branch,
 #   - a vendored file does not match the sha256 engine.json recorded for it, or
 #   - the package's public text names the engine's project: README.md, DESCRIPTION, NEWS.md, _pkgdown.yml,
-#     .github/CONTRIBUTING.md, R/, man/, inst/studio/ (the studio's page text and code), and the files the engine
+#     .github/CONTRIBUTING.md, R/, man/, inst/book/ (the book's page text and code), and the files the engine
 #     ships (inst/engine/www/, inst/engine/presets/, inst/engine/tip.json and inst/engine/engine.json), or
 #   - the maintainer address in DESCRIPTION is a noreply address, or
 #   - DESCRIPTION has no URL or BugReports, _pkgdown.yml has no url, or one of those links does not load (the
@@ -51,7 +51,7 @@ public <- c(
   "NEWS.md",
   "_pkgdown.yml",
   ".github/CONTRIBUTING.md",
-  list.files(c("R", "man", "inst/studio"), recursive = TRUE, full.names = TRUE),
+  list.files(c("R", "man", "inst/book"), recursive = TRUE, full.names = TRUE),
   list.files(c("inst/engine/www", "inst/engine/presets"), recursive = TRUE, full.names = TRUE),
   "inst/engine/tip.json",
   "inst/engine/engine.json"

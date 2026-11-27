@@ -28,5 +28,6 @@ jobs:
     with:
       # One entry per run, as system/R version, comma separated. System: ubuntu, windows, macos.
       # R version: release, devel, oldrel-1, or a number such as 4.1. R 4.1 on macos may fail: it has no ready-built packages.
-      platforms: ubuntu/release
+      # R 4.4 is the oldest R that DESCRIPTION allows.
+      platforms: macos/release, windows/release, windows/4.4
       timeout-minutes: 0   # longest a job may run, in minutes; 0 keeps launchR's default: 60 on Mac, 120 elsewhere

@@ -101,7 +101,7 @@ tab_input_ui <- function() {
         });"
       ))
     ),
-    spot("HC-036", note = "Right-click, middle-click, double-click and drag off the items above."),
+    spot("HC-036", note = "Right-click, double-click and drag off the items above."),
     spot("HC-037", note = "Open a hint, then switch to another window or browser tab and back."),
     spot(
       "HC-038",

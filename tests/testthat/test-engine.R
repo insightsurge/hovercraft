@@ -1,9 +1,13 @@
-# The checksum from the shell (shasum or sha256sum), so it works on R 4.4 too; a machine with neither skips the test.
+# The checksum: R's own tools::sha256sum() from R 4.5, else the shell's (shasum or sha256sum) for R 4.4; a machine
+# with neither skips the test. On Windows the shell's shasum is Strawberry Perl's shasum.bat (#102's CI).
 sha256 <- function(path) {
+  if (exists("sha256sum", envir = asNamespace("tools"))) {
+    return(unname(get("sha256sum", envir = asNamespace("tools"))(path)))
+  }
   tool <- Sys.which(c("shasum", "sha256sum"))
   tool <- tool[nzchar(tool)][1L]
   skip_if(is.na(tool), "neither shasum nor sha256sum is on the PATH")
-  args <- c(if (basename(tool) == "shasum") c("-a", "256"), shQuote(path))
+  args <- c(if (startsWith(basename(tool), "shasum")) c("-a", "256"), shQuote(path))
   strsplit(system2(tool, args, stdout = TRUE), " ", fixed = TRUE)[[1]][[1]]
 }
 

@@ -53,5 +53,5 @@ reference:
       - tip_style
       - tip_theme
       - tip_marker
-  - subtitle: The studio
-    contents: tip_studio
+  - subtitle: The book
+    contents: hovercraft_book

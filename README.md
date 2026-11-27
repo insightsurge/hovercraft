@@ -190,15 +190,16 @@ other global names (`HovercraftPin`, `HovercraftMore`, `HovercraftDisabled`, `Ho
 `<meta name="hovercraft-...-config">` tags that carry their settings, their classes and CSS variables that do not
 start with `hc-` or `--hovercraft-tip-`, and the other `data-hovercraft-*` attributes that R writes for them.
 
-## Try every feature in the studio
+## Try every feature in the book
 
-hovercraft studio is a Shiny app with every tip feature on one page. Rest the pointer on a figure, change its choices,
-copy the R code that draws it, and follow a short list of what to test while the page shows the inputs your server
-would get. It needs shiny and bslib, and `DT` or `reactable` for its Tables plate.
+hovercraft book is a Shiny app with every feature of the package on one page, in six parts. Rest the pointer on a
+figure, change its choices, copy the R code that draws it, and follow a short checklist of what to test while the page
+shows the inputs your server would get. Its index has a search box that finds a section by a function or an argument.
+It needs shiny and bslib, and `DT` or `reactable` for its table sections.
 
 ```r
-tip_studio()
-tip_studio(plate = "pins", guide = TRUE)
+hovercraft_book()
+hovercraft_book(section = "pins", checklist = TRUE)
 ```
 
 Set up with [launchR](https://launch-r.web.app).

@@ -667,3 +667,33 @@ describe("the More button in a DT and a reactable table", {
     expect_identical(page$problems(), character())
   })
 })
+
+# A page whose only long form arrives with renderUI(): the More layer and its settings reach the page with the output,
+# after the page has loaded, and the button must still be drawn. The page above also has static long forms, which load
+# the layer with the page, so it can't tell.
+describe("the More button on a page whose only long form comes from renderUI()", {
+  app <- start_app(function() {
+    ui <- bslib::page_fluid(use_hovercraft(), shiny::uiOutput("dyn"))
+    server <- function(input, output, session) {
+      output$dyn <- shiny::renderUI(
+        tip_on(shiny::actionButton("dy", "Dynamic"), "Short words.", more = "Long dynamic words.", id = "dy_tip")
+      )
+    }
+    shiny::shinyApp(ui, server)
+  })
+  page <- local_page(app$url)
+  strip_button <- ".hovercraft-more-strip:not([hidden]) .hovercraft-more-strip-button"
+
+  it("draws the More button, and the button opens the long form", {
+    expect_true(page$wait_until("!!document.getElementById('dy')", 20))
+    page$hover("#dy")
+    expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent === 'More'", strip_button)))
+    page$click_now(strip_button)
+    expect_true(page$wait_until(sprintf(
+      "(document.querySelector('.%s:not([hidden])')?.textContent ?? '').includes('Long dynamic words.')",
+      tip_names()$css
+    )))
+    expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent === 'Less'", strip_button)))
+    expect_identical(page$problems(), character())
+  })
+})
