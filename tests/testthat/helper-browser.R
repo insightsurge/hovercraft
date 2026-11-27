@@ -326,18 +326,20 @@ local_page <- function(html_file, env = parent.frame(), init = NULL) {
     session$Input$dispatchMouseEvent(type = "mouseMoved", x = box[[1]] - 2, y = box[[2]])
     session$Input$dispatchMouseEvent(type = "mouseMoved", x = box[[1]], y = box[[2]])
     if (opens) {
-      # The engine marks the tipped element, or the one that holds it, with its open kind: the hint on show is this
-      # element's own when that mark says "hint" on the element under the pointer.
+      # The engine marks the tipped element, or the one that holds it (a table row), with its open kind: the hint on
+      # show is this element's own when that mark says "hint" on it or an element around it. Read from the element the
+      # selector names (the one under the pointer can be another, such as a table's scrolling layer), or from the one
+      # under the pointer.
       open_attribute <- paste0(tip_names()$attribute, "-open")
       own_js <- sprintf(
         paste0(
-          "(() => { const at = document.elementFromPoint(%f, %f)?.closest('[%s]');",
-          " return at?.getAttribute('%s') === 'hint' && %s; })()"
+          "(() => { const own = (n) => n?.closest('[%2$s]')?.getAttribute('%2$s') === 'hint';",
+          " return (own(document.querySelector(%1$s)) || own(document.elementFromPoint(%3$f, %4$f))) && %5$s; })()"
         ),
+        jsonlite::toJSON(selector, auto_unbox = TRUE),
+        open_attribute,
         box[[1]],
         box[[2]],
-        open_attribute,
-        open_attribute,
         hint_js
       )
       # And it has stopped moving: a test that measures the tip after `hover()` reads where it rests.
