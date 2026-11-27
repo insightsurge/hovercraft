@@ -592,7 +592,11 @@ describe("tip_on(more =)", {
       expect_error(tip_on(tag, "Short", more = tip_more("Long", on = "click")), class = "hovercraft_error_more")
     }
     expect_no_error(tip_on(htmltools::tags$div("x", tabindex = "0"), "Short", more = tip_more("Long", on = "click")))
-    expect_no_error(tip_on(htmltools::tags$div("x", role = "group"), "Short", more = tip_more("Long", on = "click")))
+    # A group cannot take focus: the focus warning is tested above, here only that it is not refused.
+    expect_no_error(suppressWarnings(
+      tip_on(htmltools::tags$div("x", role = "group"), "Short", more = tip_more("Long", on = "click")),
+      classes = "hovercraft_warning_focus"
+    ))
     # The same roles refuse `pin = "click"`, which takes the click as well.
     expect_error(
       tip_on(htmltools::tags$div("x", role = "button", tabindex = "0"), "Short", id = "x", pin = "click"),

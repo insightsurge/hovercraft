@@ -75,16 +75,18 @@ describe("tip_on(pin = )", {
     pinned <- tip_on(own(), "Runs", pin = TRUE)
     expect_identical(keys(pinned), "Alt+R P")
     # Tipped again, the tag has the page's tokens and one of each of ours: never "P P".
-    again <- tip_on(pinned, "Runs again", pin = TRUE)
+    # Tipping a tag again warns once a session (tested in "replaces a pin ... and says so once"); here only the keys count.
+    retip <- function(tag, ...) suppressWarnings(tip_on(tag, ...), classes = "hovercraft_warning_retip")
+    again <- retip(pinned, "Runs again", pin = TRUE)
     expect_identical(keys(again), "Alt+R P")
-    expect_identical(keys(tip_on(tip_on(button(), "A", pin = TRUE), "B", pin = TRUE)), "P")
+    expect_identical(keys(retip(tip_on(button(), "A", pin = TRUE), "B", pin = TRUE)), "P")
     # Without the pin, the page's own token stays and ours goes.
-    expect_identical(keys(tip_on(pinned, "Runs", pin = FALSE)), "Alt+R")
-    expect_null(keys(tip_on(tip_on(button(), "A", pin = TRUE), "B")))
+    expect_identical(keys(retip(pinned, "Runs", pin = FALSE)), "Alt+R")
+    expect_null(keys(retip(tip_on(button(), "A", pin = TRUE), "B")))
     # A long form that has its button adds M as well, and a page token that is already one of ours is not doubled.
     both <- tip_on(own(), "Runs", pin = TRUE, more = "Long")
     expect_identical(keys(both), "Alt+R P M")
-    expect_identical(keys(tip_on(both, "Runs", pin = TRUE)), "Alt+R P")
+    expect_identical(keys(retip(both, "Runs", pin = TRUE)), "Alt+R P")
     twice <- tip_on(htmltools::tags$button("Run", id = "r", `aria-keyshortcuts` = "P"), "Runs", pin = TRUE)
     expect_identical(keys(twice), "P")
   })
