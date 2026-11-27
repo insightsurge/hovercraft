@@ -1,6 +1,6 @@
 Package: hovercraft
 Title: Tooltips for 'Shiny' and 'bslib' Pages
-Version: 0.1.0
+Version: 0.0.90
 Authors@R: 
     person(
       "Harsh", "Verma",
