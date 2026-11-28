@@ -27,23 +27,21 @@ Suggests:
     chromote,
     DT,
     httpuv,
-    knitr,
     later,
     lifecycle,
     pkgload,
     promises,
     reactable,
-    rmarkdown,
     shiny,
     shinycssloaders,
     shinyjs,
     testthat (>= 3.1.7),
     withr
+Config/Needs/website: knitr, rmarkdown
 Config/quality-gate/coverage: 70
 Config/launchR/version: 0.0.19
 Config/testthat/edition: 3
 Config/testthat/parallel: true
-VignetteBuilder: knitr
 Encoding: UTF-8
 Language: en-GB
 Roxygen: list(markdown = TRUE)

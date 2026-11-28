@@ -84,11 +84,11 @@ reference:
 articles:
   - title: Get started
     contents:
-      - hovercraft
+      - articles/hovercraft
   - title: Guides
     contents:
       - articles/shiny
       - articles/tables
       - articles/long-form
-      - themes
+      - articles/themes
       - articles/the-book

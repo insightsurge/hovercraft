@@ -1,10 +1,5 @@
 ---
 title: "Themes and looks"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Themes and looks}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
