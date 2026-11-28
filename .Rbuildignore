@@ -5,6 +5,7 @@
 ^\.github$
 ^\.claude$
 ^CLAUDE\.md$
+^CLAUDE\.local\.md$
 ^AGENTS\.md$
 ^dev$
 ^docs$
