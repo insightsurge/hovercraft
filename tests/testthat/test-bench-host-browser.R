@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # The bench's Shiny-host scenario that had no test (#158): the session ends with a pin open (HC-058). The page is no
@@ -25,7 +12,7 @@ describe("the bench's Shiny host scenarios", {
     bench_scroll_to(page, "#host-words-own")
     bench_scroll_to(page, "#host-before-end")
     page$hover("#host-before-end")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(bench_wait_tips(page, "Open when the session ends"))
 
     # The server ends the session (a click on the page's button would be a click away and close the pin first).
@@ -47,7 +34,7 @@ describe("the bench's Shiny host scenarios", {
     tips <- bench_tips(page)
     expect_true(tips$on_top[tips$text == "Pinned with its own words"])
     page$evaluate("document.getElementById('host-words-own').focus(); 0")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "[...document.querySelectorAll('.%s-pin:not([hidden])')].some((t) => t.textContent.includes('Pinned with its own words'))",
       tip_names()$css

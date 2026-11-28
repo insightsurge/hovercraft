@@ -1,11 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # Browser tests for #57: tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )), on the engine's own moments
 # (pin and hover). The button is tested in test-more-button-browser.R.
@@ -13,16 +6,8 @@ skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
 # light/dark/presets typography match, never covering the trigger, and preserving keyboard focus.
 describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in a browser", {
   has_dt <- requireNamespace("DT", quietly = TRUE)
-  path <- find.package("hovercraft")
-  port <- httpuv::randomPort()
-
-  app <- callr::r_bg(
-    function(port, path, has_dt) {
-      if (dir.exists(file.path(path, "inst"))) {
-        pkgload::load_all(path, quiet = TRUE)
-      } else {
-        library(hovercraft)
-      }
+  app <- start_app(
+    function(has_dt) {
       scores <- data.frame(
         team = c("Owls", "Foxes"),
         wins = c(7, 5),
@@ -110,20 +95,17 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
         }
       }
 
-      shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
+      shiny::shinyApp(ui, server)
     },
-    args = list(port = port, path = path, has_dt = has_dt),
-    supervise = TRUE
+    has_dt = has_dt
   )
-  withr::defer(app$kill())
-  url <- paste0("http://127.0.0.1:", port)
-  up <- wait_for_app(app, url)
+  url <- app$url
   page <- local_page(url, environment())
   css <- tip_names()$css
 
   it("starts and connects", {
-    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(app$proc$is_alive())
+    expect_true(page$wait_connected())
   })
 
   it("shows short form with cue on hover, then expands smoothly on pin without covering control or stealing focus", {
@@ -151,7 +133,7 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
 
     # Focus the button first so we verify keyboard focus stays on #pin_btn when pinning.
     page$evaluate("document.getElementById('pin_btn').focus()")
-    page$click("#pin_btn")
+    page$click("#pin_btn", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])')?.textContent?.includes('Biostats')",
       css,
@@ -191,8 +173,8 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     expect_false(pin_info$overlaps)
     expect_identical(pin_info$activeId, "pin_btn")
 
-    page$press("Escape", wait = 0.2)
-    expect_true(page$wait_until(sprintf("document.querySelector('.%s.%s-pin:not([hidden])') === null", css, css)))
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("shows short and long form together on hover with tip_more(on = 'hover'), with matching typography", {
@@ -218,7 +200,8 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     expect_match(info$text, "Short hover summary", fixed = TRUE)
     expect_match(info$text, "Detailed hover notes for Owls (7 wins).", fixed = TRUE)
     expect_identical(info$tipFont, info$moreFont)
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("works on a DT table cell with tip_spec(more = tip_more(on = 'hover'))", {
@@ -230,11 +213,12 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
       css,
       css
     )))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("keeps a pinned long tip inside the viewport near the bottom-right edge without covering its button", {
-    page$click("#edge_btn")
+    page$click("#edge_btn", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])')?.textContent?.includes('Much longer detail')",
       css,
@@ -261,7 +245,8 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     )))
     expect_true(edge$inBounds)
     expect_false(edge$overlaps)
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("clips the pinned box while it grows, marks where the long form starts, and lets the clip go", {
@@ -277,7 +262,7 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
       css,
       css
     ))
-    page$click("#pin_btn")
+    page$click("#pin_btn", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])')?.getAnimations?.().length === 0",
       css,
@@ -293,13 +278,14 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     # The long form starts at its first block, whatever the number of blocks the short form has.
     expect_identical(page$evaluate(paste0(pin, ".querySelectorAll('.hc-long-first').length")), 1L)
     expect_match(page$evaluate(paste0(pin, ".querySelector('.hc-long-first').textContent")), "Biostats", fixed = TRUE)
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("keeps a pinned bottom sheet from scrolling for a few pixels, with its last line off the bottom edge", {
     page$resize(375, 700)
     page$hover("#pin_btn")
-    page$click("#pin_btn")
+    page$click("#pin_btn", wait = 0)
     sheet <- sprintf("document.querySelector('.%s.%s-pin[data-side=\"sheet\"]:not([hidden])')", css, css)
     expect_true(page$wait_until(paste0(sheet, " !== null")))
     expect_true(page$wait_until(paste0(sheet, ".getAnimations().length === 0")))
@@ -315,7 +301,8 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     ))
     expect_lte(got$scroll, got$client)
     expect_gte(got$gap, 8)
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     page$resize(900, 700)
   })
 
@@ -324,14 +311,15 @@ describe("tip_on(more = tip_more(on = )) and tip_spec(more = tip_more(on = )) in
     page$hover("#pin_btn")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not(.%s-pin):not([hidden])') !== null", css, css)))
     page$click_now("#pin_btn")
-    expect_true(page$wait_until(sprintf("document.querySelector('.%s.%s-pin:not([hidden])') !== null", css, css)))
+    expect_true(page$wait_pinned())
     anim_count <- page$evaluate(sprintf(
       "document.querySelector('.%s.%s-pin:not([hidden])').getAnimations().length",
       css,
       css
     ))
     expect_identical(as.integer(anim_count), 0L)
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     page$emulate("prefers-reduced-motion", "no-preference")
   })
 

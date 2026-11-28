@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # What the page script makes and must let go of when Shiny draws or removes its host (#131): watchers
@@ -139,7 +126,7 @@ describe("a host that Shiny draws again or removes", {
   }
   close_tips <- function() {
     page$evaluate("window.Hovercraft.close(); 0")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden])') === null"))
+    expect_true(page$wait_unpinned())
     page$settle()
   }
   held_stats <- function() unlist(jsonlite::fromJSON(page$evaluate("JSON.stringify(window.HovercraftShiny.stats())")))
@@ -153,7 +140,7 @@ describe("a host that Shiny draws again or removes", {
 
   it("starts and connects", {
     expect_true(app$proc$is_alive())
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     expect_true(page$wait_until("document.getElementById('leaks_ru_btn') !== null"))
     expect_true(page$wait_until("document.querySelector('#leaks_dt td') !== null"))
     expect_true(page$wait_until("document.querySelector('#leaks_rt .rt-td') !== null"))
@@ -372,7 +359,7 @@ describe("a host that Shiny draws again or removes", {
     expect_identical(count_id("leaks_pkf_out"), 1L)
     expect_true(bound_once("leaks_pkf_out"))
     page$evaluate("window.Hovercraft.close(document.getElementById('leaks_pkf_btn')); 0")
-    expect_true(page$wait_until("document.querySelector('.hc-tip-pin:not([hidden])') === null"))
+    expect_true(page$wait_unpinned())
     page$settle()
     expect_identical(count_id("leaks_pkf_out"), 1L)
     expect_identical(page$evaluate("document.querySelectorAll('.hc-output-park [id=\"leaks_pkf_out\"]').length"), 1L)
@@ -388,7 +375,7 @@ describe("a host that Shiny draws again or removes", {
       row <- "#leaks_dtp tbody tr[data-hovercraft-tip-id]"
       expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", row)))
       page$evaluate(sprintf("document.querySelector('%s').focus(); 0", row))
-      page$press("p", wait = 0.2)
+      page$press("p", wait = 0)
       # The pin has its panel and the panel's width has a watcher: the counts that no other scenario moves.
       expect_true(page$wait_until("HovercraftTable.stats().panels === 1 && HovercraftTable.stats().observers === 1"))
       set_input("leaks_dtp_go", i)

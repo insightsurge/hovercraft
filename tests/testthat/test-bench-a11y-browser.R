@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # The bench's accessibility scenario that had no test (#158): Escape dismisses a hover tip without moving the focus or
@@ -26,7 +13,7 @@ describe("the bench's accessibility scenarios", {
     page$evaluate("document.getElementById('a11y-escape').focus(); 0")
     expect_identical(page$hover("#a11y-escape"), "Escape closes me")
     since <- page$mark()
-    page$press("Escape")
+    page$press("Escape", wait = 0)
     expect_true(page$wait_closed())
     expect_identical(page$evaluate("document.activeElement.id"), "a11y-escape")
     page$hold(2) # the scenario's two seconds without a move: the tip must stay away, which has no signal

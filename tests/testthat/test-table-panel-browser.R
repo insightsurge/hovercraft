@@ -1,14 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # tip_spec(to = "in_place") in real DT (client and server mode) and reactable tables: a row's pinned tip is drawn as a panel
 # under its row, follows its row through a sort, closes with it when the row leaves the page, leaves the widget's own
@@ -104,31 +94,11 @@ describe("a row's pinned tip drawn in place", {
   page <- local_page(app$url, environment())
   css <- tip_names()$css
   pin_sel <- sprintf(".%s.%s-pin:not([hidden])", css, css)
-  seen <- function(name) {
-    all <- jsonlite::fromJSON(page$evaluate("document.getElementById('seen').textContent"), simplifyVector = FALSE)
-    all[[name]]
-  }
-  wait_seen <- function(name, test) {
-    page$wait_until(sprintf(
-      "(() => { try { const v = JSON.parse(document.getElementById('seen').textContent)[%s]; return !!(%s); } catch (e) { return false; } })()",
-      jsonlite::toJSON(name, auto_unbox = TRUE),
-      test
-    ))
-  }
   count <- function(selector) page$evaluate(sprintf("document.querySelectorAll('%s').length", selector))
   panels <- function(scope) count(sprintf("%s [data-hovercraft-panel], %s[data-hovercraft-panel]", scope, scope))
   dt_row <- function(id, n) sprintf("#%s tbody tr[data-hovercraft-tip-id=\"%s/row/%d\"]", id, id, n)
   rt_row <- function(n) sprintf("#rt [role=row][data-hovercraft-tip-id=\"rt/row/%d\"]", n)
   # Pins the row by the pin key, with the focus on it, as a keyboard reader does.
-  pin_key <- function(selector) {
-    # The table's keyboard layer gives a row its tab stop a frame after the row is drawn.
-    expect_true(page$wait_until(sprintf(
-      "document.querySelector(%s)?.hasAttribute('tabindex') === true",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
-    page$evaluate(sprintf("document.querySelector(%s).focus()", jsonlite::toJSON(selector, auto_unbox = TRUE)))
-    page$press("p", wait = 0.2)
-  }
   after_row <- function(selector) {
     page$evaluate(sprintf(
       "(() => { const r = document.querySelector(%s); return r?.nextElementSibling?.hasAttribute('data-hovercraft-panel') === true; })()",
@@ -158,7 +128,7 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("draws the pinned tip of a DT row as a panel row right under it, a region, with the row marked open", {
-    pin_key(dt_row("dtc", 3))
+    page$pin_key(dt_row("dtc", 3))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     expect_true(after_row(dt_row("dtc", 3)))
     expect_identical(page$evaluate("document.querySelector('[data-hovercraft-panel]').tagName"), "TR")
@@ -170,8 +140,8 @@ describe("a row's pinned tip drawn in place", {
       "true"
     )
     expect_identical(page$evaluate("document.querySelector('[data-hovercraft-panel] td').colSpan"), 2L)
-    expect_true(wait_seen("dtc_pinned", "v.length === 1 && v[0].row === 3"))
-    expect_identical(seen("dtc_pin")$state, "pinned")
+    expect_true(page$wait_reported("dtc_pinned", "v.length === 1 && v[0].row === 3"))
+    expect_identical(page$reported("dtc_pin")$state, "pinned")
   })
 
   it("keeps the panel under the same data row when DT sorts, with the pin open and the inputs unchanged", {
@@ -184,8 +154,8 @@ describe("a row's pinned tip drawn in place", {
     expect_identical(count("[data-hovercraft-panel]"), 1L)
     expect_identical(open_pins(), "dtc/row/3")
     expect_match(page$evaluate(sprintf("document.querySelector('%s').textContent", pin_sel)), "Hares")
-    expect_identical(length(seen("dtc_pinned")), 1L)
-    expect_identical(seen("dtc_pin")$state, "pinned")
+    expect_identical(length(page$reported("dtc_pinned")), 1L)
+    expect_identical(page$reported("dtc_pin")$state, "pinned")
   })
 
   it("changes the panel's colspan when a column is hidden and shown, and keeps the focus in the panel through a sort", {
@@ -211,25 +181,25 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("leaves DT's own inputs alone for a click inside the panel, and does not close for a click away", {
-    expect_null(seen("dtc_rows_selected"))
+    expect_null(page$reported("dtc_rows_selected"))
     page$evaluate(sprintf("document.querySelector('%s').click(); 0", pin_sel))
     page$evaluate("document.querySelector('[data-hovercraft-panel] td').click(); 0")
     page$evaluate(
       "document.querySelector('[data-hovercraft-panel] td').dispatchEvent(new MouseEvent('dblclick', { bubbles: true })); 0"
     )
     page$settle()
-    expect_null(seen("dtc_rows_selected"))
+    expect_null(page$reported("dtc_rows_selected"))
     # DT says `list()` for a click it has not had.
-    expect_length(seen("dtc_cell_clicked"), 0L)
-    expect_null(seen("dtc_row_last_clicked"))
+    expect_length(page$reported("dtc_cell_clicked"), 0L)
+    expect_null(page$reported("dtc_row_last_clicked"))
     # A click away (on the page, outside the table) does not close a panel; it is a panel, not a floating tip.
     page$mouse(5, 5, click = TRUE)
     page$hold(0.5) # nothing must happen: the engine's own timers have run out when the panel is still there
     expect_identical(open_pins(), "dtc/row/3")
     expect_identical(count("[data-hovercraft-panel]"), 1L)
     # The pin key on the open row does nothing: no toggle.
-    pin_key(dt_row("dtc", 3))
-    page$settle()
+    page$pin_key(dt_row("dtc", 3))
+    page$settle() # the key on a pinned row must do nothing: nothing happening has no signal
     expect_identical(open_pins(), "dtc/row/3")
   })
 
@@ -256,7 +226,7 @@ describe("a row's pinned tip drawn in place", {
     # The tip drew again and is still the same pin, in its panel.
     expect_identical(count("[data-hovercraft-panel]"), 1L)
     page$evaluate(sprintf("document.querySelector('%s').focus()", strip))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
     expect_identical(open_pins(), character())
     expect_identical(
@@ -268,22 +238,23 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("closes the pin as gone when a filter hides the row, takes the panel away, and reopens nothing", {
-    pin_key(dt_row("dtc", 3))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 3))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     page$evaluate("$('#dtc table').DataTable().search('Voles').draw(); 0")
-    expect_true(wait_seen("dtc_pin", "v.state === 'closed'"))
-    expect_identical(seen("dtc_pin")$reason, "gone")
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'closed'"))
+    expect_identical(page$reported("dtc_pin")$reason, "gone")
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
     page$evaluate("$('#dtc table').DataTable().search('').draw(); 0")
+    page$hold(0.3) # nothing must reopen when the row comes back: nothing happening has no signal
     page$settle()
     expect_identical(count("[data-hovercraft-panel]"), 0L)
     expect_identical(open_pins(), character())
-    expect_identical(length(seen("dtc_pinned")), 0L)
+    expect_identical(length(page$reported("dtc_pinned")), 0L)
   })
 
   it("keeps a pin on its row in DT's server mode through a sort, and closes it as gone on another page", {
-    pin_key(dt_row("dts", 3))
-    expect_true(wait_seen("dts_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dts", 3))
+    expect_true(page$wait_reported("dts_pin", "v.state === 'pinned'"))
     expect_true(after_row(dt_row("dts", 3)))
     # Sorted by wins, ascending, the page shows Voles, Hares, Moles: Hares is data row 3 and has moved up one place.
     page$evaluate("$('#dts table').DataTable().order([1, 'asc']).draw(); 0")
@@ -295,16 +266,16 @@ describe("a row's pinned tip drawn in place", {
     expect_identical(count("[data-hovercraft-panel]"), 1L)
     expect_identical(open_pins(), "dts/row/3")
     page$evaluate("$('#dts table').DataTable().page(1).draw(false); 0")
-    expect_true(wait_seen("dts_pin", "v.state === 'closed'"))
-    expect_identical(seen("dts_pin")$reason, "gone")
+    expect_true(page$wait_reported("dts_pin", "v.state === 'closed'"))
+    expect_identical(page$reported("dts_pin")$reason, "gone")
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
     page$evaluate("$('#dts table').DataTable().order([0, 'asc']).page(0).draw(false); 0")
     expect_true(page$wait_until("document.querySelector('#dts tbody td').textContent.startsWith('Foxes')"))
   })
 
   it("re-seats the panel in the new row when DT::replaceData() gives the table new values, with one panel", {
-    pin_key("#dts tbody tr:nth-child(1)")
-    expect_true(wait_seen("dts_pin", "v.state === 'pinned'"))
+    page$pin_key("#dts tbody tr:nth-child(1)")
+    expect_true(page$wait_reported("dts_pin", "v.state === 'pinned'"))
     first_id <- page$evaluate(
       "document.querySelector('#dts tbody tr:nth-child(1)').getAttribute('data-hovercraft-tip-id')"
     )
@@ -322,8 +293,8 @@ describe("a row's pinned tip drawn in place", {
 
   it("survives Shiny drawing a DT again while open: one panel, in the new row, and its output still bound", {
     page$evaluate("$('#dtc table').DataTable().order([0, 'asc']).draw(); 0")
-    pin_key(dt_row("dtc", 2))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 2))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     page$evaluate("document.querySelector('[data-hovercraft-panel] .hovercraft-more-strip-in button').click(); 0")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('%s').textContent.includes('Live output text')",
@@ -352,20 +323,20 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("counts an in-place pin in the table's own limit: the second pin replaces the first, and one panel is left", {
-    pin_key(dt_row("dtm", 1))
-    expect_true(wait_seen("dtm_pin", "v.state === 'pinned' && v.row === 1"))
-    pin_key(dt_row("dtm", 2))
-    expect_true(wait_seen("dtm_pin", "v.state === 'pinned' && v.row === 2"))
+    page$pin_key(dt_row("dtm", 1))
+    expect_true(page$wait_reported("dtm_pin", "v.state === 'pinned' && v.row === 1"))
+    page$pin_key(dt_row("dtm", 2))
+    expect_true(page$wait_reported("dtm_pin", "v.state === 'pinned' && v.row === 2"))
     expect_true(page$wait_until("document.querySelectorAll('#dtm [data-hovercraft-panel]').length === 1"))
     expect_identical(open_pins(), "dtm/row/2")
     expect_true(after_row(dt_row("dtm", 2)))
-    expect_true(wait_seen("dtm_pinned", "v.length === 1 && v[0].row === 2"))
+    expect_true(page$wait_reported("dtm_pinned", "v.length === 1 && v[0].row === 2"))
     close_all()
   })
 
   it("gives a Shiny output to the newest of two panels, and the older one says it is shown in another tip", {
     for (n in c(1, 2)) {
-      pin_key(dt_row("dtc", n))
+      page$pin_key(dt_row("dtc", n))
       expect_true(page$wait_until(sprintf("document.querySelectorAll('[data-hovercraft-panel]').length === %d", n)))
       page$evaluate(sprintf(
         "document.querySelector('%s').nextElementSibling.querySelector('.hovercraft-more-strip-in button').click(); 0",
@@ -393,15 +364,15 @@ describe("a row's pinned tip drawn in place", {
       "document.querySelector('%s').nextElementSibling.querySelector('.hovercraft-more-strip-in button').focus(); 0",
       dt_row("dtc", 1)
     ))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 1"))
     expect_identical(open_pins(), "dtc/row/2")
     close_all()
   })
 
   it("opens a reactable row's pinned tip as a panel in the row's group, with the roles of a table", {
-    pin_key(rt_row(2))
-    expect_true(wait_seen("rt_pin", "v.state === 'pinned'"))
+    page$pin_key(rt_row(2))
+    expect_true(page$wait_reported("rt_pin", "v.state === 'pinned'"))
     expect_true(after_row(rt_row(2)))
     expect_identical(
       page$evaluate(
@@ -424,13 +395,14 @@ describe("a row's pinned tip drawn in place", {
     # The same after a click inside the panel.
     page$evaluate("document.querySelector('#rt [data-hovercraft-panel] .hc-tip').click(); 0")
     page$evaluate("document.querySelector('#rt [data-hovercraft-panel]').click(); 0")
+    page$hold(0.3) # the click must select nothing: nothing happening has no signal
     page$settle()
     expect_identical(page$evaluate("document.getElementById('rsel').textContent"), "selected: ")
   })
 
   it("keeps a Shiny output bound in a reactable panel across a close and a reopen", {
     for (round in 1:2) {
-      pin_key(rt_row(1))
+      page$pin_key(rt_row(1))
       expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
       page$evaluate("document.querySelector('#rt [data-hovercraft-panel] .hovercraft-more-strip-in button').click(); 0")
       expect_true(page$wait_until(sprintf(
@@ -445,8 +417,8 @@ describe("a row's pinned tip drawn in place", {
     page$evaluate(
       "[...document.querySelectorAll('#rt .rt-next-button, #rt [aria-label=\"Next page\"]')][0]?.click(); 0"
     )
-    expect_true(wait_seen("rt_pin", "v.state === 'closed'"))
-    expect_identical(seen("rt_pin")$reason, "host")
+    expect_true(page$wait_reported("rt_pin", "v.state === 'closed'"))
+    expect_identical(page$reported("rt_pin")$reason, "host")
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
     expect_identical(open_pins(), character())
     page$evaluate(
@@ -456,8 +428,8 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("keeps a reactable panel on the same row number when the table is given new data, with the new values", {
-    pin_key(rt_row(1))
-    expect_true(wait_seen("rt_pin", "v.state === 'pinned'"))
+    page$pin_key(rt_row(1))
+    expect_true(page$wait_reported("rt_pin", "v.state === 'pinned'"))
     expect_match(page$evaluate(sprintf("document.querySelector('%s').textContent", pin_sel)), "Owls")
     poke("fresh")
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('Lynx')", pin_sel)))
@@ -469,8 +441,8 @@ describe("a row's pinned tip drawn in place", {
 
   it("keeps a panel inside a phone's width, and takes the page's colours in the dark", {
     page$evaluate("window.scrollTo(0, 0); 0")
-    pin_key(dt_row("dtc", 1))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 1))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     page$viewport(375, 700)
     expect_true(page$wait_until(sprintf("document.querySelector('%s').getBoundingClientRect().right <= 376", pin_sel)))
     # The page does not scroll sideways because of the panel, and the panel is not wider than the table's visible part.
@@ -498,7 +470,7 @@ describe("a row's pinned tip drawn in place", {
     page$viewport(375, 700)
     withr::defer(page$viewport(900, 700))
     expect_true(page$wait_until("document.querySelectorAll('#dtx tbody tr[data-hovercraft-tip-id]').length === 3"))
-    pin_key(dt_row("dtx", 2))
+    page$pin_key(dt_row("dtx", 2))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     box <- function() {
       jsonlite::fromJSON(page$evaluate(
@@ -517,11 +489,11 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("closes the newest panel on Escape from a row that has no pin of its own, as it does for a floating pin", {
-    pin_key(dt_row("dtc", 4))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 4))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     page$evaluate(sprintf("document.querySelector('%s').focus()", dt_row("dtc", 5)))
-    page$press("Escape", wait = 0.2)
-    expect_true(wait_seen("dtc_pin", "v.state === 'closed'"))
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'closed'"))
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
   })
 
@@ -557,10 +529,10 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("gives the More button to the box of its own pin, also when a floating pin was opened first", {
-    pin_key("#fl")
+    page$pin_key("#fl")
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length === 1", pin_sel)))
-    pin_key(dt_row("dtc", 4))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 4))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     expect_true(page$wait_until(
       "document.querySelectorAll('[data-hovercraft-panel] .hovercraft-more-strip-in').length === 1"
     ))
@@ -572,11 +544,11 @@ describe("a row's pinned tip drawn in place", {
 
   it("keeps the More button of a panel through a real close, a new pin and two sorts of the table", {
     close_button <- "[data-hovercraft-panel] .hc-tip-close"
-    pin_key(dt_row("dtc", 3))
+    page$pin_key(dt_row("dtc", 3))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", close_button)))
     page$click_now(close_button)
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
-    pin_key(dt_row("dtc", 3))
+    page$pin_key(dt_row("dtc", 3))
     expect_true(page$wait_until(
       "document.querySelectorAll('[data-hovercraft-panel] .hovercraft-more-strip-in button').length === 1"
     ))
@@ -607,8 +579,8 @@ describe("a row's pinned tip drawn in place", {
 
   it("lets go of the observers of a table's width when its panels go and when the table is drawn again", {
     observers <- function() page$evaluate("HovercraftTable.stats().observers")
-    pin_key(dt_row("dtc", 2))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 2))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     expect_identical(observers(), 1L)
     for (i in 1:3) {
       poke("rerender")
@@ -621,8 +593,8 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("keeps the focus of a reader who left the panel out of it, and takes a reader who was in it back to the row", {
-    pin_key(dt_row("dtc", 3))
-    expect_true(wait_seen("dtc_pin", "v.state === 'pinned'"))
+    page$pin_key(dt_row("dtc", 3))
+    expect_true(page$wait_reported("dtc_pin", "v.state === 'pinned'"))
     page$evaluate(sprintf("document.querySelector('%s').focus()", pin_sel))
     # The reader clicks an empty part of the page: focus is on the page, and a sort does not pull it back into the panel.
     page$mouse(5, 5, click = TRUE)
@@ -649,8 +621,8 @@ describe("a row's pinned tip drawn in place", {
   })
 
   it("says how many columns a reactable panel spans", {
-    pin_key(rt_row(1))
-    expect_true(wait_seen("rt_pin", "v.state === 'pinned'"))
+    page$pin_key(rt_row(1))
+    expect_true(page$wait_reported("rt_pin", "v.state === 'pinned'"))
     # One cell for every cell of the row (the selection column is one).
     cells <- page$evaluate(sprintf("document.querySelectorAll('%s > [role=cell]').length", rt_row(1)))
     expect_gt(cells, 1L)
@@ -734,11 +706,6 @@ describe("the buttons of a row's panel", {
       sprintf("#%s [role=row][data-hovercraft-tip-id=\"%s/row/2\"]", id, id)
     }
   }
-  pin_key <- function(selector) {
-    expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", selector)))
-    page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-    page$press("p", wait = 0.2)
-  }
   measure <- function(id) {
     jsonlite::fromJSON(page$evaluate(sprintf(
       "(() => {
@@ -768,7 +735,7 @@ describe("the buttons of a row's panel", {
   for (id in c("dt", "dtt", "rt", "rtt")) {
     it(paste("sit inside the card and on its first line:", id), {
       withr::defer(close_all())
-      pin_key(row_of(id))
+      page$pin_key(row_of(id))
       button <- sprintf("#%s [data-hovercraft-panel] .hovercraft-more-strip-in button", id)
       expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", button)))
       for (state in c("closed", "open")) {

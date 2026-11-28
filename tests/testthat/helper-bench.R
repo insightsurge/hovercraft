@@ -2,6 +2,9 @@
 # runs by hand and the browser tests start here. Found from the test folder, so it is there when the tests run from the
 # checkout (devtools::test(), and the full-tests job, which runs the installed package against this folder).
 
+# The packages the bench's apps use besides the ones every browser test needs (`skip_if_no_browser()`).
+bench_packages <- c("DT", "reactable", "shinyjs", "promises", "later")
+
 bench_dir <- function() {
   normalizePath(testthat::test_path("apps", "testbench"), mustWork = FALSE)
 }
@@ -37,7 +40,7 @@ bench_log_rows <- function(json) {
 #   log_has(kind, id, ..., since)  waits until a line of that kind (and id, and detail fields) arrives after `since`
 bench_page <- function(bench, only = NULL, query = list(), env = parent.frame()) {
   page <- local_page(bench_url(bench, only, query), env)
-  page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true")
+  page$wait_connected()
   log <- function(since = 0) {
     bench_log_rows(page$evaluate(sprintf(
       "JSON.stringify((window.benchLog ?? []).filter((l) => l.n > %d))",

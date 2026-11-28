@@ -1,9 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # One static page per widget, with five made-up rows. The rows' own tips read the row's record, so a row must keep its
 # own words after a sort or a change of page.
@@ -261,7 +256,11 @@ describe("tip_table(marker =) highlights a cell while its tip is open, in a brow
       "hint"
     )
     expect_match(fill(cell), "rgba(127, 127, 127", fixed = TRUE)
-    page$hover("tbody tr:first-child td:nth-child(1)")
+    page$hover("tbody tr:first-child td:nth-child(1)", opens = FALSE)
+    expect_true(page$wait_until(sprintf(
+      "!getComputedStyle(document.querySelector('%s')).backgroundColor.includes('127')",
+      cell
+    )))
     expect_false(grepl("127", fill(cell), fixed = TRUE))
   })
 })
@@ -316,28 +315,38 @@ describe("tip_table() with the keyboard, on a DT table", {
     expect_true(page$wait_until("document.querySelectorAll('tbody tr[data-hovercraft-tip-template]').length === 2"))
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, "tbody tr:first-child"), "Owls: 7 wins")
-    expect_identical(page$press("ArrowRight"), "Note: Top")
-    expect_identical(page$press("ArrowLeft"), "Owls: 7 wins")
-    expect_identical(page$press("ArrowDown"), "Foxes: 5 wins")
-    expect_identical(page$press("ArrowUp"), "Owls: 7 wins")
-    expect_identical(page$press("End"), "Note: Top")
-    expect_identical(page$press("Home"), "Owls: 7 wins")
-    expect_identical(page$press("End", ctrl = TRUE), "Foxes: 5 wins")
-    expect_identical(page$press("Home", ctrl = TRUE), "Games won")
+    page$press("ArrowRight", wait = 0)
+    expect_true(page$wait_shown("Note: Top"))
+    page$press("ArrowLeft", wait = 0)
+    expect_true(page$wait_shown("Owls: 7 wins"))
+    page$press("ArrowDown", wait = 0)
+    expect_true(page$wait_shown("Foxes: 5 wins"))
+    page$press("ArrowUp", wait = 0)
+    expect_true(page$wait_shown("Owls: 7 wins"))
+    page$press("End", wait = 0)
+    expect_true(page$wait_shown("Note: Top"))
+    page$press("Home", wait = 0)
+    expect_true(page$wait_shown("Owls: 7 wins"))
+    page$press("End", ctrl = TRUE, wait = 0)
+    expect_true(page$wait_shown("Foxes: 5 wins"))
+    page$press("Home", ctrl = TRUE, wait = 0)
+    expect_true(page$wait_shown("Games won"))
   })
 
   it("leaves the arrow keys alone on an element that is not one of its stops", {
     page$evaluate("document.querySelector('.dataTables_paginate a, .dt-paging button')?.focus()")
     expect_identical(page$evaluate("document.activeElement.matches('[data-hovercraft-tip-kind]')"), FALSE)
-    expect_length(page$press("ArrowDown"), 0L)
+    expect_length(page$press("ArrowDown"), 0L) # the key must open nothing: nothing happening has no signal
   })
 
   it("reaches the header cell above the first row, and keeps one stop after a sort and a page", {
     focus(page, "tbody tr:first-child")
-    expect_identical(page$press("ArrowUp"), "Games won")
+    page$press("ArrowUp", wait = 0)
+    expect_true(page$wait_shown("Games won"))
     page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
     page$evaluate("$('table').DataTable().page(1).draw(false)")
     page$settle()
+    expect_true(page$wait_until(sprintf("(%s) === 1", owned_stops)))
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, "tbody tr:first-child"), "Foxes: 5 wins")
     expect_identical(page$evaluate(described), TRUE)
@@ -360,11 +369,16 @@ describe("tip_table() with the keyboard, on a reactable table", {
     expect_true(page$wait_until("document.querySelectorAll('[role=row][data-hovercraft-tip-template]').length >= 2"))
     expect_identical(page$evaluate(owned_stops), 1L)
     expect_identical(focus(page, ".rt-tbody [role=row]"), "Owls: 7 wins")
-    expect_identical(page$press("ArrowRight"), "Note: Top")
-    expect_identical(page$press("ArrowDown"), "Foxes: 5 wins")
-    expect_identical(page$press("ArrowUp"), "Owls: 7 wins")
-    expect_identical(page$press("End"), "Note: Top")
-    expect_identical(page$press("Home"), "Owls: 7 wins")
+    page$press("ArrowRight", wait = 0)
+    expect_true(page$wait_shown("Note: Top"))
+    page$press("ArrowDown", wait = 0)
+    expect_true(page$wait_shown("Foxes: 5 wins"))
+    page$press("ArrowUp", wait = 0)
+    expect_true(page$wait_shown("Owls: 7 wins"))
+    page$press("End", wait = 0)
+    expect_true(page$wait_shown("Note: Top"))
+    page$press("Home", wait = 0)
+    expect_true(page$wait_shown("Owls: 7 wins"))
   })
 
   it("describes every tagged element to a screen reader, also after a sort and a page", {
@@ -393,7 +407,9 @@ describe("tip_table() with reactable's row selection, in a browser", {
 
   it("keeps the tip and selects the row on the same click", {
     expect_true(page$wait_until("document.querySelectorAll('[role=row][data-hovercraft-tip-template]').length >= 3"))
-    expect_identical(page$click(".rt-tbody [role=row] .rt-td:nth-child(2)"), "Owls: 7 wins")
+    page$click(".rt-tbody [role=row] .rt-td:nth-child(2)", until = sprintf("(%s) === 'Owls'", selected))
+    page$hold(0.7) # the tip must stay open through the click, past the engine's delay: nothing happening has no signal
+    expect_identical(page$shown(), "Owls: 7 wins")
     expect_identical(page$evaluate(selected), "Owls")
     expect_identical(page$evaluate("document.querySelector('.rt-tbody [role=row] input[type=checkbox]').checked"), TRUE)
   })
@@ -403,7 +419,9 @@ describe("tip_table() with reactable's row selection, in a browser", {
     expect_true(page$wait_until(
       "document.querySelector('.rt-tbody .rt-td:nth-child(2)').textContent.startsWith('Voles')"
     ))
-    expect_identical(page$click(".rt-tbody [role=row] .rt-td:nth-child(2)"), "Voles: 1 wins")
+    page$click(".rt-tbody [role=row] .rt-td:nth-child(2)", until = sprintf("(%s) === 'Voles'", selected))
+    page$hold(0.7) # the tip must stay open through the click, past the engine's delay: nothing happening has no signal
+    expect_identical(page$shown(), "Voles: 1 wins")
     # Owls, selected before the sort, is on another page now, so only the Voles row shows as selected.
     expect_identical(page$evaluate(selected), "Voles")
     expect_identical(page$problems(), character())
@@ -577,17 +595,18 @@ describe("tip_table() with reactable's groupBy and row details, in a browser", {
     inside <- ".rt-tbody .rt-tr-group:nth-child(%d) [role=row] .rt-td:nth-child(2)"
     expect_identical(page$hover(sprintf(inside, 2)), "Owls: 7 wins")
     expect_identical(page$hover(sprintf(inside, 4)), "Voles: 1 wins")
-    expect_length(page$hover(".rt-tbody .rt-tr-group:nth-child(1) [role=row] .rt-td:nth-child(2)"), 0L)
-    expect_length(page$hover(".rt-tbody .rt-tr-group:nth-child(5) [role=row] .rt-td:nth-child(2)"), 0L)
+    expect_length(page$hover(".rt-tbody .rt-tr-group:nth-child(1) [role=row] .rt-td:nth-child(2)", opens = FALSE), 0L)
+    expect_length(page$hover(".rt-tbody .rt-tr-group:nth-child(5) [role=row] .rt-td:nth-child(2)", opens = FALSE), 0L)
     expect_identical(page$problems(), character())
   })
 
   it("keeps the row's tip when its details open, and shows none over the details", {
     page <- local_page(details, environment())
     expect_true(page$wait_until("document.querySelectorAll('[role=row][data-hovercraft-tip-template]').length === 6"))
+    # The tip must stay open through the click, past the engine's delay: nothing happening has no signal.
     expect_identical(page$click(".rt-tbody .rt-tr-group:nth-child(3) [role=row] .rt-td:nth-child(2)"), "Hares: 2 wins")
     expect_true(page$wait_until("document.querySelector('.rt-tr-details') !== null"))
-    expect_length(page$hover(".rt-tr-details"), 0L)
+    expect_length(page$hover(".rt-tr-details", opens = FALSE), 0L)
     expect_identical(page$hover(".rt-tbody .rt-tr-group:nth-child(4) [role=row] .rt-td:nth-child(2)"), "Lynx: 9 wins")
     expect_identical(
       page$evaluate("document.querySelectorAll('.rt-tr-details [data-hovercraft-tip-template]').length"),
@@ -613,10 +632,14 @@ describe("tip_table(id =) and the keyboard with DT's copies of the header", {
     page <- local_page(file, environment())
     dt_ready(page)
     page$evaluate("$('.dataTables_scrollBody table').DataTable().order([1, 'desc']).draw(); 0")
+    expect_true(page$wait_until(
+      "document.querySelector('.dataTables_scrollBody tbody tr:first-child')?.hasAttribute('data-hovercraft-tip-id')"
+    ))
     page$settle()
     expect_identical(jsonlite::fromJSON(page$evaluate(duplicated_ids)), "t/header/2")
     focus(page, ".dataTables_scrollBody tbody tr:first-child")
-    expect_identical(page$press("ArrowUp"), "Games won")
+    page$press("ArrowUp", wait = 0)
+    expect_true(page$wait_shown("Games won"))
     expect_true(page$evaluate("!!document.activeElement.closest('.dataTables_scrollHead')"))
   })
 
@@ -678,6 +701,9 @@ describe("tip_table(marker =) in a browser", {
 
   it("keeps the triangle on the cells after a sort", {
     dt_page$evaluate("$('table').DataTable().order([1, 'desc']).draw()")
+    expect_true(dt_page$wait_until(
+      "document.querySelector('tbody tr:first-child td:nth-child(2)')?.hasAttribute('data-hovercraft-marker')"
+    ))
     expect_match(corner(dt_page, "tbody tr:first-child td:nth-child(2)")$image, "linear-gradient", fixed = TRUE)
   })
 
@@ -808,9 +834,12 @@ describe("tip_table() with a filter row, in a browser", {
     expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
     expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")
     # The filter box under the tipped header is free: no tip opens over it.
-    expect_length(page$hover(".rt-td-filter:nth-child(2)"), 0L)
+    expect_length(page$hover(".rt-td-filter:nth-child(2)", opens = FALSE), 0L)
     # A sort re-marks the table; the filter cell stays free, and the header and the rows keep their tips.
     page$evaluate("document.querySelectorAll('.rt-th')[1].click()")
+    expect_true(page$wait_until(
+      "['ascending', 'descending'].includes(document.querySelectorAll('.rt-th')[1].getAttribute('aria-sort'))"
+    ))
     page$settle()
     expect_identical(count(page, ".rt-tr-filters, .rt-td-filter"), 0L)
     expect_identical(page$hover(".rt-th:nth-child(2)"), "Wins so far")

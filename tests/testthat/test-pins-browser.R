@@ -1,14 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(c("DT", "reactable"))
 
 # Several pins at once: use_hovercraft(max_pins =) for the app, tip_table(max_pins =) for a table of its own, on real DT and
 # reactable tables in a running Shiny app. A pin is opened by the engine's own door, as the pin key and the pin button do.
@@ -140,7 +130,7 @@ describe("several pins in a Shiny app", {
   }
 
   it("starts and connects, with the page's limit of three", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     for (table in c("a", "b", "c", "r")) {
       expect_true(
         page$wait_until(sprintf(
@@ -328,7 +318,7 @@ describe("the page's pin settings", {
     on <- local_page(page_of(use_hovercraft(), pinnable("one")), environment())
     expect_true(on$wait_until("window.HovercraftPin !== undefined"))
     on$evaluate("document.getElementById('one').focus(); 0")
-    on$press("p")
+    on$press("p", wait = 0)
     expect_true(on$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
@@ -338,7 +328,7 @@ describe("the page's pin settings", {
     off <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
     expect_true(off$wait_until("window.HovercraftPin !== undefined"))
     off$evaluate("document.getElementById('one').focus(); 0")
-    off$press("p")
+    off$press("p", wait = 0.6) # the key is off: nothing happening has no signal
     expect_identical(open_count(off), 0L)
     expect_true(off$wait_until("document.getElementById('one').getAttribute('aria-keyshortcuts') === null"))
     # The engine's own Escape stays, and the pin is still there for a pointer through the door the button uses.
@@ -347,7 +337,7 @@ describe("the page's pin settings", {
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
     )))
-    off$press("Escape")
+    off$press("Escape", wait = 0)
     expect_true(off$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 0",
       tip_contract()$attributes$open
@@ -366,7 +356,7 @@ describe("the page's pin settings", {
     page <- local_page(page_of(use_hovercraft(), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     expect_length(page$hover("#one"), 1L)
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
@@ -427,13 +417,17 @@ describe("the page's pin settings", {
     # The pointer leaves and the focus moves on at once, as a reader does, while the tip of "one" is still on show.
     page$mouse(5, 5, FALSE)
     page$evaluate("document.getElementById('two').focus(); 0")
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
     )))
     expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
-    page$press("Escape")
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelectorAll('[%s=\"pin\"]').length === 0",
+      tip_contract()$attributes$open
+    )))
     # A tip that the page opens (tip_show() does it) is not under the pointer: the key stays with the focused item.
     page$mouse(5, 5, FALSE)
     page$evaluate("document.getElementById('two').focus(); window.Hovercraft.show(document.getElementById('one')); 0")
@@ -442,7 +436,7 @@ describe("the page's pin settings", {
       tip_names()$css,
       tip_names()$css
     )))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
@@ -455,7 +449,7 @@ describe("the page's pin settings", {
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     page$evaluate("document.getElementById('one').focus(); 0")
     expect_length(page$hover("#two"), 1L)
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
@@ -504,7 +498,7 @@ describe("the page's pin settings", {
     page <- local_page(page_of(use_hovercraft(keys = FALSE), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     expect_length(page$hover("#one"), 1L)
-    page$press("p")
+    page$press("p", wait = 0.6) # the keys are off: nothing happening has no signal
     expect_identical(open_count(page), 0L)
   })
 
@@ -514,13 +508,13 @@ describe("the page's pin settings", {
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     page$evaluate("document.getElementById('one').focus(); 0")
     expect_length(page$hover("#two"), 1L)
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
     )))
     expect_identical(jsonlite::fromJSON(pinned_ids(page)), "two")
-    page$press("Escape")
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 0",
       tip_contract()$attributes$open
@@ -536,7 +530,7 @@ describe("the page's pin settings", {
     page <- local_page(page_of(use_hovercraft(keys = c(more = FALSE)), pinnable("one")), environment())
     expect_true(page$wait_until("window.HovercraftPin !== undefined"))
     page$evaluate("document.getElementById('one').focus(); 0")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('[%s=\"pin\"]').length === 1",
       tip_contract()$attributes$open
@@ -544,7 +538,7 @@ describe("the page's pin settings", {
     skip <- local_page(page_of(use_hovercraft(keys = c(pin = FALSE)), pinnable("one")), environment())
     expect_true(skip$wait_until("window.HovercraftPin !== undefined"))
     skip$evaluate("document.getElementById('one').focus(); 0")
-    skip$press("p")
+    skip$press("p", wait = 0.6) # the pin key is off: nothing happening has no signal
     expect_identical(open_count(skip), 0L)
   })
 

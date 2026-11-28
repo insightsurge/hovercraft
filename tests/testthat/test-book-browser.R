@@ -1,13 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("DT")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser("DT")
 
 # hovercraft book in Chrome, one session from start to end: real pointer and keys, the server's answers, the ticks,
 # the look of the page, Copy right after a change, the search, the checklist, and a phone's layout.
@@ -85,9 +76,9 @@ describe("hovercraft book in a browser", {
     expect_true(page$wait_until(sprintf("JSON.stringify(%s) === '[\"output\"]'", visible)))
     page$type(" zzz")
     expect_true(page$wait_until("document.querySelector('.index .toc-none').textContent === 'Nothing matches.'"))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     # Every section is back in the index, and only the part being read is open again.
-    expect_true(js("[...document.querySelectorAll('#toc li')].every((li) => !li.hidden)"))
+    expect_true(page$wait_until("[...document.querySelectorAll('#toc li')].every((li) => !li.hidden)"))
     expect_false(js("document.documentElement.classList.contains('toc-searching')"))
     expect_identical(js("document.querySelector('.index .toc-none').textContent"), "")
     js("document.activeElement.blur()")
@@ -130,17 +121,19 @@ describe("hovercraft book in a browser", {
   it("draws a plot in a pinned tip, keeps it when the tip closes, and says so", {
     scroll_to("output")
     focus(tip("region_north"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(logged("output", "drawn for North")))
     expect_true(page$wait_until(ticked("output", 0L)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     focus(tip("region_north"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(logged("output", "kept for North")))
     expect_true(page$wait_until(ticked("output", 1L)))
     drawn <- "[...document.querySelectorAll('[data-log=\"output\"] li')].filter((li) => li.textContent.includes('drawn for North')).length"
     expect_identical(js(drawn), 1L)
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("says drawn, not kept, when the plot was drawn for another region in between", {
@@ -156,27 +149,31 @@ describe("hovercraft book in a browser", {
     count <- function(words) sprintf("window.bookSeen.filter((v) => v.includes('%s')).length", words)
     # Coast first, so North's plot is drawn anew when North is pinned.
     focus(tip("region_coast"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("%s > 0", count("drawn for Coast"))))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     drawn_before <- js(count("drawn for North"))
     kept_before <- js(count("kept for North"))
     focus(tip("region_north"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     coast_before <- js(count("drawn for Coast"))
     # Pinning Coast draws the shared plot for Coast; pinning North again must draw it again, not keep it.
     focus(tip("region_coast"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for Coast"), coast_before)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     focus(tip("region_north"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("%s > %d", count("drawn for North"), drawn_before + 1L)))
     page$hold(2) # North must not be drawn again: nothing happening has no signal
     expect_identical(js(count("kept for North")), kept_before)
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     # Resting on Coast in between may or may not draw the plot for Coast, as Shiny decides; either way the log tells
     # the truth about North when it is pinned again: drawn, or kept, never both and never neither.
     drawn_now <- js(count("drawn for North"))
@@ -185,7 +182,7 @@ describe("hovercraft book in a browser", {
     page$hold(1) # Shiny may or may not draw the plot for Coast: either way, let it decide before moving on
     page$mouse(5, 5)
     focus(tip("region_north"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "%s > %d || %s > %d",
       count("drawn for North"),
@@ -199,7 +196,8 @@ describe("hovercraft book in a browser", {
     drew <- js(count("drawn for North")) > drawn_now
     kept <- js(count("kept for North")) > kept_now
     expect_true(xor(drew, kept))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("loads every section in light and dark, at 1440 and 375 px, with nothing in the console", {
@@ -232,14 +230,14 @@ describe("hovercraft book in a browser", {
   it("does not tick a step when the page pins a tip again", {
     scroll_to("pins")
     focus(tip("col_wait_min"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(ticked("pins", 1L)))
     # A new look closes the pinned tip and pins it again, both by the page: no close step ticks.
     js("document.querySelector('#looks_preset input[value=dense]').click()")
     expect_true(page$wait_until(logged("pins", "\"host\"")))
     expect_false(js(ticked("pins", 4L)))
     expect_false(js(ticked("pins", 2L)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(ticked("pins", 4L)))
   })
 
@@ -261,15 +259,18 @@ describe("hovercraft book in a browser", {
     scroll_to("pins")
     # The letter keys act while the focus is on the page, not on a control or a tip.
     js("document.activeElement.blur()")
-    page$press("c", wait = 0.3)
-    expect_true(js("document.documentElement.classList.contains('checklist-on')"))
+    page$press("c", wait = 0)
+    expect_true(page$wait_until("document.documentElement.classList.contains('checklist-on')"))
     expect_false(js("document.getElementById('ck-leader').hasAttribute('hidden')"))
     expect_true(js("!!document.querySelector('#pins .ck-target')"))
     before <- js("document.querySelector('#pins .tests > li.ck-current').dataset.i")
-    page$press("n", wait = 0.3)
-    expect_false(identical(js("document.querySelector('#pins .tests > li.ck-current').dataset.i"), before))
-    page$press("c", wait = 0.3)
-    expect_false(js("document.documentElement.classList.contains('checklist-on')"))
+    page$press("n", wait = 0)
+    expect_true(page$wait_until(sprintf(
+      "document.querySelector('#pins .tests > li.ck-current').dataset.i !== %s",
+      jsonlite::toJSON(before, auto_unbox = TRUE)
+    )))
+    page$press("c", wait = 0)
+    expect_true(page$wait_until("!document.documentElement.classList.contains('checklist-on')"))
   })
 
   it("opens only the part being read in the index, and a click on a part's title goes to its first section", {
@@ -284,11 +285,12 @@ describe("hovercraft book in a browser", {
 
   it("fits a phone: no sideways scroll, the margin opens as a drawer and Escape closes it", {
     page$resize(375, 812)
+    expect_true(page$wait_until("document.documentElement.scrollWidth <= 375"))
     expect_lte(js("document.documentElement.scrollWidth"), 375L)
     js("document.getElementById('pull').click()")
     expect_true(js("document.documentElement.classList.contains('drawer-open')"))
-    page$press("Escape", wait = 0.3)
-    expect_false(js("document.documentElement.classList.contains('drawer-open')"))
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_until("!document.documentElement.classList.contains('drawer-open')"))
     expect_identical(js("document.activeElement.id"), "pull")
     # Focus that leaves the drawer closes it too.
     js("document.getElementById('pull').click()")
@@ -358,7 +360,7 @@ describe("hovercraft book's newer sections in a browser", {
     row <- "#in_place tbody tr"
     expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(row)), 20))
     focus(row)
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     card <- sprintf(
       "document.querySelector(%s)?.nextElementSibling?.hasAttribute('data-hovercraft-panel') === true",
       json(row)
@@ -367,11 +369,11 @@ describe("hovercraft book's newer sections in a browser", {
     expect_true(page$wait_until(logged("in_place", "input$queue_cards_pin")))
     expect_true(page$wait_until(ticked("in_place", 0L)))
     page$mouse(5, 5)
-    page$click(".colophon")
+    page$click(".colophon", opens = FALSE)
     # The engine's close delay: a card that a click away closed would be gone by now.
     page$hold(0.4)
     expect_true(js(card))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until("document.querySelectorAll('[data-hovercraft-panel]').length === 0"))
   })
 
@@ -380,10 +382,10 @@ describe("hovercraft book's newer sections in a browser", {
     focus(tip("more_button_open"))
     expect_true(page$wait_open())
     expect_true(page$wait_until(says("More")))
-    page$press("m", wait = 0.2)
+    page$press("m", wait = 0)
     expect_true(page$wait_until(sprintf("%s?.textContent.includes('How it is counted')", shown)))
     expect_true(page$wait_until(says("Less")))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     js("document.activeElement.blur()")
     expect_true(page$wait_closed())
     js("document.querySelector('#more_button_label input:not(:checked)').click()")
@@ -393,8 +395,9 @@ describe("hovercraft book's newer sections in a browser", {
     )))
     focus(tip("more_button_open"))
     expect_true(page$wait_until(says("Show all")))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
     js("document.activeElement.blur()")
+    expect_true(page$wait_closed())
   })
 
   it("gives one tag's tip its own words, and the tag next to it keeps the page's (The tip's built-in words)", {
@@ -406,14 +409,15 @@ describe("hovercraft book's newer sections in a browser", {
     )))
     expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(tip("words_wait_min")))))
     focus(tip("words_wait_min"))
-    page$press("p", wait = 0.2)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(logged("words", "input$words_wait_min_pin")))
     # The close button says its word to a screen reader, as its name.
     expect_true(page$wait_until(sprintf(
       "[...%s?.querySelectorAll('button') ?? []].some((b) => b.getAttribute('aria-label') === 'Dismiss')",
       shown
     )))
-    page$press("Escape", wait = 0.2)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     js("document.activeElement.blur()")
     focus(tip("words_region"))
     expect_true(page$wait_open())
@@ -432,7 +436,7 @@ describe("hovercraft book's newer sections in a browser", {
     for (id in c("pin_limits_visit_date", "pin_limits_region")) {
       expect_true(page$wait_until(sprintf("!!document.querySelector(%s)", json(tip(id))), 20))
       focus(tip(id))
-      page$press("p", wait = 0.2)
+      page$press("p", wait = 0)
       expect_true(page$wait_until(sprintf("%s === true", value(paste0(id, "_pinned")))))
     }
     # With room for three, pinning the second leaves the first pinned.

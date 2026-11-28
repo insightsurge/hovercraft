@@ -1,12 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # One tip_output() shared by two items, with two pins open: the output lives in the newest pinned tip, and that tip must
 # wait for the server (the loading mask) as an output drawn for another item does, not show what the first item's tip
@@ -62,7 +54,7 @@ describe("one output shared by two pinned tips", {
   }
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     expect_true(page$wait_until("document.getElementById('shared_out') !== null"))
   })
 

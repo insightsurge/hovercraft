@@ -1,8 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("bslib")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # Markers in a real browser: the line each preset draws for an underline (and the nearest preset winning), the wave in
 # the text's own colour, an explicit line beating the preset, no shift in the tag's box, the pointer, the contrast in
@@ -253,6 +249,7 @@ describe("a marker moves nothing", {
     page$hover("#w-wavy")
     expect_equal(box_of(page, "w-wavy"), before)
     page$evaluate("document.getElementById('w-wavy').focus()")
+    page$hold(0.3) # the focus must change nothing: nothing happening has no signal
     expect_equal(box_of(page, "w-wavy"), before)
   })
 })
@@ -415,7 +412,16 @@ describe("a marked tag is highlighted while its tip is open", {
       got <- state(id)
       expect_identical(got$open, "hint", info = id)
       expect_match(got$fill, "^rgba\\(127, 127, 127", info = id)
-      page$hover("#elsewhere")
+      page$hover("#elsewhere", opens = FALSE)
+      expect_true(
+        page$wait_until(sprintf(
+          "(() => { const e = document.getElementById('%s'); return e.getAttribute('%s') === null && getComputedStyle(e).backgroundColor === '%s'; })()",
+          id,
+          open_attr,
+          transparent
+        )),
+        info = id
+      )
       expect_identical(state(id)$fill, transparent, info = id)
       expect_null(state(id)$open, info = id)
     }

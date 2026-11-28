@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # A DT table draws its rows, cells and header cells while it is built, before the widget's render hook runs. The
@@ -26,7 +13,7 @@ describe("tip_table() on a DT table in Shiny", {
   warnings_of <- function(tab) {
     url <- paste0(bench$url, "/?only=", tab)
     page <- local_page(url, environment(), init = keep_warnings)
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     expect_true(page$wait_until("document.querySelector('table.dataTable tbody tr[data-hovercraft-tip-id]') !== null"))
     page$settle()
     jsonlite::fromJSON(page$evaluate("JSON.stringify(window.__warnings)"))

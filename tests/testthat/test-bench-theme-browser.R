@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("bslib")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # The bench's theme scenarios that had no test (#158): forced colours, as Windows high contrast sets them (HC-068), and
@@ -45,7 +32,7 @@ describe("the bench's theme scenarios", {
     expect_false(identical(hint$colour, hint$background))
     expect_true(visible_border(look(page, ".hovercraft-pin-strip-button")))
 
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(bench_wait_tips(page, "Readable in both"))
     pin <- look(page, sprintf(".%s-pin", tip_names()$css))
     expect_true(visible_border(pin))
@@ -56,7 +43,8 @@ describe("the bench's theme scenarios", {
     # From the item, Tab reaches the pin's close button, then its More button: each shows a ring.
     page$evaluate("document.getElementById('theme-dark').focus(); 0")
     for (stop in c("close", "More")) {
-      page$press("Tab", wait = 0.2)
+      page$press("Tab", wait = 0)
+      page$settle(0.1)
       ring <- look(page, ":focus-visible")
       expect_true(ring$outline > 0 && ring$outline_style != "none", info = stop)
       expect_false(grepl("rgba\\(.*, 0\\)$", ring$outline_colour), info = stop)
@@ -76,7 +64,8 @@ describe("the bench's theme scenarios", {
       tip_names()$css
     ))
     expect_gt(hint_size, 16)
-    page$press("p")
+    page$press("p", wait = 0)
+    expect_true(page$wait_pinned())
     page$click_now(".hovercraft-more-strip-button")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s-pin:not([hidden])')?.textContent.includes('A long form in large text.')",
@@ -94,7 +83,7 @@ describe("the bench's theme scenarios", {
     expect_true(clear)
 
     page$hover("#theme-dark")
-    page$press("p")
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf(
       "document.querySelectorAll('.%s-pin:not([hidden])').length === 2",
       tip_names()$css

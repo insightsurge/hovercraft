@@ -1,13 +1,9 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # tip_more() with several pins open: each pinned tip has its own More / Less button, the M key acts on the pinned tip that
 # holds the focus, a hint that opens elsewhere leaves the pinned tips' buttons alone, and `keys = c(more = FALSE)` leaves
 # the key to the page (the button stays).
 describe("the More button with several pinned tips", {
-  place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
   item <- function(id, left, top, pin = TRUE, placement = "bottom") {
     place(
       tip_on(
@@ -20,14 +16,6 @@ describe("the More button with several pinned tips", {
       ),
       sprintf("left: %dpx; top: %dpx;", left, top)
     )
-  }
-  page_file <- function(..., .env = parent.frame()) {
-    file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
-    htmltools::save_html(
-      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", ...)),
-      file
-    )
-    file
   }
   boxes_js <- paste(
     "(() => {",
@@ -163,15 +151,15 @@ describe("the More button with several pinned tips", {
       ))
     }
     focus_box("two")
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(paste0("JSON.parse(", boxes_js, ").some((b) => b.short === 'two' && b.long)")))
     got <- state(page)
     expect_false(got$one$long)
     focus_box("one")
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(paste0("JSON.parse(", boxes_js, ").every((b) => b.long)")))
     focus_box("two")
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(paste0("JSON.parse(", boxes_js, ").some((b) => b.short === 'two' && !b.long)")))
     expect_true(state(page)$one$long)
   })
@@ -216,7 +204,7 @@ describe("the More button with several pinned tips", {
     on <- local_page(page_file(use_hovercraft(), item("one", 40, 40, pin = FALSE)), environment())
     expect_true(on$wait_until("window.HovercraftMore !== undefined && window.Hovercraft !== undefined"))
     expect_length(on$hover("#one"), 1L)
-    on$press("m")
+    on$press("m", wait = 0)
     expect_true(on$wait_until("document.querySelector('.hc-tip:not([hidden])').textContent.includes('LONG')"))
   })
 
@@ -306,7 +294,7 @@ describe("the More button with several pinned tips", {
     pin(on, "one")
     expect_true(on$wait_until("document.querySelectorAll('.hovercraft-more-strip-button').length === 1"))
     on$evaluate("document.querySelector('.hc-tip-pin:not([hidden])').focus(); 0")
-    on$press("m")
+    on$press("m", wait = 0)
     expect_true(on$wait_until(paste0("JSON.parse(", boxes_js, ").some((b) => b.long)")))
   })
 })

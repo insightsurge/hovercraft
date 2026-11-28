@@ -19,7 +19,7 @@ they go in a file whose name ends in a kind. The examples next to each are in `t
 skip on CRAN by themselves; start each other file, or each test in it, with a skip line, so it skips there too:
 
 ```r
-skip_on_cran()                                                    # -browser.R files
+skip_if_no_browser()                                              # -browser.R files (skips on CRAN and without Chrome)
 skip_if_not(identical(Sys.getenv("EXTENDED_TESTS"), "true"), "an extended test")   # -extended.R files
 ```
 
@@ -45,13 +45,24 @@ create a missing one.
 waits for a Chrome to start. A Chrome that has died is replaced (twice at most per run). Every wait uses one limit,
 `browser_timeout` (30 seconds): wait for a signal (`page$wait_until()`, `page$settle()`) and never for a fixed time
 (`page$hold()` is the exception; its comment says why). Click anything Shiny can redraw with
-`page$click_now()`, which finds and clicks in one step in the page. Apps under test start with `start_app()` and are stopped when
-the test ends. Each test file must run on its own, as files run in parallel and in any order.
+`page$click_now()`, which finds and clicks in one step in the page. Apps under test start with `start_app()` (its `make`
+function builds the app) and are stopped when the test ends. A file starts with `skip_if_no_browser()` (extra packages
+as `skip_if_no_browser("DT")`). `page$hover()` fails the test when the element's own hint does not open within that limit; pass `opens = FALSE` where
+none is expected. `page$press()`, `page$click()`, `page$click_now()` and `page$click_id()` take `until =`, a JavaScript
+expression to wait for after the action (it fails the test when it never holds); `press()` and `click()` otherwise hold
+a fixed time unless you pass `wait = 0`, for a test that goes on to wait for a signal. A hold is for a check that
+nothing happens, and `page$settle()` does not tell that a change happened. `test-helper-browser-support.R` fails where
+an action is read before a wait; `test-helper-browser-waits-browser.R` tests the failures of the waits themselves. The
+page also has the named waits `wait_connected()`, `wait_pin_button()`, `wait_pinned()`, `wait_unpinned()`,
+`wait_shown()`, `wait_text()` and `wait_reported()`, and the readers `rect()`, `centre()` and `reported()`;
+`page_file()` and `place()` build a small static page. A browser test covers what
+hovercraft handles (an input or a state it acts on), not what the browser does alone, such as a middle click or a pinch.
+Each test file must run on its own, as files run in parallel and in any order.
 
 The test bench in `apps/testbench/` holds the Shiny-practice and behaviour scenarios in one app. Start it in a test with
 `start_bench()` and open one tab with `bench_page(bench, "<tab>")` (`helper-bench.R`); its README says how to run it by
 hand. The behaviour scenarios are tested in `test-bench-<tab>-browser.R`, with `helper-bench-scenarios.R`; each ends with
 `expect_bench_clean()` (no tip left open, no `inert` or locked scroll, nothing on the console). For input the page
-helpers do not cover (another mouse button, a touch gesture), `page$session` is the tab's chromote session.
+helpers do not cover (a touch scroll, a drag), `page$session` is the tab's chromote session.
 The bench's scripts and styles (`apps/testbench/www`) are checked with `biome ci .`; the quality gate and CI check only
 `inst/` until launchR's Biome step is widened.

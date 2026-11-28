@@ -1,21 +1,9 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # tip_more(on = "click") and tip_more(pin = TRUE): a click on the item opens the long form without pinning, and the More
 # button (and the M key) can pin the tip so the long form stays. Real pointer and key events, in headless Chrome.
 describe("tip_more() options for opening the long form", {
-  place <- function(x, style) htmltools::div(style = paste("position: absolute;", style), x)
   words <- function(id) paste("LONG words of", id, "that go on for a while, so the tip has to grow to hold them all.")
-  page_file <- function(..., dir = NULL, .env = parent.frame()) {
-    file <- withr::local_tempfile(fileext = ".html", .local_envir = .env)
-    htmltools::save_html(
-      htmltools::tags$html(htmltools::tags$head(), htmltools::tags$body(style = "min-height: 700px;", dir = dir, ...)),
-      file
-    )
-    file
-  }
   span <- function(id, left, top, ..., pin = NULL, more = NULL) {
     place(
       tip_on(
@@ -89,7 +77,7 @@ describe("tip_more() options for opening the long form", {
     expect_length(page$hover("#one"), 1L)
     expect_no_match(text_of(page, hint_sel), "LONG")
     expect_identical(buttons(page), 0L)
-    page$click("#one")
+    page$click("#one", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('LONG')", hint_sel)))
     expect_identical(buttons(page), 0L)
     click_again(page, "#one")
@@ -105,9 +93,9 @@ describe("tip_more() options for opening the long form", {
     expect_identical(page$evaluate("document.getElementById('one').getAttribute('aria-keyshortcuts')"), "M")
     page$evaluate("document.getElementById('one').focus(); 0")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('LONG')", hint_sel)))
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(sprintf("!document.querySelector('%s')?.textContent.includes('LONG')", hint_sel)))
   })
 
@@ -145,11 +133,11 @@ describe("tip_more() options for opening the long form", {
     expect_true(page$wait_until(ready))
     page$evaluate("window.Hovercraft.pin(document.getElementById('one'), { by: 'reader', via: 'key' }); 0")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
-    page$click("#one")
+    page$click("#one", wait = 0, opens = FALSE) # the tip is pinned: no hint opens
     expect_true(page$wait_until(sprintf("document.querySelector('%s')?.textContent.includes('LONG')", pin_sel)))
     expect_identical(buttons(page), 0L)
     expect_identical(state_of(page, "one"), "pin")
-    page$click("#one")
+    page$click("#one", wait = 0, opens = FALSE) # the tip is pinned: no hint opens
     expect_true(page$wait_until(sprintf("!document.querySelector('%s')?.textContent.includes('LONG')", pin_sel)))
     expect_identical(state_of(page, "one"), "pin")
   })
@@ -197,7 +185,7 @@ describe("tip_more() options for opening the long form", {
     expect_true(page$wait_until(ready))
     page$evaluate("document.getElementById('one').focus(); 0")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(long_in(page, pin_sel)))
     expect_identical(state_of(page, "one"), "pin")
   })
@@ -302,9 +290,9 @@ describe("tip_more() options for opening the long form", {
     expect_identical(page$evaluate("document.querySelector('.hovercraft-more-strip-button').tabIndex"), 0L)
     expect_identical(page$evaluate("document.querySelector('.hovercraft-more-strip-button').tagName"), "BUTTON")
     page$evaluate("document.querySelector('%s').focus(); 0" |> sprintf(pin_sel))
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(long_in(page, pin_sel)))
-    page$press("m")
+    page$press("m", wait = 0)
     expect_true(page$wait_until(sprintf("!%s", long_in(page, pin_sel))))
   })
 
@@ -385,7 +373,7 @@ describe("the More link in a row's panel", {
       selector <- row_of(id)
       expect_true(page$wait_until(sprintf("document.querySelector('%s')?.hasAttribute('tabindex') === true", selector)))
       page$evaluate(sprintf("document.querySelector('%s').focus()", selector))
-      page$press("p", wait = 0.2)
+      page$press("p", wait = 0)
       expect_true(page$wait_until(sprintf(
         "document.querySelector('#%s [data-hovercraft-panel] .hovercraft-more-strip-in button') !== null",
         id

@@ -1,17 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("DT")
-skip_if_not_installed("reactable")
-skip_if_not_installed("bslib")
-skip_if_not_installed("shinyjs")
-skip_if_not_installed("promises")
-skip_if_not_installed("later")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser(bench_packages)
 skip_if_no_bench()
 
 # Table updates and proxies in a running Shiny app: DT::replaceData(), reactable::updateReactable(),
@@ -23,19 +10,10 @@ describe("table proxies and updates in a Shiny app", {
   url <- bench_url(bench, "updates")
   up <- wait_for_app(app, url)
   page <- local_page(url, environment())
-  press_button <- function(id) page$click_now(paste0("#", id))
-  hover_in_view <- function(selector) {
-    page$evaluate(sprintf(
-      "document.querySelector(%s)?.scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    ))
-    page$settle(0.1)
-    page$hover(selector)
-  }
 
   it("starts and connects", {
     expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("keeps reactable row selection working alongside tip_table()", {
@@ -43,7 +21,7 @@ describe("table proxies and updates in a Shiny app", {
       "document.querySelectorAll('#updates_proxy_rt .rt-tbody .rt-tr-group [role=row]').length >= 2"
     ))
     expect_identical(
-      hover_in_view("#updates_proxy_rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(2)"),
+      page$hover_in_view("#updates_proxy_rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(2)"),
       "Owls: 7 wins"
     )
     page$evaluate(
@@ -56,24 +34,24 @@ describe("table proxies and updates in a Shiny app", {
 
   it("updates DT tips after DT::replaceData()", {
     expect_true(page$wait_until("document.querySelectorAll('#updates_proxy_dt tbody tr').length === 2"))
-    expect_identical(hover_in_view("#updates_proxy_dt tbody tr:first-child td:first-child"), "Owls: 7 wins")
-    press_button("updates_proxy_replace_dt")
+    expect_identical(page$hover_in_view("#updates_proxy_dt tbody tr:first-child td:first-child"), "Owls: 7 wins")
+    page$click_id("updates_proxy_replace_dt")
     expect_true(page$wait_until(
       "document.querySelector('#updates_proxy_dt tbody td')?.textContent?.startsWith('Eagles')"
     ))
-    expect_identical(hover_in_view("#updates_proxy_dt tbody tr:first-child td:first-child"), "Eagles: 12 wins")
+    expect_identical(page$hover_in_view("#updates_proxy_dt tbody tr:first-child td:first-child"), "Eagles: 12 wins")
   })
 
   it("updates reactable tips after reactable::updateReactable()", {
     expect_true(page$wait_until(
       "document.querySelectorAll('#updates_proxy_rt .rt-tbody .rt-tr-group [role=row]').length >= 2"
     ))
-    press_button("updates_proxy_update_rt")
+    page$click_id("updates_proxy_update_rt")
     expect_true(page$wait_until(
       "document.querySelector('#updates_proxy_rt .rt-tbody')?.textContent?.includes('Eagles')"
     ))
     expect_identical(
-      hover_in_view("#updates_proxy_rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(2)"),
+      page$hover_in_view("#updates_proxy_rt .rt-tbody .rt-tr-group:first-child .rt-td:nth-child(2)"),
       "Eagles: 12 wins"
     )
   })
@@ -112,7 +90,7 @@ describe("tip_table() follows the data when the table is updated", {
   draw <- function(table, call) page$evaluate(sprintf("$('#%s table').DataTable().%s.draw(false); 0", table, call))
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     for (table in c("updates_follow_dt_server", "updates_follow_dt_client")) {
       expect_true(
         page$wait_until(sprintf("document.querySelectorAll('#%s tbody tr').length === 3", table)),
@@ -287,7 +265,7 @@ describe("tip_table() leaves DT's inputs as they are without it", {
   }
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
     for (table in c("updates_inputs_dts", "updates_inputs_dtp", "updates_inputs_dtsn", "updates_inputs_dtpn")) {
       expect_true(
         page$wait_until(sprintf("document.querySelectorAll('#%s tbody tr').length === 3", table)),
@@ -312,7 +290,7 @@ describe("tip_table() leaves DT's inputs as they are without it", {
         "document.querySelector('%s').scrollIntoView({ block: 'center', behavior: 'instant' }); 0",
         selector
       ))
-      page$click(selector)
+      page$click(selector, wait = 0, opens = FALSE)
     }
     wait_for("updates_inputs_report", cols = 3, page_rows = "4,1,2", selected = "4")
     wait_for("updates_inputs_report_names", cols = 4, page_rows = "4,1,2", selected = "4")
@@ -381,7 +359,7 @@ describe("tip_table() shows the values of the data, not DT's escaping of them", 
   }
 
   it("starts and connects", {
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(page$wait_connected())
   })
 
   it("shows the data as it is with DT's default escaping, in client mode and in server mode", {

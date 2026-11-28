@@ -1,23 +1,9 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # tip_show(), tip_hide(), tip_update() and the hint input in a running Shiny app, in the page and inside a module.
 describe("server calls and the hint input in a Shiny app", {
-  path <- find.package("hovercraft")
-  port <- httpuv::randomPort()
-  app <- callr::r_bg(
-    function(port, path, pin_attribute) {
-      if (dir.exists(file.path(path, "inst"))) {
-        pkgload::load_all(path, quiet = TRUE)
-      } else {
-        library(hovercraft)
-      }
+  app <- start_app(
+    function(pin_attribute) {
       module_ui <- function(id) {
         ns <- shiny::NS(id)
         shiny::tagList(
@@ -110,39 +96,36 @@ describe("server calls and the hint input in a Shiny app", {
         output$quiet_seen <- shiny::renderText(paste("quiet:", is.null(input$quiet_tip_hint)))
         module_server("m")
       }
-      shiny::runApp(shiny::shinyApp(ui, server), port = port, host = "127.0.0.1", launch.browser = FALSE)
+      shiny::shinyApp(ui, server)
     },
-    args = list(port = port, path = path, pin_attribute = tip_attribute("pin")),
-    supervise = TRUE
+    pin_attribute = tip_attribute("pin")
   )
-  withr::defer(app$kill())
-  url <- paste0("http://127.0.0.1:", port)
-  up <- wait_for_app(app, url)
+  url <- app$url
   page <- local_page(url, environment())
-  # Waits for the server to have drawn an output with this text, then reads it.
-  seen <- function(id, pattern) {
-    page$wait_until(sprintf(
-      "new RegExp(%s).test(document.getElementById(%s)?.textContent ?? '')",
-      jsonlite::toJSON(pattern, auto_unbox = TRUE),
-      jsonlite::toJSON(id, auto_unbox = TRUE)
-    ))
+  # How many times Shiny has gone idle since the page opened (it is idle again when the server has answered everything it
+  # was sent). A test that sends something the server answers with no visible change waits for this count to rise:
+  # `idled <- idle_count()`, send, then `until = idle_since(idled)`.
+  idle_count <- function() {
+    page$evaluate(
+      "(() => { if (window.hcIdle === undefined) { window.hcIdle = 0; $(document).on('shiny:idle', () => { window.hcIdle += 1; }); } return window.hcIdle; })()"
+    )
   }
-  press_button <- function(id) page$click_now(paste0("#", id))
+  idle_since <- function(count) sprintf("window.hcIdle > %d", count)
 
   it("starts and connects", {
-    expect_true(up, info = paste(app$read_error(), collapse = "\n"))
-    expect_true(page$wait_until("window.Shiny?.shinyapp?.isConnected?.() === true"))
+    expect_true(app$proc$is_alive())
+    expect_true(page$wait_connected())
   })
 
   it("opens a tip from the server, and says so in the hint input as the host's command", {
-    press_button("show")
+    page$click_id("show")
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') !== null", tip_names()$css)))
     expect_identical(page$shown(), "Runs the check")
-    expect_true(seen("seen", "^shown host command"))
+    expect_true(page$wait_text("seen", "^shown host command"))
   })
 
   it("changes the words of the open tip from the server", {
-    press_button("update")
+    page$click_id("update")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Now changed'",
       tip_names()$css
@@ -150,37 +133,38 @@ describe("server calls and the hint input in a Shiny app", {
   })
 
   it("closes the tip from the server, with the host as the reason", {
-    press_button("hide")
-    expect_true(seen("seen", "^hidden host command host"))
+    page$click_id("hide")
+    expect_true(page$wait_text("seen", "^hidden host command host"))
     expect_length(page$shown(), 0L)
   })
 
   it("sends the hint input for a reader's pointer, and nothing for a tag that did not ask", {
     expect_identical(page$hover("#run"), "Now changed")
-    expect_true(seen("seen", "^shown reader pointer"))
+    expect_true(page$wait_text("seen", "^shown reader pointer"))
     expect_identical(page$hover("#quiet"), "A quiet tip")
-    expect_true(seen("seen", "^hidden reader pointer"))
-    expect_true(seen("quiet_seen", "quiet: TRUE"))
+    expect_true(page$wait_text("seen", "^hidden reader pointer"))
+    expect_true(page$wait_text("quiet_seen", "quiet: TRUE"))
   })
 
   it("does nothing for a hide when that tip is not the one open", {
     page$hover("#quiet")
-    press_button("hide")
-    page$settle()
+    idled <- idle_count()
+    # The hide must change nothing: wait for the server's answer to have come back, then look.
+    page$click_id("hide", until = idle_since(idled))
     expect_identical(page$shown(), "A quiet tip")
   })
 
   it("works inside a module, with the id as the module's own", {
-    press_button("m-mod_show")
+    page$click_id("m-mod_show")
     expect_true(page$wait_until(sprintf(
       "[...document.querySelectorAll('.%s:not([hidden])')].some((t) => t.textContent === 'Module tip')",
       tip_names()$css
     )))
-    expect_true(seen("m-mod_seen", "^shown host command"))
+    expect_true(page$wait_text("m-mod_seen", "^shown host command"))
   })
 
   it("keeps the hint of another tag open when tip_hide() names a tag that is pinned", {
-    page$click("#pin_a")
+    page$click("#pin_a", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('.%s:not([hidden])') !== null", tip_names()$css)))
     expect_identical(
       page$evaluate(sprintf("document.getElementById('pin_a').getAttribute('%s')", tip_contract()$attributes$open)),
@@ -189,8 +173,9 @@ describe("server calls and the hint input in a Shiny app", {
     page$hover("#hover_b")
     expect_true(any(page$shown() == "Hover B"))
     # Not a click: a click away would close the pin by itself.
+    idled <- idle_count()
     page$evaluate("Shiny.setInputValue('hide_a', Date.now())")
-    page$settle()
+    expect_true(page$wait_until(idle_since(idled)))
     expect_true(any(page$shown() == "Hover B"))
   })
 
@@ -198,7 +183,7 @@ describe("server calls and the hint input in a Shiny app", {
     page$evaluate(
       "window.warned = []; const warn = console.warn; console.warn = (...a) => { window.warned.push(a.join(' ')); warn(...a); }"
     )
-    press_button("missing")
+    page$click_id("missing")
     expect_true(page$wait_until("window.warned.length === 3"))
     warned <- jsonlite::fromJSON(page$evaluate("JSON.stringify(window.warned)"))
     expect_match(warned, "no tag with the tip id \"nope\"", all = TRUE)
@@ -207,9 +192,9 @@ describe("server calls and the hint input in a Shiny app", {
 
   it("sends the closing hint input when renderUI() replaces the tag that asked for it", {
     page$hover("#swap_btn")
-    expect_true(seen("swap_seen", "^shown reader"))
-    press_button("swap")
-    expect_true(seen("swap_seen", "^hidden data"))
+    expect_true(page$wait_text("swap_seen", "^shown reader"))
+    page$click_id("swap")
+    expect_true(page$wait_text("swap_seen", "^hidden data"))
   })
 
   it("applies a placement given to a closed tip the next time it opens", {
@@ -222,17 +207,19 @@ describe("server calls and the hint input in a Shiny app", {
     page$hover("#run")
     expect_identical(side(), "other")
     page$hover("#quiet")
-    press_button("place")
+    page$click_id("place")
     page$settle()
     page$hover("#run")
     expect_identical(side(), "right")
   })
 
   it("takes the words away from the server, so the tag has no tip", {
-    press_button("clear")
+    page$click_id("clear")
     page$settle()
     page$hover("#quiet")
-    expect_length(page$hover("#run"), 0L)
+    page$hover("#run", opens = FALSE)
+    expect_true(page$wait_closed())
+    expect_length(page$shown(), 0L)
   })
 
   it("leaves the console without errors", {
@@ -240,13 +227,13 @@ describe("server calls and the hint input in a Shiny app", {
   })
 
   it("shows the tip of a tag that renderUI() draws in the same observer as the call", {
-    press_button("redraw")
+    page$click_id("redraw")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 1'",
       tip_names()$css
     )))
     # And once more: the new tag is drawn each time, and each call reaches the new one.
-    press_button("redraw")
+    page$click_id("redraw")
     expect_true(page$wait_until(sprintf(
       "document.querySelector('.%s:not([hidden])')?.textContent === 'Late tip 2'",
       tip_names()$css
@@ -254,7 +241,7 @@ describe("server calls and the hint input in a Shiny app", {
   })
 
   it("changes a tip to a template that comes with the call, drawn from the record that comes with it", {
-    press_button("tpl_go")
+    page$click_id("tpl_go")
     # The call is sent after its flush: wait for the tag to hold the template before the pointer rests on it.
     expect_true(page$wait_until(
       "document.getElementById('tplb').closest('[data-hovercraft-tip-template]') !== null"

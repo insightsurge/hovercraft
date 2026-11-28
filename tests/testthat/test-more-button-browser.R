@@ -1,12 +1,4 @@
-skip_on_cran()
-skip_if_not_installed("chromote")
-skip_if_not_installed("shiny")
-skip_if_not_installed("callr")
-skip_if_not_installed("httpuv")
-skip_if_not_installed("pkgload")
-skip_if_not_installed("withr")
-skip_if_not_installed("bslib")
-skip_if(is.null(chromote::find_chrome()), "No Chrome on this machine")
+skip_if_no_browser()
 
 # tip_more(): the long form behind a "More" button (the default), on a tag, with the M key, in a pinned tip, and in a DT
 # and a reactable table. The tip keeps its place when it grows and shrinks because the engine does (0.58.0): these tests
@@ -142,19 +134,15 @@ describe("the More button on a tag", {
   hint_sel <- sprintf(".%s:not(.%s-pin):not([hidden])", css, css)
   pin_sel <- sprintf(".%s.%s-pin:not([hidden])", css, css)
   strip_button <- ".hovercraft-more-strip-button"
-  rect <- function(selector) {
-    jsonlite::fromJSON(page$evaluate(sprintf(
-      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify({ left: r.left, top: r.top, right: r.right, bottom: r.bottom, width: r.width, height: r.height }); })()",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
-  }
-  centre <- function(selector) {
-    box <- rect(selector)
-    c((box$left + box$right) / 2, (box$top + box$bottom) / 2)
-  }
-  press_button <- function() {
-    at <- centre(strip_button)
+  # Presses the More/Less button. `until` is a JavaScript expression for what the press changes (the long form appearing
+  # or going, `aria-expanded`): the test waits for it, so a press that changes nothing fails here, and then for the tip to
+  # stop moving.
+  press_button <- function(until = NULL) {
+    at <- page$centre(strip_button)
     page$mouse(at[[1]], at[[2]], click = TRUE)
+    if (!is.null(until)) {
+      page$wait_after("pressed the More button", until)
+    }
     page$settle()
   }
   box_of <- function(selector = hint_sel) {
@@ -163,20 +151,30 @@ describe("the More button on a tag", {
       jsonlite::toJSON(selector, auto_unbox = TRUE)
     )))
   }
+  # The JavaScript that says the tip `selector` names (the hint by default) has, or has not, these words in it.
+  has_words <- function(words, has = TRUE, selector = hint_sel) {
+    sprintf(
+      "document.querySelector(%s)?.textContent.includes(%s) === %s",
+      jsonlite::toJSON(selector, auto_unbox = TRUE),
+      jsonlite::toJSON(words, auto_unbox = TRUE),
+      tolower(has)
+    )
+  }
+  wait_words <- function(words, has = TRUE, selector = hint_sel) page$wait_until(has_words(words, has, selector))
+  # The JavaScript that says the button's `aria-expanded` is true (the long form is open) or false.
+  is_expanded <- function(open = TRUE) {
+    sprintf("document.querySelector('%s').getAttribute('aria-expanded') === '%s'", strip_button, tolower(open))
+  }
   button_text <- function() page$evaluate(sprintf("document.querySelector('%s').textContent", strip_button))
   expanded <- function() {
     page$evaluate(sprintf("document.querySelector('%s').getAttribute('aria-expanded')", strip_button))
   }
   rest <- function() {
-    page$press("Escape", wait = 0.3)
+    page$press("Escape", wait = 0)
     page$evaluate("document.activeElement?.blur()")
     page$mouse(890, 5, FALSE)
     expect_true(page$wait_closed())
     page$settle(0.1)
-  }
-  seen <- function(name) {
-    all <- jsonlite::fromJSON(page$evaluate("document.getElementById('seen').textContent"), simplifyVector = FALSE)
-    all[[name]]
   }
   wait_hint <- function(selector) {
     page$hover(selector)
@@ -206,7 +204,7 @@ describe("the More button on a tag", {
     expect_identical(short$side, "below")
     # From here on, count the hint events the page hears: a tip that grows or shrinks sends none.
     page$evaluate("window.hints = 0; document.addEventListener('hovercraft:hint', () => { window.hints += 1; }); 0")
-    press_button()
+    press_button(until = has_words("business hours"))
     long <- box_of()
     expect_match(long$text, "business hours")
     expect_identical(button_text(), "Less")
@@ -221,14 +219,14 @@ describe("the More button on a tag", {
     expect_gt(after$bottom, short$bottom + 20)
     expect_equal(after$left, short$left, tolerance = 1)
     # The hint's own input said it was shown once, and the growth sent nothing.
-    expect_identical(seen("go_tip_hint")$state, "shown")
+    expect_identical(page$reported("go_tip_hint")$state, "shown")
     expect_identical(page$evaluate("window.hints"), 0L)
     expect_identical(page$problems(), character())
   })
 
   it("closes the long form with Less, and the tip stays open, short, on its side", {
     before <- box_of()
-    press_button()
+    press_button(until = has_words("business hours", FALSE))
     page$settle()
     after <- box_of()
     expect_false(is.null(after))
@@ -238,12 +236,12 @@ describe("the More button on a tag", {
     expect_lt(after$height, before$height - 20)
     expect_identical(after$side, "below")
     expect_equal(after$top, before$top, tolerance = 1)
-    expect_identical(seen("go_tip_hint")$state, "shown")
+    expect_identical(page$reported("go_tip_hint")$state, "shown")
     expect_identical(page$evaluate("window.hints"), 0L)
   })
 
   it("starts short the next time it opens", {
-    press_button()
+    press_button(until = has_words("business hours"))
     expect_match(box_of()$text, "business hours")
     rest()
     expect_true(page$wait_until(sprintf("document.querySelector('%s') === null", hint_sel)))
@@ -258,7 +256,7 @@ describe("the More button on a tag", {
     wait_hint("#mid")
     short <- box_of()
     expect_identical(short$side, "below")
-    press_button()
+    press_button(until = has_words("business hours"))
     page$settle()
     long <- box_of()
     expect_false(is.null(long))
@@ -272,7 +270,7 @@ describe("the More button on a tag", {
       TRUE
     )
     # It scrolls instead of flipping to the other side.
-    press_button()
+    press_button(until = has_words("business hours", FALSE))
     page$settle()
     expect_identical(box_of()$side, "below")
     expect_no_match(box_of()$text, "business hours")
@@ -283,7 +281,7 @@ describe("the More button on a tag", {
     wait_hint("#edge")
     fresh <- box_of()
     expect_identical(fresh$side, "above")
-    press_button()
+    press_button(until = has_words("second line of words"))
     page$settle()
     grown <- box_of()
     expect_identical(grown$side, "above")
@@ -296,11 +294,11 @@ describe("the More button on a tag", {
   it("opens and closes the long form with the M key while the focus is on the item", {
     page$evaluate("document.getElementById('go').focus()")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
-    page$press("m", wait = 0.6)
-    expect_match(box_of()$text, "business hours")
+    page$press("m", wait = 0)
+    expect_true(wait_words("business hours"))
     expect_identical(button_text(), "Less")
-    page$press("m", wait = 0.6)
-    expect_no_match(box_of()$text, "business hours")
+    page$press("m", wait = 0)
+    expect_true(wait_words("business hours", has = FALSE))
     expect_identical(button_text(), "More")
     expect_identical(page$evaluate("document.activeElement.id"), "go")
     rest()
@@ -309,11 +307,11 @@ describe("the More button on a tag", {
   it("opens and closes the long form with the M key while the pointer hovers the item", {
     wait_hint("#go")
     expect_false(isTRUE(grepl("business hours", box_of()$text)))
-    page$press("m", wait = 0.6)
-    expect_match(box_of()$text, "business hours")
+    page$press("m", wait = 0)
+    expect_true(wait_words("business hours"))
     expect_identical(button_text(), "Less")
-    page$press("m", wait = 0.6)
-    expect_no_match(box_of()$text, "business hours")
+    page$press("m", wait = 0)
+    expect_true(wait_words("business hours", has = FALSE))
     expect_identical(button_text(), "More")
     rest()
   })
@@ -321,8 +319,8 @@ describe("the More button on a tag", {
   it("acts on the item whose hint is on show when the focus is on another, and does nothing from a field", {
     page$evaluate("document.getElementById('mid').focus()")
     wait_hint("#go")
-    page$press("m", wait = 0.6)
-    expect_match(box_of()$text, "business hours")
+    page$press("m", wait = 0)
+    expect_true(wait_words("business hours"))
     rest()
     page$evaluate("document.getElementById('txt').focus()")
     wait_hint("#go")
@@ -351,8 +349,8 @@ describe("the More button on a tag", {
   it("takes the M key on a check box, which takes no letters, and holds it down toggles once", {
     page$evaluate("document.getElementById('ck').focus()")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
-    page$press("m", wait = 0.7)
-    expect_match(box_of()$text, "Long check words")
+    page$press("m", wait = 0)
+    expect_true(wait_words("Long check words"))
     # A key held down sends repeats: they do not toggle again.
     page$evaluate(
       "document.activeElement.dispatchEvent(new KeyboardEvent('keydown', { key: 'm', repeat: true, bubbles: true, cancelable: true })); 0"
@@ -365,7 +363,7 @@ describe("the More button on a tag", {
   it("says the buttons' own words", {
     wait_hint("#lb")
     expect_identical(button_text(), "Show all")
-    press_button()
+    press_button(until = is_expanded())
     expect_identical(button_text(), "Show less")
     rest()
   })
@@ -380,10 +378,10 @@ describe("the More button on a tag", {
 
   it("gives a pinned tip the buttons too, and says 'updated' when it grows", {
     page$evaluate("document.getElementById('pn').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
-    expect_identical(seen("pn_tip_pin")$state, "pinned")
+    expect_identical(page$reported("pn_tip_pin")$state, "pinned")
     expect_no_match(box_of(pin_sel)$text, "long form of the pinned")
     expect_identical(button_text(), "More")
     press_button()
@@ -403,7 +401,7 @@ describe("the More button on a tag", {
       pin_sel
     )))
     expect_false(is.null(box_of(pin_sel)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
     expect_true(page$wait_until(
       "JSON.parse(document.getElementById('seen').textContent).pn_tip_pin?.state === 'closed'"
     ))
@@ -412,31 +410,33 @@ describe("the More button on a tag", {
 
   it("opens the long form of a pinned tip with the M key, from the item and from inside the tip", {
     page$evaluate("document.getElementById('pn').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
     has_long <- function() box_of(pin_sel)$text |> grepl("long form of the pinned", x = _, fixed = TRUE)
+    wait_long_pinned <- function(has = TRUE) wait_words("long form of the pinned", has, pin_sel)
     expect_false(has_long())
-    page$press("m", wait = 0.7)
-    expect_true(has_long())
-    page$press("m", wait = 0.7)
-    expect_false(has_long())
+    page$press("m", wait = 0)
+    expect_true(wait_long_pinned())
+    page$press("m", wait = 0)
+    expect_true(wait_long_pinned(FALSE))
     # The reader tabs into the pinned tip: the key works from there too.
     page$evaluate(sprintf("document.querySelector('%s').focus()", pin_sel))
     expect_identical(
       page$evaluate(sprintf("document.querySelector('%s').contains(document.activeElement)", pin_sel)),
       TRUE
     )
-    page$press("m", wait = 0.7)
-    expect_true(has_long())
-    page$press("m", wait = 0.7)
-    expect_false(has_long())
-    page$press("Escape", wait = 0.4)
+    page$press("m", wait = 0)
+    expect_true(wait_long_pinned())
+    page$press("m", wait = 0)
+    expect_true(wait_long_pinned(FALSE))
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("keeps a pinned tip's button and its M key when a hint opens somewhere else", {
     page$evaluate("document.getElementById('pb').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", pin_sel)))
     pinned_buttons <- function() page$evaluate(sprintf("document.querySelectorAll('%s').length", strip_button))
     expect_identical(pinned_buttons(), 1L)
@@ -444,32 +444,30 @@ describe("the More button on a tag", {
     wait_hint("#go")
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s').length === 2", strip_button)))
     page$evaluate("document.getElementById('pb').focus()")
-    page$press("m", wait = 0.8)
-    expect_true(page$wait_until(sprintf(
-      "document.querySelector('%s').textContent.includes('long form of the second pin')",
-      pin_sel
-    )))
-    page$press("m", wait = 0.8)
-    page$press("Escape", wait = 0.4)
-    page$press("Escape", wait = 0.4)
+    page$press("m", wait = 0)
+    expect_true(wait_words("long form of the second pin", selector = pin_sel))
+    page$press("m", wait = 0)
+    expect_true(wait_words("long form of the second pin", has = FALSE, selector = pin_sel))
+    # The hint of "go" and the pin are both open: each Escape closes one of them.
+    page$press("Escape", wait = 0)
+    page$settle(0.1)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     rest()
     expect_identical(pinned_buttons(), 0L)
   })
 
   it("makes the pinned tip's button a tab stop after the tip's own, and the buttons say their state", {
     page$evaluate("document.getElementById('pn').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
     last_stop <- sprintf(
       "(() => { const l = [...document.querySelector('%s').querySelectorAll('button, a[href]')]; return l[l.length - 1]; })()",
       pin_sel
     )
     page$evaluate(sprintf("%s.focus()", last_stop))
-    page$press("Tab", wait = 0.5)
-    expect_identical(
-      page$evaluate(sprintf("document.activeElement === document.querySelector('%s')", strip_button)),
-      TRUE
-    )
+    page$press("Tab", wait = 0)
+    expect_true(page$wait_until(sprintf("document.activeElement === document.querySelector('%s')", strip_button)))
     # A key press on a button is a click: the test sends the click a keyboard would.
     page$evaluate("document.activeElement.click(); 0")
     expect_true(page$wait_until(sprintf(
@@ -495,12 +493,13 @@ describe("the More button on a tag", {
       page$evaluate(sprintf("document.querySelector('%s').contains(document.activeElement)", pin_sel)),
       TRUE
     )
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("starts the long form of a pinned tip with a hairline, and takes it away with Less", {
     page$evaluate("document.getElementById('pn').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
     hairlines <- function() page$evaluate(sprintf("document.querySelectorAll('%s .hc-long-first').length", pin_sel))
     expect_identical(hairlines(), 0L)
@@ -508,7 +507,8 @@ describe("the More button on a tag", {
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s .hc-long-first').length === 1", pin_sel)))
     press_button()
     expect_true(page$wait_until(sprintf("document.querySelectorAll('%s .hc-long-first').length === 0", pin_sel)))
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
   })
 
   it("says only the long form to a screen reader, and clears it when the tip goes", {
@@ -530,7 +530,7 @@ describe("the More button on a tag", {
 
   it("removes the button when a renderUI() draws the item again, with no error", {
     wait_hint("#dy")
-    press_button()
+    press_button(until = has_words("Long dynamic words"))
     expect_match(box_of()$text, "Long dynamic words")
     page$evaluate("Shiny.setInputValue('hide', true, { priority: 'event' })")
     expect_true(page$wait_until("document.getElementById('dy') === null"))
@@ -540,7 +540,7 @@ describe("the More button on a tag", {
 
   it("shows a Shiny output that the long form of a pinned tip holds", {
     page$evaluate("document.getElementById('po').focus()")
-    page$press("p", wait = 0.8)
+    page$press("p", wait = 0)
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
     press_button()
     expect_true(page$wait_until(sprintf(
@@ -548,7 +548,8 @@ describe("the More button on a tag", {
       pin_sel
     )))
     press_button()
-    page$press("Escape", wait = 0.4)
+    page$press("Escape", wait = 0)
+    expect_true(page$wait_unpinned())
     expect_identical(page$problems(), character())
   })
 })
@@ -587,12 +588,6 @@ describe("the More button in a DT and a reactable table", {
   css <- tip_names()$css
   hint_sel <- sprintf(".%s:not(.%s-pin):not([hidden])", css, css)
   strip_button <- ".hovercraft-more-strip-button"
-  centre <- function(selector) {
-    jsonlite::fromJSON(page$evaluate(sprintf(
-      "(() => { const r = document.querySelector(%s).getBoundingClientRect(); return JSON.stringify([(r.left + r.right) / 2, (r.top + r.bottom) / 2]); })()",
-      jsonlite::toJSON(selector, auto_unbox = TRUE)
-    )))
-  }
   text <- function() page$evaluate(sprintf("document.querySelector('%s')?.textContent ?? ''", hint_sel))
 
   it("starts and draws the tables with the long form held, not shown", {
@@ -621,7 +616,7 @@ describe("the More button in a DT and a reactable table", {
         page$hover(case$cell)
         expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", strip_button)))
         expect_no_match(text(), case$long, fixed = TRUE)
-        at <- centre(strip_button)
+        at <- page$centre(strip_button)
         page$mouse(at[[1]], at[[2]], click = TRUE)
         expect_true(page$wait_until(sprintf(
           "document.querySelector('%s')?.textContent.includes('%s')",
@@ -630,7 +625,7 @@ describe("the More button in a DT and a reactable table", {
         )))
         page$settle()
         expect_match(text(), case$long, fixed = TRUE)
-        at <- centre(strip_button)
+        at <- page$centre(strip_button)
         page$mouse(at[[1]], at[[2]], click = TRUE)
         expect_true(page$wait_until(sprintf(
           "!document.querySelector('%s')?.textContent.includes('%s')",
@@ -650,16 +645,16 @@ describe("the More button in a DT and a reactable table", {
     expect_true(page$wait_closed())
     page$evaluate("document.querySelector('#dt tbody tr:first-child td:first-child').focus()")
     expect_true(page$wait_until(sprintf("document.querySelector('%s') !== null", hint_sel)))
-    page$press("m", wait = 0.6)
-    expect_match(text(), "Won last four games away", fixed = TRUE)
-    page$press("m", wait = 0.6)
-    expect_no_match(text(), "Won last four games away", fixed = TRUE)
+    long_js <- sprintf("document.querySelector('%s')?.textContent.includes('Won last four games away')", hint_sel)
+    page$press("m", wait = 0)
+    expect_true(page$wait_until(long_js))
+    page$press("m", wait = 0)
+    expect_true(page$wait_until(paste0("!", long_js)))
     # The arrow keys still move between the cells that have a tip.
-    page$press("ArrowDown", wait = 0.6)
-    expect_identical(
-      page$evaluate("document.activeElement === document.querySelector('#dt tbody tr:nth-child(2) td:first-child')"),
-      TRUE
-    )
+    page$press("ArrowDown", wait = 0)
+    expect_true(page$wait_until(
+      "document.activeElement === document.querySelector('#dt tbody tr:nth-child(2) td:first-child')"
+    ))
     page$evaluate("document.activeElement.blur()")
   })
 
