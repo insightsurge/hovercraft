@@ -1,10 +1,5 @@
 ---
 title: "Get started with hovercraft"
-output: rmarkdown::html_vignette
-vignette: >
-  %\VignetteIndexEntry{Get started with hovercraft}
-  %\VignetteEngine{knitr::rmarkdown}
-  %\VignetteEncoding{UTF-8}
 ---
 
 ```{r, include = FALSE}
@@ -37,7 +32,8 @@ knitr::include_graphics(c("figures/default-light.png", "figures/default-dark.png
 ```
 
 The tip follows the page. On a page with a `bslib::bs_theme()` it uses the theme's colours and turns dark with
-`bslib::input_dark_mode()`. See `vignette("themes")` to set its look yourself.
+`bslib::input_dark_mode()`. See [Themes and looks](https://insightsurge.github.io/hovercraft/articles/themes.html) to set
+its look yourself.
 
 ## A tip from a template
 
@@ -209,6 +205,6 @@ A tip says "Copy", "Close", "More" and "Pin this tip" in places. For a page in a
 - [Tips on tables](https://insightsurge.github.io/hovercraft/articles/tables.html): a tip on every row, cell and header
   of a `DT` or `reactable` table.
 - [A short tip with a long form](https://insightsurge.github.io/hovercraft/articles/long-form.html)
-- [Themes and looks](https://insightsurge.github.io/hovercraft/articles/themes.html), or `vignette("themes")`.
+- [Themes and looks](https://insightsurge.github.io/hovercraft/articles/themes.html)
 - [The book](https://insightsurge.github.io/hovercraft/articles/the-book.html), or `hovercraft_book()`: every feature on
   one page, to try.

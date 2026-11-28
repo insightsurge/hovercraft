@@ -1,8 +1,8 @@
-# Makes the pictures in vignettes/figures/ with headless Chrome. Run by hand from the package root:
+# Makes the pictures in vignettes/articles/figures/ with headless Chrome. Run by hand from the package root:
 #
 #   Rscript tools/make-figures.R
 #
-# A vignette must build offline with no Chrome, so its pictures are made here and kept in the repository. Run this again
+# An article must build with no Chrome, so its pictures are made here and kept in the repository. Run this again
 # when a tip's look changes. Needs chromote, bslib, pkgload and a Chrome.
 
 stopifnot(
@@ -11,7 +11,7 @@ stopifnot(
   requireNamespace("bslib", quietly = TRUE)
 )
 pkgload::load_all(quiet = TRUE)
-out <- file.path("vignettes", "figures")
+out <- file.path("vignettes", "articles", "figures")
 dir.create(out, showWarnings = FALSE, recursive = TRUE)
 
 browser <- chromote::Chrome$new(

@@ -12,7 +12,7 @@ or `.github/`.
 | --- | --- |
 | `R/`, `tools/*.R` | `.claude/rules/r-code.md` |
 | `tests/` | `.claude/rules/tests.md` |
-| Help pages, README, NEWS, vignettes | `.claude/rules/docs.md` |
+| Help pages, README, NEWS, articles | `.claude/rules/docs.md` |
 | `DESCRIPTION`, the gate, releases | `.claude/rules/checks.md` |
 | `inst/`, the vendored engine | `.claude/rules/js-css.md` |
 | Issues, branches and pull requests | `.claude/rules/git.md` |
